@@ -1,0 +1,20 @@
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation project(':common')
+    
+    // 极光推送依赖 - 升级版本
+    implementation 'cn.jpush.api:jpush-client:3.4.10'
+    implementation 'cn.jpush.api:jiguang-common:1.1.11'
+    
+    // APNS推送依赖 - 升级版本
+    implementation 'com.eatthepath:pushy:0.15.4'
+    
+    // JSON处理 - 使用统一版本
+    implementation "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
+    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:${jacksonVersion}"
+    
+    // 测试依赖
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}

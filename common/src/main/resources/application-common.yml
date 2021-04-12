@@ -1,0 +1,72 @@
+# CheeseIM 公共配置
+cheese:
+  im:
+    server:
+      port: 8080
+      boss-threads: 1
+      worker-threads: 0
+      max-connections: 10000
+      heartbeat-interval: 30
+    message:
+      max-text-length: 4096
+      max-file-size: 104857600  # 100MB
+      batch-size: 100
+      retry-times: 3
+    security:
+      jwt-secret: "CheeseIM2024Secret!"
+      token-expiration: 86400000  # 24小时
+      enable-encryption: true
+    monitor:
+      enabled: true
+      collect-interval: 60
+      cpu-threshold: 80.0
+      memory-threshold: 85.0
+      thread-threshold: 1000
+
+# Spring 配置
+spring:
+  application:
+    name: cheese-im-common
+  
+  # Redis 配置
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: 
+      database: 0
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+          max-wait: 3000ms
+    
+    # MongoDB 配置
+    mongodb:
+      host: localhost
+      port: 27017
+      database: cheese_im
+      username: 
+      password: 
+
+# 日志配置
+logging:
+  level:
+    com.cheeseocean.im: DEBUG
+    org.apache.dubbo: INFO
+    io.netty: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# 管理端点
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always

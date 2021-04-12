@@ -1,0 +1,16 @@
+message:
+  kafka:
+    bootstrap-servers: 192.168.6.139:9092
+  config-center:
+    address: nacos://192.168.6.139:8848
+dubbo:
+  application:
+    name: message
+    register-mode: instance
+  protocol:
+    name: dubbo
+    port: -1
+  registry:
+    address: zookeeper://192.168.6.139:2181
+  config-center:
+    address: zookeeper://192.168.6.139:2181

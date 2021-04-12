@@ -1,0 +1,14 @@
+postoffice:
+  port: 51477
+  ws-port: 51478
+dubbo:
+  application:
+    name: postoffice
+    register-mode: instance
+  protocol:
+    name: dubbo
+    port: -1
+  registry:
+    address: zookeeper://192.168.6.139:2181
+  config-center:
+    address: zookeeper://192.168.6.139:2181

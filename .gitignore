@@ -1,0 +1,13 @@
+/.idea/
+/.gradle/
+/build/
+/out/
+/target/
+*/build
+*/*/build
+*/*/out
+*/target
+*/*/target
+*/bin
+*/*/bin
+*/distro/docker/data

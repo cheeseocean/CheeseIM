@@ -1,0 +1,19 @@
+spring:
+  data:
+    mongodb:
+      host: ${mongodb.host:localhost}
+      port: 27017
+      database: cheese_im
+      username: ${mongodb.username:}
+      password: ${mongodb.password:}
+      
+  kafka:
+    bootstrap-servers: ${kafka.bootstrap-servers:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+      batch-size: 16384
+      linger-ms: 1
+      buffer-memory: 33554432
