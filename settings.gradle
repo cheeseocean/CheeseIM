@@ -1,4 +1,4 @@
-rootProject.name = 'cheese-im'
+rootProject.name = 'CheeseIM'
 include 'im-server'
 include 'im-client'
 

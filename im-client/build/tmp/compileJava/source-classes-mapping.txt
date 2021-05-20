@@ -1,0 +1,5 @@
+beer/cheese/CheeseClient.java
+ beer.cheese.CheeseClient
+ beer.cheese.CheeseClient$1
+ beer.cheese.CheeseClient$1$1
+ beer.cheese.MessageHandler
