@@ -3,3 +3,9 @@
 /build/
 /out/
 /target/
+/im-server/build/
+/im-server/out/
+/im-server/target/
+/im-client/build/
+/im-client/out/
+/im-client/target/

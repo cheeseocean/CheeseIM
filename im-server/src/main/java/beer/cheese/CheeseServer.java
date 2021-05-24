@@ -14,6 +14,7 @@ import org.springframework.core.env.Environment;
 
 import beer.cheese.handler.TimeoutHandler;
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -31,8 +32,10 @@ import io.netty.handler.timeout.IdleStateHandler;
 public class CheeseServer {
 
     private static final Logger log = LoggerFactory.getLogger(CheeseServer.class);
+
     @Value("${mqtt.port}")
     int port;
+
     @Autowired
     Environment env;
 
@@ -46,13 +49,13 @@ public class CheeseServer {
         server.startServer();
     }
 
-    public void init(){
+    public void init() {
         boss = new NioEventLoopGroup();
         worker = new NioEventLoopGroup();
     }
 
 
-    public void startServer(){
+    public void startServer() {
         ServerBootstrap boot = new ServerBootstrap();
         boot.group(boss, worker)
                 .channel(NioServerSocketChannel.class)
@@ -64,16 +67,15 @@ public class CheeseServer {
                                 .addAfter("idleStateHandler", "timeoutHandler", new TimeoutHandler())
                                 .addLast("mqttDecoder", new MqttDecoder())
                                 .addLast("mqttEncoder", MqttEncoder.INSTANCE)
-                                .addBefore("mqttDecoder", "readMessage", new ChannelInboundHandlerAdapter(){
+                                .addAfter("mqttDecoder", "readMessage", new ChannelInboundHandlerAdapter() {
                                     @Override
                                     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-                                        System.out.println("hello");
-                                        log.info("hello");
                                         log.info("msg : {}", msg);
-                                       if(msg instanceof MqttMessage){
-                                           log.info("is mqtt");
-                                       }
-                                        ctx.writeAndFlush(msg);
+                                        if (msg instanceof MqttMessage) {
+                                            log.info("is mqtt");
+                                            log.info(convertByteBufToString((ByteBuf) ((MqttMessage) msg).payload()));
+                                        }
+//                                        ctx.writeAndFlush(msg);
                                     }
                                 });
                     }
@@ -83,10 +85,21 @@ public class CheeseServer {
             future.channel().closeFuture().sync();
         } catch (InterruptedException e) {
             e.printStackTrace();
-        }finally {
+        } finally {
             boss.shutdownGracefully();
             worker.shutdownGracefully();
         }
     }
 
+    public String convertByteBufToString(ByteBuf buf) {
+        String str;
+        if (buf.hasArray()) { // 处理堆缓冲区
+            str = new String(buf.array(), buf.arrayOffset() + buf.readerIndex(), buf.readableBytes());
+        } else { // 处理直接缓冲区以及复合缓冲区
+            byte[] bytes = new byte[buf.readableBytes()];
+            buf.getBytes(buf.readerIndex(), bytes);
+            str = new String(bytes, 0, buf.readableBytes());
+        }
+        return str;
+    }
 }
