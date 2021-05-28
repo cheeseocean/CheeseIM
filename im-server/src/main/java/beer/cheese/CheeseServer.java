@@ -36,9 +36,6 @@ public class CheeseServer {
     @Value("${mqtt.port}")
     int port;
 
-    @Autowired
-    Environment env;
-
     private NioEventLoopGroup boss;
     private NioEventLoopGroup worker;
 
