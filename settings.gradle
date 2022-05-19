@@ -1,4 +1,11 @@
+pluginManagement{
+    plugins {
+        id 'java'
+    }
+}
 rootProject.name = 'CheeseIM'
-include 'im-server'
-include 'im-client'
+include 'gateway'
+include 'client'
+include 'transfer'
+include 'business'
 
