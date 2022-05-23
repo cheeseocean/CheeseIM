@@ -1,4 +1,4 @@
-package com.cheeseocean.im;
+package com.cheeseocean.cheeseim;
 
 import java.util.concurrent.TimeUnit;
 
@@ -10,7 +10,7 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 
-import com.cheeseocean.im.handler.TimeoutHandler;
+import com.cheeseocean.cheeseim.handler.TimeoutHandler;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;

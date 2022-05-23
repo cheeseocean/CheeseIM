@@ -1,4 +1,4 @@
-package com.cheeseocean.im.handler;
+package com.cheeseocean.cheeseim.handler;
 
 import static io.netty.channel.ChannelFutureListener.CLOSE_ON_FAILURE;
 

@@ -1,4 +1,4 @@
-package com.cheeseocean.im.codec;
+package com.cheeseocean.cheeseim.codec;
 
 import java.util.List;
 

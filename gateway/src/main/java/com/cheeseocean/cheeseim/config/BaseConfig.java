@@ -1,4 +1,4 @@
-package com.cheeseocean.im.config;
+package com.cheeseocean.cheeseim.config;
 
 import org.springframework.context.annotation.Configuration;
 

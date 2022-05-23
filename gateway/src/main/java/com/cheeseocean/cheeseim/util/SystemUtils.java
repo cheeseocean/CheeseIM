@@ -1,4 +1,4 @@
-package com.cheeseocean.im.util;
+package com.cheeseocean.cheeseim.util;
 
 import io.netty.util.internal.SystemPropertyUtil;
 

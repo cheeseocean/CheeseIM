@@ -1,4 +1,4 @@
-package com.cheeseocean.im.constant;
+package com.cheeseocean.cheeseim.constant;
 
 public class Constants {
 

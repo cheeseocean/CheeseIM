@@ -1,4 +1,4 @@
-package com.cheeseocean.im.push;
+package com.cheeseocean.cheeseim.push;
 
 /**
  * @author xxxcrel
