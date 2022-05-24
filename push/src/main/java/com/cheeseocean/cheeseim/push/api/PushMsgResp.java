@@ -1,4 +1,4 @@
-package com.cheeseocean.cheeseim.push.service;
+package com.cheeseocean.cheeseim.push.api;
 
 public class PushMsgResp {
     private int resultCode;

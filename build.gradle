@@ -43,13 +43,13 @@ subprojects {
 
     task apiJar (type: Jar){
         from(sourceSets.main.output){
-            include 'com/cheeseocean/*/api/**'
+            include 'com/cheeseocean/cheeseim/*/api/**'
         }
     }
 
     task apiSourceJar(type: Jar){
         from(sourceSets.main.allSource){
-            include 'com/cheeseocean/*/api/**'
+            include 'com/cheeseocean/cheeseim/*/api/**'
         }
         archiveClassifier = 'sources'
     }
@@ -73,9 +73,9 @@ subprojects {
                 artifact apiJar
                 artifact apiSourceJar
                 pom {
-                    name = "${project.name} API Jar"
-                    description = "CheeseMilk API dependencies"
-                    url = "http://github.com/cheeseocean/CheeseMilk"
+                    name = "CheeseIM ${project.name} API Jar"
+                    description = "CheeseIM API dependencies"
+                    url = "http://github.com/cheeseocean/CheeseIM"
                     licenses {
                         license {
                             name = "The Apache License, Version 2.0"
@@ -86,7 +86,7 @@ subprojects {
                         developer {
                             id = "xxxcrel"
                             name = "xxxcrel"
-                            email = "crelxc@gmail.com"
+                            email = "xxxcrel@gmail.com"
                         }
                     }
                 }

@@ -1,4 +1,4 @@
-package com.cheeseocean.cheeseim.push.service.impl;
+package com.cheeseocean.cheeseim.push.service;
 
 import java.util.List;
 

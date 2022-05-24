@@ -1,4 +1,4 @@
-package com.cheeseocean.cheeseim.push.service;
+package com.cheeseocean.cheeseim.push.api;
 
 import com.cheeseocean.cheeseim.base.entity.MsgData;
 
