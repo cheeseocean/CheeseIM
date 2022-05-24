@@ -32,13 +32,17 @@ subprojects {
         testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.7.0'
         implementation enforcedPlatform("org.apache.dubbo:dubbo-dependencies-bom:$dubboVersion")
         implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.11.2'
-        implementation 'org.apache.logging.log4j:log4j-slf4j-impl:2.14.1'
+        implementation 'org.slf4j:slf4j-api:1.7.30'
+        implementation 'ch.qos.logback:logback-core:1.2.10'
+        implementation 'ch.qos.logback:logback-classic:1.2.10'
         implementation 'org.springframework:spring-context'
         implementation 'com.alibaba.nacos:nacos-client'
         implementation "org.apache.dubbo:dubbo-rpc-dubbo:$dubboVersion"
         implementation "org.apache.dubbo:dubbo-remoting-netty4:$dubboVersion"
         implementation "org.apache.dubbo:dubbo-registry-nacos:$dubboVersion"
         implementation "org.apache.dubbo:dubbo-configcenter-nacos:$dubboVersion"
+        implementation "org.apache.dubbo:dubbo-metadata-report-nacos:$dubboVersion"
+        implementation "org.apache.dubbo:dubbo-config-spring:$dubboVersion"
     }
 
     task apiJar (type: Jar){

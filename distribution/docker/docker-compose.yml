@@ -40,5 +40,6 @@ services:
       - ./env/zookeeper.env
     ports:
       - "2181:2181"
-        #    volumes:
-        #      - ./conf/zoo.cfg:/opt/bitnami/zookeeper/conf/zoo.cfg
+      - "2182:2182"
+    volumes:
+      - ./conf/zoo.cfg:/opt/bitnami/zookeeper/conf/zoo.cfg
