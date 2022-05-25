@@ -1,4 +1,5 @@
 dependencies {
     implementation project(':common')
+    implementation project(':gateway')
     implementation 'org.apache.kafka:kafka-clients:2.8.0'
 }
