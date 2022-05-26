@@ -25,14 +25,14 @@ Configuration:
   Loggers:
     logger:
       -
-        name: beer.cheese
-        level: debug
+        name: com.cheeseocean.cheeseim
+        level: info
         additivity: false
         AppenderRef:
           ref: STDOUT
       -
         name: org.springframework
-        level: debug
+        level: info
         additivity: false
         AppenderRef:
           ref: STDOUT

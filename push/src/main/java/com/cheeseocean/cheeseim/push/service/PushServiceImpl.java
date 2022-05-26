@@ -16,7 +16,8 @@ import com.cheeseocean.cheeseim.relay.api.SingleMsgToUser;
 
 @DubboService
 public class PushServiceImpl implements PushService {
-    @DubboReference
+
+    @DubboReference(check = false)
     private OnlineMessageRelayService onlineRelayService;
 
     @Override
