@@ -1,27 +1,23 @@
 package com.cheeseocean.im.push.consumer;
 
-import java.time.Duration;
-import java.util.List;
-import java.util.Properties;
-
+import com.cheeseocean.im.base.config.Config;
+import com.cheeseocean.im.base.consumer.BaseConsumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.cheeseocean.im.base.consumer.ConsumerHandler;
+import java.time.Duration;
+import java.util.Properties;
 
-public class PushConsumerService implements Runnable {
+public class PushConsumerService extends Thread implements BaseConsumer {
+
     private static final Logger logger = LoggerFactory.getLogger(PushConsumerService.class);
     private KafkaConsumer<String, byte[]> consumer;
-    private List<ConsumerHandler> handlers;
 
-    public PushConsumerService(List<ConsumerHandler> handlers) {
-        if (handlers == null || handlers.isEmpty()) {
-            throw new RuntimeException("handlers can't be null");
-        }
-        this.handlers = handlers;
+    @Override
+    public void init(Config config) {
         Properties props = new Properties();
         props.put("bootstrap.servers", "localhost:9092");
         props.put("group.id", "push-service");
@@ -35,15 +31,12 @@ public class PushConsumerService implements Runnable {
         consumer = new KafkaConsumer<>(props);
     }
 
+    @Override
     public void run() {
         while (true) {
             ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofSeconds(1));
             for (ConsumerRecord<String, byte[]> record : records) {
-                for (ConsumerHandler handler : handlers) {
-                    if (handler.canHandle(record.topic(), record.key())) {
-                        handler.handle(record.key(), record.value());
-                    }
-                }
+
             }
         }
     }

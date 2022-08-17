@@ -38,14 +38,14 @@ subprojects {
         implementation 'org.slf4j:log4j-over-slf4j'
         implementation 'org.slf4j:jul-over-slf4j'
         implementation 'org.slf4j:jcl-over-slf4j'
-        implementation 'org.springframework:spring-context'
-        implementation 'com.alibaba.nacos:nacos-client'
+        //implementation 'org.springframework:spring-context'
+        //implementation 'com.alibaba.nacos:nacos-client'
         implementation "org.apache.dubbo:dubbo-rpc-dubbo:$dubboVersion"
         implementation "org.apache.dubbo:dubbo-remoting-netty4:$dubboVersion"
         implementation "org.apache.dubbo:dubbo-registry-nacos:$dubboVersion"
         implementation "org.apache.dubbo:dubbo-configcenter-nacos:$dubboVersion"
         implementation "org.apache.dubbo:dubbo-metadata-report-nacos:$dubboVersion"
-        implementation "org.apache.dubbo:dubbo-config-spring:$dubboVersion"
+        //implementation "org.apache.dubbo:dubbo-config-spring:$dubboVersion"
     }
 
     task apiJar (type: Jar){

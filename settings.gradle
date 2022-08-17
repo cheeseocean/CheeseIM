@@ -10,3 +10,5 @@ include 'transfer'
 include 'business'
 include 'common'
 include 'push'
+include 'cms'
+

@@ -1,8 +1,8 @@
 package com.cheeseocean.im.transfer.service;
 
-import com.cheeseocean.im.base.consumer.ConsumerHandler;
+import com.cheeseocean.im.base.consumer.BaseConsumer;
 
-public class PersistentMsgHandler implements ConsumerHandler {
+public class PersistentMsgBase implements BaseConsumer {
 
     @Override
     public boolean canHandle(String topic, String key) {
