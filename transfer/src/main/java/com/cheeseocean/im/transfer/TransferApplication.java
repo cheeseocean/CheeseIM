@@ -15,6 +15,7 @@ public class TransferApplication {
 
     public static void main(String[] args) {
         try {
+
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 try {
                     LOCK.lock();

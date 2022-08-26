@@ -1,19 +1,12 @@
 package com.cheeseocean.im.push;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.apache.dubbo.config.spring.context.annotation.EnableDubbo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.PropertySource;
-
-@Configuration
-@EnableDubbo(scanBasePackages = "com.cheeseocean.cheeseim.push.service")
-@PropertySource("classpath:dubbo.properties")
 public class PushApplication {
     private static final Logger logger = LoggerFactory.getLogger(PushApplication.class);
 
@@ -24,11 +17,9 @@ public class PushApplication {
 
     public static void main(String[] args) throws InterruptedException {
         try {
-            AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext(PushApplication.class);
             Runtime.getRuntime().addShutdownHook(new Thread() {
                 @Override
                 public void run() {
-                    ctx.stop();
                     try {
                         LOCK.lock();
                         STOP.signal();
@@ -38,9 +29,8 @@ public class PushApplication {
                     logger.info("stop push application");
                 }
             });
-            ctx.start();
             logger.info("start push application successfull");
-        }catch (Exception e){
+        } catch (Exception e) {
             logger.error("start push application error", e);
             System.exit(1);
         }
