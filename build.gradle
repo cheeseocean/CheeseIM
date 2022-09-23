@@ -3,7 +3,7 @@ plugins{
     id 'maven-publish'
 }
 ext{
-    set("dubboVersion", "3.0.10")
+    set("dubboVersion", "3.1.0")
 }
 allprojects{
     group = 'com.cheeseocean'
@@ -42,9 +42,14 @@ subprojects {
         //implementation 'com.alibaba.nacos:nacos-client'
         implementation "org.apache.dubbo:dubbo-rpc-dubbo:$dubboVersion"
         implementation "org.apache.dubbo:dubbo-remoting-netty4:$dubboVersion"
+        //nacos-registry
         implementation "org.apache.dubbo:dubbo-registry-nacos:$dubboVersion"
         implementation "org.apache.dubbo:dubbo-configcenter-nacos:$dubboVersion"
         implementation "org.apache.dubbo:dubbo-metadata-report-nacos:$dubboVersion"
+        //zookeeper-registry
+        implementation "org.apache.dubbo:dubbo-registry-zookeeper:$dubboVersion"
+        implementation "org.apache.dubbo:dubbo-configcenter-zookeeper:$dubboVersion"
+        implementation "org.apache.dubbo:dubbo-metadata-report-zookeeper:$dubboVersion"
         //implementation "org.apache.dubbo:dubbo-config-spring:$dubboVersion"
     }
 

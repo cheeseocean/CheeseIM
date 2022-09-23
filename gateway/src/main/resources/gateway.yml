@@ -1,2 +1,2 @@
-mqtt:
+server:
   port: 51477
