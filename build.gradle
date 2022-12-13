@@ -1,6 +1,7 @@
 plugins{
     id 'java'
     id 'maven-publish'
+    id 'org.graalvm.buildtools.native' version '0.9.19'
 }
 ext{
     set("dubboVersion", "3.1.0")
