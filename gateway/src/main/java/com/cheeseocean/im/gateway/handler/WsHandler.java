@@ -1,4 +1,4 @@
-package com.cheeseocean.im.handler;
+package com.cheeseocean.im.gateway.handler;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -12,6 +12,10 @@ import java.util.Map;
 
 public class WsHandler extends SimpleChannelInboundHandler<WebSocketFrame> {
     public final static AttributeKey<Map<String, List<String>>> requestParams = AttributeKey.newInstance("requestParams");
+
+    @Override
+    public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
+    }
 
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
@@ -28,6 +32,7 @@ public class WsHandler extends SimpleChannelInboundHandler<WebSocketFrame> {
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, WebSocketFrame msg) throws Exception {
+        ctx.channel();
         Map<String, List<String>> requestParamsMap = ctx.channel().attr(requestParams).get();
     }
 }

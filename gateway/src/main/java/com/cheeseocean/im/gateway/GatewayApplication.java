@@ -1,4 +1,4 @@
-package com.cheeseocean.im;
+package com.cheeseocean.im.gateway;
 
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -30,7 +30,7 @@ public class GatewayApplication {
                 logger.info("stop push application");
             }));
             ctx.start();
-            logger.info("start push application successfull");
+            logger.info("start push application successful");
         } catch (Exception e) {
             logger.error("start push application error", e);
             System.exit(1);

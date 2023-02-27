@@ -1,4 +1,4 @@
-package com.cheeseocean.im.relay.impl;
+package com.cheeseocean.im.gateway.relay.impl;
 
 import java.util.Collections;
 
@@ -6,11 +6,11 @@ import org.apache.dubbo.config.annotation.DubboService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.cheeseocean.im.relay.api.GetUserOnlineStatusReq;
-import com.cheeseocean.im.relay.api.GetUsersOnlineStatusResp;
-import com.cheeseocean.im.relay.api.OnlineMessageRelayService;
-import com.cheeseocean.im.relay.api.OnlinePushMsgReq;
-import com.cheeseocean.im.relay.api.OnlinePushMsgResp;
+import com.cheeseocean.im.gateway.relay.api.GetUserOnlineStatusReq;
+import com.cheeseocean.im.gateway.relay.api.GetUsersOnlineStatusResp;
+import com.cheeseocean.im.gateway.relay.api.OnlineMessageRelayService;
+import com.cheeseocean.im.gateway.relay.api.OnlinePushMsgReq;
+import com.cheeseocean.im.gateway.relay.api.OnlinePushMsgResp;
 
 @DubboService
 public class OnlineMessageRelayServiceImpl implements OnlineMessageRelayService {

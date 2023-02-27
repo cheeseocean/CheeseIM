@@ -1,4 +1,4 @@
-package com.cheeseocean.im;
+package com.cheeseocean.im.gateway;
 
 import java.io.IOException;
 import java.util.Properties;

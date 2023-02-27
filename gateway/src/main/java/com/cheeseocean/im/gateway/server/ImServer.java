@@ -1,7 +1,8 @@
-package com.cheeseocean.im;
+package com.cheeseocean.im.gateway.server;
 
-import com.cheeseocean.im.handler.TimeoutHandler;
-import com.cheeseocean.im.handler.WsHandler;
+import com.cheeseocean.im.gateway.YamlPropertySourceFactory;
+import com.cheeseocean.im.gateway.handler.TimeoutHandler;
+import com.cheeseocean.im.gateway.handler.WsHandler;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
@@ -12,11 +13,7 @@ import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.timeout.IdleStateHandler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.stereotype.Component;
 
@@ -24,29 +21,14 @@ import java.util.concurrent.TimeUnit;
 
 @Component
 @PropertySource(value = "classpath:gateway.yml", factory = YamlPropertySourceFactory.class)
-public class WsServer {
+public class ImServer {
 
-    private static final Logger log = LoggerFactory.getLogger(WsServer.class);
-
-    @Value("${server.port}")
-    int port;
-
+    @Value("${imServer.port}")
+    private int port;
     private NioEventLoopGroup boss;
     private NioEventLoopGroup worker;
 
-    public static void main(String[] args) {
-        ApplicationContext context = new AnnotationConfigApplicationContext(WsServer.class);
-        WsServer server = context.getBean(WsServer.class);
-        server.init();
-        server.start();
-    }
-
-    public void init() {
-        boss = new NioEventLoopGroup();
-        worker = new NioEventLoopGroup();
-    }
-
-    public void start() {
+    void start() {
         ServerBootstrap boot = new ServerBootstrap();
         //@formatter:off
         boot.group(boss, worker)
@@ -74,5 +56,4 @@ public class WsServer {
             worker.shutdownGracefully();
         }
     }
-
 }

@@ -1,4 +1,4 @@
-package com.cheeseocean.im.relay.api;
+package com.cheeseocean.im.gateway.relay.api;
 
 /**
  * @author xxxcrel

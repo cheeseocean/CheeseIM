@@ -9,10 +9,10 @@ import org.apache.dubbo.config.annotation.DubboService;
 import com.cheeseocean.im.push.api.PushMsgReq;
 import com.cheeseocean.im.push.api.PushMsgResp;
 import com.cheeseocean.im.push.api.PushService;
-import com.cheeseocean.im.relay.api.OnlineMessageRelayService;
-import com.cheeseocean.im.relay.api.OnlinePushMsgReq;
-import com.cheeseocean.im.relay.api.OnlinePushMsgResp;
-import com.cheeseocean.im.relay.api.SingleMsgToUser;
+import com.cheeseocean.im.gateway.relay.api.OnlineMessageRelayService;
+import com.cheeseocean.im.gateway.relay.api.OnlinePushMsgReq;
+import com.cheeseocean.im.gateway.relay.api.OnlinePushMsgResp;
+import com.cheeseocean.im.gateway.relay.api.SingleMsgToUser;
 
 @DubboService
 public class PushServiceImpl implements PushService {

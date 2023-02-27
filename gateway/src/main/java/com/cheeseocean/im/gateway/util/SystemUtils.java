@@ -1,4 +1,4 @@
-package com.cheeseocean.im.util;
+package com.cheeseocean.im.gateway.util;
 
 import io.netty.util.internal.SystemPropertyUtil;
 
