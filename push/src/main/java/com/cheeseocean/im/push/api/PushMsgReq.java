@@ -1,6 +1,6 @@
 package com.cheeseocean.im.push.api;
 
-import com.cheeseocean.im.base.entity.MsgData;
+import com.cheeseocean.im.common.entity.MsgData;
 
 public class PushMsgReq {
     private String operationID;

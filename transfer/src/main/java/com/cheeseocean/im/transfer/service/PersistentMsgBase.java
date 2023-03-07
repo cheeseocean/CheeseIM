@@ -1,12 +1,12 @@
 package com.cheeseocean.im.transfer.service;
 
-import com.cheeseocean.im.base.config.Config;
-import com.cheeseocean.im.base.consumer.BaseConsumer;
+import com.cheeseocean.im.common.config.IMConfig;
+import com.cheeseocean.im.common.consumer.BaseConsumer;
 
 public class PersistentMsgBase implements BaseConsumer {
 
     @Override
-    public void init(Config config) {
+    public void init(IMConfig IMConfig) {
 
     }
 }

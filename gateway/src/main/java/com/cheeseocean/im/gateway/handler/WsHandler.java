@@ -1,5 +1,7 @@
 package com.cheeseocean.im.gateway.handler;
 
+import com.cheeseocean.im.common.util.IMUtils;
+import com.cheeseocean.im.gateway.connection.PostOffice;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.QueryStringDecoder;
@@ -13,6 +15,12 @@ import java.util.Map;
 public class WsHandler extends SimpleChannelInboundHandler<WebSocketFrame> {
     public final static AttributeKey<Map<String, List<String>>> requestParams = AttributeKey.newInstance("requestParams");
 
+    private PostOffice postOffice;
+
+    public WsHandler(PostOffice postOffice) {
+        this.postOffice = postOffice;
+    }
+
     @Override
     public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
     }
@@ -24,6 +32,13 @@ public class WsHandler extends SimpleChannelInboundHandler<WebSocketFrame> {
             String uri = handshake.requestUri();
             QueryStringDecoder queryStringDecoder = new QueryStringDecoder(uri);
             Map<String, List<String>> params = queryStringDecoder.parameters();
+            String operationID = "";
+            if (params.containsKey("operationID")) {
+                operationID = params.get("operationID").toString();
+            } else {
+                operationID = IMUtils.generateOperationID();
+            }
+            postOffice.addUserConn(ctx.channel(), params.get("sendID").toString(), Integer.parseInt(params.get("platformID").toString()), params.get("token").toString(), operationID);
             ctx.channel().attr(requestParams).set(params);
         } else {
             ctx.fireUserEventTriggered(evt);
@@ -32,7 +47,7 @@ public class WsHandler extends SimpleChannelInboundHandler<WebSocketFrame> {
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, WebSocketFrame msg) throws Exception {
-        ctx.channel();
-        Map<String, List<String>> requestParamsMap = ctx.channel().attr(requestParams).get();
+        //Map<String, List<String>> requestParamsMap = ctx.channel().attr(requestParams).get();
+        msg.content();
     }
 }

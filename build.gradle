@@ -43,6 +43,7 @@ subprojects {
         //implementation 'com.alibaba.nacos:nacos-client'
         implementation "org.apache.dubbo:dubbo-rpc-dubbo:$dubboVersion"
         implementation "org.apache.dubbo:dubbo-remoting-netty4:$dubboVersion"
+        implementation "org.apache.dubbo:dubbo-serialization-hessian2:$dubboVersion"
         //nacos-registry
         implementation "org.apache.dubbo:dubbo-registry-nacos:$dubboVersion"
         implementation "org.apache.dubbo:dubbo-configcenter-nacos:$dubboVersion"

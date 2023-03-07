@@ -1,6 +1,7 @@
 package com.cheeseocean.im.gateway.server;
 
-import com.cheeseocean.im.gateway.YamlPropertySourceFactory;
+import com.cheeseocean.im.common.config.IMConfig;
+import com.cheeseocean.im.gateway.connection.PostOffice;
 import com.cheeseocean.im.gateway.handler.TimeoutHandler;
 import com.cheeseocean.im.gateway.handler.WsHandler;
 import io.netty.bootstrap.ServerBootstrap;
@@ -15,22 +16,21 @@ import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.timeout.IdleStateHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.PropertySource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 @Component
-@PropertySource(value = "classpath:gateway.yml", factory = YamlPropertySourceFactory.class)
 public class WsServer {
 
+    @Autowired
+    private IMConfig imConfig;
+
+    @Autowired
+    private PostOffice postOffice;
+
     private static final Logger log = LoggerFactory.getLogger(WsServer.class);
-
-    @Value("${server.port}")
-    int port;
-
     private NioEventLoopGroup boss;
     private NioEventLoopGroup worker;
 
@@ -60,12 +60,13 @@ public class WsServer {
                                 .addLast(new HttpServerCodec())
                                 .addLast(new HttpObjectAggregator(65536))
                                 .addLast(new WebSocketServerProtocolHandler("/", null, true))
-                                .addLast(new WsHandler());
+                                .addLast(new WsHandler(postOffice))
+                                .addLast();
                     }
                 });
         //@formatter:on
         try {
-            ChannelFuture future = boot.bind(port).sync();
+            ChannelFuture future = boot.bind(imConfig.getWebsocketPort()).sync();
             future.channel().closeFuture().sync();
         } catch (InterruptedException e) {
             e.printStackTrace();

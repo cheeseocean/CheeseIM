@@ -21,7 +21,7 @@ public class PostOffice {
     }
 
 
-    public void addUserConn(String uid, int platformID, Channel channel, String token, String opID) {
+    public void addUserConn(Channel channel, String uid, int platformID, String token, String opID) {
 
     }
 

@@ -4,6 +4,10 @@ import io.netty.channel.Channel;
 
 import java.util.Map;
 
+/**
+ * @author xxxcrel
+ * Created on 2023/3/7
+ */
 public class IMConnection {
 
     private Map<Integer/*platformID*/, Channel/*Connection*/> channelMap;

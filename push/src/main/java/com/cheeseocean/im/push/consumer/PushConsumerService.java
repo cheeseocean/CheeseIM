@@ -1,7 +1,7 @@
 package com.cheeseocean.im.push.consumer;
 
-import com.cheeseocean.im.base.config.Config;
-import com.cheeseocean.im.base.consumer.BaseConsumer;
+import com.cheeseocean.im.common.config.IMConfig;
+import com.cheeseocean.im.common.consumer.BaseConsumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -17,7 +17,7 @@ public class PushConsumerService extends Thread implements BaseConsumer {
     private KafkaConsumer<String, byte[]> consumer;
 
     @Override
-    public void init(Config config) {
+    public void init(IMConfig IMConfig) {
         Properties props = new Properties();
         props.put("bootstrap.servers", "localhost:9092");
         props.put("group.id", "push-service");

@@ -1,6 +1,6 @@
 package com.cheeseocean.im.gateway.relay.api;
 
-import com.cheeseocean.im.base.entity.MsgData;
+import com.cheeseocean.im.common.entity.MsgData;
 
 /**
  * @author xxxcrel

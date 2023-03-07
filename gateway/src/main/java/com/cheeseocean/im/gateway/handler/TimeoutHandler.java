@@ -10,6 +10,11 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 
+/**
+ * Timeout when user idle
+ * @author xxxcrel
+ * Created on 2023/03/07
+ */
 public class TimeoutHandler extends ChannelDuplexHandler {
     private static final Logger log = LoggerFactory.getLogger(TimeoutHandler.class);
 
