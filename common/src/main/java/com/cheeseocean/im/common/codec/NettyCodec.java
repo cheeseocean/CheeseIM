@@ -1,12 +1,17 @@
 package com.cheeseocean.im.common.codec;
 
+import com.cheeseocean.im.common.entity.Req;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufInputStream;
+import io.netty.buffer.ByteBufOutputStream;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.MessageToByteEncoder;
-import java.io.IOException;
+import org.apache.dubbo.common.serialize.hessian2.Hessian2ObjectInput;
+import org.apache.dubbo.common.serialize.hessian2.Hessian2ObjectOutput;
+
 import java.util.List;
 
 public class NettyCodec {
@@ -31,7 +36,9 @@ public class NettyCodec {
         @Override
         protected void encode(ChannelHandlerContext ctx, Object msg, ByteBuf out) throws Exception {
             Channel ch = ctx.channel();
-
+            Hessian2ObjectOutput output = new Hessian2ObjectOutput(new ByteBufOutputStream(out));
+            output.writeObject(msg);
+            output.flushBuffer();
         }
     }
 
@@ -40,10 +47,9 @@ public class NettyCodec {
         @Override
         protected void decode(ChannelHandlerContext ctx, ByteBuf input, List<Object> out) throws Exception {
             // decode object.
-
+            Hessian2ObjectInput in = new Hessian2ObjectInput(new ByteBufInputStream(input));
+            out.add(in.readObject(Req.class));
         }
-
-
     }
 
 }

@@ -7,7 +7,7 @@ ext{
     set("dubboVersion", "3.1.0")
 }
 allprojects{
-    group = 'com.cheeseocean'
+    group = 'com.cheeseocean.im'
     version = '1.0.0'
 
     repositories {
