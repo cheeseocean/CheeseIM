@@ -1,5 +1,7 @@
 package com.cheeseocean.im.gateway.handler;
 
+import com.cheeseocean.im.common.entity.Req;
+import com.cheeseocean.im.common.constant.IMConstant;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
@@ -28,6 +30,16 @@ public class ConnectionHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        if (msg instanceof Req) {
+            switch (((Req) msg).getReqIdentifier()) {
+                case IMConstant.WSGetNewestSeq:
+                case IMConstant.WSSendMsg:
+                case IMConstant.WSSendSignalMsg:
+                case IMConstant.WSPullMsgBySeqList:
+                case IMConstant.WsLogoutMsg:
+                default:
+            }
+        }
         super.channelRead(ctx, msg);
     }
 
