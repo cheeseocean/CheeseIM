@@ -12,7 +12,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  */
 public class PostOffice {
 
-    private Map<String, IMConnection> connectionMap;
+    private Map<String, UserConn> connectionMap;
 
     private ReadWriteLock rwLock;
 

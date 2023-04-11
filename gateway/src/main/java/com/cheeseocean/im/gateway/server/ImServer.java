@@ -1,5 +1,7 @@
 package com.cheeseocean.im.gateway.server;
 
+import com.cheeseocean.im.common.codec.CheeseMessageDecoder;
+import com.cheeseocean.im.common.codec.CheeseMessageEncoder;
 import com.cheeseocean.im.common.config.IMConfig;
 import com.cheeseocean.im.gateway.handler.ConnectionHandler;
 import com.cheeseocean.im.gateway.handler.TimeoutHandler;
@@ -35,12 +37,14 @@ public class ImServer {
                         ch.pipeline()
                                 .addLast("idleStateHandler", new IdleStateHandler(5, 0, 0, TimeUnit.SECONDS))
                                 .addAfter("idleStateHandler", "timeoutHandler", new TimeoutHandler())
+                                .addLast(new CheeseMessageDecoder())
+                                .addLast(CheeseMessageEncoder.INSTANCE)
                                 .addLast(new ConnectionHandler());
                     }
                 });
         //@formatter:on
         try {
-            ChannelFuture future = boot.bind(imConfig.getGatewayPort()).sync();
+            ChannelFuture future = boot.bind(imConfig.getGateway().getImPort()).sync();
             future.channel().closeFuture().sync();
         } catch (InterruptedException e) {
             e.printStackTrace();

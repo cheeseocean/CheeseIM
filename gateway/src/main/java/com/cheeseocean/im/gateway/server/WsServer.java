@@ -66,7 +66,7 @@ public class WsServer {
                 });
         //@formatter:on
         try {
-            ChannelFuture future = boot.bind(imConfig.getWebsocketPort()).sync();
+            ChannelFuture future = boot.bind(imConfig.getGateway().getImPort()).sync();
             future.channel().closeFuture().sync();
         } catch (InterruptedException e) {
             e.printStackTrace();

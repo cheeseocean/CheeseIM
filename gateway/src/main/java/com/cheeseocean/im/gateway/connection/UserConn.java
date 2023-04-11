@@ -8,11 +8,11 @@ import java.util.Map;
  * @author xxxcrel
  * Created on 2023/3/7
  */
-public class IMConnection {
+public class UserConn {
 
     private Map<Integer/*platformID*/, Channel/*Connection*/> channelMap;
 
-    public IMConnection() {
+    public UserConn() {
 
     }
 
