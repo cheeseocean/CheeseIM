@@ -1,13 +1,14 @@
 package com.cheeseocean.im.gateway.handler;
 
+import com.cheeseocean.im.common.entity.GetMaxAndMinSeqReq;
+import com.cheeseocean.im.common.entity.GetMaxAndMinSeqResp;
 import com.cheeseocean.im.common.entity.Req;
 import com.cheeseocean.im.common.constant.IMConstant;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
 public class ConnectionHandler extends ChannelInboundHandlerAdapter {
-
-
+    
     @Override
     public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
         super.channelRegistered(ctx);
@@ -61,5 +62,13 @@ public class ConnectionHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         super.exceptionCaught(ctx, cause);
+    }
+
+    private void getNewestSeq(Req req) {
+        GetMaxAndMinSeqResp seqResp = new GetMaxAndMinSeqResp();
+        GetMaxAndMinSeqReq seqReq = new GetMaxAndMinSeqReq();
+        seqReq.setUserID(req.getSendID());
+        seqReq.setOperationID(req.getOperationID());
+        
     }
 }
