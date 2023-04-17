@@ -45,6 +45,7 @@ subprojects {
 //        implementation 'org.slf4j:jcl-over-slf4j'
         //implementation 'org.springframework:spring-context'
         //implementation 'com.alibaba.nacos:nacos-client'
+        implementation "org.apache.dubbo:dubbo-config-spring:$dubboVersion"
         implementation "org.apache.dubbo:dubbo-rpc-dubbo:$dubboVersion"
         implementation "org.apache.dubbo:dubbo-remoting-netty4:$dubboVersion"
         implementation "org.apache.dubbo:dubbo-serialization-hessian2:$dubboVersion"

@@ -4,6 +4,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
 
 import java.util.Map;
 
@@ -13,11 +14,10 @@ import java.util.Map;
  */
 @Configuration
 public class AppConfig {
-    @Value("${kafka}")
-    Map<String, Object> kafkaProps;
+
     @Bean
-    KafkaProducer<String, byte[]> msgProducer() {
-        KafkaProducer<String, byte[]> msgProducer = new KafkaProducer<>(kafkaProps);
+    KafkaProducer<String, byte[]> msgProducer(MsgProperties msgProperties) {
+        KafkaProducer<String, byte[]> msgProducer = new KafkaProducer<>(msgProperties.getKafka());
         return msgProducer;
     }
 }

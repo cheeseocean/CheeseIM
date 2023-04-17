@@ -1,16 +1,16 @@
 version: '3'
 services:
-#  nacos:
-#    image: nacos/nacos-server:v2.0.4-slim
-#    container_name: cheeseim-nacos
-#    env_file:
-#      - ./env/nacos.env
-#    ports:
-#      - "8848:8848"
-#      - "9848:9848"
-#      - "9849:9849"
-#    volumes:
-#      - "./conf/nacos.properties:/home/nacos/conf/application.properties"
+  nacos:
+    image: nacos/nacos-server:v2.0.4-slim
+    container_name: cheeseim-nacos
+    env_file:
+      - ./env/nacos.env
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+      - "9849:9849"
+    volumes:
+      - "./conf/nacos.properties:/home/nacos/conf/application.properties"
   kafka:
     image: bitnami/kafka:2.8 
     container_name: cheeseim-kafka 
@@ -19,12 +19,13 @@ services:
       - ./env/kafka.env
     ports:
       - "9092:9092"
-        #    volumes:
-        #      - ./data/kafka:/bitnami/kafka
+    privileged: true
+    volumes:
+      - ./data/kafka:/bitnami/kafka
     depends_on:
       - zookeeper
   kafka-console:
-    image: docker.redpanda.com/vectorized/console
+    image: redpandadata/console:v2.2.3
     container_name: cheeseim-console
     restart: on-failure
     entrypoint: /bin/sh
@@ -47,5 +48,7 @@ services:
     ports:
       - "2181:2181"
       - "2182:2182"
+    privileged: true
     volumes:
       - ./conf/zoo.cfg:/opt/bitnami/zookeeper/conf/zoo.cfg
+      - ./data/zookeeper:/bitnami/zookeeper/data

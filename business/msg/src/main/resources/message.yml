@@ -1,5 +1,10 @@
+dubbo:
+  application:
+    name: msg
+  config-center:
+    address: nacos://127.0.0.1:8848
 kafka:
-  bootstrap-servers: 192.168.6.139:9092
+  bootstrap-servers: 127.0.0.1:9092
   client.id: msg
   key.serializer: org.apache.kafka.common.serialization.ByteArraySerializer
   value.serializer: org.apache.kafka.common.serialization.StringSerializer
