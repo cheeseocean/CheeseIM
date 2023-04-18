@@ -29,7 +29,7 @@ kafka:
     - kafka:9092
       #  - broker-1.mycompany.com:19092
       #  - broker-2.mycompany.com:19092
-  clientId: kowl
+  clientId: console 
   # rackId: # In multi zone Kafka clusters you can reduce traffic costs by consuming messages from replica brokers in the same zone
   #  sasl:
   #    enabled: true
@@ -159,7 +159,7 @@ kafka:
 #         passphrase: # This can be set via the via the --owl.topic-documentation.git.ssh.passphrase flag as well
 
 server:
-  listenPort: 9090
+  listenPort: 8080
 #   listenAddress:
 #   gracefulShutdownTimeout: 30s
 #   listenPort: 8080
