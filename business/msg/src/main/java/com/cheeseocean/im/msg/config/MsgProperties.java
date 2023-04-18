@@ -17,7 +17,7 @@ import java.util.Map;
 @Data
 public class MsgProperties {
 
-    @Value("${kafka}")
-    private Map<String, Object> kafka;
+    @Value("${msg.kafka.bootstrap-servers}")
+    private String bootstrapServers;
 
 }

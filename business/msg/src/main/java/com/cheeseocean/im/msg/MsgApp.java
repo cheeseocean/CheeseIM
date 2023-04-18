@@ -1,5 +1,6 @@
 package com.cheeseocean.im.msg;
 
+import com.cheeseocean.im.msg.config.AppConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.ComponentScan;
@@ -12,8 +13,6 @@ import java.util.concurrent.locks.ReentrantLock;
  * @author xxxcrel
  * Created on 2023/4/17
  */
-@Configuration
-@ComponentScan(basePackages = "com.cheeseocean.im.msg")
 @Slf4j
 public class MsgApp {
     private static final ReentrantLock LOCK = new ReentrantLock();
@@ -22,7 +21,7 @@ public class MsgApp {
 
     public static void main(String[] args) throws InterruptedException {
         try {
-            AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext(MsgApp.class);
+            AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext(AppConfig.class);
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 ctx.stop();
                 try {

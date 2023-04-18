@@ -24,11 +24,11 @@ public class KafkaChatService implements ChatService {
      */
     private KafkaProducer<String, byte[]> msgProducer;
 
-    @Qualifier("msgProducer")
-    @Autowired
-    public void setMsgProducer(KafkaProducer<String, byte[]> msgProducer) {
-        this.msgProducer = msgProducer;
-    }
+//    @Qualifier("msgProducer")
+//    @Autowired
+//    public void setMsgProducer(KafkaProducer<String, byte[]> msgProducer) {
+//        this.msgProducer = msgProducer;
+//    }
 
     @Override
     public SendMsgResp sendMessage(SendMsgReq sendMsgReq) {
