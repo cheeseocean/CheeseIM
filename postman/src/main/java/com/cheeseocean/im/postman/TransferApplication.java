@@ -1,4 +1,4 @@
-package com.cheeseocean.im.transfer;
+package com.cheeseocean.im.postman;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

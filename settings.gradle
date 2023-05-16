@@ -10,7 +10,7 @@ pluginManagement{
 rootProject.name = 'CheeseIM'
 include 'gateway'
 include 'client'
-include 'transfer'
+include 'postman'
 include 'common'
 include 'push'
 include 'cms'

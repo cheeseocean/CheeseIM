@@ -1,9 +1,13 @@
-package com.cheeseocean.im.transfer.service;
+package com.cheeseocean.im.postman.service;
 
 import com.cheeseocean.im.common.config.IMConfig;
 import com.cheeseocean.im.common.consumer.BaseConsumer;
 
-public class PersistentMsgBase implements BaseConsumer {
+/**
+ * @author xxxcrel
+ * @date 2022-08-23
+ */
+public class HistoryMsgBase implements BaseConsumer {
 
     @Override
     public void init(IMConfig IMConfig) {
