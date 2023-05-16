@@ -1,6 +1,6 @@
 package com.cheeseocean.im.gateway.relay.api;
 
-import com.cheeseocean.im.common.entity.MsgData;
+import com.cheeseocean.im.common.entity.CheeseMessage;
 
 /**
  * @author xxxcrel
@@ -8,12 +8,12 @@ import com.cheeseocean.im.common.entity.MsgData;
  */
 public class OnlinePushMsgReq {
     private String operationID;
-    private MsgData msgData;
+    private CheeseMessage CheeseMessage;
     private String pushToUserID;
 
     private OnlinePushMsgReq(Builder builder) {
         setOperationID(builder.operationID);
-        setMsgData(builder.msgData);
+        setMsgData(builder.CheeseMessage);
         setPushToUserID(builder.pushToUserID);
     }
 
@@ -29,12 +29,12 @@ public class OnlinePushMsgReq {
         this.operationID = operationID;
     }
 
-    public MsgData getMsgData() {
-        return msgData;
+    public CheeseMessage getMsgData() {
+        return CheeseMessage;
     }
 
-    public void setMsgData(MsgData msgData) {
-        this.msgData = msgData;
+    public void setMsgData(CheeseMessage CheeseMessage) {
+        this.CheeseMessage = CheeseMessage;
     }
 
     public String getPushToUserID() {
@@ -47,7 +47,7 @@ public class OnlinePushMsgReq {
 
     public static final class Builder {
         private String operationID;
-        private MsgData msgData;
+        private CheeseMessage CheeseMessage;
         private String pushToUserID;
 
         private Builder() {}
@@ -57,8 +57,8 @@ public class OnlinePushMsgReq {
             return this;
         }
 
-        public Builder msgData(MsgData val) {
-            msgData = val;
+        public Builder msgData(CheeseMessage val) {
+            CheeseMessage = val;
             return this;
         }
 

@@ -1,40 +1,31 @@
 package com.cheeseocean.im.gateway.handler;
 
-import com.cheeseocean.im.common.entity.GetMaxAndMinSeqReq;
-import com.cheeseocean.im.common.entity.GetMaxAndMinSeqResp;
-import com.cheeseocean.im.common.entity.Req;
+import com.cheeseocean.im.common.entity.CheeseRequest;
 import com.cheeseocean.im.common.constant.IMConstant;
+import com.cheeseocean.im.message.api.MessageService;
+import com.cheeseocean.im.message.api.SendMessageReq;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
 public class ConnectionHandler extends ChannelInboundHandlerAdapter {
-    
-    @Override
-    public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
-        super.channelRegistered(ctx);
-    }
 
-    @Override
-    public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
-        super.channelUnregistered(ctx);
-    }
+    /**
+     * 消息服务
+     */
+    private MessageService messageService;
 
-    @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        super.channelActive(ctx);
-    }
-
-    @Override
-    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        super.channelInactive(ctx);
+    public ConnectionHandler(MessageService messageService) {
+        this.messageService = messageService;
     }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        if (msg instanceof Req) {
-            switch (((Req) msg).getReqIdentifier()) {
+        if (msg instanceof CheeseRequest) {
+            switch (((CheeseRequest) msg).getType()) {
                 case IMConstant.WSGetNewestSeq:
                 case IMConstant.WSSendMsg:
+                    sendMessage(((CheeseRequest) msg));
+                    break;
                 case IMConstant.WSSendSignalMsg:
                 case IMConstant.WSPullMsgBySeqList:
                 case IMConstant.WsLogoutMsg:
@@ -44,31 +35,13 @@ public class ConnectionHandler extends ChannelInboundHandlerAdapter {
         super.channelRead(ctx, msg);
     }
 
-    @Override
-    public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
-        super.channelReadComplete(ctx);
+    private void getNewestSeq(CheeseRequest CheeseRequest) {
+
     }
 
-    @Override
-    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        super.userEventTriggered(ctx, evt);
-    }
-
-    @Override
-    public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
-        super.channelWritabilityChanged(ctx);
-    }
-
-    @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        super.exceptionCaught(ctx, cause);
-    }
-
-    private void getNewestSeq(Req req) {
-        GetMaxAndMinSeqResp seqResp = new GetMaxAndMinSeqResp();
-        GetMaxAndMinSeqReq seqReq = new GetMaxAndMinSeqReq();
-        seqReq.setUserID(req.getSendID());
-        seqReq.setOperationID(req.getOperationID());
-        
+    private void sendMessage(CheeseRequest request) {
+        SendMessageReq sendMessageReq = new SendMessageReq();
+        sendMessageReq.setPayload(request.getPayload());
+        messageService.sendMessage(sendMessageReq);
     }
 }

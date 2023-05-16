@@ -5,10 +5,12 @@ import com.cheeseocean.im.common.codec.CheeseMessageEncoder;
 import com.cheeseocean.im.common.config.IMConfig;
 import com.cheeseocean.im.gateway.handler.ConnectionHandler;
 import com.cheeseocean.im.gateway.handler.TimeoutHandler;
+import com.cheeseocean.im.message.api.MessageService;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
-import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.timeout.IdleStateHandler;
@@ -23,10 +25,19 @@ public class ImServer {
     @Autowired
     private IMConfig imConfig;
 
-    private NioEventLoopGroup boss;
-    private NioEventLoopGroup worker;
+    @Autowired
+    private MessageService messageService;
 
-    void start() {
+    private EventLoopGroup boss;
+
+    private EventLoopGroup worker;
+
+    public ImServer() {
+        this.boss = new EpollEventLoopGroup(2);
+        this.worker = new EpollEventLoopGroup(2);
+    }
+
+    public void start() {
         ServerBootstrap boot = new ServerBootstrap();
         //@formatter:off
         boot.group(boss, worker)
@@ -39,7 +50,7 @@ public class ImServer {
                                 .addAfter("idleStateHandler", "timeoutHandler", new TimeoutHandler())
                                 .addLast(new CheeseMessageDecoder())
                                 .addLast(CheeseMessageEncoder.INSTANCE)
-                                .addLast(new ConnectionHandler());
+                                .addLast(new ConnectionHandler(messageService));
                     }
                 });
         //@formatter:on
