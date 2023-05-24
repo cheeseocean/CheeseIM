@@ -8,12 +8,12 @@ pluginManagement{
     }
 }
 rootProject.name = 'CheeseIM'
-include 'gateway'
-include 'client'
+include 'postoffice'
 include 'postman'
+include 'message'
+include 'client'
 include 'common'
 include 'push'
 include 'cms'
-include 'business:message'
 include 'business:friend'
 include 'business:group'

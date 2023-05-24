@@ -1,0 +1,5 @@
+dependencies {
+    implementation project(':common')
+    implementation project(':message')
+    implementation 'org.springframework:spring-context'
+}

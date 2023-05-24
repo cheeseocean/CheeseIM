@@ -1,6 +1,6 @@
 package com.cheeseocean.im.common.codec;
 
-import com.cheeseocean.im.common.entity.CheeseRequest;
+import com.cheeseocean.im.common.entity.UserRequest;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.channel.ChannelHandlerContext;
@@ -12,6 +12,6 @@ public class CheeseMessageDecoder extends ByteToMessageDecoder {
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
         Hessian2ObjectInput hessianObjIn = new Hessian2ObjectInput(new ByteBufInputStream(in));
-        out.add(hessianObjIn.readObject(CheeseRequest.class));
+        out.add(hessianObjIn.readObject(UserRequest.class));
     }
 }
