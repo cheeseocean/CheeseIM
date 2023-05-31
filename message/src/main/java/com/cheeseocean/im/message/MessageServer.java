@@ -1,7 +1,6 @@
 package com.cheeseocean.im.message;
 
 import com.cheeseocean.im.common.ApplicationKeeper;
-import com.cheeseocean.im.message.config.MessageConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.dubbo.config.spring.context.annotation.EnableDubbo;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
@@ -9,6 +8,9 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 
 /**
+ * 消息组件
+ * 1. 负责将消息落盘(Kafka, File, DB)
+ *
  * @author xxxcrel
  * Created on 2023/4/17
  */

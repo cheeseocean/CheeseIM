@@ -36,11 +36,11 @@ subprojects {
         testAnnotationProcessor 'org.projectlombok:lombok:1.18.26'
 
         implementation enforcedPlatform("org.apache.dubbo:dubbo-dependencies-bom:$dubboVersion")
+        //spring (based ioc aop)
+        implementation 'org.springframework:spring-context'
         implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml'
         implementation 'ch.qos.logback:logback-core'
         implementation 'ch.qos.logback:logback-classic'
-        implementation 'org.apache.logging.log4j:log4j-api'
-        implementation 'org.apache.logging.log4j:log4j-core'
         implementation 'org.slf4j:log4j-over-slf4j:1.7.25'
         implementation 'org.slf4j:jcl-over-slf4j:1.7.25'
         //implementation 'org.springframework:spring-context'
@@ -54,10 +54,10 @@ subprojects {
         implementation "org.apache.dubbo:dubbo-configcenter-nacos:$dubboVersion"
         implementation "org.apache.dubbo:dubbo-metadata-report-nacos:$dubboVersion"
         //zookeeper-registry
-        implementation "org.apache.dubbo:dubbo-registry-zookeeper:$dubboVersion"
-        implementation "org.apache.dubbo:dubbo-configcenter-zookeeper:$dubboVersion"
-        implementation "org.apache.dubbo:dubbo-metadata-report-zookeeper:$dubboVersion"
-        //implementation "org.apache.dubbo:dubbo-config-spring:$dubboVersion"
+        //implementation "org.apache.dubbo:dubbo-registry-zookeeper:$dubboVersion"
+        //implementation "org.apache.dubbo:dubbo-configcenter-zookeeper:$dubboVersion"
+        //implementation "org.apache.dubbo:dubbo-metadata-report-zookeeper:$dubboVersion"
+        //lombok
         compileOnly 'org.projectlombok:lombok:1.18.26'
         annotationProcessor 'org.projectlombok:lombok:1.18.26'
     }

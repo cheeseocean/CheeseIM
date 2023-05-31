@@ -7,10 +7,11 @@ dubbo:
   application:
     name: message
     register-mode: instance
+    logger: slf4j
   protocol:
     name: dubbo
     port: -1
   registry:
-    address: zookeeper://192.168.6.139:2181
+    address: nacos://nacos:nacos@192.168.6.139:8848
   config-center:
-    address: zookeeper://192.168.6.139:2181
+    address: nacos://nacos:nacos@192.168.6.139:8848

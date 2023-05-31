@@ -2,12 +2,11 @@ package com.cheeseocean.im.postoffice.server;
 
 import com.cheeseocean.im.common.codec.CheeseMessageDecoder;
 import com.cheeseocean.im.common.codec.CheeseMessageEncoder;
-import com.cheeseocean.im.postoffice.config.PostofficeProperties;
 import com.cheeseocean.im.message.api.MessageService;
+import com.cheeseocean.im.postoffice.config.PostofficeProperties;
 import com.cheeseocean.im.postoffice.handler.ConnectionHandler;
 import com.cheeseocean.im.postoffice.handler.TimeoutHandler;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -59,13 +58,10 @@ public class IMServer {
                 });
         //@formatter:on
         try {
-            ChannelFuture future = boot.bind(postofficeProperties.getPort()).sync();
             log.info("start im server successful, using port:{}", postofficeProperties.getPort());
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+            boot.bind(postofficeProperties.getPort()).syncUninterruptibly();
         } finally {
-            boss.shutdownGracefully();
-            worker.shutdownGracefully();
+            log.info("stop im server gracefully");
         }
     }
 }

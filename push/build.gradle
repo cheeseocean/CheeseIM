@@ -1,4 +1,5 @@
 dependencies {
     implementation project(':common')
+    implementation project(':postoffice')
     implementation 'org.apache.kafka:kafka-clients:2.8.0'
 }

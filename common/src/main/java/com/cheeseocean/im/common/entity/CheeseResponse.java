@@ -3,6 +3,8 @@ package com.cheeseocean.im.common.entity;
 import lombok.Builder;
 import lombok.Data;
 
+import java.io.Serializable;
+
 /**
  * 用户发送消息返回
  *
@@ -11,7 +13,7 @@ import lombok.Data;
  */
 @Data
 @Builder
-public class UserResponse {
+public class CheeseResponse implements Serializable {
     int type;
 
     int msgIncr;

@@ -1,7 +1,9 @@
 package com.cheeseocean.im.common.entity;
 
+import lombok.Builder;
 import lombok.Data;
 
+import java.io.Serializable;
 import java.util.Map;
 
 /**
@@ -10,7 +12,8 @@ import java.util.Map;
  * Created on 2022/5/20
  */
 @Data
-public class CheeseMessage {
+@Builder
+public class CheeseMessage implements Serializable {
 
     /**
      * 发送方ID

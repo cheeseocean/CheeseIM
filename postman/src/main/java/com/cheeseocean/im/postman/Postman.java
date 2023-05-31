@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * 消息投递服务
- * 负责从消息代理(Kafka, File, DB)中通过推送服务发送至用户
+ * 负责从消息队列(Kafka, File, DB)中通过推送服务发送至用户
  *
  * @author xxxcrel
  * @date 2023/05/24

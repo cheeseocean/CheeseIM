@@ -5,6 +5,7 @@ import com.cheeseocean.im.common.entity.CheeseMessage;
 import com.cheeseocean.im.message.api.MessageService;
 import com.cheeseocean.im.message.api.SendMessageReq;
 import com.cheeseocean.im.message.api.SendMessageResp;
+import lombok.extern.log4j.Log4j2;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -31,7 +32,6 @@ public class KafkaMessageService implements MessageService {
     @Autowired
     private KafkaProducer<String, byte[]> messageProducer;
 
-
     @Override
     public SendMessageResp sendMessage(SendMessageReq sendMessageReq) {
         SendMessageResp resp = new SendMessageResp();
@@ -45,7 +45,7 @@ public class KafkaMessageService implements MessageService {
         log.info("start send message to broker, msg:{}", payload);
         switch (payload.getType()) {
             case 0:
-                messageProducer.send(new ProducerRecord<>(payload.getRid(), payload.getContent()));
+                messageProducer.send(new ProducerRecord<>("msg-pip", payload.getRid(), payload.getContent()));
             case 1:
             default:
                 return resp;

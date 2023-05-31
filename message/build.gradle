@@ -1,5 +1,4 @@
 dependencies {
     implementation project(':common')
     implementation "org.apache.kafka:kafka-clients:$kafkaVersion"
-    implementation 'org.springframework:spring-context'
 }
