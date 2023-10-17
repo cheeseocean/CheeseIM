@@ -15,7 +15,6 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.MessageToByteEncoder;
-import io.netty.handler.codec.mqtt.MqttMessage;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.ByteArrayInputStream;
@@ -106,10 +105,6 @@ class MessageHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        if (msg instanceof MqttMessage) {
-            System.out.println("is mqtt message");
-            System.out.println(((MqttMessage) msg).payload());
-        }
         System.out.println("Client recive: " + msg);
         System.out.println("channel read");
         super.channelRead(ctx, msg);

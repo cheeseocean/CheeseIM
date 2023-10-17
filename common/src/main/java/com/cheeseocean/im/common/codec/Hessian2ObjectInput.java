@@ -2,7 +2,6 @@ package com.cheeseocean.im.common.codec;
 
 import com.alibaba.com.caucho.hessian.io.Hessian2Input;
 import org.apache.dubbo.common.serialize.Cleanable;
-import org.apache.dubbo.common.serialize.hessian2.dubbo.Hessian2FactoryInitializer;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,12 +13,11 @@ import java.lang.reflect.Type;
  */
 public class Hessian2ObjectInput implements Cleanable {
     private final Hessian2Input mH2i;
-    private final Hessian2FactoryInitializer hessian2FactoryInitializer;
 
     public Hessian2ObjectInput(InputStream is) {
         mH2i = new Hessian2Input(is);
-        hessian2FactoryInitializer = Hessian2FactoryInitializer.getInstance();
-        mH2i.setSerializerFactory(hessian2FactoryInitializer.getSerializerFactory());
+//        hessian2FactoryInitializer = new Hessian2FactoryManager(null);
+//        mH2i.setSerializerFactory(hessian2FactoryInitializer.getSerializerFactory());
     }
 
     public boolean readBool() throws IOException {
@@ -60,7 +58,7 @@ public class Hessian2ObjectInput implements Cleanable {
 
     public Object readObject() throws IOException {
         if (!mH2i.getSerializerFactory().getClassLoader().equals(Thread.currentThread().getContextClassLoader())) {
-            mH2i.setSerializerFactory(hessian2FactoryInitializer.getSerializerFactory());
+//            mH2i.setSerializerFactory(hessian2FactoryInitializer.getSerializerFactory());
         }
         return mH2i.readObject();
     }
@@ -69,14 +67,14 @@ public class Hessian2ObjectInput implements Cleanable {
     public <T> T readObject(Class<T> cls) throws IOException,
             ClassNotFoundException {
         if (!mH2i.getSerializerFactory().getClassLoader().equals(Thread.currentThread().getContextClassLoader())) {
-            mH2i.setSerializerFactory(hessian2FactoryInitializer.getSerializerFactory());
+//            mH2i.setSerializerFactory(hessian2FactoryInitializer.getSerializerFactory());
         }
         return (T) mH2i.readObject(cls);
     }
 
     public <T> T readObject(Class<T> cls, Type type) throws IOException, ClassNotFoundException {
         if (!mH2i.getSerializerFactory().getClassLoader().equals(Thread.currentThread().getContextClassLoader())) {
-            mH2i.setSerializerFactory(hessian2FactoryInitializer.getSerializerFactory());
+//            mH2i.setSerializerFactory(hessian2FactoryInitializer.getSerializerFactory());
         }
         return readObject(cls);
     }
@@ -87,7 +85,7 @@ public class Hessian2ObjectInput implements Cleanable {
 
     @Override
     public void cleanup() {
-        if(mH2i != null) {
+        if (mH2i != null) {
             mH2i.reset();
         }
     }

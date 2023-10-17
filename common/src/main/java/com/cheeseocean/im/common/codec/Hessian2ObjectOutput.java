@@ -2,7 +2,6 @@ package com.cheeseocean.im.common.codec;
 
 import com.alibaba.com.caucho.hessian.io.Hessian2Output;
 import org.apache.dubbo.common.serialize.Cleanable;
-import org.apache.dubbo.common.serialize.hessian2.dubbo.Hessian2FactoryInitializer;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -17,7 +16,7 @@ public class Hessian2ObjectOutput implements Cleanable {
 
     public Hessian2ObjectOutput(OutputStream os) {
         mH2o = new Hessian2Output(os);
-        mH2o.setSerializerFactory(Hessian2FactoryInitializer.getInstance().getSerializerFactory());
+//        mH2o.setSerializerFactory(Hessian2FactoryInitializer.getInstance().getSerializerFactory());
     }
 
     public void writeBool(boolean v) throws IOException {

@@ -1,10 +1,11 @@
-plugins{
+plugins {
     id 'java'
     id 'maven-publish'
     id 'org.graalvm.buildtools.native' version '0.9.19'
 }
 ext{
-    set("dubboVersion", "3.1.0")
+    set("springVersion", "6.0.13")
+    set("dubboVersion", "3.2.7")
     set("kafkaVersion", "2.8.1")
 }
 allprojects{
@@ -12,8 +13,8 @@ allprojects{
     version = '1.0.0'
 
     repositories {
-        maven { url 'https://maven.aliyun.com/repository/central' }
         maven { url 'https://maven.aliyun.com/repository/public' }
+        maven { url 'https://maven.aliyun.com/repository/apache-snapshots' }
         mavenLocal()
         maven {
             url = uri("https://maven.pkg.github.com/cheeseocean/CheesePackages")
@@ -35,16 +36,15 @@ subprojects {
         testCompileOnly 'org.projectlombok:lombok:1.18.26'
         testAnnotationProcessor 'org.projectlombok:lombok:1.18.26'
 
-        implementation enforcedPlatform("org.apache.dubbo:dubbo-dependencies-bom:$dubboVersion")
+        implementation enforcedPlatform("org.springframework:spring-framework-bom:$springVersion")
         //spring (based ioc aop)
-        implementation 'org.springframework:spring-context'
+        implementation "org.springframework:spring-context"
         implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml'
-        implementation 'ch.qos.logback:logback-core'
-        implementation 'ch.qos.logback:logback-classic'
+        implementation 'ch.qos.logback:logback-core:1.4.9'
+        implementation 'ch.qos.logback:logback-classic:1.4.9'
         implementation 'org.slf4j:log4j-over-slf4j:1.7.25'
         implementation 'org.slf4j:jcl-over-slf4j:1.7.25'
-        //implementation 'org.springframework:spring-context'
-        //implementation 'com.alibaba.nacos:nacos-client'
+
         implementation "org.apache.dubbo:dubbo-config-spring:$dubboVersion"
         implementation "org.apache.dubbo:dubbo-rpc-dubbo:$dubboVersion"
         implementation "org.apache.dubbo:dubbo-remoting-netty4:$dubboVersion"
@@ -54,22 +54,22 @@ subprojects {
         implementation "org.apache.dubbo:dubbo-configcenter-nacos:$dubboVersion"
         implementation "org.apache.dubbo:dubbo-metadata-report-nacos:$dubboVersion"
         //zookeeper-registry
-        //implementation "org.apache.dubbo:dubbo-registry-zookeeper:$dubboVersion"
-        //implementation "org.apache.dubbo:dubbo-configcenter-zookeeper:$dubboVersion"
-        //implementation "org.apache.dubbo:dubbo-metadata-report-zookeeper:$dubboVersion"
+        implementation "org.apache.dubbo:dubbo-registry-zookeeper:$dubboVersion"
+        implementation "org.apache.dubbo:dubbo-configcenter-zookeeper:$dubboVersion"
+        implementation "org.apache.dubbo:dubbo-metadata-report-zookeeper:$dubboVersion"
         //lombok
-        compileOnly 'org.projectlombok:lombok:1.18.26'
-        annotationProcessor 'org.projectlombok:lombok:1.18.26'
+        compileOnly 'org.projectlombok:lombok:1.18.30'
+        annotationProcessor 'org.projectlombok:lombok:1.18.30'
     }
 
-    task apiJar (type: Jar){
-        from(sourceSets.main.output){
+    tasks.register('apiJar', Jar) {
+        from(sourceSets.main.output) {
             include 'com/cheeseocean/im/*/api/**'
         }
     }
 
-    task apiSourceJar(type: Jar){
-        from(sourceSets.main.allSource){
+    tasks.register('apiSourceJar', Jar) {
+        from(sourceSets.main.allSource) {
             include 'com/cheeseocean/im/*/api/**'
         }
         archiveClassifier = 'sources'

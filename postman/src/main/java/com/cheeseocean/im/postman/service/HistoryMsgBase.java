@@ -1,6 +1,5 @@
 package com.cheeseocean.im.postman.service;
 
-import com.cheeseocean.im.common.config.IMConfig;
 import com.cheeseocean.im.common.consumer.BaseConsumer;
 
 /**
@@ -10,7 +9,7 @@ import com.cheeseocean.im.common.consumer.BaseConsumer;
 public class HistoryMsgBase implements BaseConsumer {
 
     @Override
-    public void init(IMConfig IMConfig) {
+    public void init() {
 
     }
 }
