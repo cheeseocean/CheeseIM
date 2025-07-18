@@ -42,7 +42,7 @@ rootProject.name = 'CheeseIM'
 
 include 'postoffice'
 include 'postman'
-include 'message'
+include 'postbox'
 include 'client'
 include 'common'
 include 'push'

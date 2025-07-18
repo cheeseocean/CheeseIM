@@ -1,0 +1,67 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: cheese-im-message
+
+  data:
+    mongodb:
+      host: ${mongodb.host:localhost}
+      port: 27017
+      database: cheese_im
+      username: ${mongodb.username:}
+      password: ${mongodb.password:}
+
+    redis:
+      host: ${redis.host:localhost}
+      port: 6379
+      password: ${redis.password:}
+      database: 1
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+          max-wait: 3000ms
+
+  kafka:
+    bootstrap-servers: ${kafka.bootstrap-servers:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+      batch-size: 16384
+      linger-ms: 1
+      buffer-memory: 33554432
+    consumer:
+      group-id: message-service-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: true
+      auto-commit-interval: 1000ms
+
+# Dubbo配置
+dubbo:
+  application:
+    name: cheese-im-message
+    register-mode: instance
+  protocol:
+    name: dubbo
+    port: -1
+  registry:
+    address: nacos://localhost:8848
+  config-center:
+    address: nacos://localhost:8848
+
+# 日志配置
+logging:
+  level:
+    com.cheeseocean.im.message: INFO
+    org.springframework.kafka: WARN
+    org.springframework.data.mongodb: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
