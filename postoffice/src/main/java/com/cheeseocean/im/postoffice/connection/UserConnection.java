@@ -28,7 +28,12 @@ public class UserConnection implements Serializable {
      * 平台ID (1:iOS 2:Android 3:Windows 4:OSX 5:WEB 6:MiniWeb 7:Linux)
      */
     private Integer platformID;
-    
+
+    /**
+     * 协议类型 (WebSocket/TCP)
+     */
+    private String protocol;
+
     /**
      * Netty Channel
      */
@@ -225,7 +230,15 @@ public class UserConnection implements Serializable {
     public void setPlatformID(Integer platformID) {
         this.platformID = platformID;
     }
-    
+
+    public String getProtocol() {
+        return protocol;
+    }
+
+    public void setProtocol(String protocol) {
+        this.protocol = protocol;
+    }
+
     public Channel getChannel() {
         return channel;
     }

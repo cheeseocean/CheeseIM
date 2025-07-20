@@ -1,9 +1,9 @@
-package com.cheeseocean.im.message.service;
+package com.cheeseocean.im.message.service.impl;
 
 import com.cheeseocean.im.common.constants.KafkaTopics;
 import com.cheeseocean.im.common.constants.MessageConstants;
 import com.cheeseocean.im.common.entity.Message;
-import com.cheeseocean.im.common.service.MessageService;
+import com.cheeseocean.im.message.api.MessageService;
 import com.cheeseocean.im.common.utils.IdGenerator;
 import com.cheeseocean.im.message.entity.MessageMongo;
 import com.cheeseocean.im.message.utils.ConversationUtils;

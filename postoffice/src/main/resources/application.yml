@@ -41,6 +41,33 @@ cheese:
       jwt-secret: "CheeseIM2024Secret!"
       token-expiration: 86400000  # 24小时
 
+# Postoffice网关配置
+postoffice:
+  # WebSocket服务器配置（Web端）
+  websocket:
+    enabled: true
+    port: 8080
+    path: "/ws"
+    ssl:
+      enabled: false
+      cert-path: ""
+      key-path: ""
+
+  # TCP服务器配置（移动端和桌面端）
+  tcp:
+    enabled: true
+    port: 8081
+    ssl:
+      enabled: false
+      cert-path: ""
+      key-path: ""
+
+  # 连接管理配置
+  connection:
+    multi-login-strategy: SAME_TERMINAL_KICK  # 多端登录策略
+    timeout-ms: 300000  # 连接超时时间（5分钟）
+    max-connections-per-user: 10  # 每个用户最大连接数
+
 # Dubbo配置
 dubbo:
   application:

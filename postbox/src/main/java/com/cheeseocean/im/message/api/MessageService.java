@@ -1,4 +1,4 @@
-package com.cheeseocean.im.common.service;
+package com.cheeseocean.im.message.api;
 
 import com.cheeseocean.im.common.entity.Message;
 
