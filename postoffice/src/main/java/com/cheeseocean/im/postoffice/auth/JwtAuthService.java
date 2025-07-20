@@ -15,19 +15,18 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * JWT认证服务实现
- * 参照OpenIM Server的Token验证机制
- * 
- * @author CheeseIM
+ *
+ * @author xxxcrel
  */
 @Service
 public class JwtAuthService implements AuthService {
     
     private static final Logger logger = LoggerFactory.getLogger(JwtAuthService.class);
     
-    @Value("${cheese.im.security.jwt-secret:CheeseIM2024Secret!}")
+    @Value("${postoffice.security.jwt-secret:CheeseIM2024Secret!}")
     private String jwtSecret;
     
-    @Value("${cheese.im.security.token-expiration:86400000}")
+    @Value("${postoffice.security.token-expiration:86400000}")
     private long tokenExpiration;
     
     private final RedisTemplate<String, Object> redisTemplate;

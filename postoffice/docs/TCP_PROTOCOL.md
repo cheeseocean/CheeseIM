@@ -334,7 +334,7 @@ class TcpClient {
 ```yaml
 logging:
   level:
-    com.cheeseocean.im.postoffice.server.TcpServer: DEBUG
+    com.cheeseocean.im.postoffice.server.CheeseServer: DEBUG
     com.cheeseocean.im.postoffice.codec: DEBUG
 ```
 

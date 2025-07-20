@@ -3,7 +3,7 @@ package com.cheeseocean.im.postoffice.controller;
 import com.cheeseocean.im.postoffice.auth.JwtAuthService;
 import com.cheeseocean.im.postoffice.connection.ConnectionManager;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
-import com.cheeseocean.im.postoffice.server.TcpServer;
+import com.cheeseocean.im.postoffice.server.CheeseServer;
 import com.cheeseocean.im.postoffice.server.WebSocketServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +32,7 @@ public class PostofficeController {
     private WebSocketServer webSocketServer;
 
     @Autowired
-    private TcpServer tcpServer;
+    private CheeseServer cheeseServer;
 
     @Autowired
     private ConnectionManager connectionManager;
@@ -55,7 +55,7 @@ public class PostofficeController {
         result.put("websocketServer", wsServerStatus);
 
         // TCP服务器状态
-        TcpServer.ServerStatus tcpServerStatus = tcpServer.getStatus();
+        CheeseServer.ServerStatus tcpServerStatus = cheeseServer.getStatus();
         result.put("tcpServer", tcpServerStatus);
 
         return ResponseEntity.ok(result);
@@ -68,7 +68,7 @@ public class PostofficeController {
     public ResponseEntity<Map<String, Object>> getServerStatus() {
         Map<String, Object> status = new HashMap<>();
         status.put("websocket", webSocketServer.getStatus());
-        status.put("tcp", tcpServer.getStatus());
+        status.put("tcp", cheeseServer.getStatus());
         return ResponseEntity.ok(status);
     }
 
@@ -84,8 +84,8 @@ public class PostofficeController {
      * 获取TCP服务器状态
      */
     @GetMapping("/status/tcp")
-    public ResponseEntity<TcpServer.ServerStatus> getTcpServerStatus() {
-        return ResponseEntity.ok(tcpServer.getStatus());
+    public ResponseEntity<CheeseServer.ServerStatus> getTcpServerStatus() {
+        return ResponseEntity.ok(cheeseServer.getStatus());
     }
     
     /**

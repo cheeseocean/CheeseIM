@@ -29,24 +29,13 @@ spring:
       enable-auto-commit: true
       auto-commit-interval: 1000ms
 
-# CheeseIM配置
-cheese:
-  im:
-    server:
-      port: 8080
-      boss-threads: 1
-      worker-threads: 0
-      idle-timeout: 300
-    security:
-      jwt-secret: "CheeseIM2024Secret!"
-      token-expiration: 86400000  # 24小时
 
 # Postoffice网关配置
 postoffice:
   # WebSocket服务器配置（Web端）
   websocket:
     enabled: true
-    port: 8080
+    port: 5147
     path: "/ws"
     ssl:
       enabled: false
@@ -56,7 +45,7 @@ postoffice:
   # TCP服务器配置（移动端和桌面端）
   tcp:
     enabled: true
-    port: 8081
+    port: 5148
     ssl:
       enabled: false
       cert-path: ""
@@ -67,6 +56,9 @@ postoffice:
     multi-login-strategy: SAME_TERMINAL_KICK  # 多端登录策略
     timeout-ms: 300000  # 连接超时时间（5分钟）
     max-connections-per-user: 10  # 每个用户最大连接数
+  security:
+        jwt-secret: "CheeseIM2024Secret!"
+        token-expiration: 86400000  # 24小时
 
 # Dubbo配置
 dubbo:

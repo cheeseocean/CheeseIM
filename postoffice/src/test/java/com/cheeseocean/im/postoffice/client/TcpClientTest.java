@@ -1,7 +1,7 @@
 package com.cheeseocean.im.postoffice.client;
 
-import com.cheeseocean.im.postoffice.protocol.TcpMessage;
-import com.cheeseocean.im.postoffice.protocol.TcpMessageType;
+import com.cheeseocean.im.postoffice.protocol.CheeseMessage;
+import com.cheeseocean.im.postoffice.protocol.CheeseMessageType;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,16 +62,16 @@ public class TcpClientTest {
         logger.info("Testing connection...");
         
         // 发送连接请求
-        TcpMessage connectReq = new TcpMessage(TcpMessageType.TCP_CONNECT_REQ, 
+        CheeseMessage connectReq = new CheeseMessage(CheeseMessageType.TCP_CONNECT_REQ,
                                               UUID.randomUUID().toString(), 
                                               "{}");
         sendMessage(out, connectReq);
         
         // 接收连接响应
-        TcpMessage response = receiveMessage(in);
+        CheeseMessage response = receiveMessage(in);
         logger.info("Received connection response: {}", response);
         
-        if (response.getMsgType() != TcpMessageType.TCP_CONNECT_SUCCESS) {
+        if (response.getMsgType() != CheeseMessageType.TCP_CONNECT_SUCCESS) {
             throw new RuntimeException("Connection failed: " + response.getData());
         }
         
@@ -86,13 +86,13 @@ public class TcpClientTest {
         
         // 发送认证请求
         String authData = "{\"token\":\"test-token\",\"userID\":\"test-user\",\"platformID\":2}";
-        TcpMessage authReq = new TcpMessage(TcpMessageType.TCP_AUTH_REQ, 
+        CheeseMessage authReq = new CheeseMessage(CheeseMessageType.TCP_AUTH_REQ,
                                            UUID.randomUUID().toString(), 
                                            authData);
         sendMessage(out, authReq);
         
         // 接收认证响应
-        TcpMessage response = receiveMessage(in);
+        CheeseMessage response = receiveMessage(in);
         logger.info("Received auth response: {}", response);
         
         // 注意：这里可能会收到认证失败的响应，因为我们使用的是测试token
@@ -108,16 +108,16 @@ public class TcpClientTest {
         logger.info("Testing heartbeat...");
         
         // 发送心跳请求
-        TcpMessage heartbeatReq = new TcpMessage(TcpMessageType.TCP_HEARTBEAT_REQ, 
+        CheeseMessage heartbeatReq = new CheeseMessage(CheeseMessageType.TCP_HEARTBEAT_REQ,
                                                 UUID.randomUUID().toString(), 
                                                 "ping");
         sendMessage(out, heartbeatReq);
         
         // 接收心跳响应
-        TcpMessage response = receiveMessage(in);
+        CheeseMessage response = receiveMessage(in);
         logger.info("Received heartbeat response: {}", response);
         
-        if (response.getMsgType() != TcpMessageType.TCP_HEARTBEAT_RESP) {
+        if (response.getMsgType() != CheeseMessageType.TCP_HEARTBEAT_RESP) {
             throw new RuntimeException("Heartbeat failed: " + response.getData());
         }
         
@@ -132,13 +132,13 @@ public class TcpClientTest {
         
         // 发送消息请求
         String msgData = "{\"content\":\"Hello TCP Server!\",\"contentType\":101,\"recvID\":\"receiver-123\"}";
-        TcpMessage sendMsgReq = new TcpMessage(TcpMessageType.TCP_SEND_MSG_REQ, 
+        CheeseMessage sendMsgReq = new CheeseMessage(CheeseMessageType.TCP_SEND_MSG_REQ,
                                               UUID.randomUUID().toString(), 
                                               msgData);
         sendMessage(out, sendMsgReq);
         
         // 接收发送消息响应
-        TcpMessage response = receiveMessage(in);
+        CheeseMessage response = receiveMessage(in);
         logger.info("Received send message response: {}", response);
         
         logger.info("Send message test completed");
@@ -147,7 +147,7 @@ public class TcpClientTest {
     /**
      * 发送TCP消息
      */
-    private void sendMessage(OutputStream out, TcpMessage message) throws IOException {
+    private void sendMessage(OutputStream out, CheeseMessage message) throws IOException {
         byte[] messageBytes = message.encode();
         out.write(messageBytes);
         out.flush();
@@ -159,12 +159,12 @@ public class TcpClientTest {
     /**
      * 接收TCP消息
      */
-    private TcpMessage receiveMessage(InputStream in) throws IOException {
+    private CheeseMessage receiveMessage(InputStream in) throws IOException {
         // 读取消息头部
-        byte[] headerBytes = new byte[TcpMessage.HEADER_LENGTH];
+        byte[] headerBytes = new byte[CheeseMessage.HEADER_LENGTH];
         int bytesRead = 0;
-        while (bytesRead < TcpMessage.HEADER_LENGTH) {
-            int read = in.read(headerBytes, bytesRead, TcpMessage.HEADER_LENGTH - bytesRead);
+        while (bytesRead < CheeseMessage.HEADER_LENGTH) {
+            int read = in.read(headerBytes, bytesRead, CheeseMessage.HEADER_LENGTH - bytesRead);
             if (read == -1) {
                 throw new IOException("Connection closed while reading header");
             }
@@ -192,14 +192,14 @@ public class TcpClientTest {
         }
         
         // 组合完整消息
-        byte[] fullMessage = new byte[TcpMessage.HEADER_LENGTH + dataLength];
-        System.arraycopy(headerBytes, 0, fullMessage, 0, TcpMessage.HEADER_LENGTH);
+        byte[] fullMessage = new byte[CheeseMessage.HEADER_LENGTH + dataLength];
+        System.arraycopy(headerBytes, 0, fullMessage, 0, CheeseMessage.HEADER_LENGTH);
         if (dataLength > 0) {
-            System.arraycopy(dataBytes, 0, fullMessage, TcpMessage.HEADER_LENGTH, dataLength);
+            System.arraycopy(dataBytes, 0, fullMessage, CheeseMessage.HEADER_LENGTH, dataLength);
         }
         
         // 解码消息
-        TcpMessage message = TcpMessage.decode(fullMessage);
+        CheeseMessage message = CheeseMessage.decode(fullMessage);
         
         logger.debug("Received TCP message: msgType={}, operationID={}, dataLength={}", 
                     message.getMsgType(), message.getOperationID(), message.getDataLength());

@@ -23,29 +23,29 @@ public class ProtocolConverter {
     /**
      * 将WebSocket消息转换为TCP消息
      */
-    public TcpMessage wsToTcp(WSMessage wsMessage) {
+    public CheeseMessage wsToTcp(WSMessage wsMessage) {
         try {
             if (wsMessage == null) {
                 return null;
             }
             
-            TcpMessage tcpMessage = new TcpMessage();
+            CheeseMessage cheeseMessage = new CheeseMessage();
             
             // 转换消息类型
-            tcpMessage.setMsgType(TcpMessageType.wsToTcpMessageType(wsMessage.getMsgType()));
+            cheeseMessage.setMsgType(CheeseMessageType.wsToTcpMessageType(wsMessage.getMsgType()));
             
             // 设置操作ID
-            tcpMessage.setOperationID(wsMessage.getOperationID());
+            cheeseMessage.setOperationID(wsMessage.getOperationID());
             
             // 设置时间戳
-            tcpMessage.setTimestamp(wsMessage.getSendTime() != null ? 
+            cheeseMessage.setTimestamp(wsMessage.getSendTime() != null ?
                                    wsMessage.getSendTime() : System.currentTimeMillis());
             
             // 转换数据
             String data = convertDataToJson(wsMessage);
-            tcpMessage.setData(data);
+            cheeseMessage.setData(data);
             
-            return tcpMessage;
+            return cheeseMessage;
             
         } catch (Exception e) {
             logger.error("Failed to convert WebSocket message to TCP message", e);
@@ -56,25 +56,25 @@ public class ProtocolConverter {
     /**
      * 将TCP消息转换为WebSocket消息
      */
-    public WSMessage tcpToWs(TcpMessage tcpMessage) {
+    public WSMessage tcpToWs(CheeseMessage cheeseMessage) {
         try {
-            if (tcpMessage == null) {
+            if (cheeseMessage == null) {
                 return null;
             }
             
             WSMessage wsMessage = new WSMessage();
             
             // 转换消息类型
-            wsMessage.setMsgType(TcpMessageType.tcpToWsMessageType(tcpMessage.getMsgType()));
+            wsMessage.setMsgType(CheeseMessageType.tcpToWsMessageType(cheeseMessage.getMsgType()));
             
             // 设置操作ID
-            wsMessage.setOperationID(tcpMessage.getOperationID());
+            wsMessage.setOperationID(cheeseMessage.getOperationID());
             
             // 设置时间戳
-            wsMessage.setSendTime(tcpMessage.getTimestamp());
+            wsMessage.setSendTime(cheeseMessage.getTimestamp());
             
             // 转换数据
-            Object data = convertJsonToData(tcpMessage.getData());
+            Object data = convertJsonToData(cheeseMessage.getData());
             wsMessage.setData(data);
             
             return wsMessage;
@@ -132,8 +132,8 @@ public class ProtocolConverter {
     /**
      * 创建错误响应的TCP消息
      */
-    public TcpMessage createTcpErrorResponse(String operationID, int errorCode, String errorMessage) {
-        return TcpMessage.errorResp(operationID, errorCode, errorMessage);
+    public CheeseMessage createTcpErrorResponse(String operationID, int errorCode, String errorMessage) {
+        return CheeseMessage.errorResp(operationID, errorCode, errorMessage);
     }
     
     /**
