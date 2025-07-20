@@ -1,0 +1,44 @@
+plugins {
+    id 'org.springframework.boot' version '3.2.4'
+    id 'io.spring.dependency-management' version '1.1.4'
+}
+
+dependencies {
+    // 项目依赖
+    implementation project(':common')
+    
+    // Spring Boot Starters
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    
+    // Dubbo
+    implementation "org.apache.dubbo:dubbo-spring-boot-starter:${dubboVersion}"
+    implementation "org.apache.dubbo:dubbo-registry-nacos:${dubboVersion}"
+    implementation "org.apache.dubbo:dubbo-configcenter-nacos:${dubboVersion}"
+    implementation "org.apache.dubbo:dubbo-metadata-report-nacos:${dubboVersion}"
+    
+    // MongoDB
+    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+    
+    // Redis
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    
+    // JSON处理
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'com.fasterxml.jackson.core:jackson-core'
+    
+    // 工具类
+    implementation 'org.apache.commons:commons-lang3'
+    implementation 'org.apache.commons:commons-collections4:4.4'
+    
+    // 测试依赖
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'de.flapdoodle.embed:de.flapdoodle.embed.mongo:4.12.2'
+}
+
+test {
+    useJUnitPlatform()
+}

@@ -189,7 +189,7 @@ const ws = new WebSocket('ws://localhost:8080/ws');
 ws.send(JSON.stringify({
     type: 'message',
     data: {
-        to: 'userId',
+        to: 'userID',
         content: 'Hello World',
         contentType: 101
     }
@@ -214,7 +214,7 @@ POST /api/v1/message/send
 GET /api/v1/message/history?conversationId=xxx&page=0&size=20
 
 # 搜索消息
-GET /api/v1/message/search?keyword=hello&userId=xxx
+GET /api/v1/message/search?keyword=hello&userID=xxx
 ```
 
 ## 🔧 配置说明

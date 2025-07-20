@@ -1,0 +1,102 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: cheese-im-postman
+
+  # Redis配置
+  data:
+    redis:
+      host: ${redis.host:localhost}
+      port: 6379
+      password: ${redis.password:}
+      database: 0
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+          max-wait: 3000ms
+
+  # Kafka配置
+  kafka:
+    bootstrap-servers: ${kafka.bootstrap-servers:localhost:9092}
+    consumer:
+      group-id: postman-group
+      auto-offset-reset: earliest
+      enable-auto-commit: true
+      auto-commit-interval: 1000ms
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      max-poll-records: 100
+      fetch-min-size: 1
+      fetch-max-wait: 500ms
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+      batch-size: 16384
+      linger-ms: 1
+      buffer-memory: 33554432
+    listener:
+      concurrency: 3
+      ack-mode: manual_immediate
+
+# CheeseIM配置
+cheese:
+  im:
+    postman:
+      # 消息传输配置
+      transfer:
+        batch-size: 100
+        retry-times: 3
+        timeout-ms: 5000
+      # 统计配置
+      statistics:
+        enabled: true
+        cache-expire-hours: 24
+        realtime-window-seconds: 60
+      # 在线用户配置
+      online-user:
+        cache-expire-minutes: 10
+        check-interval-seconds: 30
+
+# 日志配置
+logging:
+  level:
+    com.cheeseocean.im.postman: INFO
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN
+    redis.clients.jedis: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/postman.log
+    max-size: 100MB
+    max-history: 30
+
+# 管理端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# 应用信息
+info:
+  app:
+    name: CheeseIM Postman
+    description: Message Transfer Service
+    version: 1.0.0
+    author: CheeseIM Team

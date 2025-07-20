@@ -1,0 +1,112 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: cheese-im-conversation
+  
+  # MongoDB配置
+  data:
+    mongodb:
+      host: ${MONGO_HOST:localhost}
+      port: ${MONGO_PORT:27017}
+      database: ${MONGO_DATABASE:cheese_im}
+      username: ${MONGO_USERNAME:}
+      password: ${MONGO_PASSWORD:}
+      authentication-database: ${MONGO_AUTH_DB:admin}
+  
+  # Redis配置
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    database: ${REDIS_DATABASE:2}
+    timeout: 5000ms
+    lettuce:
+      pool:
+        max-active: 20
+        max-idle: 10
+        min-idle: 5
+        max-wait: 3000ms
+
+# Dubbo配置
+dubbo:
+  application:
+    name: cheese-im-conversation
+    register-mode: instance
+    logger: slf4j
+  
+  registry:
+    address: nacos://${NACOS_HOST:localhost}:${NACOS_PORT:8848}
+    username: ${NACOS_USERNAME:nacos}
+    password: ${NACOS_PASSWORD:nacos}
+    namespace: ${NACOS_NAMESPACE:}
+    group: ${NACOS_GROUP:DEFAULT_GROUP}
+  
+  config-center:
+    address: nacos://${NACOS_HOST:localhost}:${NACOS_PORT:8848}
+    username: ${NACOS_USERNAME:nacos}
+    password: ${NACOS_PASSWORD:nacos}
+    namespace: ${NACOS_NAMESPACE:}
+    group: ${NACOS_GROUP:DEFAULT_GROUP}
+  
+  metadata-report:
+    address: nacos://${NACOS_HOST:localhost}:${NACOS_PORT:8848}
+    username: ${NACOS_USERNAME:nacos}
+    password: ${NACOS_PASSWORD:nacos}
+    namespace: ${NACOS_NAMESPACE:}
+    group: ${NACOS_GROUP:DEFAULT_GROUP}
+  
+  protocol:
+    name: dubbo
+    port: ${DUBBO_PORT:20882}
+    threads: 200
+    
+  provider:
+    timeout: 5000
+    retries: 0
+    loadbalance: roundrobin
+    
+  consumer:
+    timeout: 5000
+    retries: 2
+    check: false
+
+# 日志配置
+logging:
+  level:
+    com.cheeseocean.im.business.conversation: DEBUG
+    org.springframework.data.mongodb: DEBUG
+    org.apache.dubbo: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/conversation.log
+    max-size: 100MB
+    max-history: 30
+
+# 管理端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# CheeseIM配置
+cheese:
+  im:
+    conversation:
+      # 会话缓存过期时间（秒）
+      cache-expire-seconds: 3600
+      # 最大会话数量限制
+      max-conversations-per-user: 1000
+      # 批量操作最大数量
+      max-batch-size: 100

@@ -218,12 +218,112 @@ docker run -d --name cheese-im-postoffice \
 - 消息内容过滤
 - 用户权限验证
 
+## 🚀 快速开始
+
+### 1. 启动依赖服务
+
+```bash
+# 启动Redis
+docker run -d --name redis -p 6379:6379 redis:latest
+
+# 启动Kafka
+docker run -d --name kafka -p 9092:9092 \
+  -e KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181 \
+  -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
+  confluentinc/cp-kafka:latest
+
+# 启动Nacos
+docker run -d --name nacos -p 8848:8848 \
+  -e MODE=standalone \
+  nacos/nacos-server:latest
+```
+
+### 2. 启动postbox服务
+
+```bash
+# 先启动消息服务（postbox）
+./gradlew :postbox:bootRun
+```
+
+### 3. 启动postoffice网关
+
+```bash
+# 启动网关服务
+./gradlew :postoffice:bootRun
+```
+
+### 4. 测试连接
+
+```bash
+# 使用测试客户端
+./gradlew :postoffice:test --tests WebSocketTestClient
+
+# 或者使用curl测试REST API
+curl http://localhost:8080/api/v1/postoffice/health
+```
+
+## 🧪 测试指南
+
+### WebSocket连接测试
+
+1. **生成测试Token**：
+```bash
+curl -X POST "http://localhost:8080/api/v1/postoffice/auth/token?userID=test001&platformID=2"
+```
+
+2. **使用测试客户端连接**：
+```bash
+# 运行测试客户端
+java -cp build/classes/java/test com.cheeseocean.im.postoffice.WebSocketTestClient
+
+# 在交互模式中执行：
+auth test001 2 <your_token>
+heartbeat
+send test002 Hello World
+```
+
+3. **验证连接状态**：
+```bash
+curl http://localhost:8080/api/v1/postoffice/users/test001/online
+```
+
+### 消息流程测试
+
+1. **发送消息** → postoffice接收 → 调用postbox RPC → 发送到Kafka
+2. **Kafka消息** → postman监听 → 发送到推送Topic
+3. **推送消息** → postoffice监听 → 推送给在线用户
+
+## 📋 API文档
+
+### REST API
+
+| 接口 | 方法 | 描述 |
+|------|------|------|
+| `/api/v1/postoffice/health` | GET | 健康检查 |
+| `/api/v1/postoffice/status` | GET | 服务器状态 |
+| `/api/v1/postoffice/connections/stats` | GET | 连接统计 |
+| `/api/v1/postoffice/users/online` | GET | 在线用户列表 |
+| `/api/v1/postoffice/users/{userID}/online` | GET | 用户在线状态 |
+| `/api/v1/postoffice/auth/token` | POST | 生成Token |
+| `/api/v1/postoffice/auth/validate` | POST | 验证Token |
+| `/api/v1/postoffice/users/{userID}/kick` | POST | 强制下线 |
+
+### WebSocket消息类型
+
+| 消息类型 | 代码 | 描述 |
+|----------|------|------|
+| 连接请求 | 1001 | 客户端连接请求 |
+| 认证请求 | 1101 | 用户认证 |
+| 心跳请求 | 1201 | 保持连接活跃 |
+| 发送消息 | 2001 | 发送聊天消息 |
+| 接收消息 | 2003 | 接收消息通知 |
+
 ## 📝 开发指南
 
 ### 添加新消息类型
 1. 在`WSMessageType`中定义消息类型常量
-2. 在`WebSocketHandler`中添加处理逻辑
-3. 在`MessageHandlerService`中实现具体处理
+2. 创建对应的`MessageHandler`实现类
+3. 在`MessageHandlerFactory`中自动注册
 
 ### 扩展认证机制
 1. 实现`AuthService`接口
@@ -234,3 +334,9 @@ docker run -d --name cheese-im-postoffice \
 1. 扩展`ConnectionManager`
 2. 实现自定义连接策略
 3. 添加连接事件监听
+
+### 多端登录策略配置
+```java
+// 在配置中设置多端登录策略
+connectionManager.setMultiLoginStrategy(MultiLoginStrategy.SAME_TERMINAL_KICK);
+```

@@ -8,30 +8,35 @@ package com.cheeseocean.im.common.constants;
 public class KafkaTopics {
     
     /**
-     * 消息发送到Redis的Topic (对应open-im-server的toRedisTopic)
+     * 消息发送到Kafka的Topic
      */
-    public static final String TO_REDIS_TOPIC = "cheese_im_to_redis";
+    public static final String MSG_TOPIC = "cheese_im_msg";
     
     /**
-     * 消息推送的Topic (对应open-im-server的toPushTopic)
+     * 消息推送的Topic
      */
-    public static final String TO_PUSH_TOPIC = "cheese_im_to_push";
-    
+    public static final String PUSH_TOPIC = "cheese_im_push";
+
     /**
-     * 消息存储到MongoDB的Topic (对应open-im-server的toMongoTopic)
+     * 离线推送Topic
      */
-    public static final String TO_MONGO_TOPIC = "cheese_im_to_mongo";
+    public static final String OFFLINE_PUSH_TOPIC = "cheese_im_offline_push";
+
+    /**
+     * 持久化消息的Topic
+     */
+    public static final String PERSISTENT_TOPIC = "cheese_im_persistent";
     
     /**
      * 消息状态更新Topic
      */
     public static final String MSG_STATUS_UPDATE_TOPIC = "cheese_im_msg_status_update";
-    
+
     /**
      * 用户在线状态Topic
      */
     public static final String USER_ONLINE_STATUS_TOPIC = "cheese_im_user_online_status";
-    
+
     private KafkaTopics() {
         // 私有构造函数，防止实例化
     }

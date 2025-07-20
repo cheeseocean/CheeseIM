@@ -1,7 +1,5 @@
 package com.cheeseocean.im.common.service;
 
-import com.cheeseocean.im.common.entity.SendMsgReq;
-import com.cheeseocean.im.common.entity.SendMsgResp;
 import com.cheeseocean.im.common.entity.Message;
 
 import java.util.List;

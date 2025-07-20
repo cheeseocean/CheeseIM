@@ -1,0 +1,167 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: cheese-im-push
+
+  # Redis配置
+  data:
+    redis:
+      host: ${redis.host:localhost}
+      port: 6379
+      password: ${redis.password:}
+      database: 0
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+          max-wait: 3000ms
+
+  # Kafka配置
+  kafka:
+    bootstrap-servers: ${kafka.bootstrap-servers:localhost:9092}
+    consumer:
+      group-id: push-group
+      auto-offset-reset: earliest
+      enable-auto-commit: true
+      auto-commit-interval: 1000ms
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      max-poll-records: 100
+      fetch-min-size: 1
+      fetch-max-wait: 500ms
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+      batch-size: 16384
+      linger-ms: 1
+      buffer-memory: 33554432
+    listener:
+      concurrency: 3
+      ack-mode: manual_immediate
+
+# Dubbo配置
+dubbo:
+  application:
+    name: cheese-im-push
+  registry:
+    address: nacos://${nacos.server-addr:localhost:8848}
+  consumer:
+    timeout: 5000
+    retries: 2
+    check: false
+  protocol:
+    name: dubbo
+    port: -1
+
+# CheeseIM推送配置
+cheese:
+  im:
+    push:
+      # APNs推送配置
+      apns:
+        enabled: ${push.apns.enabled:false}
+        key-path: ${push.apns.key-path:}
+        key-id: ${push.apns.key-id:}
+        team-id: ${push.apns.team-id:}
+        bundle-id: ${push.apns.bundle-id:}
+        production: ${push.apns.production:true}
+      
+      # 极光推送配置
+      jpush:
+        enabled: ${push.jpush.enabled:false}
+        app-key: ${push.jpush.app-key:}
+        master-secret: ${push.jpush.master-secret:}
+        production: ${push.jpush.production:true}
+        time-to-live: 86400
+      
+      # FCM推送配置
+      fcm:
+        enabled: ${push.fcm.enabled:false}
+        service-account-key: ${push.fcm.service-account-key:}
+        project-id: ${push.fcm.project-id:}
+      
+      # 华为推送配置
+      huawei:
+        enabled: ${push.huawei.enabled:false}
+        app-id: ${push.huawei.app-id:}
+        app-secret: ${push.huawei.app-secret:}
+      
+      # 小米推送配置
+      xiaomi:
+        enabled: ${push.xiaomi.enabled:false}
+        app-secret: ${push.xiaomi.app-secret:}
+        package-name: ${push.xiaomi.package-name:}
+      
+      # 推送统计配置
+      statistics:
+        enabled: true
+        cache-expire-hours: 24
+        realtime-window-seconds: 60
+      
+      # 设备Token配置
+      device-token:
+        cache-expire-days: 30
+        cleanup-interval-hours: 6
+      
+      # 离线推送配置
+      offline-push:
+        enabled: true
+        max-retry-count: 3
+        retry-delay-seconds: 1
+        max-daily-push-count: 100
+
+      # 定时任务配置
+      scheduled-tasks:
+        enabled: true
+        device-token-cleanup-interval-hours: 6
+        statistics-log-interval-minutes: 30
+        health-check-interval-minutes: 5
+
+      # 推送配置
+      config:
+        cache-expire-days: 7
+        default-group-chat-read-type: READ_ALL
+
+# 日志配置
+logging:
+  level:
+    com.cheeseocean.im.push: INFO
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN
+    org.apache.dubbo: WARN
+    redis.clients.jedis: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/push.log
+    max-size: 100MB
+    max-history: 30
+
+# 管理端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+# 应用信息
+info:
+  app:
+    name: CheeseIM Push Service
+    description: Online and Offline Push Service
+    version: 1.0.0
+    author: CheeseIM Team

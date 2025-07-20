@@ -1,0 +1,142 @@
+server:
+  port: 0
+
+spring:
+  application:
+    name: cheese-im-push-test
+
+  # Redis配置 - 使用嵌入式Redis进行测试
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 1
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: 3000ms
+
+  # Kafka配置 - 测试环境
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: push-test-group
+      auto-offset-reset: earliest
+      enable-auto-commit: true
+      auto-commit-interval: 1000ms
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 0
+    listener:
+      concurrency: 1
+      ack-mode: manual_immediate
+
+# Dubbo配置 - 测试环境
+dubbo:
+  application:
+    name: cheese-im-push-test
+  registry:
+    address: N/A
+  consumer:
+    timeout: 1000
+    retries: 0
+    check: false
+  protocol:
+    name: dubbo
+    port: -1
+
+# CheeseIM推送配置 - 测试环境
+cheese:
+  im:
+    push:
+      # APNs推送配置 - 测试环境禁用
+      apns:
+        enabled: false
+        key-path: ""
+        key-id: ""
+        team-id: ""
+        bundle-id: ""
+        production: false
+      
+      # 极光推送配置 - 测试环境禁用
+      jpush:
+        enabled: false
+        app-key: ""
+        master-secret: ""
+        production: false
+        time-to-live: 3600
+      
+      # FCM推送配置 - 测试环境禁用
+      fcm:
+        enabled: false
+        service-account-key: ""
+        project-id: ""
+      
+      # 华为推送配置 - 测试环境禁用
+      huawei:
+        enabled: false
+        app-id: ""
+        app-secret: ""
+      
+      # 小米推送配置 - 测试环境禁用
+      xiaomi:
+        enabled: false
+        app-secret: ""
+        package-name: ""
+      
+      # 推送路由配置
+      routing:
+        online-timeout: 1000
+        batch-size: 10
+        enable-fallback: true
+      
+      # 推送统计配置
+      statistics:
+        enabled: true
+        cache-expire-hours: 1
+        realtime-window-seconds: 10
+      
+      # 设备Token配置
+      device-token:
+        cache-expire-days: 1
+        cleanup-interval-hours: 1
+      
+      # 离线推送配置
+      offline-push:
+        enabled: true
+        max-retry-count: 1
+        retry-delay-seconds: 1
+        max-daily-push-count: 10
+
+# 日志配置 - 测试环境
+logging:
+  level:
+    com.cheeseocean.im.push: DEBUG
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN
+    org.apache.dubbo: WARN
+    redis.clients.jedis: WARN
+    root: INFO
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# 管理端点配置 - 测试环境
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: false

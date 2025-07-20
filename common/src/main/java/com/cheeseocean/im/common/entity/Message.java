@@ -3,6 +3,7 @@ package com.cheeseocean.im.common.entity;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 /**
  * 消息实体类
@@ -102,6 +103,78 @@ public class Message implements Serializable {
      */
     @JsonProperty("ex")
     private String ex;
+
+    /**
+     * 发送者昵称
+     */
+    @JsonProperty("senderNickname")
+    private String senderNickname;
+
+    /**
+     * 发送者头像
+     */
+    @JsonProperty("senderFaceURL")
+    private String senderFaceURL;
+
+    /**
+     * 接收者昵称
+     */
+    @JsonProperty("recvNickname")
+    private String recvNickname;
+
+    /**
+     * 接收者头像
+     */
+    @JsonProperty("recvFaceURL")
+    private String recvFaceURL;
+
+    /**
+     * 消息选项配置
+     */
+    @JsonProperty("options")
+    private Map<String, Boolean> options;
+
+    /**
+     * 附加信息
+     */
+    @JsonProperty("attachedInfo")
+    private String attachedInfo;
+
+    /**
+     * 离线推送信息
+     */
+    @JsonProperty("offlinePushInfo")
+    private OfflinePushInfo offlinePushInfo;
+
+    /**
+     * 消息唯一序列号
+     */
+    @JsonProperty("uniqueID")
+    private String uniqueID;
+
+    /**
+     * 消息发送者平台ID
+     */
+    @JsonProperty("senderPlatformID")
+    private Integer senderPlatformID;
+
+    /**
+     * 消息接收者平台ID
+     */
+    @JsonProperty("recvPlatformID")
+    private Integer recvPlatformID;
+
+    /**
+     * 消息类型（系统消息、用户消息等）
+     */
+    @JsonProperty("msgFrom")
+    private Integer msgFrom;
+
+    /**
+     * 消息子类型
+     */
+    @JsonProperty("subType")
+    private Integer subType;
     
     // 构造函数
     public Message() {
@@ -231,6 +304,102 @@ public class Message implements Serializable {
     public void setEx(String ex) {
         this.ex = ex;
     }
+
+    public String getSenderNickname() {
+        return senderNickname;
+    }
+
+    public void setSenderNickname(String senderNickname) {
+        this.senderNickname = senderNickname;
+    }
+
+    public String getSenderFaceURL() {
+        return senderFaceURL;
+    }
+
+    public void setSenderFaceURL(String senderFaceURL) {
+        this.senderFaceURL = senderFaceURL;
+    }
+
+    public String getRecvNickname() {
+        return recvNickname;
+    }
+
+    public void setRecvNickname(String recvNickname) {
+        this.recvNickname = recvNickname;
+    }
+
+    public String getRecvFaceURL() {
+        return recvFaceURL;
+    }
+
+    public void setRecvFaceURL(String recvFaceURL) {
+        this.recvFaceURL = recvFaceURL;
+    }
+
+    public Map<String, Boolean> getOptions() {
+        return options;
+    }
+
+    public void setOptions(Map<String, Boolean> options) {
+        this.options = options;
+    }
+
+    public String getAttachedInfo() {
+        return attachedInfo;
+    }
+
+    public void setAttachedInfo(String attachedInfo) {
+        this.attachedInfo = attachedInfo;
+    }
+
+    public OfflinePushInfo getOfflinePushInfo() {
+        return offlinePushInfo;
+    }
+
+    public void setOfflinePushInfo(OfflinePushInfo offlinePushInfo) {
+        this.offlinePushInfo = offlinePushInfo;
+    }
+
+    public String getUniqueID() {
+        return uniqueID;
+    }
+
+    public void setUniqueID(String uniqueID) {
+        this.uniqueID = uniqueID;
+    }
+
+    public Integer getSenderPlatformID() {
+        return senderPlatformID;
+    }
+
+    public void setSenderPlatformID(Integer senderPlatformID) {
+        this.senderPlatformID = senderPlatformID;
+    }
+
+    public Integer getRecvPlatformID() {
+        return recvPlatformID;
+    }
+
+    public void setRecvPlatformID(Integer recvPlatformID) {
+        this.recvPlatformID = recvPlatformID;
+    }
+
+    public Integer getMsgFrom() {
+        return msgFrom;
+    }
+
+    public void setMsgFrom(Integer msgFrom) {
+        this.msgFrom = msgFrom;
+    }
+
+    public Integer getSubType() {
+        return subType;
+    }
+
+    public void setSubType(Integer subType) {
+        this.subType = subType;
+    }
     
     @Override
     public String toString() {
@@ -250,6 +419,18 @@ public class Message implements Serializable {
                 ", isRead=" + isRead +
                 ", platformID=" + platformID +
                 ", ex='" + ex + '\'' +
+                ", senderNickname='" + senderNickname + '\'' +
+                ", senderFaceURL='" + senderFaceURL + '\'' +
+                ", recvNickname='" + recvNickname + '\'' +
+                ", recvFaceURL='" + recvFaceURL + '\'' +
+                ", options=" + options +
+                ", attachedInfo='" + attachedInfo + '\'' +
+                ", offlinePushInfo=" + offlinePushInfo +
+                ", uniqueID='" + uniqueID + '\'' +
+                ", senderPlatformID=" + senderPlatformID +
+                ", recvPlatformID=" + recvPlatformID +
+                ", msgFrom=" + msgFrom +
+                ", subType=" + subType +
                 '}';
     }
 }

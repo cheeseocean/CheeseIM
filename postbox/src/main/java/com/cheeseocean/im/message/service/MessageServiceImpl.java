@@ -3,12 +3,9 @@ package com.cheeseocean.im.message.service;
 import com.cheeseocean.im.common.constants.KafkaTopics;
 import com.cheeseocean.im.common.constants.MessageConstants;
 import com.cheeseocean.im.common.entity.Message;
-import com.cheeseocean.im.common.entity.SendMsgReq;
-import com.cheeseocean.im.common.entity.SendMsgResp;
 import com.cheeseocean.im.common.service.MessageService;
 import com.cheeseocean.im.common.utils.IdGenerator;
 import com.cheeseocean.im.message.entity.MessageMongo;
-import com.cheeseocean.im.message.service.MessageStorageService;
 import com.cheeseocean.im.message.utils.ConversationUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -86,9 +83,9 @@ public class MessageServiceImpl implements MessageService {
 
             // 发送消息到Kafka toRedisTopic
             String messageJson = objectMapper.writeValueAsString(message);
-            kafkaTemplate.send(KafkaTopics.TO_REDIS_TOPIC, message.getClientMsgID(), messageJson);
+            kafkaTemplate.send(KafkaTopics.MSG_TOPIC, message.getClientMsgID(), messageJson);
 
-            logger.info("消息已发送到Kafka topic: {}, msgID: {}", KafkaTopics.TO_REDIS_TOPIC, serverMsgID);
+            logger.info("消息已发送到Kafka topic: {}, msgID: {}", KafkaTopics.MSG_TOPIC, serverMsgID);
 
             // 返回成功响应
             return SendMsgResp.success(serverMsgID, message.getClientMsgID(), sendTime);

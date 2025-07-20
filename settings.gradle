@@ -35,6 +35,15 @@ dependencyResolutionManagement {
         }
         mavenLocal()
         mavenCentral()
+        // 私有仓库
+        maven {
+            url = uri("https://maven.pkg.github.com/cheeseocean/CheesePackages")
+            name = 'GitHub Packages'
+            credentials {
+                username = System.getenv("USERNAME")
+                password = System.getenv("TOKEN")
+            }
+        }
     }
 }
 
@@ -50,3 +59,4 @@ include 'cms'
 include 'business:friend'
 include 'business:group'
 include 'business:user'
+include 'business:conversation'

@@ -9,52 +9,6 @@ plugins {
 allprojects {
     group = project.findProperty('group') ?: 'com.cheeseocean.im'
     version = project.findProperty('version') ?: '1.0.0'
-
-    repositories {
-        // 优先使用阿里云镜像
-        maven { 
-            url 'https://maven.aliyun.com/repository/central'
-            name 'Aliyun Central'
-        }
-        maven { 
-            url 'https://maven.aliyun.com/repository/public'
-            name 'Aliyun Public'
-        }
-        maven {
-            url 'https://maven.aliyun.com/repository/spring'
-            name 'Aliyun Spring'
-        }
-        maven {
-            url 'https://maven.aliyun.com/repository/spring-plugin'
-            name 'Aliyun Spring Plugin'
-        }
-        
-        // Apache 仓库 - Dubbo 官方仓库
-        maven {
-            url 'https://repository.apache.org/content/repositories/releases/'
-            name 'Apache Releases'
-        }
-        maven {
-            url 'https://repository.apache.org/content/repositories/snapshots/'
-            name 'Apache Snapshots'
-        }
-        
-        // 本地仓库
-        mavenLocal()
-        
-        // 中央仓库作为备用
-        mavenCentral()
-        
-        // 私有仓库
-        maven {
-            url = uri("https://maven.pkg.github.com/cheeseocean/CheesePackages")
-            name = 'GitHub Packages'
-            credentials {
-                username = project.findProperty("gpr.user") ?: System.getenv("USERNAME")
-                password = project.findProperty("gpr.key") ?: System.getenv("TOKEN")
-            }
-        }
-    }
 }
 
 subprojects {
@@ -75,6 +29,8 @@ subprojects {
         }
         
         dependencies {
+            // Dubbo依赖版本管理（确保版本解析正确）
+            dependency "org.apache.dubbo:dubbo-spring-boot-starter:${dubboVersion}"
             dependency "org.apache.dubbo:dubbo-config-spring:${dubboVersion}"
             dependency "org.apache.dubbo:dubbo-rpc-dubbo:${dubboVersion}"
             dependency "org.apache.dubbo:dubbo-remoting-netty4:${dubboVersion}"
@@ -85,11 +41,11 @@ subprojects {
             dependency "org.apache.dubbo:dubbo-registry-zookeeper:${dubboVersion}"
             dependency "org.apache.dubbo:dubbo-configcenter-zookeeper:${dubboVersion}"
             dependency "org.apache.dubbo:dubbo-metadata-report-zookeeper:${dubboVersion}"
-            
+
+            // 其他依赖版本管理
             dependency "org.apache.kafka:kafka-clients:${kafkaVersion}"
             dependency "org.projectlombok:lombok:${lombokVersion}"
             dependency "io.netty:netty-all:${nettyVersion}"
-
             dependency "com.fasterxml.jackson.core:jackson-core:${jacksonVersion}"
             dependency "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
             dependency "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:${jacksonVersion}"
@@ -128,36 +84,36 @@ subprojects {
         testCompileOnly "org.projectlombok:lombok"
         testAnnotationProcessor "org.projectlombok:lombok"
 
-        // Dubbo核心依赖 - 使用明确版本
-        implementation "org.apache.dubbo:dubbo-config-spring:${dubboVersion}"
-        implementation "org.apache.dubbo:dubbo-rpc-dubbo:${dubboVersion}"
-        implementation("org.apache.dubbo:dubbo-remoting-netty4:${dubboVersion}") {
+        // Dubbo核心依赖 - 版本由BOM管理
+        implementation "org.apache.dubbo:dubbo-config-spring"
+        implementation "org.apache.dubbo:dubbo-rpc-dubbo"
+        implementation("org.apache.dubbo:dubbo-remoting-netty4") {
             exclude group: 'io.netty', module: 'netty-transport-native-epoll'
             exclude group: 'io.netty', module: 'netty-transport-native-kqueue'
         }
-        implementation "org.apache.dubbo:dubbo-serialization-hessian2:${dubboVersion}"
-        
-        // 注册中心 - Nacos
-        implementation "org.apache.dubbo:dubbo-registry-nacos:${dubboVersion}"
-        implementation "org.apache.dubbo:dubbo-configcenter-nacos:${dubboVersion}"
-        implementation "org.apache.dubbo:dubbo-metadata-report-nacos:${dubboVersion}"
-        
-        // 注册中心 - Zookeeper
-        implementation "org.apache.dubbo:dubbo-registry-zookeeper:${dubboVersion}"
-        implementation "org.apache.dubbo:dubbo-configcenter-zookeeper:${dubboVersion}"
-        implementation "org.apache.dubbo:dubbo-metadata-report-zookeeper:${dubboVersion}"
+        implementation "org.apache.dubbo:dubbo-serialization-hessian2"
 
-        // JSON处理
-        implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:${jacksonVersion}"
-        
-        // 日志框架
-        implementation "ch.qos.logback:logback-classic:${logbackVersion}"
+        // Dubbo注册中心 - Nacos（推荐用于生产环境）
+        implementation "org.apache.dubbo:dubbo-registry-nacos"
+        implementation "org.apache.dubbo:dubbo-configcenter-nacos"
+        implementation "org.apache.dubbo:dubbo-metadata-report-nacos"
+
+        // Dubbo注册中心 - Zookeeper（可选，用于兼容性）
+        implementation "org.apache.dubbo:dubbo-registry-zookeeper"
+        implementation "org.apache.dubbo:dubbo-configcenter-zookeeper"
+        implementation "org.apache.dubbo:dubbo-metadata-report-zookeeper"
+
+        // JSON处理 - 版本由dependencyManagement管理
+        implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml"
+
+        // 日志框架 - 版本由dependencyManagement管理
+        implementation "ch.qos.logback:logback-classic"
         implementation 'org.slf4j:log4j-over-slf4j'
         implementation 'org.slf4j:jcl-over-slf4j'
 
-        // Lombok
-        compileOnly "org.projectlombok:lombok:${lombokVersion}"
-        annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+        // Lombok - 版本由dependencyManagement管理
+        compileOnly "org.projectlombok:lombok"
+        annotationProcessor "org.projectlombok:lombok"
     }
 
     tasks.register('apiJar', Jar) {

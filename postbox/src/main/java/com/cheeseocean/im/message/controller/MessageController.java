@@ -1,8 +1,6 @@
 package com.cheeseocean.im.message.controller;
 
 import com.cheeseocean.im.common.entity.Message;
-import com.cheeseocean.im.common.entity.SendMsgReq;
-import com.cheeseocean.im.common.entity.SendMsgResp;
 import com.cheeseocean.im.common.service.MessageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
