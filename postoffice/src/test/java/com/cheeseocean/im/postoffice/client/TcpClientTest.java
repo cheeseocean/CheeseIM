@@ -2,6 +2,7 @@ package com.cheeseocean.im.postoffice.client;
 
 import com.cheeseocean.im.postoffice.protocol.CheeseMessage;
 import com.cheeseocean.im.postoffice.protocol.CheeseMessageType;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +27,7 @@ public class TcpClientTest {
     private static final int SERVER_PORT = 8081;
     
     @Test
+    @Disabled("Requires a running local TCP server on localhost:8081")
     public void testTcpConnection() throws Exception {
         logger.info("Starting TCP client test...");
         

@@ -1,6 +1,7 @@
 package com.cheeseocean.im.business.conversation.service;
 
 import com.cheeseocean.im.business.conversation.api.param.Conversation;
+import com.cheeseocean.im.business.conversation.entity.ConversationMongo;
 import com.cheeseocean.im.business.conversation.entity.VersionLogMongo;
 
 import java.util.List;
@@ -33,7 +34,7 @@ public interface ConversationStorageService {
      * @param conversations 会话列表
      * @return 是否成功
      */
-    Boolean createConversation(List<Conversation> conversations);
+    Boolean createConversation(List<ConversationMongo> conversations);
 
     /**
      * 同步对等用户私聊会话（事务操作）
@@ -42,7 +43,7 @@ public interface ConversationStorageService {
      * @param conversations 会话列表
      * @return 是否成功
      */
-    Boolean syncPeerUserPrivateConversationTx(List<Conversation> conversations);
+    Boolean syncPeerUserPrivateConversationTx(List<ConversationMongo> conversations);
 
     /**
      * 根据会话ID检索用户的多个会话
@@ -82,7 +83,7 @@ public interface ConversationStorageService {
      * @param fieldMap 字段映射
      * @return 是否成功
      */
-    Boolean setUsersConversationFieldTx(List<String> userIDs, Conversation conversation, Map<String, Object> fieldMap);
+    Boolean setUsersConversationFieldTx(List<String> userIDs, ConversationMongo conversation, Map<String, Object> fieldMap);
 
     /**
      * 更新与指定用户相关的所有会话
@@ -104,7 +105,7 @@ public interface ConversationStorageService {
      * @param conversation 会话对象
      * @return 是否成功
      */
-    Boolean createGroupChatConversation(String groupID, List<String> userIDs, Conversation conversation);
+    Boolean createGroupChatConversation(String groupID, List<String> userIDs, ConversationMongo conversation);
 
     /**
      * 检索给定用户的会话ID
@@ -157,7 +158,7 @@ public interface ConversationStorageService {
      * @param conversationIDs 会话ID列表
      * @return 会话列表
      */
-    List<Conversation> getConversationsByConversationID(List<String> conversationIDs);
+    List<ConversationMongo> getConversationsByConversationID(List<String> conversationIDs);
 
     /**
      * 根据特定条件获取需要销毁的会话
@@ -165,7 +166,7 @@ public interface ConversationStorageService {
      *
      * @return 需要销毁的会话列表
      */
-    List<Conversation> getConversationIDsNeedDestruct();
+    List<ConversationMongo> getConversationIDsNeedDestruct();
 
     /**
      * 获取会话中未接收消息的用户ID
@@ -233,7 +234,31 @@ public interface ConversationStorageService {
      * @param limit 限制数量
      * @return 随机会话列表
      */
-    List<Conversation> findRandConversation(Long ts, Integer limit);
+    List<ConversationMongo> findRandConversation(Long ts, Integer limit);
+
+    void updateRecvMsgOpt(String userID, String conversationID, Integer recvMsgOpt);
+
+    void updateDraft(String userID, String conversationID, String draftText);
+
+    void resetGroupAtType(String userID, String conversationID);
+
+    void updateMaxSeq(String userID, String conversationID, Long maxSeq);
+
+    void deleteConversation(String userID, String conversationID);
+
+    void deleteAllConversations(String userID);
+
+    boolean existsConversation(String userID, String conversationID);
+
+    List<ConversationMongo> findByGroupID(String groupID);
+
+    void batchUpdateRecvMsgOpt(String userID, List<String> conversationIDs, Integer recvMsgOpt);
+
+    long countConversations(String userID);
+
+    long countConversationsByType(String userID, Integer conversationType);
+
+    ConversationMongo createOrUpdateConversation(ConversationMongo conversation);
 
     /**
      * 会话分页结果

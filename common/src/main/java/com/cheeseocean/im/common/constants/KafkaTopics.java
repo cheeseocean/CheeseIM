@@ -37,6 +37,16 @@ public class KafkaTopics {
      */
     public static final String USER_ONLINE_STATUS_TOPIC = "cheese_im_user_online_status";
 
+    /**
+     * 投递补偿Topic
+     */
+    public static final String DELIVERY_COMPENSATION_TOPIC = "cheese_im_delivery_compensation";
+
+    /**
+     * 投递死信Topic
+     */
+    public static final String DELIVERY_DEAD_LETTER_TOPIC = "cheese_im_delivery_dead_letter";
+
     private KafkaTopics() {
         // 私有构造函数，防止实例化
     }

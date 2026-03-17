@@ -1,6 +1,7 @@
 package com.cheeseocean.im.postoffice.connection;
 
-import com.cheeseocean.im.common.constants.MessageConstants;
+import com.cheeseocean.im.common.dto.RouteSnapshot;
+import com.cheeseocean.im.postoffice.service.OnlineRouteService;
 import com.cheeseocean.im.postoffice.protocol.WSMessage;
 import com.cheeseocean.im.postoffice.protocol.WSMessageType;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -9,7 +10,6 @@ import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -32,10 +32,10 @@ public class ConnectionManager {
     private static final Logger logger = LoggerFactory.getLogger(ConnectionManager.class);
     
     @Autowired
-    private RedisTemplate<String, Object> redisTemplate;
-    
-    @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired(required = false)
+    private OnlineRouteService onlineRouteService;
     
     /**
      * 连接ID -> 连接映射
@@ -131,8 +131,7 @@ public class ConnectionManager {
                 onlineUserCount.incrementAndGet();
             }
             
-            // 同步到Redis
-            syncConnectionToRedis(connection);
+            registerOnlineRoute(connection);
             
             logger.info("Connection added: userID={}, connectionID={}, platform={}, total={}", 
                        userID, connectionID, connection.getPlatformName(), totalConnectionCount.get());
@@ -173,8 +172,7 @@ public class ConnectionManager {
             // 更新计数器
             totalConnectionCount.decrementAndGet();
             
-            // 从Redis移除
-            removeConnectionFromRedis(connection);
+            unregisterOnlineRoute(connection);
             
             logger.info("Connection removed: userID={}, connectionID={}, platform={}, total={}", 
                        userID, connectionID, connection.getPlatformName(), totalConnectionCount.get());
@@ -360,38 +358,25 @@ public class ConnectionManager {
         }
     }
     
-    /**
-     * 同步连接信息到Redis
-     */
-    private void syncConnectionToRedis(UserConnection connection) {
-        try {
-            String key = MessageConstants.REDIS_KEY_USER_ONLINE + connection.getUserID();
-            Map<String, Object> connectionInfo = Map.of(
-                    "connectionID", connection.getConnectionID(),
-                    "platformID", connection.getPlatformID(),
-                    "connectTime", connection.getConnectTime(),
-                    "lastActiveTime", connection.getLastActiveTime()
-            );
-            
-            redisTemplate.opsForHash().putAll(key, connectionInfo);
-            redisTemplate.expire(key, 30, TimeUnit.MINUTES);
-            
-        } catch (Exception e) {
-            logger.error("Failed to sync connection to Redis: {}", connection.getConnectionID(), e);
+    private void registerOnlineRoute(UserConnection connection) {
+        if (onlineRouteService == null || connection.getUserID() == null || connection.getPlatformID() == null) {
+            return;
         }
+        RouteSnapshot snapshot = new RouteSnapshot();
+        snapshot.setUserId(connection.getUserID());
+        snapshot.setDeviceId(connection.getPlatformName().toLowerCase() + "-" + connection.getPlatformID());
+        snapshot.setGatewayNode("postoffice");
+        snapshot.setConnectedAt(connection.getConnectTime());
+        snapshot.setHeartbeatAt(connection.getLastActiveTime());
+        onlineRouteService.register(snapshot);
     }
-    
-    /**
-     * 从Redis移除连接信息
-     */
-    private void removeConnectionFromRedis(UserConnection connection) {
-        try {
-            String key = MessageConstants.REDIS_KEY_USER_ONLINE + connection.getUserID();
-            redisTemplate.delete(key);
-            
-        } catch (Exception e) {
-            logger.error("Failed to remove connection from Redis: {}", connection.getConnectionID(), e);
+
+    private void unregisterOnlineRoute(UserConnection connection) {
+        if (onlineRouteService == null || connection.getUserID() == null || connection.getPlatformID() == null) {
+            return;
         }
+        onlineRouteService.unregister(connection.getUserID(),
+                connection.getPlatformName().toLowerCase() + "-" + connection.getPlatformID());
     }
     
     // ============ Getter and Setter ============

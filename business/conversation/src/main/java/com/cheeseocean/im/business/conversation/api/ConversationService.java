@@ -2,10 +2,10 @@ package com.cheeseocean.im.business.conversation.api;
 
 
 import com.cheeseocean.im.business.conversation.api.param.*;
+import com.cheeseocean.im.common.entity.conversation.GetAllConversationsReq;
+import com.cheeseocean.im.common.entity.conversation.GetAllConversationsResp;
 
 import java.util.List;
-
-import static com.cheeseocean.im.business.conversation.api.param.ConversationServiceReqResps.*;
 
 /**
  * conversation service api
@@ -47,4 +47,16 @@ public interface ConversationService {
      * @param request
      */
     void createGroupChatConversation(CreateGroupChatReq request);
+
+    Conversation createSingleConversation(String userID, String friendUserID);
+
+    Conversation createGroupConversation(String userID, String groupID);
+
+    GetAllConversationsResp getAllConversations(GetAllConversationsReq request);
+
+    Boolean markConversationAsRead(String userID, String conversationID, Long seq);
+
+    Boolean setConversationDraft(String userID, String conversationID, String draftText);
+
+    Boolean deleteConversation(String userID, String conversationID);
 }

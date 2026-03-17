@@ -1,5 +1,7 @@
 package com.cheeseocean.im.push.util;
 
+import com.cheeseocean.im.push.entity.PushMessage;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
