@@ -12,6 +12,10 @@ These invariants exist to keep the message path:
 
 Any change that cannot preserve these invariants should be treated as an architecture change, not a routine feature addition.
 
+Related review template:
+
+- `docs/superpowers/specs/2026-03-17-im-change-review-template.md`
+
 ## Scope
 
 The invariants in this document apply to the core IM message path:
