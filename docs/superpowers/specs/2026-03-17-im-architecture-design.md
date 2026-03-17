@@ -22,6 +22,10 @@ Design a Dubbo + Netty IM architecture for large-scale production use with these
 - Offline model: inbox persistence, push trigger, unread badge sync, recall/read backfill after reconnect
 - Scale target: around 1 million concurrent users and 1 billion+ daily messages
 
+See also:
+
+- `docs/superpowers/specs/2026-03-17-im-message-pipeline-invariants.md`
+
 ## Non-Goals
 
 To keep the design focused and plannable, the following are explicitly out of scope for this spec:
