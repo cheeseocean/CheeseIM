@@ -76,12 +76,12 @@ public class PushApplication {
                        "   - JPush: {}\n" +
                        "   - Huawei: {}\n" +
                        "\n" +
-                       "📋 Kafka Topics:\n" +
-                       "   - 消费: cheese_im_to_push (推送消息请求)\n" +
-                       "   - 消费/生产: cheese_im_offline_push (离线推送消息)\n" +
+                       "📋 Push Path:\n" +
+                       "   - 上游: postman 触发离线推送决策\n" +
+                       "   - 本模块: 去重、取消、第三方投递\n" +
                        "\n" +
-                       "🔗 Dubbo Services:\n" +
-                       "   - 消费: PostofficeOnlinePushService (在线推送)\n" +
+                       "🔗 Service Contract:\n" +
+                       "   - 使用 common.api.GatewayPushService 进行在线投递结果协同\n" +
                        "\n" +
                        "💡 快速测试:\n" +
                        "   curl {}://{}:{}{}/api/v1/push/health\n" +

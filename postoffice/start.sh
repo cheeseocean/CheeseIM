@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # CheeseIM Postoffice Gateway 启动脚本
-# 参照OpenIM Server的msggateway实现
 
 echo "🚀 Starting CheeseIM Postoffice Gateway..."
 
@@ -61,22 +60,13 @@ fi
 # 启动服务
 echo "🚀 Starting Postoffice Gateway..."
 echo "   WebSocket Server: ws://localhost:8080/ws"
-echo "   REST API: http://localhost:8080/api/v1/postoffice"
-echo "   Health Check: http://localhost:8080/api/v1/postoffice/health"
 echo ""
-echo "📋 Available REST APIs:"
-echo "   GET  /api/v1/postoffice/health           - 健康检查"
-echo "   GET  /api/v1/postoffice/status           - 服务器状态"
-echo "   GET  /api/v1/postoffice/users/online     - 在线用户列表"
-echo "   POST /api/v1/postoffice/auth/token       - 生成测试Token"
-echo "   POST /api/v1/postoffice/auth/validate    - 验证Token"
+echo "📋 Available runtime surfaces:"
+echo "   WebSocket gateway logs"
+echo "   TCP gateway logs"
 echo ""
-echo "💡 Test with curl:"
-echo "   curl http://localhost:8080/api/v1/postoffice/health"
-echo "   curl -X POST 'http://localhost:8080/api/v1/postoffice/auth/token?userID=test001&platformID=2'"
-echo ""
-echo "🎮 Use WebSocket test client:"
-echo "   java -cp build/classes/java/test com.cheeseocean.im.postoffice.WebSocketTestClient"
+echo "🎮 Run smoke test:"
+echo "   ./gradlew :postoffice:test --tests \"com.cheeseocean.im.postoffice.ImFlowSmokeTest\""
 echo ""
 
 # 启动应用

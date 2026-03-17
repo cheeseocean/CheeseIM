@@ -1,6 +1,5 @@
 package com.cheeseocean.im.push.service.impl;
 
-import com.cheeseocean.im.push.service.DeviceTokenService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,13 +14,10 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 设备Token管理服务实现
- * 基于Redis实现设备Token的存储、查询、更新和删除
- * 
- * @author CheeseIM
+ * Stores and cleans up device tokens in Redis.
  */
 @Service
-public class DeviceTokenServiceImpl implements DeviceTokenService {
+public class DeviceTokenServiceImpl {
     
     private static final Logger logger = LoggerFactory.getLogger(DeviceTokenServiceImpl.class);
     
@@ -46,7 +42,6 @@ public class DeviceTokenServiceImpl implements DeviceTokenService {
      */
     private static final String TOKEN_ACTIVE_TIME_KEY_PREFIX = "cheese_im:token_active_time:";
     
-    @Override
     public boolean saveDeviceToken(String userID, Integer platformID, String deviceToken) {
         try {
             if (userID == null || userID.trim().isEmpty() || 
@@ -98,7 +93,6 @@ public class DeviceTokenServiceImpl implements DeviceTokenService {
         }
     }
     
-    @Override
     public String getDeviceToken(String userID, Integer platformID) {
         try {
             if (userID == null || userID.trim().isEmpty() || platformID == null || platformID <= 0) {
@@ -126,7 +120,6 @@ public class DeviceTokenServiceImpl implements DeviceTokenService {
         }
     }
     
-    @Override
     public Map<Integer, String> getUserDeviceTokens(String userID) {
         Map<Integer, String> result = new HashMap<>();
         
@@ -159,7 +152,6 @@ public class DeviceTokenServiceImpl implements DeviceTokenService {
         return result;
     }
     
-    @Override
     public Map<String, String> batchGetDeviceTokens(List<String> userIDs, Integer platformID) {
         Map<String, String> result = new HashMap<>();
         
@@ -186,7 +178,6 @@ public class DeviceTokenServiceImpl implements DeviceTokenService {
         return result;
     }
     
-    @Override
     public boolean hasDeviceToken(String userID, Integer platformID) {
         try {
             String deviceToken = getDeviceToken(userID, platformID);
@@ -197,7 +188,6 @@ public class DeviceTokenServiceImpl implements DeviceTokenService {
         }
     }
     
-    @Override
     public boolean removeDeviceToken(String userID, Integer platformID) {
         try {
             if (userID == null || userID.trim().isEmpty() || platformID == null || platformID <= 0) {
@@ -233,7 +223,6 @@ public class DeviceTokenServiceImpl implements DeviceTokenService {
         }
     }
     
-    @Override
     public int removeAllUserDeviceTokens(String userID) {
         try {
             if (userID == null || userID.trim().isEmpty()) {
@@ -260,7 +249,6 @@ public class DeviceTokenServiceImpl implements DeviceTokenService {
         }
     }
     
-    @Override
     public boolean updateTokenActiveTime(String userID, Integer platformID) {
         try {
             if (userID == null || userID.trim().isEmpty() || platformID == null || platformID <= 0) {
@@ -290,7 +278,6 @@ public class DeviceTokenServiceImpl implements DeviceTokenService {
         }
     }
     
-    @Override
     public int cleanupExpiredTokens() {
         try {
             long currentTime = System.currentTimeMillis();
@@ -348,7 +335,6 @@ public class DeviceTokenServiceImpl implements DeviceTokenService {
         }
     }
     
-    @Override
     public DeviceTokenStats getDeviceTokenStats() {
         DeviceTokenStats stats = new DeviceTokenStats();
         
@@ -420,5 +406,68 @@ public class DeviceTokenServiceImpl implements DeviceTokenService {
             return "***";
         }
         return token.substring(0, 6) + "***" + token.substring(token.length() - 4);
+    }
+
+    public static class DeviceTokenStats {
+        private long totalTokens;
+        private long activeTokens;
+        private long expiredTokens;
+        private Map<Integer, Long> platformDistribution;
+        private long lastUpdateTime;
+
+        public DeviceTokenStats() {
+            this.lastUpdateTime = System.currentTimeMillis();
+        }
+
+        public long getTotalTokens() {
+            return totalTokens;
+        }
+
+        public void setTotalTokens(long totalTokens) {
+            this.totalTokens = totalTokens;
+        }
+
+        public long getActiveTokens() {
+            return activeTokens;
+        }
+
+        public void setActiveTokens(long activeTokens) {
+            this.activeTokens = activeTokens;
+        }
+
+        public long getExpiredTokens() {
+            return expiredTokens;
+        }
+
+        public void setExpiredTokens(long expiredTokens) {
+            this.expiredTokens = expiredTokens;
+        }
+
+        public Map<Integer, Long> getPlatformDistribution() {
+            return platformDistribution;
+        }
+
+        public void setPlatformDistribution(Map<Integer, Long> platformDistribution) {
+            this.platformDistribution = platformDistribution;
+        }
+
+        public long getLastUpdateTime() {
+            return lastUpdateTime;
+        }
+
+        public void setLastUpdateTime(long lastUpdateTime) {
+            this.lastUpdateTime = lastUpdateTime;
+        }
+
+        @Override
+        public String toString() {
+            return "DeviceTokenStats{" +
+                    "totalTokens=" + totalTokens +
+                    ", activeTokens=" + activeTokens +
+                    ", expiredTokens=" + expiredTokens +
+                    ", platformDistribution=" + platformDistribution +
+                    ", lastUpdateTime=" + lastUpdateTime +
+                    '}';
+        }
     }
 }

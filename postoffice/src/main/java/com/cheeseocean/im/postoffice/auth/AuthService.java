@@ -25,14 +25,6 @@ public interface AuthService {
     String generateToken(String userID, Integer platformID);
     
     /**
-     * 刷新Token
-     * 
-     * @param token 旧Token
-     * @return 新Token
-     */
-    String refreshToken(String token);
-    
-    /**
      * 认证结果类
      */
     class AuthResult {

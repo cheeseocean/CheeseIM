@@ -5,10 +5,7 @@ import java.io.Serializable;
 import java.util.Map;
 
 /**
- * 离线推送信息
- * 参照OpenIM的OfflinePushInfo结构
- * 
- * @author CheeseIM
+ * Offline push metadata carried alongside a message.
  */
 public class OfflinePushInfo implements Serializable {
     

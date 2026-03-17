@@ -21,10 +21,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 /**
- * 连接管理器
- * 参照OpenIM Server的连接管理实现，负责管理所有WebSocket连接
- * 
- * @author CheeseIM
+ * Tracks authenticated gateway connections and pushes messages to active devices.
  */
 @Component
 public class ConnectionManager {
@@ -38,42 +35,42 @@ public class ConnectionManager {
     private OnlineRouteService onlineRouteService;
     
     /**
-     * 连接ID -> 连接映射
+     * Connection ID to connection metadata.
      */
     private final Map<String, UserConnection> connectionMap = new ConcurrentHashMap<>();
     
     /**
-     * 用户ID -> 连接ID列表映射
+     * User ID to active connection IDs.
      */
     private final Map<String, Set<String>> userConnectionMap = new ConcurrentHashMap<>();
     
     /**
-     * Channel -> 连接ID映射
+     * Netty channel to connection ID.
      */
     private final Map<Channel, String> channelConnectionMap = new ConcurrentHashMap<>();
     
     /**
-     * 在线用户计数器
+     * Distinct online-user count.
      */
     private final AtomicLong onlineUserCount = new AtomicLong(0);
     
     /**
-     * 总连接数计数器
+     * Total active connection count.
      */
     private final AtomicLong totalConnectionCount = new AtomicLong(0);
     
     /**
-     * 多端登录策略，默认为同终端踢下线
+     * Active multi-device conflict policy.
      */
     private MultiLoginStrategy multiLoginStrategy = MultiLoginStrategy.SAME_TERMINAL_KICK;
     
     /**
-     * 连接超时时间（毫秒），默认5分钟
+     * Connection timeout in milliseconds.
      */
     private long connectionTimeoutMs = 5 * 60 * 1000;
     
     /**
-     * 定时任务执行器
+     * Background scheduler for cleanup and metrics updates.
      */
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
     

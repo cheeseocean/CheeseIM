@@ -1,9 +1,8 @@
 #!/bin/bash
 
-# CheeseIM Postman Message Transfer 启动脚本
-# 参照OpenIM Server的msgtransfer实现
+# CheeseIM Postbox 启动脚本
 
-echo "🚀 Starting CheeseIM Postman Message Transfer Service..."
+echo "🚀 Starting CheeseIM Postbox..."
 
 # 检查Java环境
 if ! command -v java &> /dev/null; then
@@ -41,37 +40,25 @@ echo "✅ Dependency check completed"
 
 # 构建项目
 echo "🔨 Building project..."
-if ! ./gradlew :postman:build -x test; then
+if ! ./gradlew :postbox:build -x test; then
     echo "❌ Build failed"
     exit 1
 fi
 
 # 启动服务
-echo "🚀 Starting Postman Message Transfer Service..."
-echo "   REST API: http://localhost:8082/api/v1/postman"
-echo "   Health Check: http://localhost:8082/api/v1/postman/health"
-echo "   Statistics: http://localhost:8082/api/v1/postman/stats/transfer"
+echo "🚀 Starting Postbox..."
+echo "   Storage boundary logs will show Mongo/Kafka readiness"
 echo ""
-echo "📋 Available REST APIs:"
-echo "   GET  /api/v1/postman/health              - 健康检查"
-echo "   GET  /api/v1/postman/status              - 服务状态"
-echo "   GET  /api/v1/postman/stats/transfer      - 消息传输统计"
-echo "   GET  /api/v1/postman/stats/realtime      - 实时统计"
-echo "   GET  /api/v1/postman/stats/online        - 在线用户统计"
-echo "   GET  /api/v1/postman/users/online        - 在线用户列表"
-echo "   POST /api/v1/postman/stats/reset         - 重置统计"
+echo "📋 Module Role:"
+echo "   - 持久化消息事实和 inbox 投影"
+echo "   - 支持离线拉取与 ack/read/recall 收敛"
 echo ""
-echo "💡 Test with curl:"
-echo "   curl http://localhost:8082/api/v1/postman/health"
-echo "   curl http://localhost:8082/api/v1/postman/status"
-echo "   curl http://localhost:8082/api/v1/postman/stats/transfer"
+echo "🎮 Run verification:"
+echo "   ./gradlew :postbox:test"
 echo ""
 echo "📊 Kafka Topics:"
-echo "   - cheese_im_to_redis     (消费) - 接收消息传输请求"
-echo "   - cheese_im_to_push      (生产) - 发送推送消息"
-echo "   - cheese_im_to_mongo     (生产) - 发送存储消息"
-echo "   - cheese_im_msg_status_update (生产) - 发送状态更新"
+echo "   - delivery-related events are produced and consumed through the rebuilt IM flow"
 echo ""
 
 # 启动应用
-exec ./gradlew :postman:bootRun
+exec ./gradlew :postbox:bootRun

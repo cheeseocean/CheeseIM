@@ -4,9 +4,7 @@ import com.cheeseocean.im.common.entity.Message;
 import com.cheeseocean.im.push.entity.OfflinePushConfig;
 import com.cheeseocean.im.push.entity.OfflinePushResult;
 import com.cheeseocean.im.push.entity.PushMessage;
-import com.cheeseocean.im.push.service.DeviceTokenService;
 import com.cheeseocean.im.push.provider.PushProvider;
-import com.cheeseocean.im.push.service.PushTemplateService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,10 +38,7 @@ class OfflinePushServiceImplTest {
     private List<PushProvider> pushProviders;
 
     @Mock
-    private DeviceTokenService deviceTokenService;
-
-    @Mock
-    private PushTemplateService pushTemplateService;
+    private DeviceTokenServiceImpl deviceTokenService;
 
     @Mock
     private RedisTemplate<String, Object> redisTemplate;
@@ -81,19 +76,16 @@ class OfflinePushServiceImplTest {
         // Mock Redis operations
         when(redisTemplate.opsForHash()).thenReturn(hashOperations);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(pushProviders.isEmpty()).thenReturn(false);
+        when(pushProviders.iterator()).thenReturn(List.of(pushProvider).iterator());
     }
 
     @Test
     void testPushMessageToUsers_Success() {
         // 准备测试数据
-        List<PushMessage> pushMessages = new ArrayList<>();
-        PushMessage pushMessage = new PushMessage("user1", "Test Title", "Test Content");
-        pushMessage.setPlatformID(1);
-        pushMessages.add(pushMessage);
-
-        // Mock 推送模板服务
-        when(pushTemplateService.createPushMessagesForUser(anyString(), anyString(), anyString(), any(Message.class)))
-                .thenReturn(pushMessages);
+        Map<Integer, String> deviceTokens = new HashMap<>();
+        deviceTokens.put(1, "ios-token-1");
+        when(deviceTokenService.getUserDeviceTokens("user1")).thenReturn(deviceTokens);
 
         // Mock 推送提供商
         when(pushProvider.supportsPlatform(1)).thenReturn(true);
@@ -121,6 +113,36 @@ class OfflinePushServiceImplTest {
         // 验证结果
         assertNotNull(result);
         // 注意：由于异步执行，这里可能需要等待或使用同步方式测试
+    }
+
+    @Test
+    void pushMessageToUsersShouldBuildPushMessageFromDeviceTokensWithoutTemplateServiceStub() {
+        Map<Integer, String> deviceTokens = new HashMap<>();
+        deviceTokens.put(1, "ios-token-1");
+        when(deviceTokenService.getUserDeviceTokens("user1")).thenReturn(deviceTokens);
+
+        when(pushProvider.supportsPlatform(1)).thenReturn(true);
+        when(pushProvider.isAvailable()).thenReturn(true);
+        when(pushProvider.getProviderName()).thenReturn("TestProvider");
+        when(pushProvider.sendPush(any(PushMessage.class)))
+                .thenReturn(PushProvider.PushResult.success("provider-msg-1"));
+
+        Map<Object, Object> configMap = new HashMap<>();
+        configMap.put("userID", "user1");
+        configMap.put("enabled", "true");
+        configMap.put("maxDailyCount", "100");
+        configMap.put("currentDailyCount", "0");
+        when(hashOperations.entries(anyString())).thenReturn(configMap);
+
+        OfflinePushResult result = offlinePushService.pushMessageToUsers(testMessage, List.of("user1"));
+
+        assertNotNull(result);
+        verify(pushProvider).sendPush(argThat(message ->
+                "ios-token-1".equals(message.getDeviceToken())
+                        && "user1".equals(message.getUserID())
+                        && "Test Sender".equals(message.getTitle())
+                        && "Test message content".equals(message.getContent())
+                        && "test-msg-123".equals(message.getMessageID())));
     }
 
     @Test

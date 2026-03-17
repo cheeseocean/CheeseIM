@@ -3,10 +3,7 @@ package com.cheeseocean.im.postbox.service;
 import java.util.List;
 
 /**
- * 群组成员服务接口
- * 参照OpenIM Server的群组成员管理功能
- * 
- * @author CheeseIM
+ * Resolves member IDs for group fanout planning.
  */
 public interface GroupMemberService {
     

@@ -323,11 +323,10 @@ class TcpClient {
 
 ## 监控和调试
 
-### API 接口
+### 调试方式
 
-- `GET /api/v1/postoffice/status/tcp` - 获取TCP服务器状态
-- `GET /api/v1/postoffice/connections/stats` - 获取连接统计
-- `GET /api/v1/postoffice/users/{userID}/online` - 检查用户在线状态
+- 查看 `postoffice` 应用日志确认 TCP 服务状态
+- 运行 `ImFlowSmokeTest` 验证 TCP/WebSocket 共用处理链
 
 ### 日志配置
 

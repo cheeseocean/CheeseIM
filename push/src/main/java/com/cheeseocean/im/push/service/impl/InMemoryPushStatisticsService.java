@@ -1,6 +1,5 @@
 package com.cheeseocean.im.push.service.impl;
 
-import com.cheeseocean.im.push.service.PushService;
 import com.cheeseocean.im.push.service.PushStatisticsService;
 import org.springframework.stereotype.Service;
 
@@ -36,8 +35,8 @@ public class InMemoryPushStatisticsService implements PushStatisticsService {
     }
 
     @Override
-    public PushService.PushStatistics getPushStatistics() {
-        PushService.PushStatistics stats = new PushService.PushStatistics();
+    public PushStatistics getPushStatistics() {
+        PushStatistics stats = new PushStatistics();
         stats.setTotalPushCount(totalPushCount.get());
         stats.setSuccessPushCount(successPushCount.get());
         stats.setFailedPushCount(failedPushCount.get());

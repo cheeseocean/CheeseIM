@@ -1,10 +1,7 @@
 package com.cheeseocean.im.postoffice.protocol;
 
 /**
- * WebSocket消息类型常量
- * 参照OpenIM Server的消息类型定义
- * 
- * @author CheeseIM
+ * WebSocket message type constants used by the gateway protocol layer.
  */
 public class WSMessageType {
     

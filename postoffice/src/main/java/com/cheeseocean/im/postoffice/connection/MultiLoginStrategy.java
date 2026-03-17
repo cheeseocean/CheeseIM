@@ -3,34 +3,27 @@ package com.cheeseocean.im.postoffice.connection;
 import java.util.List;
 
 /**
- * 多端登录策略
- * 参照OpenIM Server的多端登录策略实现
- * 
- * @author CheeseIM
+ * Multi-device login strategy constants for the gateway.
  */
 public enum MultiLoginStrategy {
     
     /**
-     * 默认不踢策略 - 允许所有平台同时在线
-     * 对应OpenIM的DefalutNotKick策略
+     * 默认不踢策略 - 允许所有平台同时在线。
      */
     DEFAULT_NOT_KICK(0, "默认不踢", "允许所有平台同时在线，不进行任何连接冲突处理"),
     
     /**
-     * PC和其他策略 - PC端享有特殊权限，不被踢下线
-     * 对应OpenIM的PCAndOther策略
+     * PC和其他策略 - PC端享有特殊权限，不被踢下线。
      */
     PC_AND_OTHER(1, "PC和其他", "PC端享有特殊权限不被踢下线，其他平台按同终端踢下线策略处理"),
     
     /**
-     * 同终端踢下线策略 - 同一平台类型只能有一个连接
-     * 对应OpenIM的AllLoginButSameTermKick策略
+     * 同终端踢下线策略 - 同一平台类型只能有一个连接。
      */
     SAME_TERMINAL_KICK(2, "同终端踢下线", "同一平台类型只能有一个连接，新连接会踢掉旧连接"),
     
     /**
-     * 同类别踢下线策略 - 同一设备类别只能有一个连接
-     * 对应OpenIM的AllLoginButSameClassKick策略
+     * 同类别踢下线策略 - 同一设备类别只能有一个连接。
      */
     SAME_CLASS_KICK(3, "同类别踢下线", "同一设备类别只能有一个连接，移动端、PC端、Web端分别只能有一个");
     
@@ -57,7 +50,7 @@ public enum MultiLoginStrategy {
     }
     
     /**
-     * 根据代码获取策略
+     * Resolves a strategy by numeric code.
      */
     public static MultiLoginStrategy fromCode(int code) {
         for (MultiLoginStrategy strategy : values()) {
@@ -69,11 +62,7 @@ public enum MultiLoginStrategy {
     }
     
     /**
-     * 判断是否需要踢掉旧连接
-     * 
-     * @param newConnection 新连接
-     * @param existingConnections 已存在的连接列表
-     * @return 需要踢掉的连接列表
+     * Returns the existing connections that should be disconnected.
      */
     public List<UserConnection> getConnectionsToKick(UserConnection newConnection, 
                                                     List<UserConnection> existingConnections) {
@@ -95,79 +84,56 @@ public enum MultiLoginStrategy {
         }
     }
     
-    /**
-     * 默认不踢策略处理
-     */
     private List<UserConnection> handleDefaultNotKick(UserConnection newConnection, 
                                                      List<UserConnection> existingConnections) {
-        // 不踢任何连接
         return List.of();
     }
     
-    /**
-     * PC和其他策略处理
-     */
     private List<UserConnection> handlePCAndOther(UserConnection newConnection, 
                                                  List<UserConnection> existingConnections) {
-        // 如果新连接是PC端，不踢任何连接
         if (isPCPlatform(newConnection.getPlatformID())) {
             return List.of();
         }
         
-        // 如果新连接不是PC端，按同终端踢下线策略处理
         return handleSameTerminalKick(newConnection, existingConnections);
     }
     
-    /**
-     * 同终端踢下线策略处理
-     */
     private List<UserConnection> handleSameTerminalKick(UserConnection newConnection, 
                                                        List<UserConnection> existingConnections) {
-        // 找出同一平台的连接并踢掉
         return existingConnections.stream()
                 .filter(conn -> conn.getPlatformID().equals(newConnection.getPlatformID()))
                 .toList();
     }
     
-    /**
-     * 同类别踢下线策略处理
-     */
     private List<UserConnection> handleSameClassKick(UserConnection newConnection, 
                                                     List<UserConnection> existingConnections) {
-        // 找出同一设备类别的连接并踢掉
         PlatformClass newPlatformClass = getPlatformClass(newConnection.getPlatformID());
         return existingConnections.stream()
                 .filter(conn -> getPlatformClass(conn.getPlatformID()) == newPlatformClass)
                 .toList();
     }
     
-    /**
-     * 判断是否为PC平台
-     */
     private boolean isPCPlatform(Integer platformID) {
-        return platformID != null && (platformID == 3 || platformID == 4 || platformID == 7); // Windows, OSX, Linux
+        return platformID != null && (platformID == 3 || platformID == 4 || platformID == 7);
     }
     
-    /**
-     * 获取平台类别
-     */
     private PlatformClass getPlatformClass(Integer platformID) {
         if (platformID == null) {
             return PlatformClass.UNKNOWN;
         }
         
         switch (platformID) {
-            case 1: // iOS
-            case 2: // Android
+            case 1:
+            case 2:
                 return PlatformClass.MOBILE;
                 
-            case 3: // Windows
-            case 4: // OSX
-            case 7: // Linux
+            case 3:
+            case 4:
+            case 7:
                 return PlatformClass.PC;
                 
-            case 5: // WEB
-            case 6: // MiniWeb
+            case 5:
+            case 6:
                 return PlatformClass.WEB;
                 
             default:
@@ -175,14 +141,11 @@ public enum MultiLoginStrategy {
         }
     }
     
-    /**
-     * 平台类别枚举
-     */
     private enum PlatformClass {
-        MOBILE,   // 移动端
-        PC,       // PC端
-        WEB,      // Web端
-        UNKNOWN   // 未知
+        MOBILE,
+        PC,
+        WEB,
+        UNKNOWN
     }
     
     @Override

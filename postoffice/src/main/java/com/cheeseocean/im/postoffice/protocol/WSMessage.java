@@ -5,10 +5,7 @@ import java.io.Serializable;
 import java.util.Map;
 
 /**
- * WebSocket消息实体
- * 参照OpenIM Server的消息格式定义
- * 
- * @author CheeseIM
+ * WebSocket gateway message envelope.
  */
 public class WSMessage implements Serializable {
     

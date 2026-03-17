@@ -4,10 +4,8 @@ import com.cheeseocean.im.common.entity.Message;
 import com.cheeseocean.im.push.entity.OfflinePushConfig;
 import com.cheeseocean.im.push.entity.OfflinePushResult;
 import com.cheeseocean.im.push.entity.PushMessage;
-import com.cheeseocean.im.push.service.DeviceTokenService;
 import com.cheeseocean.im.push.service.OfflinePushService;
 import com.cheeseocean.im.push.provider.PushProvider;
-import com.cheeseocean.im.push.service.PushTemplateService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,10 +34,7 @@ public class OfflinePushServiceImpl implements OfflinePushService {
     private List<PushProvider> pushProviders;
     
     @Autowired
-    private DeviceTokenService deviceTokenService;
-
-    @Autowired
-    private PushTemplateService pushTemplateService;
+    private DeviceTokenServiceImpl deviceTokenService;
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
@@ -112,7 +107,7 @@ public class OfflinePushServiceImpl implements OfflinePushService {
                         String content = generatePushContent(message);
                         
                         // 为用户创建推送消息
-                        List<PushMessage> pushMessages = pushTemplateService.createPushMessagesForUser(
+                        List<PushMessage> pushMessages = createPushMessagesForUser(
                                 userID, title, content, message);
                         
                         if (pushMessages.isEmpty()) {
@@ -338,6 +333,82 @@ public class OfflinePushServiceImpl implements OfflinePushService {
         }
         
         return content;
+    }
+
+    private List<PushMessage> createPushMessagesForUser(String userID, String title, String content, Message originalMessage) {
+        List<PushMessage> pushMessages = new ArrayList<>();
+        Map<Integer, String> tokens = deviceTokenService.getUserDeviceTokens(userID);
+        tokens.forEach((platformId, token) -> {
+            PushMessage pushMessage = createPushMessageForPlatform(userID, platformId, title, content, originalMessage);
+            if (pushMessage != null) {
+                pushMessage.setDeviceToken(token);
+                pushMessages.add(pushMessage);
+            }
+        });
+        return pushMessages;
+    }
+
+    private PushMessage createPushMessageForPlatform(String userID, Integer platformID, String title, String content, Message originalMessage) {
+        try {
+            PushMessage pushMessage = new PushMessage(userID, title, content);
+            pushMessage.setPlatformID(platformID);
+
+            if (originalMessage != null) {
+                pushMessage.setMessageID(originalMessage.getServerMsgID());
+                pushMessage.setSenderID(originalMessage.getSendID());
+                pushMessage.setSenderNickname(originalMessage.getSenderNickname());
+                pushMessage.setMessageType(originalMessage.getContentType());
+                pushMessage.setConversationType(originalMessage.getSessionType());
+
+                if (originalMessage.getSessionType() == 1) {
+                    pushMessage.setConversationID("single_" + originalMessage.getSendID() + "_" + originalMessage.getRecvID());
+                } else if (originalMessage.getSessionType() == 2) {
+                    pushMessage.setConversationID("group_" + originalMessage.getGroupID());
+                }
+
+                Map<String, Object> extraData = new HashMap<>();
+                if (originalMessage.getAttachedInfo() != null) {
+                    extraData.put("attachedInfo", originalMessage.getAttachedInfo());
+                }
+                if (originalMessage.getEx() != null) {
+                    extraData.put("ex", originalMessage.getEx());
+                }
+                if (originalMessage.getUniqueID() != null) {
+                    extraData.put("uniqueID", originalMessage.getUniqueID());
+                }
+                pushMessage.setExtras(extraData);
+            }
+
+            configurePlatformSpecificProperties(pushMessage, platformID);
+            return pushMessage;
+        } catch (Exception e) {
+            logger.error("创建平台推送消息失败: userID={}, platformID={}", userID, platformID, e);
+            return null;
+        }
+    }
+
+    private void configurePlatformSpecificProperties(PushMessage pushMessage, Integer platformID) {
+        if (platformID == null) {
+            return;
+        }
+
+        switch (platformID) {
+            case 1:
+                pushMessage.setSound("default");
+                pushMessage.setBadge(1);
+                pushMessage.setCategory("MESSAGE");
+                break;
+            case 2:
+                pushMessage.setSound("default");
+                pushMessage.setPriority(2);
+                break;
+            case 3:
+                pushMessage.setPriority(2);
+                break;
+            default:
+                pushMessage.setPriority(2);
+                break;
+        }
     }
     
     /**
