@@ -11,10 +11,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
-import org.springframework.util.concurrent.ListenableFuture;
-import org.springframework.util.concurrent.ListenableFutureCallback;
 
 import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -114,22 +113,17 @@ public class MessageTransferServiceImpl implements MessageTransferService {
             String pushMessageJson = objectMapper.writeValueAsString(pushMessage);
             
             // 发送到推送Topic
-            ListenableFuture<SendResult<String, String>> future = 
+            CompletableFuture<SendResult<String, String>> future =
                 kafkaTemplate.send(KafkaTopics.PUSH_TOPIC, message.getServerMsgID(), pushMessageJson);
-            
-            // 添加回调处理
-            future.addCallback(new ListenableFutureCallback<SendResult<String, String>>() {
-                @Override
-                public void onSuccess(SendResult<String, String> result) {
+
+            future.whenComplete((result, ex) -> {
+                if (ex == null) {
                     logger.debug("推送消息发送成功: serverMsgID={}, topic={}, partition={}, offset={}", 
                                message.getServerMsgID(), 
                                result.getRecordMetadata().topic(),
                                result.getRecordMetadata().partition(),
                                result.getRecordMetadata().offset());
-                }
-                
-                @Override
-                public void onFailure(Throwable ex) {
+                } else {
                     logger.error("推送消息发送失败: serverMsgID={}", message.getServerMsgID(), ex);
                 }
             });
@@ -156,22 +150,17 @@ public class MessageTransferServiceImpl implements MessageTransferService {
             String messageJson = objectMapper.writeValueAsString(message);
             
             // 发送到存储Topic
-            ListenableFuture<SendResult<String, String>> future = 
-                kafkaTemplate.send(KafkaTopics.TO_MONGO_TOPIC, message.getServerMsgID(), messageJson);
-            
-            // 添加回调处理
-            future.addCallback(new ListenableFutureCallback<SendResult<String, String>>() {
-                @Override
-                public void onSuccess(SendResult<String, String> result) {
+            CompletableFuture<SendResult<String, String>> future =
+                kafkaTemplate.send(KafkaTopics.PERSISTENT_TOPIC, message.getServerMsgID(), messageJson);
+
+            future.whenComplete((result, ex) -> {
+                if (ex == null) {
                     logger.debug("存储消息发送成功: serverMsgID={}, topic={}, partition={}, offset={}", 
                                message.getServerMsgID(), 
                                result.getRecordMetadata().topic(),
                                result.getRecordMetadata().partition(),
                                result.getRecordMetadata().offset());
-                }
-                
-                @Override
-                public void onFailure(Throwable ex) {
+                } else {
                     logger.error("存储消息发送失败: serverMsgID={}", message.getServerMsgID(), ex);
                 }
             });
@@ -207,19 +196,14 @@ public class MessageTransferServiceImpl implements MessageTransferService {
             String statusUpdateJson = objectMapper.writeValueAsString(statusUpdate);
             
             // 发送到状态更新Topic
-            ListenableFuture<SendResult<String, String>> future = 
+            CompletableFuture<SendResult<String, String>> future =
                 kafkaTemplate.send(KafkaTopics.MSG_STATUS_UPDATE_TOPIC, message.getServerMsgID(), statusUpdateJson);
-            
-            // 添加回调处理
-            future.addCallback(new ListenableFutureCallback<SendResult<String, String>>() {
-                @Override
-                public void onSuccess(SendResult<String, String> result) {
+
+            future.whenComplete((result, ex) -> {
+                if (ex == null) {
                     logger.debug("状态更新消息发送成功: serverMsgID={}, status={}", 
                                message.getServerMsgID(), status);
-                }
-                
-                @Override
-                public void onFailure(Throwable ex) {
+                } else {
                     logger.error("状态更新消息发送失败: serverMsgID={}, status={}", 
                                message.getServerMsgID(), status, ex);
                 }

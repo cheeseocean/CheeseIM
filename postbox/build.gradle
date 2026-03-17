@@ -20,4 +20,7 @@ dependencies {
     // RPC框架 (Dubbo)
     implementation 'org.apache.dubbo:dubbo-spring-boot-starter'
     implementation 'org.apache.dubbo:dubbo-registry-nacos'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.mockito:mockito-core'
 }

@@ -35,6 +35,10 @@ public interface PushTemplateService {
      * @return 推送消息
      */
     PushMessage createPushMessageForPlatform(String userID, Integer platformID, String title, String content, Message originalMessage);
+
+    default PushMessage createPushMessage(String userID, Integer platformID, String title, String content, Message originalMessage) {
+        return createPushMessageForPlatform(userID, platformID, title, content, originalMessage);
+    }
     
     /**
      * 根据消息类型生成推送标题
@@ -59,6 +63,14 @@ public interface PushTemplateService {
      * @return 设备Token列表（包含平台信息）
      */
     List<DeviceTokenInfo> getUserDeviceTokens(String userID);
+
+    default PushTemplate getPushTemplate(Integer messageType, Integer sessionType) {
+        return new PushTemplate(messageType, sessionType);
+    }
+
+    default UserPushSettings getUserPushSettings(String userID) {
+        return new UserPushSettings(userID, true);
+    }
     
     /**
      * 设备Token信息类
@@ -108,6 +120,64 @@ public interface PushTemplateService {
         
         public void setLastActiveTime(Long lastActiveTime) {
             this.lastActiveTime = lastActiveTime;
+        }
+    }
+
+    class PushTemplate {
+        private Integer messageType;
+        private Integer sessionType;
+
+        public PushTemplate() {
+        }
+
+        public PushTemplate(Integer messageType, Integer sessionType) {
+            this.messageType = messageType;
+            this.sessionType = sessionType;
+        }
+
+        public Integer getMessageType() {
+            return messageType;
+        }
+
+        public void setMessageType(Integer messageType) {
+            this.messageType = messageType;
+        }
+
+        public Integer getSessionType() {
+            return sessionType;
+        }
+
+        public void setSessionType(Integer sessionType) {
+            this.sessionType = sessionType;
+        }
+    }
+
+    class UserPushSettings {
+        private String userID;
+        private boolean pushEnabled;
+
+        public UserPushSettings() {
+        }
+
+        public UserPushSettings(String userID, boolean pushEnabled) {
+            this.userID = userID;
+            this.pushEnabled = pushEnabled;
+        }
+
+        public String getUserID() {
+            return userID;
+        }
+
+        public void setUserID(String userID) {
+            this.userID = userID;
+        }
+
+        public boolean isPushEnabled() {
+            return pushEnabled;
+        }
+
+        public void setPushEnabled(boolean pushEnabled) {
+            this.pushEnabled = pushEnabled;
         }
     }
 }

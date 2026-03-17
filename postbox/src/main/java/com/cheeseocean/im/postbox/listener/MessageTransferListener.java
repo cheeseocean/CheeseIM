@@ -43,7 +43,7 @@ public class MessageTransferListener {
     @KafkaListener(topics = KafkaTopics.MSG_TOPIC, groupId = "postman-transfer-group")
     public void handleMessageTransfer(@Payload String messageJson,
                                      @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
-                                     @Header(KafkaHeaders.RECEIVED_PARTITION_ID) int partition,
+                                     @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
                                      @Header(KafkaHeaders.OFFSET) long offset,
                                      Acknowledgment acknowledgment) {
         try {

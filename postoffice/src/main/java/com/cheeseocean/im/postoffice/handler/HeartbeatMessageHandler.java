@@ -3,8 +3,10 @@ package com.cheeseocean.im.postoffice.handler;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.postoffice.protocol.WSMessage;
 import com.cheeseocean.im.postoffice.protocol.WSMessageType;
+import com.cheeseocean.im.postoffice.service.OnlineRouteService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -17,12 +19,20 @@ import org.springframework.stereotype.Component;
 public class HeartbeatMessageHandler implements MessageHandler {
     
     private static final Logger logger = LoggerFactory.getLogger(HeartbeatMessageHandler.class);
+
+    @Autowired(required = false)
+    private OnlineRouteService onlineRouteService;
     
     @Override
     public HandleResult handle(UserConnection connection, WSMessage message) {
         try {
             // 更新连接的最后活跃时间
             connection.incrementHeartbeat();
+            if (onlineRouteService != null && connection.getUserID() != null && connection.getPlatformID() != null) {
+                onlineRouteService.refresh(connection.getUserID(),
+                        connection.getPlatformName().toLowerCase() + "-" + connection.getPlatformID(),
+                        connection.getLastActiveTime());
+            }
             
             String operationID = message.getOperationID();
             

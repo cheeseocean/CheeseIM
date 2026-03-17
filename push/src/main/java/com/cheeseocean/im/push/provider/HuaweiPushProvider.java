@@ -197,7 +197,11 @@ public class HuaweiPushProvider implements PushProvider {
         }
         
         if (!data.isEmpty()) {
-            message.put("data", objectMapper.writeValueAsString(data));
+            try {
+                message.put("data", objectMapper.writeValueAsString(data));
+            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                throw new IllegalStateException("Failed to serialize Huawei push payload", e);
+            }
         }
         
         // 设置Android特定配置

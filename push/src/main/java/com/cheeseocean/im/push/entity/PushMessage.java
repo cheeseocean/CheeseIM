@@ -66,6 +66,11 @@ public class PushMessage implements Serializable {
      * 消息类型（101:文本, 102:图片, 103:语音, 104:视频, 105:文件, 106:位置等）
      */
     private Integer messageType;
+
+    /**
+     * 推送类型，历史代码里与messageType混用。
+     */
+    private Integer pushType;
     
     /**
      * 推送优先级（1:低, 2:正常, 3:高）
@@ -91,6 +96,11 @@ public class PushMessage implements Serializable {
      * 推送过期时间（毫秒时间戳）
      */
     private Long expireTime;
+
+    /**
+     * 是否生产环境（主要用于iOS推送）。
+     */
+    private Boolean production;
     
     /**
      * 扩展数据
@@ -200,9 +210,20 @@ public class PushMessage implements Serializable {
     public Integer getMessageType() {
         return messageType;
     }
-    
+
     public void setMessageType(Integer messageType) {
         this.messageType = messageType;
+    }
+
+    public Integer getPushType() {
+        return pushType != null ? pushType : messageType;
+    }
+
+    public void setPushType(Integer pushType) {
+        this.pushType = pushType;
+        if (this.messageType == null) {
+            this.messageType = pushType;
+        }
     }
     
     public Integer getPriority() {
@@ -244,6 +265,14 @@ public class PushMessage implements Serializable {
     public void setExpireTime(Long expireTime) {
         this.expireTime = expireTime;
     }
+
+    public Boolean getProduction() {
+        return production;
+    }
+
+    public void setProduction(Boolean production) {
+        this.production = production;
+    }
     
     public Map<String, Object> getExtras() {
         return extras;
@@ -259,6 +288,22 @@ public class PushMessage implements Serializable {
     
     public void setCreateTime(Long createTime) {
         this.createTime = createTime;
+    }
+
+    public static PushMessage createTextPush(String userID, Integer platformID, String senderNickname, String content) {
+        PushMessage pushMessage = new PushMessage(userID, senderNickname, content);
+        pushMessage.setPlatformID(platformID);
+        pushMessage.setPushType(1);
+        pushMessage.setPriority(1);
+        return pushMessage;
+    }
+
+    public static PushMessage createSystemPush(String userID, Integer platformID, String title, String content) {
+        PushMessage pushMessage = new PushMessage(userID, title, content);
+        pushMessage.setPlatformID(platformID);
+        pushMessage.setPushType(7);
+        pushMessage.setPriority(2);
+        return pushMessage;
     }
     
     @Override

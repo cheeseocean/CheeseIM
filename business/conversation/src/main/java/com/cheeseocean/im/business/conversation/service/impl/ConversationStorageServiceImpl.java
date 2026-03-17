@@ -501,7 +501,10 @@ public class ConversationStorageServiceImpl implements ConversationStorageServic
         try {
             Pageable pageable = PageRequest.of(pageNumber - 1, showNumber);
             Page<ConversationMongo> page = conversationRepository.findByOwnerUserID(ownerUserID, pageable);
-            return new ConversationPage(page.getContent(), page.getTotalElements());
+            List<Conversation> conversations = page.getContent().stream()
+                    .map(ConversationMongo::toConversation)
+                    .collect(Collectors.toList());
+            return new ConversationPage(conversations, page.getTotalElements());
         } catch (Exception e) {
             logger.error("获取用户会话分页失败: ownerUserID={}, pageNumber={}, showNumber={}", ownerUserID, pageNumber, showNumber, e);
             return new ConversationPage(new ArrayList<>(), 0L);
@@ -617,14 +620,6 @@ public class ConversationStorageServiceImpl implements ConversationStorageServic
     }
     
     @Override
-    public List<String> getConversationIDs(String userID) {
-        List<ConversationMongo> conversations = conversationRepository.findConversationIDsByUserID(userID);
-        return conversations.stream()
-                .map(ConversationMongo::getConversationID)
-                .collect(Collectors.toList());
-    }
-    
-    @Override
     public List<ConversationMongo> findByGroupID(String groupID) {
         return conversationRepository.findByGroupID(groupID);
     }
@@ -671,6 +666,14 @@ public class ConversationStorageServiceImpl implements ConversationStorageServic
             logger.error("创建或更新会话失败: {}", conversation.getConversationID(), e);
             throw new RuntimeException("创建或更新会话失败", e);
         }
+    }
+
+    private Optional<ConversationMongo> findByUserIDAndConversationID(String userID, String conversationID) {
+        return conversationRepository.findByUserIDAndConversationID(userID, conversationID);
+    }
+
+    private ConversationMongo saveConversation(ConversationMongo conversation) {
+        return conversationRepository.save(conversation);
     }
     
     /**
@@ -749,7 +752,12 @@ public class ConversationStorageServiceImpl implements ConversationStorageServic
                     conversation.setMsgDestructTime((Long) value);
                     break;
                 case "latestMsgDestructTime":
-                    conversation.setLatestMsgDestructTime((Long) value);
+                    if (value instanceof Long longValue) {
+                        conversation.setLatestMsgDestructTime(java.time.LocalDateTime.ofEpochSecond(
+                                longValue / 1000, 0, java.time.ZoneOffset.UTC));
+                    } else {
+                        conversation.setLatestMsgDestructTime((java.time.LocalDateTime) value);
+                    }
                     break;
                 case "isMsgDestruct":
                     conversation.setIsMsgDestruct((Boolean) value);

@@ -1,0 +1,153 @@
+package com.cheeseocean.im.postman.service;
+
+import com.cheeseocean.im.common.api.GatewayPushService;
+import com.cheeseocean.im.common.api.MessageDeliveryService;
+import com.cheeseocean.im.common.api.MessagePushService;
+import com.cheeseocean.im.common.api.MessageStoreService;
+import com.cheeseocean.im.common.dto.DeliveryAck;
+import com.cheeseocean.im.common.dto.DeliveryCommand;
+import com.cheeseocean.im.common.dto.DeliveryResult;
+import com.cheeseocean.im.common.dto.GatewayPushResult;
+import com.cheeseocean.im.common.dto.MessageProto;
+import com.cheeseocean.im.common.entity.DeliveryState;
+import com.cheeseocean.im.common.entity.DeliveryTask;
+import com.cheeseocean.im.common.entity.StoredMessage;
+import org.apache.dubbo.config.annotation.DubboService;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+@DubboService(interfaceClass = MessageDeliveryService.class)
+public class MessageDeliveryServiceImpl implements MessageDeliveryService {
+
+    private final MessageIdempotencyService idempotencyService;
+    private final DeliveryStateMachine stateMachine;
+    private final MessageStoreService messageStoreService;
+    private final GatewayPushService gatewayPushService;
+    private final MessagePushService messagePushService;
+    private final DeliveryCompensationService deliveryCompensationService;
+    private final GroupFanoutPlanner groupFanoutPlanner;
+
+    public MessageDeliveryServiceImpl(MessageIdempotencyService idempotencyService,
+                                      DeliveryStateMachine stateMachine,
+                                      MessageStoreService messageStoreService,
+                                      GatewayPushService gatewayPushService,
+                                      MessagePushService messagePushService,
+                                      DeliveryCompensationService deliveryCompensationService,
+                                      GroupFanoutPlanner groupFanoutPlanner) {
+        this.idempotencyService = idempotencyService;
+        this.stateMachine = stateMachine;
+        this.messageStoreService = messageStoreService;
+        this.gatewayPushService = gatewayPushService;
+        this.messagePushService = messagePushService;
+        this.deliveryCompensationService = deliveryCompensationService;
+        this.groupFanoutPlanner = groupFanoutPlanner;
+    }
+
+    public MessageDeliveryServiceImpl(MessageIdempotencyService idempotencyService,
+                                      DeliveryStateMachine stateMachine,
+                                      MessageStoreService messageStoreService,
+                                      GatewayPushService gatewayPushService,
+                                      MessagePushService messagePushService,
+                                      DeliveryCompensationService deliveryCompensationService) {
+        this(idempotencyService, stateMachine, messageStoreService, gatewayPushService, messagePushService,
+                deliveryCompensationService, new GroupFanoutPlanner(500));
+    }
+
+    @Override
+    public DeliveryResult deliver(DeliveryCommand command) {
+        return idempotencyService.findExisting(command.getSenderId(), command.getConversationId(), command.getClientMsgId())
+                .orElseGet(() -> deliverFresh(command));
+    }
+
+    @Override
+    public DeliveryResult ack(DeliveryAck ack) {
+        DeliveryResult result = messageStoreService.applyAck(ack);
+        if ("READ".equals(ack.getAckType()) || "RECALL".equals(ack.getAckType())) {
+            messagePushService.cancelPending(ack.getServerMsgId(), ack.getUserId());
+        }
+        return result;
+    }
+
+    private DeliveryResult deliverFresh(DeliveryCommand command) {
+        StoredMessage persisted = messageStoreService.saveMessage(toStoredMessage(command));
+        if (command.isGroupDelivery()) {
+            return deliverGroup(command, persisted);
+        }
+        DeliveryTask task = stateMachine.persisted(command.getDeviceId(), persisted);
+        GatewayPushResult pushResult = gatewayPushService.pushToUser(command.getReceiverId(), toMessageProto(command, persisted));
+        task = stateMachine.afterGatewayAttempt(task, pushResult);
+
+        DeliveryResult result = new DeliveryResult();
+        result.setSuccess(true);
+        result.setServerMsgId(persisted.getServerMsgId());
+
+        if (task.getState() == DeliveryState.ONLINE_CONFIRMED) {
+            result.setStatus(task.getState().name());
+            result.setState(task.getState());
+            result.setReceiverOnline(true);
+            idempotencyService.remember(command.getSenderId(), command.getConversationId(), command.getClientMsgId(), result);
+            return result;
+        }
+
+        long inboxSeq = messageStoreService.saveOfflineMessage(toMessageProto(command, persisted));
+        messagePushService.pushOffline(command.getReceiverId(), toMessageProto(command, persisted));
+        task = stateMachine.pushTriggered(task);
+        deliveryCompensationService.schedule(task);
+
+        result.setStatus(task.getState().name());
+        result.setState(task.getState());
+        result.setReceiverOnline(false);
+        result.setStoredMessageId(inboxSeq);
+        idempotencyService.remember(command.getSenderId(), command.getConversationId(), command.getClientMsgId(), result);
+        return result;
+    }
+
+    private DeliveryResult deliverGroup(DeliveryCommand command, StoredMessage persisted) {
+        GroupFanoutPlanner.FanoutPlan plan = groupFanoutPlanner.plan(command, command.getTargetUserIds());
+        Long firstInboxSeq = null;
+        for (GroupFanoutPlanner.FanoutBatch batch : plan.getBatches()) {
+            List<Long> savedSequences = messageStoreService.saveOfflineMessages(
+                    toMessageProto(command, persisted), batch.getReceiverIds());
+            if (firstInboxSeq == null && !savedSequences.isEmpty()) {
+                firstInboxSeq = savedSequences.get(0);
+            }
+        }
+
+        DeliveryResult result = new DeliveryResult();
+        result.setSuccess(true);
+        result.setServerMsgId(persisted.getServerMsgId());
+        result.setStatus(DeliveryState.PUSH_TRIGGERED.name());
+        result.setState(DeliveryState.PUSH_TRIGGERED);
+        result.setReceiverOnline(false);
+        result.setStoredMessageId(firstInboxSeq);
+        idempotencyService.remember(command.getSenderId(), command.getConversationId(), command.getClientMsgId(), result);
+        return result;
+    }
+
+    private StoredMessage toStoredMessage(DeliveryCommand command) {
+        StoredMessage message = new StoredMessage();
+        message.setServerMsgId(command.getClientMsgId().replace("c-", "s-"));
+        message.setClientMsgId(command.getClientMsgId());
+        message.setConversationId(command.getConversationId());
+        message.setSenderId(command.getSenderId());
+        message.setReceiverId(command.getReceiverId());
+        message.setContent(command.getContent());
+        message.setContentType(command.getContentType());
+        return message;
+    }
+
+    private MessageProto toMessageProto(DeliveryCommand command, StoredMessage stored) {
+        MessageProto proto = new MessageProto();
+        proto.setClientMsgId(command.getClientMsgId());
+        proto.setServerMsgId(stored.getServerMsgId());
+        proto.setConversationId(command.getConversationId());
+        proto.setSenderId(command.getSenderId());
+        proto.setReceiverId(command.getReceiverId());
+        proto.setContent(command.getContent());
+        proto.setContentType(command.getContentType());
+        proto.setSessionType(command.getSessionType());
+        return proto;
+    }
+}

@@ -81,6 +81,18 @@ public class Conversation implements Serializable {
     @JsonProperty("attachedInfo")
     private String attachedInfo;
 
+    @JsonProperty("draftText")
+    private String draftText;
+
+    @JsonProperty("showName")
+    private String showName;
+
+    @JsonProperty("faceURL")
+    private String faceURL;
+
+    @JsonProperty("updateTime")
+    private Long updateTime;
+
     /**
      * 扩展字段
      */
@@ -227,6 +239,38 @@ public class Conversation implements Serializable {
         this.attachedInfo = attachedInfo;
     }
 
+    public String getDraftText() {
+        return draftText;
+    }
+
+    public void setDraftText(String draftText) {
+        this.draftText = draftText;
+    }
+
+    public String getShowName() {
+        return showName;
+    }
+
+    public void setShowName(String showName) {
+        this.showName = showName;
+    }
+
+    public String getFaceURL() {
+        return faceURL;
+    }
+
+    public void setFaceURL(String faceURL) {
+        this.faceURL = faceURL;
+    }
+
+    public Long getUpdateTime() {
+        return updateTime;
+    }
+
+    public void setUpdateTime(Long updateTime) {
+        this.updateTime = updateTime;
+    }
+
     public String getEx() {
         return ex;
     }
@@ -297,6 +341,10 @@ public class Conversation implements Serializable {
                 ", burnDuration=" + burnDuration +
                 ", groupAtType=" + groupAtType +
                 ", attachedInfo='" + attachedInfo + '\'' +
+                ", draftText='" + draftText + '\'' +
+                ", showName='" + showName + '\'' +
+                ", faceURL='" + faceURL + '\'' +
+                ", updateTime=" + updateTime +
                 ", ex='" + ex + '\'' +
                 ", maxSeq=" + maxSeq +
                 ", minSeq=" + minSeq +

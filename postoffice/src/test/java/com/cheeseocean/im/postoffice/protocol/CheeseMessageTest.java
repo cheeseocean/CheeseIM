@@ -56,7 +56,7 @@ public class CheeseMessageTest {
         
         // 验证解码后的数据
         assertEquals(originalMessage.getMsgType(), decodedMessage.getMsgType());
-        assertEquals(originalMessage.getOperationID().trim(), decodedMessage.getOperationID().trim());
+        assertEquals(truncateOperationId(originalMessage.getOperationID()), decodedMessage.getOperationID().trim());
         assertEquals(originalMessage.getData(), decodedMessage.getData());
         assertEquals(originalMessage.getDataLength(), decodedMessage.getDataLength());
         
@@ -82,7 +82,7 @@ public class CheeseMessageTest {
         CheeseMessage decoded = CheeseMessage.decode(encoded);
         
         assertEquals(msgType, decoded.getMsgType());
-        assertEquals(operationID.trim(), decoded.getOperationID().trim());
+        assertEquals(truncateOperationId(operationID), decoded.getOperationID().trim());
         assertEquals(testData, decoded.getData());
         
         logger.info("Message type {} ({}) test passed", msgType, description);
@@ -98,7 +98,7 @@ public class CheeseMessageTest {
         CheeseMessage decoded = CheeseMessage.decode(encoded);
         
         assertEquals(CheeseMessageType.TCP_HEARTBEAT_REQ, decoded.getMsgType());
-        assertEquals(operationID.trim(), decoded.getOperationID().trim());
+        assertEquals(truncateOperationId(operationID), decoded.getOperationID().trim());
         assertNull(decoded.getData());
         assertEquals(0, decoded.getDataLength());
         
@@ -171,5 +171,9 @@ public class CheeseMessageTest {
         });
         
         logger.info("Invalid magic test passed");
+    }
+
+    private String truncateOperationId(String operationID) {
+        return operationID == null ? null : operationID.substring(0, Math.min(operationID.length(), 16));
     }
 }

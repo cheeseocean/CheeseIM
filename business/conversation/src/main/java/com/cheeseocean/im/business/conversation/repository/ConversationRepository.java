@@ -136,4 +136,55 @@ public interface ConversationRepository extends MongoRepository<ConversationMong
      */
     @Query(value = "{}", fields = "{'conversation_id': 1}")
     Page<ConversationMongo> findAllConversationIDsWithPage(Pageable pageable);
+
+    default Optional<ConversationMongo> findByUserIDAndConversationID(String userID, String conversationID) {
+        return findByOwnerUserIDAndConversationID(userID, conversationID);
+    }
+
+    default boolean existsByUserIDAndConversationID(String userID, String conversationID) {
+        return existsByOwnerUserIDAndConversationID(userID, conversationID);
+    }
+
+    default void deleteByUserIDAndConversationID(String userID, String conversationID) {
+        deleteByOwnerUserIDAndConversationID(userID, conversationID);
+    }
+
+    default void deleteByUserID(String userID) {
+        deleteByOwnerUserID(userID);
+    }
+
+    default List<ConversationMongo> findConversationIDsByUserID(String userID) {
+        return findConversationIDsByOwnerUserID(userID);
+    }
+
+    default long countByUserID(String userID) {
+        return countByOwnerUserID(userID);
+    }
+
+    @Query("{'owner_user_id': ?0, 'conversation_type': ?1}")
+    long countByOwnerUserIDAndConversationType(String ownerUserID, Integer conversationType);
+
+    default long countByUserIDAndConversationType(String userID, Integer conversationType) {
+        return countByOwnerUserIDAndConversationType(userID, conversationType);
+    }
+
+    @Query("{'owner_user_id': ?0, 'conversation_id': ?1}")
+    @Update("{'$set': {'recv_msg_opt': ?2, 'update_time': ?3}}")
+    void updateRecvMsgOpt(String userID, String conversationID, Integer recvMsgOpt, Long updateTime);
+
+    @Query("{'owner_user_id': ?0, 'conversation_id': ?1}")
+    @Update("{'$set': {'attached_info': ?2, 'update_time': ?3}}")
+    void updateDraft(String userID, String conversationID, String draftText, Long draftTextTime);
+
+    @Query("{'owner_user_id': ?0, 'conversation_id': ?1}")
+    @Update("{'$set': {'group_at_type': 0, 'update_time': ?2}}")
+    void resetGroupAtType(String userID, String conversationID, Long updateTime);
+
+    @Query("{'owner_user_id': ?0, 'conversation_id': ?1}")
+    @Update("{'$set': {'max_seq': ?2, 'update_time': ?3}}")
+    void updateMaxSeq(String userID, String conversationID, Long maxSeq, Long updateTime);
+
+    @Query("{'owner_user_id': ?0, 'conversation_id': {'$in': ?1}}")
+    @Update("{'$set': {'recv_msg_opt': ?2, 'update_time': ?3}}")
+    void batchUpdateRecvMsgOpt(String userID, List<String> conversationIDs, Integer recvMsgOpt, Long updateTime);
 }

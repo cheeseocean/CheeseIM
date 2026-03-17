@@ -159,22 +159,13 @@ public class PushTemplateServiceImpl implements PushTemplateService {
         List<DeviceTokenInfo> deviceTokens = new ArrayList<>();
         
         try {
-            // 这里应该调用DeviceTokenService获取用户的设备Token
-            // 由于DeviceTokenService的具体实现可能不同，这里提供一个示例
-            
-            // 示例：假设DeviceTokenService有一个方法可以获取用户的所有设备Token
-            // List<DeviceToken> tokens = deviceTokenService.getUserDeviceTokens(userID);
-            // 
-            // for (DeviceToken token : tokens) {
-            //     DeviceTokenInfo tokenInfo = new DeviceTokenInfo(token.getToken(), token.getPlatformID());
-            //     tokenInfo.setDeviceID(token.getDeviceID());
-            //     tokenInfo.setLastActiveTime(token.getLastActiveTime());
-            //     deviceTokens.add(tokenInfo);
-            // }
-            
-            // 临时实现：返回空列表，避免编译错误
-            logger.debug("获取用户设备Token: userID={}", userID);
-            
+            Map<Integer, String> tokens = deviceTokenService.getUserDeviceTokens(userID);
+            tokens.forEach((platformId, token) -> {
+                DeviceTokenInfo tokenInfo = new DeviceTokenInfo(token, platformId);
+                tokenInfo.setLastActiveTime(System.currentTimeMillis());
+                deviceTokens.add(tokenInfo);
+            });
+
         } catch (Exception e) {
             logger.error("获取用户设备Token失败: userID={}", userID, e);
         }

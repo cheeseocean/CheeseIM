@@ -66,6 +66,15 @@ public class ConversationMongo implements Serializable {
     
     @Field("attached_info")
     private String attachedInfo;
+
+    @Field("show_name")
+    private String showName;
+
+    @Field("face_url")
+    private String faceURL;
+
+    @Field("update_time")
+    private Long updateTime;
     
     @Field("ex")
     private String ex;
@@ -198,6 +207,30 @@ public class ConversationMongo implements Serializable {
     
     public void setAttachedInfo(String attachedInfo) {
         this.attachedInfo = attachedInfo;
+    }
+
+    public String getShowName() {
+        return showName;
+    }
+
+    public void setShowName(String showName) {
+        this.showName = showName;
+    }
+
+    public String getFaceURL() {
+        return faceURL;
+    }
+
+    public void setFaceURL(String faceURL) {
+        this.faceURL = faceURL;
+    }
+
+    public Long getUpdateTime() {
+        return updateTime;
+    }
+
+    public void setUpdateTime(Long updateTime) {
+        this.updateTime = updateTime;
     }
     
     public String getEx() {
