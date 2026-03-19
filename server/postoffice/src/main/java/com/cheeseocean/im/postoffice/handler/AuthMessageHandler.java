@@ -1,7 +1,8 @@
 package com.cheeseocean.im.postoffice.handler;
 
-import com.cheeseocean.im.postoffice.auth.AuthService;
-import com.cheeseocean.im.postoffice.connection.ConnectionManager;
+import com.cheeseocean.im.common.model.auth.SessionPrincipal;
+import com.cheeseocean.im.postoffice.auth.WsTicketAuthService;
+import com.cheeseocean.im.postoffice.connection.ConnectionBindService;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.postoffice.protocol.WSMessage;
 import com.cheeseocean.im.postoffice.protocol.WSMessageType;
@@ -25,10 +26,10 @@ public class AuthMessageHandler implements MessageHandler {
     private static final Logger logger = LoggerFactory.getLogger(AuthMessageHandler.class);
     
     @Autowired
-    private AuthService authService;
-    
+    private WsTicketAuthService wsTicketAuthService;
+
     @Autowired
-    private ConnectionManager connectionManager;
+    private ConnectionBindService connectionBindService;
     
     @Autowired
     private ObjectMapper objectMapper;
@@ -51,70 +52,40 @@ public class AuthMessageHandler implements MessageHandler {
                 return HandleResult.failure("认证数据格式错误", errorResp);
             }
             
-            String token = (String) authData.get("token");
-            String userID = (String) authData.get("userID");
-            Integer platformID = (Integer) authData.get("platformID");
+            String ticket = (String) authData.get("ticket");
             
             // 参数验证
-            if (token == null || token.trim().isEmpty()) {
-                WSMessage errorResp = WSMessage.authFailed(operationID, "Token不能为空");
-                return HandleResult.failure("Token不能为空", errorResp);
+            if (ticket == null || ticket.trim().isEmpty()) {
+                WSMessage errorResp = WSMessage.authFailed(operationID, "ticket不能为空");
+                return HandleResult.failure("ticket不能为空", errorResp);
             }
             
-            if (userID == null || userID.trim().isEmpty()) {
-                WSMessage errorResp = WSMessage.authFailed(operationID, "用户ID不能为空");
-                return HandleResult.failure("用户ID不能为空", errorResp);
-            }
+            SessionPrincipal session = wsTicketAuthService.authenticate(ticket);
             
-            if (platformID == null || platformID <= 0) {
-                WSMessage errorResp = WSMessage.authFailed(operationID, "平台ID无效");
-                return HandleResult.failure("平台ID无效", errorResp);
-            }
-            
-            // 验证Token
-            AuthService.AuthResult authResult = authService.validateToken(token);
-            if (!authResult.isSuccess()) {
-                logger.warn("Authentication failed: userID={}, platformID={}, reason={}", 
-                           userID, platformID, authResult.getErrorMessage());
-                
-                WSMessage errorResp = WSMessage.authFailed(operationID, authResult.getErrorMessage());
-                return HandleResult.failureAndClose("认证失败: " + authResult.getErrorMessage(), errorResp);
-            }
-            
-            // 验证用户ID和平台ID是否匹配
-            if (!userID.equals(authResult.getUserID()) || !platformID.equals(authResult.getPlatformID())) {
-                logger.warn("Authentication mismatch: expected userID={}, platformID={}, but got userID={}, platformID={}", 
-                           authResult.getUserID(), authResult.getPlatformID(), userID, platformID);
-                
-                WSMessage errorResp = WSMessage.authFailed(operationID, "用户信息不匹配");
-                return HandleResult.failureAndClose("用户信息不匹配", errorResp);
-            }
-            
-            // 更新连接信息
-            connection.setUserID(userID);
-            connection.setPlatformID(platformID);
-            connection.setAuthenticated(token);
-
-            // 将连接添加到连接管理器（处理多端登录策略）
-            boolean added = connectionManager.addConnection(connection);
+            boolean added = connectionBindService.bindAuthenticated(connection, session);
             if (!added) {
-                logger.warn("Failed to add connection to manager: userID={}, connectionID={}",
-                           userID, connection.getConnectionID());
+                logger.warn("Failed to bind connection to manager: userID={}, connectionID={}",
+                           session.getUserId(), connection.getConnectionID());
                 WSMessage errorResp = WSMessage.authFailed(operationID, "连接添加失败");
                 return HandleResult.failureAndClose("连接添加失败", errorResp);
             }
 
-            logger.info("Authentication success: userID={}, platformID={}, connectionID={}",
-                       userID, platformID, connection.getConnectionID());
+            logger.info("Authentication success: userID={}, sessionID={}, deviceID={}, connectionID={}",
+                    session.getUserId(), session.getSessionId(), session.getDeviceId(), connection.getConnectionID());
 
             // 发送认证成功响应
-            WSMessage successResp = WSMessage.authSuccess(operationID, userID);
+            WSMessage successResp = WSMessage.authSuccess(operationID, session.getUserId());
 
             // 发送用户上线通知给其他连接
             notifyUserOnline(connection);
 
             return HandleResult.success(successResp);
             
+        } catch (IllegalStateException e) {
+            logger.warn("Authentication failed: connectionID={}, reason={}",
+                    connection.getConnectionID(), e.getMessage());
+            WSMessage errorResp = WSMessage.authFailed(message.getOperationID(), e.getMessage());
+            return HandleResult.failureAndClose("认证失败: " + e.getMessage(), errorResp);
         } catch (Exception e) {
             logger.error("Failed to handle auth message: connectionID={}", 
                         connection.getConnectionID(), e);

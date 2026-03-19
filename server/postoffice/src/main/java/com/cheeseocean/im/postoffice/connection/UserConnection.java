@@ -30,6 +30,31 @@ public class UserConnection implements Serializable {
     private Integer platformID;
 
     /**
+     * 会话ID
+     */
+    private String sessionID;
+
+    /**
+     * 设备ID
+     */
+    private String deviceID;
+
+    /**
+     * 租户ID
+     */
+    private String tenantID;
+
+    /**
+     * 平台标识
+     */
+    private String platform;
+
+    /**
+     * token版本
+     */
+    private Long tokenVersion;
+
+    /**
      * 协议类型 (WebSocket/TCP)
      */
     private String protocol;
@@ -73,6 +98,11 @@ public class UserConnection implements Serializable {
      * 连接状态 (0:连接中 1:已连接 2:已认证 3:已断开)
      */
     private volatile int status;
+
+    /**
+     * 连接身份上下文
+     */
+    private ConnectionContext context;
     
     /**
      * 心跳计数器
@@ -116,6 +146,9 @@ public class UserConnection implements Serializable {
      */
     public void updateLastActiveTime() {
         this.lastActiveTime = System.currentTimeMillis();
+        if (context != null) {
+            context.setLastHeartbeatAt(this.lastActiveTime);
+        }
     }
     
     /**
@@ -125,6 +158,9 @@ public class UserConnection implements Serializable {
         this.authenticated = true;
         this.token = token;
         this.status = STATUS_AUTHENTICATED;
+        if (context != null) {
+            context.setState(com.cheeseocean.im.common.enums.ConnectionState.AUTHENTICATED);
+        }
         updateLastActiveTime();
     }
     
@@ -231,6 +267,46 @@ public class UserConnection implements Serializable {
         this.platformID = platformID;
     }
 
+    public String getSessionID() {
+        return sessionID;
+    }
+
+    public void setSessionID(String sessionID) {
+        this.sessionID = sessionID;
+    }
+
+    public String getDeviceID() {
+        return deviceID;
+    }
+
+    public void setDeviceID(String deviceID) {
+        this.deviceID = deviceID;
+    }
+
+    public String getTenantID() {
+        return tenantID;
+    }
+
+    public void setTenantID(String tenantID) {
+        this.tenantID = tenantID;
+    }
+
+    public String getPlatform() {
+        return platform;
+    }
+
+    public void setPlatform(String platform) {
+        this.platform = platform;
+    }
+
+    public Long getTokenVersion() {
+        return tokenVersion;
+    }
+
+    public void setTokenVersion(Long tokenVersion) {
+        this.tokenVersion = tokenVersion;
+    }
+
     public String getProtocol() {
         return protocol;
     }
@@ -302,6 +378,14 @@ public class UserConnection implements Serializable {
     public void setStatus(int status) {
         this.status = status;
     }
+
+    public ConnectionContext getContext() {
+        return context;
+    }
+
+    public void setContext(ConnectionContext context) {
+        this.context = context;
+    }
     
     public long getHeartbeatCount() {
         return heartbeatCount.get();
@@ -321,6 +405,8 @@ public class UserConnection implements Serializable {
                 "connectionID='" + connectionID + '\'' +
                 ", userID='" + userID + '\'' +
                 ", platformID=" + platformID +
+                ", sessionID='" + sessionID + '\'' +
+                ", deviceID='" + deviceID + '\'' +
                 ", authenticated=" + authenticated +
                 ", clientIP='" + clientIP + '\'' +
                 ", status=" + status +

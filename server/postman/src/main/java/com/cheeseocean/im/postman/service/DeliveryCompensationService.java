@@ -9,6 +9,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -26,11 +27,11 @@ public class DeliveryCompensationService {
     private final int maxRetries;
     private final long retryDelaySeconds;
 
-    public DeliveryCompensationService(KafkaTemplate<String, String> kafkaTemplate,
+    public DeliveryCompensationService(@Qualifier("stringKafkaTemplate") KafkaTemplate<String, String> kafkaTemplate,
                                        ObjectMapper objectMapper,
                                        MeterRegistry meterRegistry,
-                                       @Value("${cheese.im.delivery.compensation.max-retries:3}") int maxRetries,
-                                       @Value("${cheese.im.delivery.compensation.retry-delay-seconds:10}") long retryDelaySeconds) {
+                                       @Value("${cheeseim.delivery.compensation.max-retries:3}") int maxRetries,
+                                       @Value("${cheeseim.delivery.compensation.retry-delay-seconds:10}") long retryDelaySeconds) {
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper.copy().registerModule(new JavaTimeModule());
         this.meterRegistry = meterRegistry;

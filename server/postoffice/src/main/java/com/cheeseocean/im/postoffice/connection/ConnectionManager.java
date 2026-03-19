@@ -43,6 +43,16 @@ public class ConnectionManager {
      * User ID to active connection IDs.
      */
     private final Map<String, Set<String>> userConnectionMap = new ConcurrentHashMap<>();
+
+    /**
+     * Session ID to active authenticated connection IDs.
+     */
+    private final Map<String, Set<String>> sessionConnectionMap = new ConcurrentHashMap<>();
+
+    /**
+     * userId:deviceId to active authenticated connection IDs.
+     */
+    private final Map<String, Set<String>> deviceConnectionMap = new ConcurrentHashMap<>();
     
     /**
      * Netty channel to connection ID.
@@ -89,6 +99,37 @@ public class ConnectionManager {
     }
     
     /**
+     * 注册未认证连接，仅建立 connectionId 和 channel 的索引。
+     */
+    public synchronized boolean registerPendingConnection(UserConnection connection) {
+        try {
+            String connectionID = connection.getConnectionID();
+            if (connectionID == null || connection.getChannel() == null) {
+                logger.warn("Pending connection is missing required fields: connectionID={}, channel={}",
+                        connectionID, connection.getChannel());
+                return false;
+            }
+
+            UserConnection existing = connectionMap.get(connectionID);
+            if (existing != null && existing != connection) {
+                logger.warn("Pending connection already exists: {}", connectionID);
+                return false;
+            }
+
+            connectionMap.put(connectionID, connection);
+            channelConnectionMap.put(connection.getChannel(), connectionID);
+            totalConnectionCount.incrementAndGet();
+
+            logger.info("Pending connection registered: connectionID={}, remoteAddress={}",
+                    connectionID, connection.getChannel().remoteAddress());
+            return true;
+        } catch (Exception e) {
+            logger.error("Failed to register pending connection: {}", connection.getConnectionID(), e);
+            return false;
+        }
+    }
+
+    /**
      * 添加新连接
      */
     public synchronized boolean addConnection(UserConnection connection) {
@@ -97,7 +138,8 @@ public class ConnectionManager {
             String userID = connection.getUserID();
             
             // 检查连接是否已存在
-            if (connectionMap.containsKey(connectionID)) {
+            UserConnection existingConnection = connectionMap.get(connectionID);
+            if (existingConnection != null && existingConnection != connection) {
                 logger.warn("Connection already exists: {}", connectionID);
                 return false;
             }
@@ -114,16 +156,26 @@ public class ConnectionManager {
                 kickConnection(connToKick, "新设备登录，当前连接被踢下线");
             }
             
-            // 添加新连接
+            // 添加或提升连接
             connectionMap.put(connectionID, connection);
             channelConnectionMap.put(connection.getChannel(), connectionID);
             
             // 更新用户连接映射
             userConnectionMap.computeIfAbsent(userID, k -> ConcurrentHashMap.newKeySet())
                              .add(connectionID);
+
+            if (connection.getSessionID() != null && !connection.getSessionID().isBlank()) {
+                sessionConnectionMap.computeIfAbsent(connection.getSessionID(), k -> ConcurrentHashMap.newKeySet())
+                        .add(connectionID);
+            }
+
+            String deviceKey = buildDeviceKey(connection.getUserID(), connection.getDeviceID());
+            if (deviceKey != null) {
+                deviceConnectionMap.computeIfAbsent(deviceKey, k -> ConcurrentHashMap.newKeySet())
+                        .add(connectionID);
+            }
             
             // 更新计数器
-            totalConnectionCount.incrementAndGet();
             if (getUserConnections(userID).size() == 1) {
                 onlineUserCount.incrementAndGet();
             }
@@ -157,19 +209,32 @@ public class ConnectionManager {
             channelConnectionMap.remove(connection.getChannel());
             
             // 更新用户连接映射
-            Set<String> userConnections = userConnectionMap.get(userID);
-            if (userConnections != null) {
-                userConnections.remove(connectionID);
-                if (userConnections.isEmpty()) {
-                    userConnectionMap.remove(userID);
-                    onlineUserCount.decrementAndGet();
+            if (userID != null) {
+                Set<String> userConnections = userConnectionMap.get(userID);
+                if (userConnections != null) {
+                    userConnections.remove(connectionID);
+                    if (userConnections.isEmpty()) {
+                        userConnectionMap.remove(userID);
+                        onlineUserCount.decrementAndGet();
+                    }
                 }
+            }
+
+            if (connection.getSessionID() != null) {
+                removeIndex(sessionConnectionMap, connection.getSessionID(), connectionID);
+            }
+
+            String deviceKey = buildDeviceKey(connection.getUserID(), connection.getDeviceID());
+            if (deviceKey != null) {
+                removeIndex(deviceConnectionMap, deviceKey, connectionID);
             }
             
             // 更新计数器
             totalConnectionCount.decrementAndGet();
             
-            unregisterOnlineRoute(connection);
+            if (userID != null) {
+                unregisterOnlineRoute(connection);
+            }
             
             logger.info("Connection removed: userID={}, connectionID={}, platform={}, total={}", 
                        userID, connectionID, connection.getPlatformName(), totalConnectionCount.get());
@@ -221,6 +286,33 @@ public class ConnectionManager {
                 .map(connectionMap::get)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
+    }
+
+    public List<UserConnection> getSessionConnections(String sessionID) {
+        return getIndexedConnections(sessionConnectionMap.get(sessionID));
+    }
+
+    public List<UserConnection> getDeviceConnections(String userID, String deviceID) {
+        String deviceKey = buildDeviceKey(userID, deviceID);
+        return deviceKey == null ? new ArrayList<>() : getIndexedConnections(deviceConnectionMap.get(deviceKey));
+    }
+
+    public void kickUserConnections(String userID, String reason) {
+        for (UserConnection connection : getUserConnections(userID)) {
+            kickConnection(connection, reason);
+        }
+    }
+
+    public void kickSessionConnections(String sessionID, String reason) {
+        for (UserConnection connection : getSessionConnections(sessionID)) {
+            kickConnection(connection, reason);
+        }
+    }
+
+    public void kickDeviceConnections(String userID, String deviceID, String reason) {
+        for (UserConnection connection : getDeviceConnections(userID, deviceID)) {
+            kickConnection(connection, reason);
+        }
     }
     
     /**
@@ -410,7 +502,37 @@ public class ConnectionManager {
         scheduler.shutdown();
         connectionMap.clear();
         userConnectionMap.clear();
+        sessionConnectionMap.clear();
+        deviceConnectionMap.clear();
         channelConnectionMap.clear();
         logger.info("ConnectionManager destroyed");
+    }
+
+    private List<UserConnection> getIndexedConnections(Set<String> connectionIDs) {
+        if (connectionIDs == null || connectionIDs.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return connectionIDs.stream()
+                .map(connectionMap::get)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+    }
+
+    private void removeIndex(Map<String, Set<String>> indexMap, String key, String connectionID) {
+        Set<String> ids = indexMap.get(key);
+        if (ids == null) {
+            return;
+        }
+        ids.remove(connectionID);
+        if (ids.isEmpty()) {
+            indexMap.remove(key);
+        }
+    }
+
+    private String buildDeviceKey(String userID, String deviceID) {
+        if (userID == null || userID.isBlank() || deviceID == null || deviceID.isBlank()) {
+            return null;
+        }
+        return userID + ":" + deviceID;
     }
 }

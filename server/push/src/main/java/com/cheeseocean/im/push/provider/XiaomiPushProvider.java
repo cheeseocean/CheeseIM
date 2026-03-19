@@ -24,16 +24,16 @@ public class XiaomiPushProvider implements PushProvider {
     
     private static final Logger logger = LoggerFactory.getLogger(XiaomiPushProvider.class);
     
-    @Value("${cheese.im.push.xiaomi.enabled:false}")
+    @Value("${cheeseim.push.xiaomi.enabled:false}")
     private boolean enabled;
     
-    @Value("${cheese.im.push.xiaomi.app-secret:}")
+    @Value("${cheeseim.push.xiaomi.app-secret:}")
     private String appSecret;
     
-    @Value("${cheese.im.push.xiaomi.package-name:}")
+    @Value("${cheeseim.push.xiaomi.package-name:}")
     private String packageName;
     
-    @Value("${cheese.im.push.xiaomi.push-url:https://api.xmpush.xiaomi.com/v3/message/regid}")
+    @Value("${cheeseim.push.xiaomi.push-url:https://api.xmpush.xiaomi.com/v3/message/regid}")
     private String pushUrl;
     
     @Autowired

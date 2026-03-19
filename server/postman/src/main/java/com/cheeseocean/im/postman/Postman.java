@@ -19,10 +19,10 @@ import java.util.Map;
 @EnableKafka
 @EnableDubbo
 @EnableScheduling
-public class PostmanApplication {
+public class Postman {
 
     public static void main(String[] args) {
-        SpringApplication application = new SpringApplication(PostmanApplication.class);
+        SpringApplication application = new SpringApplication(Postman.class);
         application.setDefaultProperties(Map.of("spring.config.name", "application-postman"));
         application.run(args);
     }

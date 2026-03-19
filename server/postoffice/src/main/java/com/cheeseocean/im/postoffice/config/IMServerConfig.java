@@ -13,6 +13,7 @@ public class IMServerConfig {
     private final TcpConfig tcp = new TcpConfig();
     private final WebSocketConfig websocket = new WebSocketConfig();
     private final SecurityConfig security = new SecurityConfig();
+    private final ConnectionConfig connection = new ConnectionConfig();
 
     public TcpConfig getTcp() {
         return tcp;
@@ -26,6 +27,40 @@ public class IMServerConfig {
         return security;
     }
 
+    public ConnectionConfig getConnection() {
+        return connection;
+    }
+
+    public static class ConnectionConfig {
+
+      private String multiLoginStrategy;
+      private long timeoutMs;
+      private int maxConnectionsPerUser;
+
+        public String getMultiLoginStrategy() {
+            return multiLoginStrategy;
+        }
+
+        public void setMultiLoginStrategy(String multiLoginStrategy) {
+            this.multiLoginStrategy = multiLoginStrategy;
+        }
+
+        public long getTimeoutMs() {
+            return timeoutMs;
+        }
+
+        public void setTimeoutMs(long timeoutMs) {
+            this.timeoutMs = timeoutMs;
+        }
+
+        public int getMaxConnectionsPerUser() {
+            return maxConnectionsPerUser;
+        }
+
+        public void setMaxConnectionsPerUser(int maxConnectionsPerUser) {
+            this.maxConnectionsPerUser = maxConnectionsPerUser;
+        }
+    }
     public static class SecurityConfig {
         private String jwtSecret;
         private long tokenExpiration;

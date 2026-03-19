@@ -48,11 +48,13 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = 'CheeseIM'
+rootProject.name = 'CheeseIMServer'
 
-// Non-JVM client apps under apps/ and packages/ are intentionally managed outside Gradle.
 include 'postoffice'
 include 'postman'
 include 'postbox'
 include 'common'
 include 'push'
+include 'authcenter'
+include 'config'
+include 'bootstrap-all'

@@ -90,19 +90,15 @@ public class WebSocketServer implements CommandLineRunner {
                        websocketConfig.getSsl().isEnabled() ? "wss" : "ws",
                        websocketConfig.getPort(),
                        websocketConfig.getPath());
-            logger.info("Server configuration: bossThreads={}, workerThreads={}, maxConnections={}", 
+            logger.info("Server configuration: bossThreads={}, workerThreads={}, maxConnections={}",
                        websocketConfig.getBossThreads(),
                        websocketConfig.getActualWorkerThreads(),
                        websocketConfig.getMaxConnections());
-            
-            // 等待服务器关闭
-            channelFuture.channel().closeFuture().sync();
-            
+
         } catch (Exception e) {
             logger.error("Failed to start WebSocket Server", e);
-            throw e;
-        } finally {
             shutdown();
+            throw e;
         }
     }
     

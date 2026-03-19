@@ -12,7 +12,7 @@ public class GroupFanoutPlanner {
 
     private final int batchSize;
 
-    public GroupFanoutPlanner(@Value("${cheese.im.delivery.group-fanout.batch-size:500}") int batchSize) {
+    public GroupFanoutPlanner(@Value("${cheeseim.delivery.group-fanout.batch-size:500}") int batchSize) {
         this.batchSize = batchSize;
     }
 

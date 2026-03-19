@@ -18,6 +18,7 @@ public class MessageProto implements Serializable {
     private Integer sessionType;
     private Long sendTime;
     private Long sequence;
+    private String attachedInfo;
     private OfflinePushInfo offlinePushInfo;
 
     public String getClientMsgId() {
@@ -98,6 +99,14 @@ public class MessageProto implements Serializable {
 
     public void setSequence(Long sequence) {
         this.sequence = sequence;
+    }
+
+    public String getAttachedInfo() {
+        return attachedInfo;
+    }
+
+    public void setAttachedInfo(String attachedInfo) {
+        this.attachedInfo = attachedInfo;
     }
 
     public OfflinePushInfo getOfflinePushInfo() {

@@ -19,10 +19,10 @@ import java.util.Map;
 @EnableKafka
 @EnableDubbo
 @EnableMongoRepositories
-public class PostboxApplication {
+public class Postbox {
 
     public static void main(String[] args) {
-        SpringApplication application = new SpringApplication(PostboxApplication.class);
+        SpringApplication application = new SpringApplication(Postbox.class);
         application.setDefaultProperties(Map.of("spring.config.name", "application-postbox"));
         application.run(args);
     }

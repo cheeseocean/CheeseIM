@@ -35,19 +35,19 @@ public class JPushProvider implements PushProvider {
     
     private static final Logger logger = LoggerFactory.getLogger(JPushProvider.class);
     
-    @Value("${cheese.im.push.jpush.enabled:false}")
+    @Value("${cheeseim.push.jpush.enabled:false}")
     private boolean enabled;
     
-    @Value("${cheese.im.push.jpush.app-key:}")
+    @Value("${cheeseim.push.jpush.app-key:}")
     private String appKey;
     
-    @Value("${cheese.im.push.jpush.master-secret:}")
+    @Value("${cheeseim.push.jpush.master-secret:}")
     private String masterSecret;
     
-    @Value("${cheese.im.push.jpush.production:true}")
+    @Value("${cheeseim.push.jpush.production:true}")
     private boolean production;
     
-    @Value("${cheese.im.push.jpush.time-to-live:86400}")
+    @Value("${cheeseim.push.jpush.time-to-live:86400}")
     private int timeToLive;
     
     private JPushClient jpushClient;

@@ -5,8 +5,7 @@ import com.cheeseocean.im.push.service.PushStatisticsService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -16,7 +15,9 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @EnableScheduling
-@ConditionalOnProperty(name = "cheese.im.push.scheduled-tasks.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnExpression(
+        "'${app.runtime.mode:standalone}' == 'standalone' && '${cheeseim.push.scheduled-tasks.enabled:true}' == 'true'"
+)
 public class PushScheduledTasks {
     
     private static final Logger logger = LoggerFactory.getLogger(PushScheduledTasks.class);
@@ -30,7 +31,7 @@ public class PushScheduledTasks {
     /**
      * Cleans up expired device tokens.
      */
-    @Scheduled(fixedRateString = "#{${cheese.im.push.device-token.cleanup-interval-hours:6} * 60 * 60 * 1000}")
+    @Scheduled(fixedRateString = "#{${cheeseim.push.device-token.cleanup-interval-hours:6} * 60 * 60 * 1000}")
     public void cleanupExpiredDeviceTokens() {
         try {
             logger.info("开始清理过期设备Token");

@@ -12,7 +12,10 @@ import com.cheeseocean.im.common.dto.MessageProto;
 import com.cheeseocean.im.common.entity.DeliveryState;
 import com.cheeseocean.im.common.entity.DeliveryTask;
 import com.cheeseocean.im.common.entity.StoredMessage;
+import com.cheeseocean.im.postman.auth.MessageAuthFacade;
+import org.apache.dubbo.config.annotation.DubboReference;
 import org.apache.dubbo.config.annotation.DubboService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -28,14 +31,17 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
     private final MessagePushService messagePushService;
     private final DeliveryCompensationService deliveryCompensationService;
     private final GroupFanoutPlanner groupFanoutPlanner;
+    private final MessageAuthFacade messageAuthFacade;
 
+    @Autowired
     public MessageDeliveryServiceImpl(MessageIdempotencyService idempotencyService,
                                       DeliveryStateMachine stateMachine,
                                       MessageStoreService messageStoreService,
                                       GatewayPushService gatewayPushService,
                                       MessagePushService messagePushService,
                                       DeliveryCompensationService deliveryCompensationService,
-                                      GroupFanoutPlanner groupFanoutPlanner) {
+                                      GroupFanoutPlanner groupFanoutPlanner,
+                                      MessageAuthFacade messageAuthFacade) {
         this.idempotencyService = idempotencyService;
         this.stateMachine = stateMachine;
         this.messageStoreService = messageStoreService;
@@ -43,6 +49,7 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
         this.messagePushService = messagePushService;
         this.deliveryCompensationService = deliveryCompensationService;
         this.groupFanoutPlanner = groupFanoutPlanner;
+        this.messageAuthFacade = messageAuthFacade;
     }
 
     public MessageDeliveryServiceImpl(MessageIdempotencyService idempotencyService,
@@ -52,11 +59,14 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
                                       MessagePushService messagePushService,
                                       DeliveryCompensationService deliveryCompensationService) {
         this(idempotencyService, stateMachine, messageStoreService, gatewayPushService, messagePushService,
-                deliveryCompensationService, new GroupFanoutPlanner(500));
+                deliveryCompensationService, new GroupFanoutPlanner(500), null);
     }
 
     @Override
     public DeliveryResult deliver(DeliveryCommand command) {
+        if (messageAuthFacade != null) {
+            messageAuthFacade.authorizeSend(command);
+        }
         return idempotencyService.findExisting(command.getSenderId(), command.getConversationId(), command.getClientMsgId())
                 .orElseGet(() -> deliverFresh(command));
     }
@@ -135,6 +145,7 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
         message.setReceiverId(command.getReceiverId());
         message.setContent(command.getContent());
         message.setContentType(command.getContentType());
+        message.setAttachedInfo(command.getAttachedInfo());
         return message;
     }
 
@@ -148,6 +159,7 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
         proto.setContent(command.getContent());
         proto.setContentType(command.getContentType());
         proto.setSessionType(command.getSessionType());
+        proto.setAttachedInfo(command.getAttachedInfo());
         return proto;
     }
 }

@@ -1,6 +1,6 @@
 dependencies {
     implementation project(':common')
-    implementation project(':postbox')
+    implementation project(':config')
 
     // Spring Boot
     implementation 'org.springframework.boot:spring-boot-starter'

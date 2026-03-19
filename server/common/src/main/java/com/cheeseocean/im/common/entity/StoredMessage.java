@@ -14,6 +14,7 @@ public class StoredMessage implements Serializable {
     private String clientMsgId;
     private String content;
     private Integer contentType;
+    private String attachedInfo;
     private Instant createdAt;
 
     public String getServerMsgId() {
@@ -70,6 +71,14 @@ public class StoredMessage implements Serializable {
 
     public void setContentType(Integer contentType) {
         this.contentType = contentType;
+    }
+
+    public String getAttachedInfo() {
+        return attachedInfo;
+    }
+
+    public void setAttachedInfo(String attachedInfo) {
+        this.attachedInfo = attachedInfo;
     }
 
     public Instant getCreatedAt() {

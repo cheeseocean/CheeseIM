@@ -16,10 +16,10 @@ import java.util.Map;
 @SpringBootApplication(scanBasePackages = {"com.cheeseocean.im.push", "com.cheeseocean.im.common"})
 @EnableKafka
 @EnableDubbo
-public class PushServer {
+public class Push {
 
     public static void main(String[] args) {
-        SpringApplication application = new SpringApplication(PushServer.class);
+        SpringApplication application = new SpringApplication(Push.class);
         application.setDefaultProperties(Map.of("spring.config.name", "application-push"));
         application.run(args);
     }

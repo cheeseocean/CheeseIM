@@ -36,22 +36,22 @@ public class APNsPushProvider implements PushProvider {
     
     private static final Logger logger = LoggerFactory.getLogger(APNsPushProvider.class);
     
-    @Value("${cheese.im.push.apns.enabled:false}")
+    @Value("${cheeseim.push.apns.enabled:false}")
     private boolean enabled;
     
-    @Value("${cheese.im.push.apns.key-path:}")
+    @Value("${cheeseim.push.apns.key-path:}")
     private String keyPath;
     
-    @Value("${cheese.im.push.apns.key-id:}")
+    @Value("${cheeseim.push.apns.key-id:}")
     private String keyId;
     
-    @Value("${cheese.im.push.apns.team-id:}")
+    @Value("${cheeseim.push.apns.team-id:}")
     private String teamId;
     
-    @Value("${cheese.im.push.apns.bundle-id:}")
+    @Value("${cheeseim.push.apns.bundle-id:}")
     private String bundleId;
     
-    @Value("${cheese.im.push.apns.production:true}")
+    @Value("${cheeseim.push.apns.production:true}")
     private boolean production;
     
     private ApnsClient apnsClient;

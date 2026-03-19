@@ -1,13 +1,16 @@
 package com.cheeseocean.im.postoffice.server;
 
 import com.cheeseocean.im.common.utils.IdGenerator;
+import com.cheeseocean.im.common.enums.ConnectionState;
 import com.cheeseocean.im.postoffice.connection.ConnectionManager;
+import com.cheeseocean.im.postoffice.connection.ConnectionContext;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.postoffice.handler.MessageHandler;
 import com.cheeseocean.im.postoffice.handler.MessageHandlerFactory;
 import com.cheeseocean.im.postoffice.protocol.WSMessage;
 import com.cheeseocean.im.postoffice.protocol.WSMessageType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
@@ -28,6 +31,7 @@ import java.net.InetSocketAddress;
  * @author CheeseIM
  */
 @Component
+@ChannelHandler.Sharable
 public class WebSocketServerHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     
     private static final Logger logger = LoggerFactory.getLogger(WebSocketServerHandler.class);
@@ -132,9 +136,23 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<TextWebS
             connection.setChannel(ctx.channel());
             connection.setClientIP(clientIP);
             connection.setUserAgent(evt.requestHeaders().get("User-Agent"));
+            connection.setProtocol("WebSocket");
+            connection.setStatus(UserConnection.STATUS_CONNECTED);
+            ConnectionContext connectionContext = new ConnectionContext();
+            connectionContext.setConnId(connectionID);
+            connectionContext.setConnectedAt(connection.getConnectTime());
+            connectionContext.setLastHeartbeatAt(connection.getLastActiveTime());
+            connectionContext.setRemoteIp(clientIP);
+            connectionContext.setState(ConnectionState.PENDING);
+            connection.setContext(connectionContext);
 
-            // 将连接与Channel关联，但暂时不添加到用户连接映射
-            // 等认证成功后再调用connectionManager.addConnection
+            // 先注册为未认证连接，认证成功后再提升为已认证连接
+            if (!connectionManager.registerPendingConnection(connection)) {
+                logger.warn("Failed to register pending connection: connectionID={}, remoteAddress={}",
+                        connectionID, ctx.channel().remoteAddress());
+                ctx.close();
+                return;
+            }
 
             logger.info("WebSocket handshake complete: connectionID={}, clientIP={}, userAgent={}",
                        connectionID, clientIP, connection.getUserAgent());

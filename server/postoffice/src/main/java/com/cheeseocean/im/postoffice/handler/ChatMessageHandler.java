@@ -4,6 +4,8 @@ import com.cheeseocean.im.common.api.MessageDeliveryService;
 import com.cheeseocean.im.common.dto.DeliveryCommand;
 import com.cheeseocean.im.common.dto.DeliveryResult;
 import com.cheeseocean.im.common.entity.Message;
+import com.cheeseocean.im.postoffice.auth.ConnectionSessionGuard;
+import com.cheeseocean.im.postoffice.connection.ConnectionContext;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.postoffice.protocol.WSMessage;
 import com.cheeseocean.im.postoffice.protocol.WSMessageType;
@@ -36,6 +38,9 @@ public class ChatMessageHandler implements MessageHandler {
 
     @Autowired
     private MessageProtoMapper messageProtoMapper;
+
+    @Autowired
+    private ConnectionSessionGuard connectionSessionGuard;
     
     @Override
     public HandleResult handle(UserConnection connection, WSMessage message) {
@@ -47,6 +52,14 @@ public class ChatMessageHandler implements MessageHandler {
                 WSMessage errorResp = WSMessage.permissionError(operationID, "用户未认证，无法发送消息");
                 return HandleResult.failure("用户未认证", errorResp);
             }
+
+            ConnectionContext context = connection.getContext();
+            if (context == null || !context.isAuthenticated()) {
+                WSMessage errorResp = WSMessage.permissionError(operationID, "连接上下文无效");
+                return HandleResult.failure("连接上下文无效", errorResp);
+            }
+
+            connectionSessionGuard.ensureValid(connection);
             
             // 检查消息数据
             if (message.getData() == null) {
@@ -69,8 +82,8 @@ public class ChatMessageHandler implements MessageHandler {
             }
             
             // 设置发送者信息
-            msgData.setSendID(connection.getUserID());
-            msgData.setPlatformID(connection.getPlatformID());
+            msgData.setSendID(context.getUserId());
+            msgData.setPlatformID(context.getPlatformId() != null ? context.getPlatformId() : connection.getPlatformID());
             
             DeliveryCommand command = messageProtoMapper.toDeliveryCommand(msgData, connection);
             DeliveryResult deliveryResult = messageDeliveryService.deliver(command);
@@ -91,7 +104,7 @@ public class ChatMessageHandler implements MessageHandler {
             }
             
             logger.info("Message sent successfully: userID={}, clientMsgID={}, serverMsgID={}", 
-                       connection.getUserID(), msgData.getClientMsgID(), deliveryResult.getServerMsgId());
+                       context.getUserId(), msgData.getClientMsgID(), deliveryResult.getServerMsgId());
             
             // 创建发送消息响应
             WSMessage sendMsgRespMsg = WSMessage.sendMsgResp(operationID, 
@@ -101,6 +114,9 @@ public class ChatMessageHandler implements MessageHandler {
             
             return HandleResult.success(sendMsgRespMsg);
             
+        } catch (IllegalStateException e) {
+            WSMessage errorResp = WSMessage.permissionError(message.getOperationID(), e.getMessage());
+            return HandleResult.failureAndClose(e.getMessage(), errorResp);
         } catch (Exception e) {
             logger.error("Failed to handle chat message: userID={}, connectionID={}", 
                         connection.getUserID(), connection.getConnectionID(), e);

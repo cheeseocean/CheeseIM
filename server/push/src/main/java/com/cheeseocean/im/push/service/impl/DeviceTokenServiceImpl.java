@@ -24,7 +24,7 @@ public class DeviceTokenServiceImpl {
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
     
-    @Value("${cheese.im.push.device-token.cache-expire-days:30}")
+    @Value("${cheeseim.push.device-token.cache-expire-days:30}")
     private int cacheExpireDays;
     
     /**

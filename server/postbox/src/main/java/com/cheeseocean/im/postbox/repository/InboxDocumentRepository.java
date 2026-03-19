@@ -8,4 +8,8 @@ import java.util.List;
 public interface InboxDocumentRepository extends MongoRepository<InboxDocument, String> {
 
     List<InboxDocument> findByUserIdAndReadIsFalseOrderBySequenceAsc(String userId);
+
+    List<InboxDocument> findByUserIdOrderBySequenceDesc(String userId);
+
+    List<InboxDocument> findByUserIdAndConversationIdOrderBySequenceDesc(String userId, String conversationId);
 }

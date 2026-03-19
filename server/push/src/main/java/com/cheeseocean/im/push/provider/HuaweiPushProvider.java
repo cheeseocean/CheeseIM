@@ -24,19 +24,19 @@ public class HuaweiPushProvider implements PushProvider {
     
     private static final Logger logger = LoggerFactory.getLogger(HuaweiPushProvider.class);
     
-    @Value("${cheese.im.push.huawei.enabled:false}")
+    @Value("${cheeseim.push.huawei.enabled:false}")
     private boolean enabled;
     
-    @Value("${cheese.im.push.huawei.app-id:}")
+    @Value("${cheeseim.push.huawei.app-id:}")
     private String appId;
     
-    @Value("${cheese.im.push.huawei.app-secret:}")
+    @Value("${cheeseim.push.huawei.app-secret:}")
     private String appSecret;
     
-    @Value("${cheese.im.push.huawei.auth-url:https://oauth-login.cloud.huawei.com/oauth2/v3/token}")
+    @Value("${cheeseim.push.huawei.auth-url:https://oauth-login.cloud.huawei.com/oauth2/v3/token}")
     private String authUrl;
     
-    @Value("${cheese.im.push.huawei.push-url:https://push-api.cloud.huawei.com/v1}")
+    @Value("${cheeseim.push.huawei.push-url:https://push-api.cloud.huawei.com/v1}")
     private String pushUrl;
     
     @Autowired

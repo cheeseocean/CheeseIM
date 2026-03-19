@@ -145,5 +145,9 @@ public class JwtAuthService implements AuthService {
             throw new RuntimeException("生成Token失败", e);
         }
     }
+
+    public long getTokenExpirationMs() {
+        return imServerConfig.getSecurity().getTokenExpiration();
+    }
     
 }

@@ -1,5 +1,6 @@
 package com.cheeseocean.im.postoffice.handler;
 
+import com.cheeseocean.im.postoffice.auth.ConnectionSessionGuard;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.postoffice.protocol.WSMessage;
 import com.cheeseocean.im.postoffice.protocol.WSMessageType;
@@ -22,10 +23,20 @@ public class HeartbeatMessageHandler implements MessageHandler {
 
     @Autowired(required = false)
     private OnlineRouteService onlineRouteService;
+
+    @Autowired
+    private ConnectionSessionGuard connectionSessionGuard;
     
     @Override
     public HandleResult handle(UserConnection connection, WSMessage message) {
         try {
+            if (!connection.isAuthenticated()) {
+                WSMessage errorResp = WSMessage.permissionError(message.getOperationID(), "连接未认证");
+                return HandleResult.failure("连接未认证", errorResp);
+            }
+
+            connectionSessionGuard.ensureValid(connection);
+
             // 更新连接的最后活跃时间
             connection.incrementHeartbeat();
             if (onlineRouteService != null && connection.getUserID() != null && connection.getPlatformID() != null) {
@@ -45,6 +56,9 @@ public class HeartbeatMessageHandler implements MessageHandler {
             
             return HandleResult.success(heartbeatResp);
             
+        } catch (IllegalStateException e) {
+            WSMessage errorResp = WSMessage.permissionError(message.getOperationID(), e.getMessage());
+            return HandleResult.failureAndClose(e.getMessage(), errorResp);
         } catch (Exception e) {
             logger.error("Failed to handle heartbeat message: connectionID={}", 
                         connection.getConnectionID(), e);

@@ -16,6 +16,7 @@ public class MessageDocument {
     private String receiverId;
     private String content;
     private Integer contentType;
+    private String attachedInfo;
     private Long sequence;
     private Instant createdAt;
 
@@ -73,6 +74,14 @@ public class MessageDocument {
 
     public void setContentType(Integer contentType) {
         this.contentType = contentType;
+    }
+
+    public String getAttachedInfo() {
+        return attachedInfo;
+    }
+
+    public void setAttachedInfo(String attachedInfo) {
+        this.attachedInfo = attachedInfo;
     }
 
     public Long getSequence() {

@@ -2,6 +2,7 @@ package com.cheeseocean.im.postbox.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -10,7 +11,8 @@ import org.springframework.context.annotation.Configuration;
  * 
  * @author CheeseIM
  */
-@Configuration
+@Configuration("postboxJacksonConfig")
+@ConditionalOnProperty(prefix = "app.runtime", name = "mode", havingValue = "standalone", matchIfMissing = true)
 public class JacksonConfig {
     
     @Bean

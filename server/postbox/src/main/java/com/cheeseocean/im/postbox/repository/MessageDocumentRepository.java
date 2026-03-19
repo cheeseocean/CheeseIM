@@ -6,4 +6,6 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 public interface MessageDocumentRepository extends MongoRepository<MessageDocument, String> {
 
     MessageDocument findByServerMsgId(String serverMsgId);
+
+    java.util.List<MessageDocument> findByAttachedInfoContaining(String attachmentId);
 }

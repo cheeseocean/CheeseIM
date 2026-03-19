@@ -3,6 +3,7 @@ package com.cheeseocean.im.postman.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -11,7 +12,8 @@ import org.springframework.context.annotation.Configuration;
  * 
  * @author CheeseIM
  */
-@Configuration
+@Configuration("postmanJacksonConfig")
+@ConditionalOnProperty(prefix = "app.runtime", name = "mode", havingValue = "standalone", matchIfMissing = true)
 public class JacksonConfig {
     
     @Bean

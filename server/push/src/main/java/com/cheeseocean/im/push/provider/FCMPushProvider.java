@@ -29,16 +29,16 @@ public class FCMPushProvider implements PushProvider {
     
     private static final Logger logger = LoggerFactory.getLogger(FCMPushProvider.class);
     
-    @Value("${cheese.im.push.fcm.enabled:false}")
+    @Value("${cheeseim.push.fcm.enabled:false}")
     private boolean enabled;
     
-    @Value("${cheese.im.push.fcm.service-account-key:}")
+    @Value("${cheeseim.push.fcm.service-account-key:}")
     private String serviceAccountKeyPath;
     
-    @Value("${cheese.im.push.fcm.project-id:}")
+    @Value("${cheeseim.push.fcm.project-id:}")
     private String projectId;
     
-    @Value("${cheese.im.push.fcm.app-name:cheese-im-fcm}")
+    @Value("${cheeseim.push.fcm.app-name:cheese-im-fcm}")
     private String appName;
     
     private FirebaseMessaging firebaseMessaging;

@@ -15,6 +15,7 @@ public class DeliveryCommand implements Serializable {
     private final String content;
     private final Integer contentType;
     private final Integer sessionType;
+    private final String attachedInfo;
     private final List<String> targetUserIds;
 
     private DeliveryCommand(Builder builder) {
@@ -26,6 +27,7 @@ public class DeliveryCommand implements Serializable {
         this.content = builder.content;
         this.contentType = builder.contentType;
         this.sessionType = builder.sessionType;
+        this.attachedInfo = builder.attachedInfo;
         this.targetUserIds = builder.targetUserIds == null ? List.of() : List.copyOf(builder.targetUserIds);
     }
 
@@ -72,6 +74,10 @@ public class DeliveryCommand implements Serializable {
         return sessionType;
     }
 
+    public String getAttachedInfo() {
+        return attachedInfo;
+    }
+
     public List<String> getTargetUserIds() {
         return targetUserIds;
     }
@@ -90,6 +96,7 @@ public class DeliveryCommand implements Serializable {
         private String content;
         private Integer contentType;
         private Integer sessionType;
+        private String attachedInfo;
         private List<String> targetUserIds;
 
         public Builder clientMsgId(String clientMsgId) {
@@ -129,6 +136,11 @@ public class DeliveryCommand implements Serializable {
 
         public Builder sessionType(Integer sessionType) {
             this.sessionType = sessionType;
+            return this;
+        }
+
+        public Builder attachedInfo(String attachedInfo) {
+            this.attachedInfo = attachedInfo;
             return this;
         }
 

@@ -160,6 +160,7 @@ public class MessageStoreServiceImpl implements MessageStoreService {
         document.setReceiverId(message.getReceiverId());
         document.setContent(message.getContent());
         document.setContentType(message.getContentType());
+        document.setAttachedInfo(message.getAttachedInfo());
         document.setCreatedAt(message.getCreatedAt() == null ? Instant.now() : message.getCreatedAt());
         return document;
     }
@@ -173,6 +174,7 @@ public class MessageStoreServiceImpl implements MessageStoreService {
         document.setReceiverId(message.getReceiverId());
         document.setContent(message.getContent());
         document.setContentType(message.getContentType());
+        document.setAttachedInfo(message.getAttachedInfo());
         document.setSequence(message.getSequence());
         document.setCreatedAt(Instant.now());
         return document;
@@ -187,6 +189,7 @@ public class MessageStoreServiceImpl implements MessageStoreService {
         message.setReceiverId(document.getReceiverId());
         message.setContent(document.getContent());
         message.setContentType(document.getContentType());
+        message.setAttachedInfo(document.getAttachedInfo());
         message.setCreatedAt(document.getCreatedAt());
         return message;
     }
