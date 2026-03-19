@@ -1,7 +1,11 @@
 /.idea/
+.idea/
 /.worktrees/
+/.gradle/
+/build/
 server/.gradle/
 server/build/
+server/.idea/
 server/out/
 server/target/
 */build
@@ -12,3 +16,7 @@ server/target/
 */bin
 */*/bin
 */distro/docker/data
+node_modules/
+dist/
+.dart_tool/
+.env.local
