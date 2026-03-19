@@ -1,0 +1,22 @@
+name: im_flutter_client
+description: Minimal Flutter client placeholder for CheeseIM.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  im_tcp_sdk:
+    path: ../../sdks/im_tcp_sdk
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
