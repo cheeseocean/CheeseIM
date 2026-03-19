@@ -1,0 +1,68 @@
+spring:
+  application:
+    name: cheese-im-postbox
+  data:
+    mongodb:
+      host: ${mongodb.host:localhost}
+      port: ${mongodb.port:27017}
+      database: ${mongodb.database:cheese_im}
+    redis:
+      database: 0
+  kafka:
+    consumer:
+      group-id: postbox-group
+      max-poll-records: 100
+      fetch-min-size: 1
+      fetch-max-wait: 500ms
+    listener:
+      concurrency: 3
+      ack-mode: manual_immediate
+
+server:
+  port: 18082
+
+cheeseim:
+  postbox:
+    attachment-download:
+      token-secret: ${postbox.attachment.token-secret:CheeseIMPostboxAttachmentSecret!2026}
+      token-ttl-seconds: ${postbox.attachment.token-ttl-seconds:300}
+      public-base-url: ${postbox.attachment.public-base-url:}
+  postman:
+    transfer:
+      batch-size: 100
+      retry-times: 3
+      timeout-ms: 5000
+    statistics:
+      enabled: true
+      cache-expire-hours: 24
+      realtime-window-seconds: 60
+    online-user:
+      cache-expire-minutes: 10
+      check-interval-seconds: 30
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+info:
+  app:
+    name: CheeseIM Postbox
+    description: Message Routing and Store Service
+    version: 1.0.0
+    author: CheeseIM Team
+
+logging:
+  level:
+    com.cheeseocean.im.postbox: INFO
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN
+    redis.clients.jedis: WARN

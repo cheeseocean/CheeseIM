@@ -1,0 +1,48 @@
+spring:
+  application:
+    name: cheese-im-all-in-one
+  config:
+    import:
+      - classpath:common.yml
+      - classpath:module-authcenter.yml
+      - classpath:module-postoffice.yml
+      - classpath:module-postman.yml
+      - classpath:module-postbox.yml
+      - classpath:module-push.yml
+
+server:
+  port: 18079
+
+app:
+  runtime:
+    mode: all-in-one
+  modules:
+    authcenter:
+      enabled: true
+
+cheese:
+  im:
+    delivery:
+      compensation:
+        listener:
+          enabled: false
+    push:
+      scheduled-tasks:
+        enabled: false
+
+dubbo:
+  application:
+    name: cheese-im-all-in-one
+  registry:
+    address: N/A
+    register: false
+    subscribe: false
+  protocol:
+    name: injvm
+    port: -1
+    injvm: true
+  provider:
+    protocol: injvm
+  consumer:
+    injvm: true
+    check: false

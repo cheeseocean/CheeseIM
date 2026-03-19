@@ -1,0 +1,30 @@
+spring:
+  config:
+    import:
+      - classpath:common.yml
+      - classpath:module-postoffice.yml
+
+app:
+  runtime:
+    mode: standalone
+  modules:
+    authcenter:
+      enabled: true
+
+dubbo:
+  application:
+    name: cheese-im-postoffice
+  registry:
+    address: nacos://${nacos.server-addr:localhost:8848}
+    register: true
+    subscribe: true
+  config-center:
+    address: nacos://${nacos.server-addr:localhost:8848}
+  metadata-report:
+    address: nacos://${nacos.server-addr:localhost:8848}
+  protocol:
+    name: dubbo
+    port: 20880
+    injvm: false
+  consumer:
+    injvm: false

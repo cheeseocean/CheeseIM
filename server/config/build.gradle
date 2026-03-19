@@ -1,0 +1,12 @@
+plugins {
+    id 'java'
+    id 'maven-publish'
+}
+
+jar {
+    enabled = true
+}
+
+tasks.named('bootJar') {
+    enabled = false
+}

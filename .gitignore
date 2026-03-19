@@ -1,9 +1,9 @@
 /.idea/
 /.worktrees/
-/.gradle/
-/build/
-/out/
-/target/
+server/.gradle/
+server/build/
+server/out/
+server/target/
 */build
 */*/build
 */*/out

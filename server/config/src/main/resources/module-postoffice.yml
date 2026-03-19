@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: cheese-im-postoffice
+  data:
+    redis:
+      database: 1
+
+server:
+  port: 18080
+
+cheeseim:
+  postoffice:
+    websocket:
+      enabled: true
+      port: 5147
+      path: "/ws"
+      ssl:
+        enabled: false
+        cert-path: ""
+        key-path: ""
+    tcp:
+      enabled: true
+      port: 5148
+      ssl:
+        enabled: false
+        cert-path: ""
+        key-path: ""
+    connection:
+      multiLoginStrategy: SAME_TERMINAL_KICK
+      timeoutMs: 300000
+      maxConnectionsPerUser: 10
+    security:
+      jwtSecret: "CheeseIM2024Secret!CheeseIM2024Secret!"
+      tokenExpiration: 86400000
+
+logging:
+  level:
+    com.cheeseocean.im.postoffice: INFO
+    io.netty: WARN
+    org.springframework.kafka: WARN
