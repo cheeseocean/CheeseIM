@@ -20,5 +20,8 @@ public interface MessageStoreService {
 
     void markDelivered(String userId, String serverMsgId);
 
+    /**
+     * Compatibility entrypoint for legacy ACK handling until receipt events become authoritative.
+     */
     DeliveryResult applyAck(DeliveryAck ack);
 }

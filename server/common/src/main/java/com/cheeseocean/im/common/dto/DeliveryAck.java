@@ -12,6 +12,7 @@ public class DeliveryAck implements Serializable {
     private String deviceId;
     private String ackType;
     private Long eventTime;
+    private Long conversationSeq;
 
     public static DeliveryAck receive(String serverMsgId, String conversationId, String userId, String deviceId, long eventTime) {
         return build(serverMsgId, conversationId, userId, deviceId, "RECEIVED", eventTime);
@@ -83,5 +84,21 @@ public class DeliveryAck implements Serializable {
 
     public void setEventTime(Long eventTime) {
         this.eventTime = eventTime;
+    }
+
+    public Long getConversationSeq() {
+        return conversationSeq;
+    }
+
+    public void setConversationSeq(Long conversationSeq) {
+        this.conversationSeq = conversationSeq;
+    }
+
+    public Long getSeq() {
+        return conversationSeq;
+    }
+
+    public void setSeq(Long seq) {
+        this.conversationSeq = seq;
     }
 }

@@ -26,14 +26,25 @@ import static org.mockito.Mockito.when;
 class MessageDeliveryServiceImplTest {
 
     @Test
-    void duplicateClientMsgIdShouldReturnExistingServerMsgId() {
+    void acceptedResultFactoryShouldExposeServerMsgIdAndConversationSeq() {
+        DeliveryResult result = DeliveryResult.accepted("s-1", 1001L);
+
+        assertTrue(result.isSuccess());
+        assertEquals("ACCEPTED", result.getStatus());
+        assertEquals("s-1", result.getServerMsgId());
+        assertEquals(1001L, result.getConversationSeq());
+        assertEquals(DeliveryState.INIT, result.getState());
+    }
+
+    @Test
+    void duplicateClientMsgIdShouldReturnAcceptedResultWithServerMsgIdAndSeq() {
         MessageIdempotencyService idempotencyService = mock(MessageIdempotencyService.class);
         MessageStoreService storeService = mock(MessageStoreService.class);
         GatewayPushService gatewayPushService = mock(GatewayPushService.class);
         MessagePushService messagePushService = mock(MessagePushService.class);
         DeliveryCompensationService compensationService = mock(DeliveryCompensationService.class);
 
-        DeliveryResult existing = DeliveryResult.onlineSuccess("s-1");
+        DeliveryResult existing = DeliveryResult.accepted("s-1", 1001L);
         when(idempotencyService.findExisting("userA", "single:userA:userB", "c-1"))
                 .thenReturn(Optional.of(existing));
 
@@ -51,7 +62,10 @@ class MessageDeliveryServiceImplTest {
                 .sessionType(1)
                 .build());
 
+        assertTrue(result.isSuccess());
+        assertEquals("ACCEPTED", result.getStatus());
         assertEquals("s-1", result.getServerMsgId());
+        assertEquals(1001L, result.getConversationSeq());
         verifyNoInteractions(storeService, gatewayPushService, messagePushService, compensationService);
     }
 

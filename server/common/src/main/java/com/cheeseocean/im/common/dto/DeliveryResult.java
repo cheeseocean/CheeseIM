@@ -13,7 +13,19 @@ public class DeliveryResult implements Serializable {
     private boolean receiverOnline;
     private String serverMsgId;
     private Long storedMessageId;
+    private Long conversationSeq;
     private DeliveryState state;
+
+    public static DeliveryResult accepted(String serverMsgId, long conversationSeq) {
+        DeliveryResult result = new DeliveryResult();
+        result.success = true;
+        result.status = "ACCEPTED";
+        result.receiverOnline = false;
+        result.serverMsgId = serverMsgId;
+        result.conversationSeq = conversationSeq;
+        result.state = DeliveryState.INIT;
+        return result;
+    }
 
     public static DeliveryResult onlineSuccess(String serverMsgId) {
         DeliveryResult result = new DeliveryResult();
@@ -31,6 +43,16 @@ public class DeliveryResult implements Serializable {
         result.status = status;
         result.receiverOnline = false;
         result.state = DeliveryState.FAILED_FINAL;
+        return result;
+    }
+
+    public static DeliveryResult acceptedAck(String serverMsgId) {
+        DeliveryResult result = new DeliveryResult();
+        result.success = true;
+        result.status = "ACK_ACCEPTED";
+        result.receiverOnline = false;
+        result.serverMsgId = serverMsgId;
+        result.state = DeliveryState.PERSISTED;
         return result;
     }
 
@@ -72,6 +94,14 @@ public class DeliveryResult implements Serializable {
 
     public void setStoredMessageId(Long storedMessageId) {
         this.storedMessageId = storedMessageId;
+    }
+
+    public Long getConversationSeq() {
+        return conversationSeq;
+    }
+
+    public void setConversationSeq(Long conversationSeq) {
+        this.conversationSeq = conversationSeq;
     }
 
     public DeliveryState getState() {

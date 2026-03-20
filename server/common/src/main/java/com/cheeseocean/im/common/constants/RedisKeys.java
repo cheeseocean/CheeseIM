@@ -30,4 +30,12 @@ public final class RedisKeys {
     public static String deliveryTask(String serverMsgId) {
         return PREFIX + ":delivery:task:" + serverMsgId;
     }
+
+    public static String conversationSeq(String conversationId) {
+        return PREFIX + ":conversation:seq:" + conversationId;
+    }
+
+    public static String consumerDedup(String consumerGroup, String eventId) {
+        return PREFIX + ":consumer:dedup:" + consumerGroup + ":" + eventId;
+    }
 }

@@ -47,6 +47,14 @@ public class KafkaTopics {
      */
     public static final String DELIVERY_DEAD_LETTER_TOPIC = "cheese_im_delivery_dead_letter";
 
+    public static final String MESSAGE_INGRESS_TOPIC = "im.message.ingress";
+    public static final String MESSAGE_HISTORY_TOPIC = "im.message.history";
+    public static final String MESSAGE_DELIVERY_TOPIC = "im.message.delivery";
+    public static final String MESSAGE_GROUP_FANOUT_TOPIC = "im.message.group_fanout";
+    public static final String MESSAGE_RECEIPT_TOPIC = "im.message.receipt";
+    public static final String MESSAGE_RETRY_TOPIC = "im.message.retry";
+    public static final String MESSAGE_DLQ_TOPIC = "im.message.dlq";
+
     private KafkaTopics() {
         // 私有构造函数，防止实例化
     }

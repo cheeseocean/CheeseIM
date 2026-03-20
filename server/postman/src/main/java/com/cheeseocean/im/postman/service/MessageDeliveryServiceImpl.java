@@ -57,6 +57,17 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
                                       MessageStoreService messageStoreService,
                                       GatewayPushService gatewayPushService,
                                       MessagePushService messagePushService,
+                                      DeliveryCompensationService deliveryCompensationService,
+                                      GroupFanoutPlanner groupFanoutPlanner) {
+        this(idempotencyService, stateMachine, messageStoreService, gatewayPushService, messagePushService,
+                deliveryCompensationService, groupFanoutPlanner, null);
+    }
+
+    public MessageDeliveryServiceImpl(MessageIdempotencyService idempotencyService,
+                                      DeliveryStateMachine stateMachine,
+                                      MessageStoreService messageStoreService,
+                                      GatewayPushService gatewayPushService,
+                                      MessagePushService messagePushService,
                                       DeliveryCompensationService deliveryCompensationService) {
         this(idempotencyService, stateMachine, messageStoreService, gatewayPushService, messagePushService,
                 deliveryCompensationService, new GroupFanoutPlanner(500), null);

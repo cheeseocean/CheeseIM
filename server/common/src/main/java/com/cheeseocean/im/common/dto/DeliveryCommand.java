@@ -86,6 +86,10 @@ public class DeliveryCommand implements Serializable {
         return sessionType != null && sessionType == 2 && !targetUserIds.isEmpty();
     }
 
+    public boolean isSingleDelivery() {
+        return !isGroupDelivery();
+    }
+
     public static final class Builder {
 
         private String clientMsgId;

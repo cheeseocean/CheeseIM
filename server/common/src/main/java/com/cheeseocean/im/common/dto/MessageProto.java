@@ -101,6 +101,14 @@ public class MessageProto implements Serializable {
         this.sequence = sequence;
     }
 
+    public Long getConversationSeq() {
+        return sequence;
+    }
+
+    public void setConversationSeq(Long conversationSeq) {
+        this.sequence = conversationSeq;
+    }
+
     public String getAttachedInfo() {
         return attachedInfo;
     }
