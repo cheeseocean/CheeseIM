@@ -2,6 +2,7 @@ package com.cheeseocean.im.push.service.impl;
 
 import com.cheeseocean.im.common.api.MessagePushService;
 import com.cheeseocean.im.common.dto.MessageProto;
+import com.cheeseocean.im.common.dto.OfflinePushTask;
 import com.cheeseocean.im.common.dto.PushResult;
 import com.cheeseocean.im.common.entity.DeliveryState;
 import com.cheeseocean.im.common.entity.Message;
@@ -43,6 +44,10 @@ public class MessagePushServiceImpl implements MessagePushService {
         attempts.put(key(message.getServerMsgId(), userId), decision.attempt());
         OfflinePushResult result = offlinePushService.pushMessageToUser(toMessage(message), userId);
         return result.isSuccess() ? PushResult.success(userId, "offline-push") : PushResult.failed(userId, result.getErrorMessage());
+    }
+
+    public PushResult pushOffline(OfflinePushTask task) {
+        return pushOffline(task.getReceiverId(), toMessageProto(task));
     }
 
     @Override
@@ -91,5 +96,19 @@ public class MessagePushServiceImpl implements MessagePushService {
         message.setSessionType(proto.getSessionType());
         message.setOfflinePushInfo(proto.getOfflinePushInfo());
         return message;
+    }
+
+    private MessageProto toMessageProto(OfflinePushTask task) {
+        MessageProto proto = new MessageProto();
+        proto.setServerMsgId(task.getMessageId());
+        proto.setConversationId(task.getConversationId());
+        proto.setConversationSeq(task.getConversationSeq());
+        proto.setSenderId(task.getSenderId());
+        proto.setReceiverId(task.getReceiverId());
+        proto.setContent(task.getContent());
+        proto.setContentType(task.getContentType());
+        proto.setSessionType(task.getSessionType());
+        proto.setAttachedInfo(task.getAttachedInfo());
+        return proto;
     }
 }

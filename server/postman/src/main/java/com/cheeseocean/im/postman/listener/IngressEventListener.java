@@ -6,6 +6,7 @@ import com.cheeseocean.im.common.dto.IngressEvent;
 import com.cheeseocean.im.postman.service.GroupFanoutPlanner;
 import com.cheeseocean.im.postman.service.GroupMembershipFacade;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -29,7 +30,7 @@ public class IngressEventListener {
                                 @Qualifier("postmanObjectKafkaTemplate") KafkaTemplate<String, Object> kafkaTemplate,
                                 GroupMembershipFacade groupMembershipFacade,
                                 GroupFanoutPlanner groupFanoutPlanner) {
-        this.objectMapper = objectMapper;
+        this.objectMapper = objectMapper.copy().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         this.kafkaTemplate = kafkaTemplate;
         this.groupMembershipFacade = groupMembershipFacade;
         this.groupFanoutPlanner = groupFanoutPlanner;
