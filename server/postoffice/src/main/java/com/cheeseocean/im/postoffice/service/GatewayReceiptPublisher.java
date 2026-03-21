@@ -16,7 +16,7 @@ public class GatewayReceiptPublisher {
 
     public void publish(ReceiptEvent event) {
         try {
-            kafkaTemplate.send(KafkaTopics.RECEIPT, event.getConversationId(), event);
+            kafkaTemplate.send(KafkaTopics.Message.RECEIPT, event.getConversationId(), event);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to publish receipt event " + event.getEventId(), e);
         }

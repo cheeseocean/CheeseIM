@@ -318,14 +318,14 @@ git commit -m "feat: publish accepted message ingress events from postman"
 @Test
 void ingressListenerShouldPublishHistoryTaskForSingleChat() {
     listener.onMessage(singleIngressEvent);
-    verify(kafkaTemplate).send(eq(KafkaTopics.HISTORY), anyString(), any(HistoryTask.class));
+    verify(kafkaTemplate).send(eq(KafkaTopics.Message.HISTORY), anyString(), any(HistoryTask.class));
 }
 
 @Test
 void ingressListenerShouldSplitGroupMembersIntoBatches() {
     when(groupMembershipFacade.loadTargets("group:crew")).thenReturn(List.of("u1", "u2", "u3"));
     listener.onMessage(groupIngressEvent);
-    verify(kafkaTemplate, times(1)).send(eq(KafkaTopics.HISTORY), anyString(), any());
+    verify(kafkaTemplate, times(1)).send(eq(KafkaTopics.Message.HISTORY), anyString(), any());
 }
 ```
 
@@ -417,7 +417,7 @@ public void onMessage(HistoryTask task) {
         return;
     }
     persistenceService.persist(task);
-    kafkaTemplate.send(KafkaTopics.DELIVERY, task.deliveryKey(), DeliveryTaskCommand.from(task));
+    kafkaTemplate.send(KafkaTopics.Message.DELIVERY, task.deliveryKey(), DeliveryTaskCommand.from(task));
 }
 ```
 
@@ -460,7 +460,7 @@ git commit -m "feat: persist history tasks and inbox projections asynchronously"
 void deliveryListenerShouldCallGatewayPushServiceAndQueueOfflinePushWhenNoRoutesExist() {
     when(gatewayPushService.pushToUser("userB", messageProto)).thenReturn(resultWithoutRoutes());
     listener.onMessage(deliveryTask);
-    verify(kafkaTemplate).send(eq(KafkaTopics.OFFLINE_PUSH), anyString(), any(OfflinePushTask.class));
+    verify(kafkaTemplate).send(eq(KafkaTopics.Message.OFFLINE_PUSH), anyString(), any(OfflinePushTask.class));
 }
 ```
 
@@ -474,7 +474,7 @@ Expected: FAIL because online delivery is still embedded in `deliverFresh()`.
 ```java
 GatewayPushResult pushResult = gatewayPushService.pushToUser(task.getReceiverId(), toMessageProto(task));
 if (!pushResult.isRouteFound()) {
-    kafkaTemplate.send(KafkaTopics.OFFLINE_PUSH, task.getReceiverId(), OfflinePushTask.from(task));
+    kafkaTemplate.send(KafkaTopics.Message.OFFLINE_PUSH, task.getReceiverId(), OfflinePushTask.from(task));
 }
 deliveryCompensationService.recordAttempt(task, pushResult);
 ```
@@ -609,7 +609,7 @@ Expected: FAIL because offline push is still directly triggered by `postman`.
 
 ```java
 // postman
-kafkaTemplate.send(KafkaTopics.OFFLINE_PUSH, task.getReceiverId(), OfflinePushTask.from(task));
+kafkaTemplate.send(KafkaTopics.Message.OFFLINE_PUSH, task.getReceiverId(), OfflinePushTask.from(task));
 
 // push
 if (onlineRouteService.isOnline(task.getReceiverId())) {
@@ -704,7 +704,7 @@ git commit -m "test: cover rebuilt message flow end to end"
 - Do not treat this plan as a pure rename. It changes shared contracts, receipt semantics, and persistence models.
 - Keep old `DeliveryAck` compatibility adapters until all clients support `ReceiptEvent`.
 - Keep group membership lookup behind `GroupMembershipFacade` so `postman` does not absorb `postbox` storage internals.
-- Use `KafkaTopics.OFFLINE_PUSH` for offline push execution and reserve retry/DLQ topics for `postman` orchestration only.
+- Use `KafkaTopics.Message.OFFLINE_PUSH` for offline push execution and reserve retry/DLQ topics for `postman` orchestration only.
 - Keep legacy synchronous fallback behind feature flags until message counts, push success, and read-cursor parity are verified.
 
 ## Recommended Execution Order

@@ -28,7 +28,7 @@ public class HistoryTaskListener {
     }
 
     @KafkaListener(
-            topics = KafkaTopics.HISTORY,
+            topics = KafkaTopics.Message.HISTORY,
             groupId = "postbox-history",
             containerFactory = "historyTaskKafkaListenerContainerFactory"
     )
@@ -40,7 +40,7 @@ public class HistoryTaskListener {
         }
         for (String receiverId : resolveReceivers(task)) {
             DeliveryTaskCommand command = DeliveryTaskCommand.from(task, receiverId);
-            kafkaTemplate.send(KafkaTopics.DELIVERY, command.deliveryKey(), command);
+            kafkaTemplate.send(KafkaTopics.Message.DELIVERY, command.deliveryKey(), command);
         }
         log.debug("Persisted history task: messageId={}, sequence={}",
                 persisted.getMessage().getServerMsgId(), persisted.firstStoredSequence());

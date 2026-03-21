@@ -24,7 +24,7 @@ public class OfflinePushTaskListener {
         this.onlineRouteService = onlineRouteService;
     }
 
-    @KafkaListener(topics = KafkaTopics.OFFLINE_PUSH, groupId = "push-offline")
+    @KafkaListener(topics = KafkaTopics.Message.OFFLINE_PUSH, groupId = "push-offline")
     public void onMessage(String payload) {
         try {
             handle(objectMapper.readValue(payload, OfflinePushTask.class));

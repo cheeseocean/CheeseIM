@@ -262,7 +262,7 @@ class ImFlowSmokeTest {
         @SuppressWarnings("unchecked")
         KafkaTemplate<String, Object> ingressKafka = mock(KafkaTemplate.class);
         AtomicReference<IngressEvent> ingressRef = new AtomicReference<>();
-        when(ingressKafka.send(eq(KafkaTopics.INGRESS), eq("single:userA:userB"), any(IngressEvent.class)))
+        when(ingressKafka.send(eq(KafkaTopics.Message.INGRESS), eq("single:userA:userB"), any(IngressEvent.class)))
                 .thenAnswer(invocation -> {
                     ingressRef.set(invocation.getArgument(2));
                     return CompletableFuture.completedFuture(null);
@@ -271,7 +271,7 @@ class ImFlowSmokeTest {
         @SuppressWarnings("unchecked")
         KafkaTemplate<String, Object> historyKafka = mock(KafkaTemplate.class);
         AtomicReference<Object> historyRef = new AtomicReference<>();
-        when(historyKafka.send(eq(KafkaTopics.HISTORY), eq("single:userA:userB"), any()))
+        when(historyKafka.send(eq(KafkaTopics.Message.HISTORY), eq("single:userA:userB"), any()))
                 .thenAnswer(invocation -> {
                     historyRef.set(invocation.getArgument(2));
                     return CompletableFuture.completedFuture(null);
@@ -280,7 +280,7 @@ class ImFlowSmokeTest {
         @SuppressWarnings("unchecked")
         KafkaTemplate<String, Object> historyToDeliveryKafka = mock(KafkaTemplate.class);
         AtomicReference<DeliveryTaskCommand> deliveryRef = new AtomicReference<>();
-        when(historyToDeliveryKafka.send(eq(KafkaTopics.DELIVERY), eq("userB"), any(DeliveryTaskCommand.class)))
+        when(historyToDeliveryKafka.send(eq(KafkaTopics.Message.DELIVERY), eq("userB"), any(DeliveryTaskCommand.class)))
                 .thenAnswer(invocation -> {
                     deliveryRef.set(invocation.getArgument(2));
                     return CompletableFuture.completedFuture(null);

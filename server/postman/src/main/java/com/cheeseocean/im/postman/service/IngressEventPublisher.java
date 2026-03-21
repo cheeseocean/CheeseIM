@@ -26,7 +26,7 @@ public class IngressEventPublisher {
 
     public void publish(IngressEvent event) {
         try {
-            kafkaTemplate.send(KafkaTopics.INGRESS, event.getConversationId(), event)
+            kafkaTemplate.send(KafkaTopics.Message.INGRESS, event.getConversationId(), event)
                     .get(SEND_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
             messageFlowMetrics.recordAcceptedIngress();
         } catch (Exception e) {
