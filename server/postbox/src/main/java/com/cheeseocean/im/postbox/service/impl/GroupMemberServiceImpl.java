@@ -90,7 +90,7 @@ public class GroupMemberServiceImpl implements GroupMemberService {
             
         } catch (Exception e) {
             logger.error("获取群组成员失败: groupID={}", groupID, e);
-            return new ArrayList<>();
+            throw new IllegalStateException("Failed to load group members for " + groupID, e);
         }
     }
     

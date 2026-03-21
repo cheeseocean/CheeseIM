@@ -35,6 +35,7 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
     private final DeliveryCompensationService deliveryCompensationService;
     private final GroupFanoutPlanner groupFanoutPlanner;
     private final MessageAuthFacade messageAuthFacade;
+    private final GroupMembershipFacade groupMembershipFacade;
     private final ConversationSeqService conversationSeqService;
     private final IngressEventPublisher ingressEventPublisher;
     private final MessageFlowProperties messageFlowProperties;
@@ -49,6 +50,7 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
                                       DeliveryCompensationService deliveryCompensationService,
                                       GroupFanoutPlanner groupFanoutPlanner,
                                       MessageAuthFacade messageAuthFacade,
+                                      GroupMembershipFacade groupMembershipFacade,
                                       ConversationSeqService conversationSeqService,
                                       IngressEventPublisher ingressEventPublisher,
                                       MessageFlowProperties messageFlowProperties,
@@ -61,6 +63,7 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
         this.deliveryCompensationService = deliveryCompensationService;
         this.groupFanoutPlanner = groupFanoutPlanner;
         this.messageAuthFacade = messageAuthFacade;
+        this.groupMembershipFacade = groupMembershipFacade;
         this.conversationSeqService = conversationSeqService;
         this.ingressEventPublisher = ingressEventPublisher;
         this.messageFlowProperties = messageFlowProperties;
@@ -75,11 +78,12 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
                                       DeliveryCompensationService deliveryCompensationService,
                                       GroupFanoutPlanner groupFanoutPlanner,
                                       MessageAuthFacade messageAuthFacade,
+                                      GroupMembershipFacade groupMembershipFacade,
                                       ConversationSeqService conversationSeqService,
                                       IngressEventPublisher ingressEventPublisher,
                                       MessageFlowProperties messageFlowProperties) {
         this(idempotencyService, stateMachine, messageStoreService, gatewayPushService, messagePushService,
-                deliveryCompensationService, groupFanoutPlanner, messageAuthFacade,
+                deliveryCompensationService, groupFanoutPlanner, messageAuthFacade, groupMembershipFacade,
                 conversationSeqService, ingressEventPublisher, messageFlowProperties, null);
     }
 
@@ -93,7 +97,7 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
                                       MessageAuthFacade messageAuthFacade) {
         this(idempotencyService, stateMachine, messageStoreService, gatewayPushService, messagePushService,
                 deliveryCompensationService, groupFanoutPlanner, messageAuthFacade,
-                null, null, new MessageFlowProperties(), null);
+                null, null, null, new MessageFlowProperties(), null);
     }
 
     public MessageDeliveryServiceImpl(MessageIdempotencyService idempotencyService,
@@ -161,7 +165,7 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
     private DeliveryResult legacyDeliverFresh(DeliveryCommand command) {
         StoredMessage persisted = messageStoreService.saveMessage(toStoredMessage(command));
         if (command.isGroupDelivery()) {
-            return deliverGroup(command, persisted);
+            return deliverGroup(command, persisted, resolveGroupTargets(command));
         }
         DeliveryTask task = stateMachine.persisted(command.getDeviceId(), persisted);
         GatewayPushResult pushResult = gatewayPushService.pushToUser(command.getReceiverId(), toMessageProto(command, persisted));
@@ -192,8 +196,8 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
         return result;
     }
 
-    private DeliveryResult deliverGroup(DeliveryCommand command, StoredMessage persisted) {
-        GroupFanoutPlanner.FanoutPlan plan = groupFanoutPlanner.plan(command, command.getTargetUserIds());
+    private DeliveryResult deliverGroup(DeliveryCommand command, StoredMessage persisted, List<String> targetUserIds) {
+        GroupFanoutPlanner.FanoutPlan plan = groupFanoutPlanner.plan(command, targetUserIds);
         Long firstInboxSeq = null;
         for (GroupFanoutPlanner.FanoutBatch batch : plan.getBatches()) {
             List<Long> savedSequences = messageStoreService.saveOfflineMessages(
@@ -212,6 +216,20 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
         result.setStoredMessageId(firstInboxSeq);
         idempotencyService.remember(command.getSenderId(), command.getConversationId(), command.getClientMsgId(), result);
         return result;
+    }
+
+    private List<String> resolveGroupTargets(DeliveryCommand command) {
+        if (!command.getTargetUserIds().isEmpty()) {
+            return command.getTargetUserIds();
+        }
+        if (groupMembershipFacade == null) {
+            throw new IllegalStateException("GroupMembershipFacade is not configured for group delivery");
+        }
+        List<String> members = groupMembershipFacade.loadTargets(command.getConversationId());
+        if (members == null || members.isEmpty()) {
+            throw new IllegalStateException("No group members resolved for conversation " + command.getConversationId());
+        }
+        return members;
     }
 
     private StoredMessage toStoredMessage(DeliveryCommand command) {

@@ -83,7 +83,7 @@ public class DeliveryCommand implements Serializable {
     }
 
     public boolean isGroupDelivery() {
-        return sessionType != null && sessionType == 2 && !targetUserIds.isEmpty();
+        return sessionType != null && sessionType == 2;
     }
 
     public boolean isSingleDelivery() {

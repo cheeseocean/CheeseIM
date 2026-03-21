@@ -50,6 +50,7 @@ class MessageDeliveryServiceImplTest {
                 compensationService,
                 new GroupFanoutPlanner(500),
                 null,
+                null,
                 conversationSeqService,
                 ingressEventPublisher,
                 asyncIngressEnabled());
@@ -152,6 +153,7 @@ class MessageDeliveryServiceImplTest {
                 compensationService,
                 new GroupFanoutPlanner(500),
                 null,
+                null,
                 mock(ConversationSeqService.class),
                 mock(IngressEventPublisher.class),
                 asyncIngressDisabled());
@@ -207,6 +209,7 @@ class MessageDeliveryServiceImplTest {
                 messagePushService,
                 compensationService,
                 new GroupFanoutPlanner(500),
+                null,
                 null,
                 mock(ConversationSeqService.class),
                 mock(IngressEventPublisher.class),
