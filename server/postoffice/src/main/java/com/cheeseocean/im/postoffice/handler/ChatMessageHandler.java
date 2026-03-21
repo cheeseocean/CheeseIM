@@ -103,8 +103,9 @@ public class ChatMessageHandler implements MessageHandler {
                 return HandleResult.failure("消息发送失败", errorResp);
             }
             
-            logger.info("Message sent successfully: userID={}, clientMsgID={}, serverMsgID={}", 
-                       context.getUserId(), msgData.getClientMsgID(), deliveryResult.getServerMsgId());
+            logger.info("Message accepted successfully: userID={}, clientMsgID={}, serverMsgID={}, conversationSeq={}",
+                       context.getUserId(), msgData.getClientMsgID(), deliveryResult.getServerMsgId(),
+                       deliveryResult.getConversationSeq());
             
             // 创建发送消息响应
             WSMessage sendMsgRespMsg = WSMessage.sendMsgResp(operationID, 
