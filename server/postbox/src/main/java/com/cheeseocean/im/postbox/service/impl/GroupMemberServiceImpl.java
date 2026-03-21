@@ -43,6 +43,11 @@ public class GroupMemberServiceImpl implements GroupMemberService {
      * 缓存过期时间（秒）
      */
     private static final long CACHE_EXPIRE_SECONDS = 3600; // 1小时
+
+    @Override
+    public List<String> queryConversationMembers(String conversationId) {
+        return getGroupMembers(normalizeConversationId(conversationId));
+    }
     
     @Override
     public List<String> getGroupMembers(String groupID) {
@@ -263,6 +268,16 @@ public class GroupMemberServiceImpl implements GroupMemberService {
         }
         
         return members;
+    }
+
+    private String normalizeConversationId(String conversationId) {
+        if (conversationId == null) {
+            return null;
+        }
+        if (conversationId.startsWith("group:")) {
+            return conversationId.substring("group:".length());
+        }
+        return conversationId;
     }
     
     /**

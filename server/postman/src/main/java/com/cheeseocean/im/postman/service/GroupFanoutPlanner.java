@@ -16,11 +16,22 @@ public class GroupFanoutPlanner {
         this.batchSize = batchSize;
     }
 
-    public FanoutPlan plan(DeliveryCommand command, List<String> memberIds) {
-        List<FanoutBatch> batches = new ArrayList<>();
+    public List<List<String>> partition(List<String> memberIds) {
+        List<List<String>> batches = new ArrayList<>();
+        if (memberIds == null || memberIds.isEmpty()) {
+            return batches;
+        }
         for (int start = 0; start < memberIds.size(); start += batchSize) {
             int end = Math.min(start + batchSize, memberIds.size());
-            batches.add(new FanoutBatch(memberIds.subList(start, end)));
+            batches.add(List.copyOf(memberIds.subList(start, end)));
+        }
+        return batches;
+    }
+
+    public FanoutPlan plan(DeliveryCommand command, List<String> memberIds) {
+        List<FanoutBatch> batches = new ArrayList<>();
+        for (List<String> batch : partition(memberIds)) {
+            batches.add(new FanoutBatch(batch));
         }
         return new FanoutPlan(command.getConversationId(), batches);
     }

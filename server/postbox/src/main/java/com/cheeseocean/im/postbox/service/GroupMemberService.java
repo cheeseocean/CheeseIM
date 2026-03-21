@@ -6,6 +6,11 @@ import java.util.List;
  * Resolves member IDs for group fanout planning.
  */
 public interface GroupMemberService {
+
+    /**
+     * Resolves conversation-scoped members for async group ingress.
+     */
+    List<String> queryConversationMembers(String conversationId);
     
     /**
      * 获取群组成员列表
