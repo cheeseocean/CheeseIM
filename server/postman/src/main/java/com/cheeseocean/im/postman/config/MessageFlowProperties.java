@@ -7,18 +7,9 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "cheeseim.message-flow")
 public class MessageFlowProperties {
 
-    private boolean asyncIngressEnabled;
     private boolean asyncHistoryEnabled;
     private boolean asyncDeliveryEnabled;
     private boolean asyncReceiptEnabled;
-
-    public boolean isAsyncIngressEnabled() {
-        return asyncIngressEnabled;
-    }
-
-    public void setAsyncIngressEnabled(boolean asyncIngressEnabled) {
-        this.asyncIngressEnabled = asyncIngressEnabled;
-    }
 
     public boolean isAsyncHistoryEnabled() {
         return asyncHistoryEnabled;

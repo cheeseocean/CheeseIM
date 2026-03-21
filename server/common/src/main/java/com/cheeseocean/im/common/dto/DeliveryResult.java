@@ -23,7 +23,7 @@ public class DeliveryResult implements Serializable {
         result.receiverOnline = false;
         result.serverMsgId = serverMsgId;
         result.conversationSeq = conversationSeq;
-        result.state = DeliveryState.INIT;
+        result.state = DeliveryState.PERSISTED;
         return result;
     }
 

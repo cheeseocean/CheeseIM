@@ -15,8 +15,4 @@ public class MessageFlowMetrics {
     public void recordAcceptedIngress() {
         meterRegistry.counter("im.message.ingress.accepted").increment();
     }
-
-    public void recordLegacyFallback() {
-        meterRegistry.counter("im.message.ingress.legacy_fallback").increment();
-    }
 }
