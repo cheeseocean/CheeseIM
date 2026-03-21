@@ -34,6 +34,9 @@ public class GatewayPushServiceImpl implements GatewayPushService {
         List<String> failed = new ArrayList<>();
 
         for (RouteSnapshot route : routes) {
+            if (!connectionManager.markDeliveryIfAbsent(message.getServerMsgId(), receiverId, route.getDeviceId())) {
+                continue;
+            }
             UserConnection connection = matchConnection(receiverId, route.getDeviceId());
             boolean pushed = connection != null
                     && connectionManager.sendMessageToConnection(connection,

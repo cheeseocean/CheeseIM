@@ -1,6 +1,8 @@
 package com.cheeseocean.im.postman.service;
 
 import com.cheeseocean.im.common.constants.KafkaTopics;
+import com.cheeseocean.im.common.dto.DeliveryTaskCommand;
+import com.cheeseocean.im.common.dto.GatewayPushResult;
 import com.cheeseocean.im.common.entity.DeliveryState;
 import com.cheeseocean.im.common.entity.DeliveryTask;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -67,6 +69,17 @@ public class DeliveryCompensationService {
                 task.getServerMsgId(), task.getState(), task.getReceiverId(), task.getRetryCount());
         meterRegistry.counter("im.delivery.replay", "state", task.getState().name()).increment();
         return task;
+    }
+
+    public void recordAttempt(DeliveryTaskCommand task, GatewayPushResult pushResult) {
+        String routeState = pushResult.isRouteFound() ? "route_found" : "route_missing";
+        meterRegistry.counter("im.delivery.gateway.attempt", "result", routeState).increment();
+        log.info("delivery_gateway_attempt messageId={} receiverId={} routeFound={} deliveredDevices={} failedDevices={}",
+                task.getMessageId(),
+                task.getReceiverId(),
+                pushResult.isRouteFound(),
+                pushResult.getDeliveredDeviceIds().size(),
+                pushResult.getFailedDeviceIds().size());
     }
 
     private void publish(String topic, DeliveryTask task) {

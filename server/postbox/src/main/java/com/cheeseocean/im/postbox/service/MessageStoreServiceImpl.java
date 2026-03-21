@@ -10,6 +10,8 @@ import com.cheeseocean.im.common.entity.StoredMessage;
 import com.cheeseocean.im.common.dto.HistoryTask;
 import com.cheeseocean.im.postbox.entity.InboxDocument;
 import com.cheeseocean.im.postbox.entity.MessageDocument;
+import com.cheeseocean.im.postbox.entity.ConversationReadCursorDocument;
+import com.cheeseocean.im.postbox.repository.ConversationReadCursorRepository;
 import com.cheeseocean.im.postbox.repository.InboxDocumentRepository;
 import com.cheeseocean.im.postbox.repository.MessageDocumentRepository;
 import org.springframework.stereotype.Service;
@@ -22,14 +24,34 @@ public class MessageStoreServiceImpl implements MessageStoreService {
 
     private final MessageDocumentRepository messageRepository;
     private final InboxDocumentRepository inboxRepository;
+    private final ConversationReadCursorRepository readCursorRepository;
     private final HistoryTaskPersistenceService historyTaskPersistenceService;
 
     public MessageStoreServiceImpl(MessageDocumentRepository messageRepository,
                                    InboxDocumentRepository inboxRepository,
+                                   ConversationReadCursorRepository readCursorRepository,
                                    HistoryTaskPersistenceService historyTaskPersistenceService) {
         this.messageRepository = messageRepository;
         this.inboxRepository = inboxRepository;
+        this.readCursorRepository = readCursorRepository;
         this.historyTaskPersistenceService = historyTaskPersistenceService;
+    }
+
+    public MessageStoreServiceImpl(MessageDocumentRepository messageRepository,
+                                   InboxDocumentRepository inboxRepository,
+                                   ConversationReadCursorRepository readCursorRepository) {
+        this(messageRepository, inboxRepository, readCursorRepository, null);
+    }
+
+    public MessageStoreServiceImpl(MessageDocumentRepository messageRepository,
+                                   InboxDocumentRepository inboxRepository) {
+        this(messageRepository, inboxRepository, null, null);
+    }
+
+    public MessageStoreServiceImpl(MessageDocumentRepository messageRepository,
+                                   InboxDocumentRepository inboxRepository,
+                                   HistoryTaskPersistenceService historyTaskPersistenceService) {
+        this(messageRepository, inboxRepository, null, historyTaskPersistenceService);
     }
 
     @Override
@@ -76,10 +98,7 @@ public class MessageStoreServiceImpl implements MessageStoreService {
         result.setServerMsgId(ack.getServerMsgId());
 
         if ("READ".equals(ack.getAckType())) {
-            if (inbox != null && !inbox.isRead()) {
-                inbox.setRead(true);
-                inboxRepository.save(inbox);
-            }
+            markConversationRead(ack);
             result.setSuccess(true);
             result.setStatus(DeliveryState.READ.name());
             result.setState(DeliveryState.READ);
@@ -87,6 +106,10 @@ public class MessageStoreServiceImpl implements MessageStoreService {
         }
 
         if ("RECEIVED".equals(ack.getAckType())) {
+            if (inbox != null && inbox.getDeliveredAt() == null) {
+                inbox.setDeliveredAt(resolveAckTime(ack));
+                inboxRepository.save(inbox);
+            }
             result.setSuccess(true);
             if (inbox != null && inbox.isRead()) {
                 result.setStatus(DeliveryState.READ.name());
@@ -120,6 +143,57 @@ public class MessageStoreServiceImpl implements MessageStoreService {
         result.setStatus("UNSUPPORTED_ACK");
         result.setState(DeliveryState.FAILED_FINAL);
         return result;
+    }
+
+    private void markConversationRead(DeliveryAck ack) {
+        Instant ackTime = resolveAckTime(ack);
+        if (ack.getConversationId() != null && ack.getSeq() != null) {
+            List<InboxDocument> inboxes = inboxRepository.findByUserIdAndConversationIdOrderBySequenceDesc(
+                    ack.getUserId(), ack.getConversationId());
+            for (InboxDocument item : inboxes) {
+                if (item.getSequence() != null && item.getSequence() <= ack.getSeq() && !item.isRead()) {
+                    item.setRead(true);
+                    if (item.getDeliveredAt() == null) {
+                        item.setDeliveredAt(ackTime);
+                    }
+                    inboxRepository.save(item);
+                }
+            }
+            advanceReadCursor(ack.getUserId(), ack.getConversationId(), ack.getSeq(), ackTime);
+            return;
+        }
+        if (ack.getServerMsgId() == null) {
+            return;
+        }
+        inboxRepository.findById(ack.getUserId() + ":" + ack.getServerMsgId()).ifPresent(item -> {
+            item.setRead(true);
+            if (item.getDeliveredAt() == null) {
+                item.setDeliveredAt(ackTime);
+            }
+            inboxRepository.save(item);
+            advanceReadCursor(item.getUserId(), item.getConversationId(), item.getSequence(), ackTime);
+        });
+    }
+
+    private void advanceReadCursor(String userId, String conversationId, Long seq, Instant updatedAt) {
+        if (readCursorRepository == null || userId == null || conversationId == null || seq == null) {
+            return;
+        }
+        ConversationReadCursorDocument existing = readCursorRepository.findByUserIdAndConversationId(userId, conversationId);
+        if (existing != null && existing.getReadSeq() != null && existing.getReadSeq() >= seq) {
+            return;
+        }
+        ConversationReadCursorDocument cursor = existing == null ? new ConversationReadCursorDocument() : existing;
+        cursor.setId(userId + ":" + conversationId);
+        cursor.setUserId(userId);
+        cursor.setConversationId(conversationId);
+        cursor.setReadSeq(seq);
+        cursor.setUpdatedAt(updatedAt);
+        readCursorRepository.save(cursor);
+    }
+
+    private Instant resolveAckTime(DeliveryAck ack) {
+        return ack.getEventTime() == null ? Instant.now() : Instant.ofEpochMilli(ack.getEventTime());
     }
 
     private InboxMessage toInboxMessage(InboxDocument inbox) {

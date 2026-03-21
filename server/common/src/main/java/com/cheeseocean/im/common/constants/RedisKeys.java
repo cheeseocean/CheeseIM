@@ -38,4 +38,8 @@ public final class RedisKeys {
     public static String consumerDedup(String consumerGroup, String eventId) {
         return PREFIX + ":consumer:dedup:" + consumerGroup + ":" + eventId;
     }
+
+    public static String gatewayPushDedup(String serverMsgId, String receiverId, String deviceId) {
+        return PREFIX + ":gateway:push:dedup:" + serverMsgId + ":" + receiverId + ":" + deviceId;
+    }
 }

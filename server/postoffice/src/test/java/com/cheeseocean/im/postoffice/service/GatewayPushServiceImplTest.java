@@ -18,6 +18,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -73,5 +74,52 @@ class GatewayPushServiceImplTest {
         TextWebSocketFrame outbound = activeChannel.readOutbound();
         assertNotNull(outbound);
         assertFalse(outbound.text().isBlank());
+    }
+
+    @Test
+    void pushToUserShouldDeduplicateRepeatedGatewayWritesPerDevice() {
+        OnlineRouteService onlineRouteService = mock(OnlineRouteService.class);
+
+        RouteSnapshot route = new RouteSnapshot();
+        route.setUserId("userB");
+        route.setDeviceId("ios-1");
+        route.setGatewayNode("gateway-a");
+        when(onlineRouteService.findByUser("userB")).thenReturn(List.of(route));
+
+        ConnectionManager connectionManager = new ConnectionManager();
+        ReflectionTestUtils.setField(connectionManager, "objectMapper", new ObjectMapper());
+
+        EmbeddedChannel activeChannel = new EmbeddedChannel();
+        UserConnection activeConnection = new UserConnection("conn-1", "userB", 1, activeChannel);
+        activeConnection.setAuthenticated("token");
+
+        @SuppressWarnings("unchecked")
+        Map<String, UserConnection> connectionMap =
+                (Map<String, UserConnection>) ReflectionTestUtils.getField(connectionManager, "connectionMap");
+        @SuppressWarnings("unchecked")
+        Map<String, Set<String>> userConnectionMap =
+                (Map<String, Set<String>>) ReflectionTestUtils.getField(connectionManager, "userConnectionMap");
+        connectionMap.put("conn-1", activeConnection);
+        userConnectionMap.put("userB", Set.of("conn-1"));
+
+        GatewayPushServiceImpl service = new GatewayPushServiceImpl(connectionManager, onlineRouteService);
+
+        MessageProto message = new MessageProto();
+        message.setServerMsgId("srv-repeat");
+        message.setSenderId("userA");
+        message.setReceiverId("userB");
+        message.setContent("hello");
+
+        GatewayPushResult first = service.pushToUser("userB", message);
+        GatewayPushResult second = service.pushToUser("userB", message);
+
+        assertEquals(List.of("ios-1"), first.getDeliveredDeviceIds());
+        assertTrue(second.getDeliveredDeviceIds().isEmpty());
+        assertTrue(second.getFailedDeviceIds().isEmpty());
+
+        TextWebSocketFrame firstOutbound = activeChannel.readOutbound();
+        TextWebSocketFrame secondOutbound = activeChannel.readOutbound();
+        assertNotNull(firstOutbound);
+        assertNull(secondOutbound);
     }
 }

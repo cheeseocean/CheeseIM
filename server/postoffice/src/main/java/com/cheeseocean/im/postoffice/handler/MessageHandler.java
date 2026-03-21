@@ -101,6 +101,10 @@ public interface MessageHandler {
         public boolean isShouldClose() {
             return shouldClose;
         }
+
+        public boolean isCloseConnection() {
+            return shouldClose;
+        }
         
         public void setShouldClose(boolean shouldClose) {
             this.shouldClose = shouldClose;

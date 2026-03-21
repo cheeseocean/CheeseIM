@@ -58,6 +58,11 @@ public class ConnectionManager {
      * Netty channel to connection ID.
      */
     private final Map<Channel, String> channelConnectionMap = new ConcurrentHashMap<>();
+
+    /**
+     * Best-effort in-memory gateway delivery dedup.
+     */
+    private final Set<String> deliveredMessageKeys = ConcurrentHashMap.newKeySet();
     
     /**
      * Distinct online-user count.
@@ -313,6 +318,13 @@ public class ConnectionManager {
         for (UserConnection connection : getDeviceConnections(userID, deviceID)) {
             kickConnection(connection, reason);
         }
+    }
+
+    public boolean markDeliveryIfAbsent(String serverMsgId, String userId, String deviceId) {
+        if (serverMsgId == null || userId == null) {
+            return false;
+        }
+        return deliveredMessageKeys.add(serverMsgId + ":" + userId + ":" + (deviceId == null ? "*" : deviceId));
     }
     
     /**

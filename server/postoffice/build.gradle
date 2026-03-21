@@ -9,6 +9,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.kafka:spring-kafka'
 
     // RPC框架 (Dubbo)
     implementation 'org.apache.dubbo:dubbo-spring-boot-starter'
@@ -29,8 +30,11 @@ dependencies {
 
     // 测试依赖
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
     testImplementation 'org.java-websocket:Java-WebSocket:1.5.6'
+    testImplementation 'org.springframework.kafka:spring-kafka'
     testImplementation project(':postman')
+    testImplementation project(':postbox')
     testImplementation project(':push')
     testRuntimeOnly 'ch.qos.logback:logback-core:1.5.25'
 }
