@@ -2,6 +2,7 @@ package com.cheeseocean.im.postoffice.protocol;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -118,10 +119,22 @@ public class WSMessage implements Serializable {
      * 创建发送消息响应
      */
     public static WSMessage sendMsgResp(String operationID, String serverMsgID, String clientMsgID, Long sendTime) {
-        return new WSMessage(WSMessageType.WS_SEND_MSG_RESP, operationID, 
-                           Map.of("serverMsgID", serverMsgID, 
-                                  "clientMsgID", clientMsgID, 
-                                  "sendTime", sendTime));
+        return sendMsgResp(operationID, serverMsgID, clientMsgID, sendTime, null);
+    }
+
+    public static WSMessage sendMsgResp(String operationID,
+                                        String serverMsgID,
+                                        String clientMsgID,
+                                        Long sendTime,
+                                        Long conversationSeq) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("serverMsgID", serverMsgID);
+        payload.put("clientMsgID", clientMsgID);
+        payload.put("sendTime", sendTime);
+        if (conversationSeq != null) {
+            payload.put("conversationSeq", conversationSeq);
+        }
+        return new WSMessage(WSMessageType.WS_SEND_MSG_RESP, operationID, payload);
     }
     
     /**

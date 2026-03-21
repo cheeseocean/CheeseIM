@@ -8,12 +8,15 @@ import com.cheeseocean.im.common.dto.DeliveryAck;
 import com.cheeseocean.im.common.dto.DeliveryCommand;
 import com.cheeseocean.im.common.dto.DeliveryResult;
 import com.cheeseocean.im.common.dto.GatewayPushResult;
+import com.cheeseocean.im.common.dto.IngressEvent;
 import com.cheeseocean.im.common.dto.MessageProto;
 import com.cheeseocean.im.common.entity.DeliveryState;
 import com.cheeseocean.im.common.entity.DeliveryTask;
 import com.cheeseocean.im.common.entity.StoredMessage;
+import com.cheeseocean.im.common.utils.IdGenerator;
 import com.cheeseocean.im.postman.auth.MessageAuthFacade;
-import org.apache.dubbo.config.annotation.DubboReference;
+import com.cheeseocean.im.postman.config.MessageFlowProperties;
+import com.cheeseocean.im.postman.metrics.MessageFlowMetrics;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -32,6 +35,10 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
     private final DeliveryCompensationService deliveryCompensationService;
     private final GroupFanoutPlanner groupFanoutPlanner;
     private final MessageAuthFacade messageAuthFacade;
+    private final ConversationSeqService conversationSeqService;
+    private final IngressEventPublisher ingressEventPublisher;
+    private final MessageFlowProperties messageFlowProperties;
+    private final MessageFlowMetrics messageFlowMetrics;
 
     @Autowired
     public MessageDeliveryServiceImpl(MessageIdempotencyService idempotencyService,
@@ -41,7 +48,11 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
                                       MessagePushService messagePushService,
                                       DeliveryCompensationService deliveryCompensationService,
                                       GroupFanoutPlanner groupFanoutPlanner,
-                                      MessageAuthFacade messageAuthFacade) {
+                                      MessageAuthFacade messageAuthFacade,
+                                      ConversationSeqService conversationSeqService,
+                                      IngressEventPublisher ingressEventPublisher,
+                                      MessageFlowProperties messageFlowProperties,
+                                      MessageFlowMetrics messageFlowMetrics) {
         this.idempotencyService = idempotencyService;
         this.stateMachine = stateMachine;
         this.messageStoreService = messageStoreService;
@@ -50,6 +61,39 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
         this.deliveryCompensationService = deliveryCompensationService;
         this.groupFanoutPlanner = groupFanoutPlanner;
         this.messageAuthFacade = messageAuthFacade;
+        this.conversationSeqService = conversationSeqService;
+        this.ingressEventPublisher = ingressEventPublisher;
+        this.messageFlowProperties = messageFlowProperties;
+        this.messageFlowMetrics = messageFlowMetrics;
+    }
+
+    public MessageDeliveryServiceImpl(MessageIdempotencyService idempotencyService,
+                                      DeliveryStateMachine stateMachine,
+                                      MessageStoreService messageStoreService,
+                                      GatewayPushService gatewayPushService,
+                                      MessagePushService messagePushService,
+                                      DeliveryCompensationService deliveryCompensationService,
+                                      GroupFanoutPlanner groupFanoutPlanner,
+                                      MessageAuthFacade messageAuthFacade,
+                                      ConversationSeqService conversationSeqService,
+                                      IngressEventPublisher ingressEventPublisher,
+                                      MessageFlowProperties messageFlowProperties) {
+        this(idempotencyService, stateMachine, messageStoreService, gatewayPushService, messagePushService,
+                deliveryCompensationService, groupFanoutPlanner, messageAuthFacade,
+                conversationSeqService, ingressEventPublisher, messageFlowProperties, null);
+    }
+
+    public MessageDeliveryServiceImpl(MessageIdempotencyService idempotencyService,
+                                      DeliveryStateMachine stateMachine,
+                                      MessageStoreService messageStoreService,
+                                      GatewayPushService gatewayPushService,
+                                      MessagePushService messagePushService,
+                                      DeliveryCompensationService deliveryCompensationService,
+                                      GroupFanoutPlanner groupFanoutPlanner,
+                                      MessageAuthFacade messageAuthFacade) {
+        this(idempotencyService, stateMachine, messageStoreService, gatewayPushService, messagePushService,
+                deliveryCompensationService, groupFanoutPlanner, messageAuthFacade,
+                null, null, new MessageFlowProperties(), null);
     }
 
     public MessageDeliveryServiceImpl(MessageIdempotencyService idempotencyService,
@@ -92,6 +136,29 @@ public class MessageDeliveryServiceImpl implements MessageDeliveryService {
     }
 
     private DeliveryResult deliverFresh(DeliveryCommand command) {
+        if (messageFlowProperties != null && messageFlowProperties.isAsyncIngressEnabled()) {
+            return acceptAndPublish(command);
+        }
+        if (messageFlowMetrics != null) {
+            messageFlowMetrics.recordLegacyFallback();
+        }
+        return legacyDeliverFresh(command);
+    }
+
+    private DeliveryResult acceptAndPublish(DeliveryCommand command) {
+        if (conversationSeqService == null || ingressEventPublisher == null) {
+            throw new IllegalStateException("Async ingress dependencies are not configured");
+        }
+        String messageId = IdGenerator.generateMsgId();
+        long conversationSeq = conversationSeqService.nextSeq(command.getConversationId());
+        IngressEvent event = IngressEvent.from(command, messageId, conversationSeq, IdGenerator.generateOperationId());
+        ingressEventPublisher.publish(event);
+        DeliveryResult accepted = DeliveryResult.accepted(messageId, conversationSeq);
+        idempotencyService.remember(command.getSenderId(), command.getConversationId(), command.getClientMsgId(), accepted);
+        return accepted;
+    }
+
+    private DeliveryResult legacyDeliverFresh(DeliveryCommand command) {
         StoredMessage persisted = messageStoreService.saveMessage(toStoredMessage(command));
         if (command.isGroupDelivery()) {
             return deliverGroup(command, persisted);

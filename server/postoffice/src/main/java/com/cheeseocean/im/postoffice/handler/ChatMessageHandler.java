@@ -110,7 +110,8 @@ public class ChatMessageHandler implements MessageHandler {
             WSMessage sendMsgRespMsg = WSMessage.sendMsgResp(operationID, 
                                                             deliveryResult.getServerMsgId(),
                                                             msgData.getClientMsgID(),
-                                                            System.currentTimeMillis());
+                                                            System.currentTimeMillis(),
+                                                            deliveryResult.getConversationSeq());
             
             return HandleResult.success(sendMsgRespMsg);
             

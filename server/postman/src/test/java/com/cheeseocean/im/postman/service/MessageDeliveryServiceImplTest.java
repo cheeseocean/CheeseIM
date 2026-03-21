@@ -6,9 +6,11 @@ import com.cheeseocean.im.common.api.MessageStoreService;
 import com.cheeseocean.im.common.dto.DeliveryCommand;
 import com.cheeseocean.im.common.dto.DeliveryResult;
 import com.cheeseocean.im.common.dto.GatewayPushResult;
+import com.cheeseocean.im.common.dto.IngressEvent;
 import com.cheeseocean.im.common.dto.PushResult;
 import com.cheeseocean.im.common.entity.DeliveryState;
 import com.cheeseocean.im.common.entity.StoredMessage;
+import com.cheeseocean.im.postman.config.MessageFlowProperties;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
@@ -24,6 +26,52 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class MessageDeliveryServiceImplTest {
+
+    @Test
+    void deliverShouldAllocateConversationSeqAndPublishIngressEventWhenAsyncIngressEnabled() {
+        MessageIdempotencyService idempotencyService = mock(MessageIdempotencyService.class);
+        MessageStoreService storeService = mock(MessageStoreService.class);
+        GatewayPushService gatewayPushService = mock(GatewayPushService.class);
+        MessagePushService messagePushService = mock(MessagePushService.class);
+        DeliveryCompensationService compensationService = mock(DeliveryCompensationService.class);
+        ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
+        IngressEventPublisher ingressEventPublisher = mock(IngressEventPublisher.class);
+
+        when(idempotencyService.findExisting("userA", "single:userA:userB", "c-accept"))
+                .thenReturn(Optional.empty());
+        when(conversationSeqService.nextSeq("single:userA:userB")).thenReturn(1001L);
+
+        MessageDeliveryServiceImpl service = new MessageDeliveryServiceImpl(
+                idempotencyService,
+                new DeliveryStateMachine(),
+                storeService,
+                gatewayPushService,
+                messagePushService,
+                compensationService,
+                new GroupFanoutPlanner(500),
+                null,
+                conversationSeqService,
+                ingressEventPublisher,
+                asyncIngressEnabled());
+
+        DeliveryResult result = service.deliver(DeliveryCommand.builder()
+                .clientMsgId("c-accept")
+                .conversationId("single:userA:userB")
+                .senderId("userA")
+                .receiverId("userB")
+                .deviceId("ios-1")
+                .content("hello")
+                .contentType(101)
+                .sessionType(1)
+                .build());
+
+        assertTrue(result.isSuccess());
+        assertEquals("ACCEPTED", result.getStatus());
+        assertEquals(1001L, result.getConversationSeq());
+        verify(ingressEventPublisher).publish(any(IngressEvent.class));
+        verify(idempotencyService).remember("userA", "single:userA:userB", "c-accept", result);
+        verifyNoInteractions(storeService, gatewayPushService, messagePushService, compensationService);
+    }
 
     @Test
     void acceptedResultFactoryShouldExposeServerMsgIdAndConversationSeq() {
@@ -96,7 +144,17 @@ class MessageDeliveryServiceImplTest {
         when(messagePushService.pushOffline(eq("userB"), any())).thenReturn(PushResult.success("userB", "mock"));
 
         MessageDeliveryServiceImpl service = new MessageDeliveryServiceImpl(
-                idempotencyService, new DeliveryStateMachine(), storeService, gatewayPushService, messagePushService, compensationService);
+                idempotencyService,
+                new DeliveryStateMachine(),
+                storeService,
+                gatewayPushService,
+                messagePushService,
+                compensationService,
+                new GroupFanoutPlanner(500),
+                null,
+                mock(ConversationSeqService.class),
+                mock(IngressEventPublisher.class),
+                asyncIngressDisabled());
 
         DeliveryResult result = service.deliver(DeliveryCommand.builder()
                 .clientMsgId("c-2")
@@ -142,7 +200,17 @@ class MessageDeliveryServiceImplTest {
         when(gatewayPushService.pushToUser(eq("userB"), any())).thenReturn(pushResult);
 
         MessageDeliveryServiceImpl service = new MessageDeliveryServiceImpl(
-                idempotencyService, new DeliveryStateMachine(), storeService, gatewayPushService, messagePushService, compensationService);
+                idempotencyService,
+                new DeliveryStateMachine(),
+                storeService,
+                gatewayPushService,
+                messagePushService,
+                compensationService,
+                new GroupFanoutPlanner(500),
+                null,
+                mock(ConversationSeqService.class),
+                mock(IngressEventPublisher.class),
+                asyncIngressDisabled());
 
         DeliveryResult result = service.deliver(DeliveryCommand.builder()
                 .clientMsgId("c-3")
@@ -157,5 +225,15 @@ class MessageDeliveryServiceImplTest {
 
         assertEquals(DeliveryState.ONLINE_CONFIRMED, result.getState());
         verify(compensationService, never()).schedule(any());
+    }
+
+    private static MessageFlowProperties asyncIngressEnabled() {
+        MessageFlowProperties properties = new MessageFlowProperties();
+        properties.setAsyncIngressEnabled(true);
+        return properties;
+    }
+
+    private static MessageFlowProperties asyncIngressDisabled() {
+        return new MessageFlowProperties();
     }
 }

@@ -25,7 +25,7 @@ class MessageIdempotencyServiceTest {
         ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get("cheese_im:delivery:idempotency:userA:single:userA:userB:c-1"))
-                .thenReturn("s-1|ONLINE_CONFIRMED");
+                .thenReturn("s-1|ACCEPTED|1001|INIT");
 
         MessageIdempotencyService service = new MessageIdempotencyService(redisTemplate);
 
@@ -33,7 +33,8 @@ class MessageIdempotencyServiceTest {
 
         assertTrue(existing.isPresent());
         assertEquals("s-1", existing.get().getServerMsgId());
-        assertEquals("ONLINE_CONFIRMED", existing.get().getStatus());
+        assertEquals("ACCEPTED", existing.get().getStatus());
+        assertEquals(1001L, existing.get().getConversationSeq());
     }
 
     @Test
@@ -48,6 +49,6 @@ class MessageIdempotencyServiceTest {
         service.remember("userA", "single:userA:userB", "c-1", result);
 
         verify(valueOperations).set(eq("cheese_im:delivery:idempotency:userA:single:userA:userB:c-1"),
-                eq("s-1|ONLINE_CONFIRMED"), anyLong(), eq(TimeUnit.HOURS));
+                eq("s-1|ONLINE_CONFIRMED||ONLINE_CONFIRMED"), anyLong(), eq(TimeUnit.HOURS));
     }
 }

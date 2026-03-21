@@ -3,6 +3,7 @@ package com.cheeseocean.im.postoffice;
 import com.cheeseocean.im.common.dto.DeliveryResult;
 import com.cheeseocean.im.common.dto.RouteSnapshot;
 import com.cheeseocean.im.common.entity.DeliveryState;
+import com.cheeseocean.im.postoffice.protocol.WSMessage;
 import com.cheeseocean.im.postbox.entity.InboxDocument;
 import com.cheeseocean.im.postbox.entity.MessageDocument;
 import com.cheeseocean.im.postbox.repository.InboxDocumentRepository;
@@ -43,11 +44,30 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class ImFlowSmokeTest {
+
+    @Test
+    void sendMessageResponseShouldKeepLegacyFieldsAndExposeConversationSeq() {
+        WSMessage response = WSMessage.sendMsgResp("op-1", "s-1", "c-1", 123L, 1001L);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> data = (Map<String, Object>) response.getData();
+
+        assertEquals("s-1", data.get("serverMsgID"));
+        assertEquals("c-1", data.get("clientMsgID"));
+        assertEquals(123L, data.get("sendTime"));
+        assertEquals(1001L, data.get("conversationSeq"));
+
+        WSMessage legacyResponse = WSMessage.sendMsgResp("op-1", "s-1", "c-1", 123L);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> legacyData = (Map<String, Object>) legacyResponse.getData();
+        assertNull(legacyData.get("conversationSeq"));
+    }
 
     @Test
     void singleChatShouldRecoverAcrossOfflineAndReconnect() {
