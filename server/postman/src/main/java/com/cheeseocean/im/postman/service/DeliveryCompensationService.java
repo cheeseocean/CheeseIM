@@ -51,7 +51,7 @@ public class DeliveryCompensationService {
     public DeliveryTask schedule(DeliveryTask task) {
         DeliveryTask retryTask = copyOf(task);
         retryTask.markRetryScheduled(task.getRetryCount() + 1, Instant.now().plusSeconds(retryDelaySeconds));
-        publish(KafkaTopics.DELIVERY_COMPENSATION_TOPIC, retryTask);
+        publish(KafkaTopics.RETRY, retryTask);
         emitStateChange(retryTask);
         return retryTask;
     }
@@ -59,7 +59,7 @@ public class DeliveryCompensationService {
     public DeliveryTask publishDeadLetter(DeliveryTask task) {
         DeliveryTask deadLetter = copyOf(task);
         deadLetter.moveTo(DeliveryState.FAILED_FINAL);
-        publish(KafkaTopics.DELIVERY_DEAD_LETTER_TOPIC, deadLetter);
+        publish(KafkaTopics.DLQ, deadLetter);
         emitStateChange(deadLetter);
         return deadLetter;
     }

@@ -1,61 +1,55 @@
 package com.cheeseocean.im.common.constants;
 
 /**
- * Kafka Topic 常量
- * 
- * @author CheeseIM
+ * Canonical Kafka topic names for the rebuilt IM message flow.
+ * Keep compatibility aliases during the migration, but new code should use the short canonical names.
  */
-public class KafkaTopics {
-    
-    /**
-     * 消息发送到Kafka的Topic
-     */
-    public static final String MSG_TOPIC = "cheese_im_msg";
-    
-    /**
-     * 消息推送的Topic
-     */
-    public static final String PUSH_TOPIC = "cheese_im_push";
+public final class KafkaTopics {
 
-    /**
-     * 离线推送Topic
-     */
-    public static final String OFFLINE_PUSH_TOPIC = "cheese_im_offline_push";
+    private static final String MESSAGE_PREFIX = "im.message.";
 
-    /**
-     * 持久化消息的Topic
-     */
-    public static final String PERSISTENT_TOPIC = "cheese_im_persistent";
-    
-    /**
-     * 消息状态更新Topic
-     */
-    public static final String MSG_STATUS_UPDATE_TOPIC = "cheese_im_msg_status_update";
+    public static final String INGRESS = MESSAGE_PREFIX + "ingress";
+    public static final String HISTORY = MESSAGE_PREFIX + "history";
+    public static final String DELIVERY = MESSAGE_PREFIX + "delivery";
+    public static final String GROUP_FANOUT = MESSAGE_PREFIX + "group_fanout";
+    public static final String RECEIPT = MESSAGE_PREFIX + "receipt";
+    public static final String OFFLINE_PUSH = MESSAGE_PREFIX + "offline_push";
+    public static final String RETRY = MESSAGE_PREFIX + "retry";
+    public static final String DLQ = MESSAGE_PREFIX + "dlq";
 
-    /**
-     * 用户在线状态Topic
-     */
-    public static final String USER_ONLINE_STATUS_TOPIC = "cheese_im_user_online_status";
+    @Deprecated(since = "2026-03-21", forRemoval = false)
+    public static final String MESSAGE_INGRESS_TOPIC = INGRESS;
 
-    /**
-     * 投递补偿Topic
-     */
-    public static final String DELIVERY_COMPENSATION_TOPIC = "cheese_im_delivery_compensation";
+    @Deprecated(since = "2026-03-21", forRemoval = false)
+    public static final String MESSAGE_HISTORY_TOPIC = HISTORY;
 
-    /**
-     * 投递死信Topic
-     */
-    public static final String DELIVERY_DEAD_LETTER_TOPIC = "cheese_im_delivery_dead_letter";
+    @Deprecated(since = "2026-03-21", forRemoval = false)
+    public static final String MESSAGE_DELIVERY_TOPIC = DELIVERY;
 
-    public static final String MESSAGE_INGRESS_TOPIC = "im.message.ingress";
-    public static final String MESSAGE_HISTORY_TOPIC = "im.message.history";
-    public static final String MESSAGE_DELIVERY_TOPIC = "im.message.delivery";
-    public static final String MESSAGE_GROUP_FANOUT_TOPIC = "im.message.group_fanout";
-    public static final String MESSAGE_RECEIPT_TOPIC = "im.message.receipt";
-    public static final String MESSAGE_RETRY_TOPIC = "im.message.retry";
-    public static final String MESSAGE_DLQ_TOPIC = "im.message.dlq";
+    @Deprecated(since = "2026-03-21", forRemoval = false)
+    public static final String MESSAGE_GROUP_FANOUT_TOPIC = GROUP_FANOUT;
+
+    @Deprecated(since = "2026-03-21", forRemoval = false)
+    public static final String MESSAGE_RECEIPT_TOPIC = RECEIPT;
+
+    @Deprecated(since = "2026-03-21", forRemoval = false)
+    public static final String OFFLINE_PUSH_TOPIC = OFFLINE_PUSH;
+
+    @Deprecated(since = "2026-03-21", forRemoval = false)
+    public static final String MESSAGE_RETRY_TOPIC = RETRY;
+
+    @Deprecated(since = "2026-03-21", forRemoval = false)
+    public static final String MESSAGE_DLQ_TOPIC = DLQ;
+
+    @Deprecated(since = "2026-03-21", forRemoval = false)
+    public static final String PERSISTENT_TOPIC = HISTORY;
+
+    @Deprecated(since = "2026-03-21", forRemoval = false)
+    public static final String DELIVERY_COMPENSATION_TOPIC = RETRY;
+
+    @Deprecated(since = "2026-03-21", forRemoval = false)
+    public static final String DELIVERY_DEAD_LETTER_TOPIC = DLQ;
 
     private KafkaTopics() {
-        // 私有构造函数，防止实例化
     }
 }

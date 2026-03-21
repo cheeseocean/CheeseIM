@@ -40,7 +40,7 @@ class DeliveryTaskListenerTest {
 
         verify(gatewayPushService).pushToUser(eq("userB"), any());
         verify(compensationService).recordAttempt(task, pushResult);
-        verify(kafkaTemplate).send(eq(KafkaTopics.OFFLINE_PUSH_TOPIC), eq("userB"), any(OfflinePushTask.class));
+        verify(kafkaTemplate).send(eq(KafkaTopics.OFFLINE_PUSH), eq("userB"), any(OfflinePushTask.class));
     }
 
     @Test
@@ -65,7 +65,7 @@ class DeliveryTaskListenerTest {
 
         verify(gatewayPushService).pushToUser(eq("userB"), any());
         verify(compensationService).recordAttempt(task, pushResult);
-        verify(kafkaTemplate, never()).send(eq(KafkaTopics.OFFLINE_PUSH_TOPIC), eq("userB"), any(OfflinePushTask.class));
+        verify(kafkaTemplate, never()).send(eq(KafkaTopics.OFFLINE_PUSH), eq("userB"), any(OfflinePushTask.class));
     }
 
     private static DeliveryTaskCommand task(String messageId, String receiverId) {

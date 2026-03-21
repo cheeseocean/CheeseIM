@@ -42,7 +42,7 @@ public class DeliveryTaskListener {
         this.deliveryCompensationService = deliveryCompensationService;
     }
 
-    @KafkaListener(topics = KafkaTopics.MESSAGE_DELIVERY_TOPIC, groupId = "postman-delivery")
+    @KafkaListener(topics = KafkaTopics.DELIVERY, groupId = "postman-delivery")
     public void onMessage(String payload) {
         try {
             handle(objectMapper.readValue(payload, DeliveryTaskCommand.class));
@@ -55,7 +55,7 @@ public class DeliveryTaskListener {
         GatewayPushResult pushResult = gatewayPushService.pushToUser(task.getReceiverId(), toMessageProto(task));
         deliveryCompensationService.recordAttempt(task, pushResult);
         if (!pushResult.isRouteFound() || pushResult.getDeliveredDeviceIds().isEmpty()) {
-            kafkaTemplate.send(KafkaTopics.OFFLINE_PUSH_TOPIC, task.deliveryKey(), OfflinePushTask.from(task));
+            kafkaTemplate.send(KafkaTopics.OFFLINE_PUSH, task.deliveryKey(), OfflinePushTask.from(task));
             log.debug("Queued offline push fallback for messageId={}, receiverId={}",
                     task.getMessageId(), task.getReceiverId());
         }

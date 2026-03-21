@@ -31,7 +31,7 @@ public class DeliveryCompensationListener {
         this.deliveryCompensationService = deliveryCompensationService;
     }
 
-    @KafkaListener(topics = KafkaTopics.DELIVERY_COMPENSATION_TOPIC, groupId = "postman-delivery-compensation")
+    @KafkaListener(topics = KafkaTopics.RETRY, groupId = "postman-delivery-compensation")
     public void onCompensation(String payload) {
         try {
             DeliveryTask task = objectMapper.readValue(payload, DeliveryTask.class);

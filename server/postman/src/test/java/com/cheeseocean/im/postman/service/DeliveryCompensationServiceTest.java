@@ -35,7 +35,7 @@ class DeliveryCompensationServiceTest {
         assertEquals(1, scheduled.getRetryCount());
         assertEquals(DeliveryState.FAILED_RECOVERABLE, scheduled.getState());
         assertNotNull(scheduled.getNextRetryAt());
-        verify(kafkaTemplate).send(eq(KafkaTopics.DELIVERY_COMPENSATION_TOPIC), eq("s-1"), contains("\"retryCount\":1"));
+        verify(kafkaTemplate).send(eq(KafkaTopics.RETRY), eq("s-1"), contains("\"retryCount\":1"));
     }
 
     @Test
@@ -56,7 +56,7 @@ class DeliveryCompensationServiceTest {
         DeliveryTask deadLettered = service.handleTimeout(task);
 
         assertEquals(DeliveryState.FAILED_FINAL, deadLettered.getState());
-        verify(kafkaTemplate).send(eq(KafkaTopics.DELIVERY_DEAD_LETTER_TOPIC), eq("s-2"), contains("\"serverMsgId\":\"s-2\""));
+        verify(kafkaTemplate).send(eq(KafkaTopics.DLQ), eq("s-2"), contains("\"serverMsgId\":\"s-2\""));
         assertEquals(1.0d, meterRegistry.get("im.delivery.state").tag("state", "FAILED_FINAL").counter().count());
     }
 }

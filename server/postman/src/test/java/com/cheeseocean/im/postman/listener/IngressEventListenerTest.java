@@ -33,7 +33,7 @@ class IngressEventListenerTest {
 
         listener.handle(singleIngressEvent());
 
-        verify(kafkaTemplate).send(eq(KafkaTopics.PERSISTENT_TOPIC), anyString(), any(HistoryTask.class));
+        verify(kafkaTemplate).send(eq(KafkaTopics.HISTORY), anyString(), any(HistoryTask.class));
     }
 
     @Test
@@ -52,7 +52,7 @@ class IngressEventListenerTest {
 
         verify(groupMembershipFacade).loadTargets("group:crew");
         verify(kafkaTemplate, times(2))
-                .send(eq(KafkaTopics.PERSISTENT_TOPIC), anyString(), any(HistoryTask.class));
+                .send(eq(KafkaTopics.HISTORY), anyString(), any(HistoryTask.class));
     }
 
     private static IngressEvent singleIngressEvent() {

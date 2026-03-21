@@ -36,7 +36,7 @@ public class IngressEventListener {
         this.groupFanoutPlanner = groupFanoutPlanner;
     }
 
-    @KafkaListener(topics = KafkaTopics.MESSAGE_INGRESS_TOPIC, groupId = "postman-ingress")
+    @KafkaListener(topics = KafkaTopics.INGRESS, groupId = "postman-ingress")
     public void onMessage(String payload) {
         try {
             handle(objectMapper.readValue(payload, IngressEvent.class));
@@ -50,13 +50,13 @@ public class IngressEventListener {
             routeGroupIngress(event);
             return;
         }
-        kafkaTemplate.send(KafkaTopics.PERSISTENT_TOPIC, event.getConversationId(), HistoryTask.single(event));
+        kafkaTemplate.send(KafkaTopics.HISTORY, event.getConversationId(), HistoryTask.single(event));
     }
 
     private void routeGroupIngress(IngressEvent event) {
         List<String> members = groupMembershipFacade.loadTargets(event.getConversationId());
         for (List<String> batch : groupFanoutPlanner.partition(members)) {
-            kafkaTemplate.send(KafkaTopics.PERSISTENT_TOPIC, event.getConversationId(), HistoryTask.groupBatch(event, batch));
+            kafkaTemplate.send(KafkaTopics.HISTORY, event.getConversationId(), HistoryTask.groupBatch(event, batch));
         }
     }
 }

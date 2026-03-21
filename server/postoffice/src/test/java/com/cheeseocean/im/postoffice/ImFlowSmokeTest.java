@@ -6,6 +6,7 @@ import com.cheeseocean.im.common.dto.GatewayPushResult;
 import com.cheeseocean.im.common.dto.IngressEvent;
 import com.cheeseocean.im.common.dto.ReceiptEvent;
 import com.cheeseocean.im.common.dto.RouteSnapshot;
+import com.cheeseocean.im.common.constants.KafkaTopics;
 import com.cheeseocean.im.common.entity.DeliveryState;
 import com.cheeseocean.im.postoffice.protocol.WSMessage;
 import com.cheeseocean.im.postbox.entity.ConversationReadCursorDocument;
@@ -261,7 +262,7 @@ class ImFlowSmokeTest {
         @SuppressWarnings("unchecked")
         KafkaTemplate<String, Object> ingressKafka = mock(KafkaTemplate.class);
         AtomicReference<IngressEvent> ingressRef = new AtomicReference<>();
-        when(ingressKafka.send(eq("im.message.ingress"), eq("single:userA:userB"), any(IngressEvent.class)))
+        when(ingressKafka.send(eq(KafkaTopics.INGRESS), eq("single:userA:userB"), any(IngressEvent.class)))
                 .thenAnswer(invocation -> {
                     ingressRef.set(invocation.getArgument(2));
                     return CompletableFuture.completedFuture(null);
@@ -270,7 +271,7 @@ class ImFlowSmokeTest {
         @SuppressWarnings("unchecked")
         KafkaTemplate<String, Object> historyKafka = mock(KafkaTemplate.class);
         AtomicReference<Object> historyRef = new AtomicReference<>();
-        when(historyKafka.send(eq("cheese_im_persistent"), eq("single:userA:userB"), any()))
+        when(historyKafka.send(eq(KafkaTopics.HISTORY), eq("single:userA:userB"), any()))
                 .thenAnswer(invocation -> {
                     historyRef.set(invocation.getArgument(2));
                     return CompletableFuture.completedFuture(null);
@@ -279,7 +280,7 @@ class ImFlowSmokeTest {
         @SuppressWarnings("unchecked")
         KafkaTemplate<String, Object> historyToDeliveryKafka = mock(KafkaTemplate.class);
         AtomicReference<DeliveryTaskCommand> deliveryRef = new AtomicReference<>();
-        when(historyToDeliveryKafka.send(eq("im.message.delivery"), eq("userB"), any(DeliveryTaskCommand.class)))
+        when(historyToDeliveryKafka.send(eq(KafkaTopics.DELIVERY), eq("userB"), any(DeliveryTaskCommand.class)))
                 .thenAnswer(invocation -> {
                     deliveryRef.set(invocation.getArgument(2));
                     return CompletableFuture.completedFuture(null);

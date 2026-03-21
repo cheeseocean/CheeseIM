@@ -27,7 +27,7 @@ public class ReceiptEventListener {
         this.messageStoreService = messageStoreService;
     }
 
-    @KafkaListener(topics = KafkaTopics.MESSAGE_RECEIPT_TOPIC, groupId = "postman-receipt")
+    @KafkaListener(topics = KafkaTopics.RECEIPT, groupId = "postman-receipt")
     public void onMessage(String payload) {
         try {
             handle(objectMapper.readValue(payload, ReceiptEvent.class));

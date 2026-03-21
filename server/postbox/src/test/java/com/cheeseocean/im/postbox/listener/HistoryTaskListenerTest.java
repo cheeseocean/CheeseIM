@@ -29,7 +29,7 @@ class HistoryTaskListenerTest {
         listener.onMessage(singleTask());
 
         verify(persistenceService).persist(any(HistoryTask.class));
-        verify(kafkaTemplate).send(eq(KafkaTopics.MESSAGE_DELIVERY_TOPIC), eq("userB"), any(DeliveryTaskCommand.class));
+        verify(kafkaTemplate).send(eq(KafkaTopics.DELIVERY), eq("userB"), any(DeliveryTaskCommand.class));
     }
 
     @Test
@@ -41,7 +41,7 @@ class HistoryTaskListenerTest {
         listener.onMessage(groupTask());
 
         verify(kafkaTemplate, times(2))
-                .send(eq(KafkaTopics.MESSAGE_DELIVERY_TOPIC), anyString(), any(DeliveryTaskCommand.class));
+                .send(eq(KafkaTopics.DELIVERY), anyString(), any(DeliveryTaskCommand.class));
     }
 
     @Test
@@ -54,7 +54,7 @@ class HistoryTaskListenerTest {
 
         verify(persistenceService).persist(any(HistoryTask.class));
         verify(kafkaTemplate, times(0))
-                .send(eq(KafkaTopics.MESSAGE_DELIVERY_TOPIC), anyString(), any(DeliveryTaskCommand.class));
+                .send(eq(KafkaTopics.DELIVERY), anyString(), any(DeliveryTaskCommand.class));
     }
 
     private static HistoryTask singleTask() {
