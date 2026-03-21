@@ -15,6 +15,7 @@ public class InboxDocument {
     private String conversationId;
     private Long sequence;
     private boolean read;
+    private Instant deliveredAt;
     private Instant createdAt;
 
     public String getId() {
@@ -63,6 +64,14 @@ public class InboxDocument {
 
     public void setRead(boolean read) {
         this.read = read;
+    }
+
+    public Instant getDeliveredAt() {
+        return deliveredAt;
+    }
+
+    public void setDeliveredAt(Instant deliveredAt) {
+        this.deliveredAt = deliveredAt;
     }
 
     public Instant getCreatedAt() {

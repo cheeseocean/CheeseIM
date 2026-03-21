@@ -7,6 +7,7 @@ import com.cheeseocean.im.common.dto.MessageProto;
 import com.cheeseocean.im.common.entity.DeliveryState;
 import com.cheeseocean.im.common.entity.InboxMessage;
 import com.cheeseocean.im.common.entity.StoredMessage;
+import com.cheeseocean.im.common.dto.HistoryTask;
 import com.cheeseocean.im.postbox.entity.InboxDocument;
 import com.cheeseocean.im.postbox.entity.MessageDocument;
 import com.cheeseocean.im.postbox.repository.InboxDocumentRepository;
@@ -21,11 +22,14 @@ public class MessageStoreServiceImpl implements MessageStoreService {
 
     private final MessageDocumentRepository messageRepository;
     private final InboxDocumentRepository inboxRepository;
+    private final HistoryTaskPersistenceService historyTaskPersistenceService;
 
     public MessageStoreServiceImpl(MessageDocumentRepository messageRepository,
-                                   InboxDocumentRepository inboxRepository) {
+                                   InboxDocumentRepository inboxRepository,
+                                   HistoryTaskPersistenceService historyTaskPersistenceService) {
         this.messageRepository = messageRepository;
         this.inboxRepository = inboxRepository;
+        this.historyTaskPersistenceService = historyTaskPersistenceService;
     }
 
     @Override
@@ -36,36 +40,16 @@ public class MessageStoreServiceImpl implements MessageStoreService {
 
     @Override
     public long saveOfflineMessage(MessageProto message) {
-        MessageDocument savedMessage = messageRepository.save(toMessageDocument(message));
-        InboxDocument inbox = createInbox(savedMessage.getServerMsgId(), savedMessage.getReceiverId(),
-                savedMessage.getConversationId(), savedMessage.getSequence());
-        inboxRepository.save(inbox);
-        return inbox.getSequence() == null ? 0L : inbox.getSequence();
+        HistoryTask task = HistoryTask.singleFromProto(message);
+        return historyTaskPersistenceService.persist(task).firstStoredSequence();
     }
 
     @Override
     public List<Long> saveOfflineMessages(MessageProto message, List<String> receiverIds) {
-        MessageDocument savedMessage = messageRepository.save(toMessageDocument(message));
-        return receiverIds.stream()
-                .map(receiverId -> {
-                    InboxDocument inbox = createInbox(savedMessage.getServerMsgId(), receiverId,
-                            savedMessage.getConversationId(), savedMessage.getSequence());
-                    inboxRepository.save(inbox);
-                    return inbox.getSequence() == null ? 0L : inbox.getSequence();
-                })
-                .toList();
-    }
-
-    private InboxDocument createInbox(String serverMsgId, String receiverId, String conversationId, Long sequence) {
-        InboxDocument inbox = new InboxDocument();
-        inbox.setId(receiverId + ":" + serverMsgId);
-        inbox.setUserId(receiverId);
-        inbox.setServerMsgId(serverMsgId);
-        inbox.setConversationId(conversationId);
-        inbox.setSequence(sequence);
-        inbox.setRead(false);
-        inbox.setCreatedAt(Instant.now());
-        return inbox;
+        HistoryTask task = HistoryTask.singleFromProto(message);
+        task.setReceiverId(null);
+        task.setTargetUserIds(receiverIds);
+        return historyTaskPersistenceService.persist(task).getStoredSequences();
     }
 
     @Override
@@ -78,11 +62,9 @@ public class MessageStoreServiceImpl implements MessageStoreService {
 
     @Override
     public void markDelivered(String userId, String serverMsgId) {
-        inboxRepository.findByUserIdAndReadIsFalseOrderBySequenceAsc(userId).stream()
-                .filter(item -> serverMsgId.equals(item.getServerMsgId()))
-                .findFirst()
+        inboxRepository.findById(userId + ":" + serverMsgId)
                 .ifPresent(item -> {
-                    item.setRead(true);
+                    item.setDeliveredAt(Instant.now());
                     inboxRepository.save(item);
                 });
     }

@@ -1,6 +1,7 @@
 package com.cheeseocean.im.common.dto;
 
 import java.io.Serializable;
+import java.util.List;
 
 public class DeliveryTaskCommand implements Serializable {
 
@@ -18,8 +19,13 @@ public class DeliveryTaskCommand implements Serializable {
     private Integer contentType;
     private String content;
     private String attachedInfo;
+    private List<String> targetUserIds = List.of();
 
     public static DeliveryTaskCommand from(HistoryTask task) {
+        return from(task, task.getReceiverId());
+    }
+
+    public static DeliveryTaskCommand from(HistoryTask task, String receiverId) {
         DeliveryTaskCommand command = new DeliveryTaskCommand();
         command.setEventId(task.getEventId());
         command.setTraceId(task.getTraceId());
@@ -27,11 +33,12 @@ public class DeliveryTaskCommand implements Serializable {
         command.setConversationId(task.getConversationId());
         command.setConversationSeq(task.getConversationSeq());
         command.setSenderId(task.getSenderId());
-        command.setReceiverId(task.getReceiverId());
+        command.setReceiverId(receiverId);
         command.setSessionType(task.getSessionType());
         command.setContentType(task.getContentType());
         command.setContent(task.getContent());
         command.setAttachedInfo(task.getAttachedInfo());
+        command.setTargetUserIds(task.getTargetUserIds());
         return command;
     }
 
@@ -136,5 +143,13 @@ public class DeliveryTaskCommand implements Serializable {
 
     public void setAttachedInfo(String attachedInfo) {
         this.attachedInfo = attachedInfo;
+    }
+
+    public List<String> getTargetUserIds() {
+        return targetUserIds;
+    }
+
+    public void setTargetUserIds(List<String> targetUserIds) {
+        this.targetUserIds = targetUserIds == null ? List.of() : List.copyOf(targetUserIds);
     }
 }

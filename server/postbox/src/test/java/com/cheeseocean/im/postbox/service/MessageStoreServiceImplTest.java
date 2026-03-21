@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -29,10 +30,12 @@ class MessageStoreServiceImplTest {
     void saveShouldPersistStoredMessageAndInboxRecord() {
         MessageDocumentRepository messageRepository = mock(MessageDocumentRepository.class);
         InboxDocumentRepository inboxRepository = mock(InboxDocumentRepository.class);
-        when(messageRepository.save(any(MessageDocument.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(inboxRepository.save(any(InboxDocument.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        HistoryTaskPersistenceService persistenceService = mock(HistoryTaskPersistenceService.class);
+        HistoryTaskPersistenceService.PersistedHistory persisted = new HistoryTaskPersistenceService.PersistedHistory(
+                new MessageDocument(), List.of(7L), true);
+        when(persistenceService.persist(any())).thenReturn(persisted);
 
-        MessageStoreServiceImpl service = new MessageStoreServiceImpl(messageRepository, inboxRepository);
+        MessageStoreServiceImpl service = new MessageStoreServiceImpl(messageRepository, inboxRepository, persistenceService);
 
         MessageProto message = new MessageProto();
         message.setClientMsgId("c-1");
@@ -47,14 +50,14 @@ class MessageStoreServiceImplTest {
         long inboxSeq = service.saveOfflineMessage(message);
 
         assertEquals(7L, inboxSeq);
-        verify(messageRepository).save(any(MessageDocument.class));
-        verify(inboxRepository).save(any(InboxDocument.class));
+        verify(persistenceService).persist(any());
     }
 
     @Test
     void getOfflineMessagesShouldReturnUnreadInboxRecordsOrderedBySequence() {
         MessageDocumentRepository messageRepository = mock(MessageDocumentRepository.class);
         InboxDocumentRepository inboxRepository = mock(InboxDocumentRepository.class);
+        HistoryTaskPersistenceService persistenceService = mock(HistoryTaskPersistenceService.class);
         when(messageRepository.save(any(MessageDocument.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         MessageDocument first = new MessageDocument();
@@ -92,7 +95,7 @@ class MessageStoreServiceImplTest {
         when(messageRepository.findByServerMsgId("s-1")).thenReturn(first);
         when(messageRepository.findByServerMsgId("s-2")).thenReturn(second);
 
-        MessageStoreServiceImpl service = new MessageStoreServiceImpl(messageRepository, inboxRepository);
+        MessageStoreServiceImpl service = new MessageStoreServiceImpl(messageRepository, inboxRepository, persistenceService);
 
         List<InboxMessage> messages = service.getOfflineMessages("userB", 10);
 
@@ -114,8 +117,9 @@ class MessageStoreServiceImplTest {
         inbox.setServerMsgId("s-1");
         inbox.setRead(true);
         when(inboxRepository.findById("userB:s-1")).thenReturn(Optional.of(inbox));
+        HistoryTaskPersistenceService persistenceService = mock(HistoryTaskPersistenceService.class);
 
-        MessageStoreServiceImpl service = new MessageStoreServiceImpl(messageRepository, inboxRepository);
+        MessageStoreServiceImpl service = new MessageStoreServiceImpl(messageRepository, inboxRepository, persistenceService);
 
         DeliveryResult result = service.applyAck(DeliveryAck.receive(
                 "s-1", "single:userA:userB", "userB", "ios-1", System.currentTimeMillis()));
@@ -127,10 +131,11 @@ class MessageStoreServiceImplTest {
     void groupMessageShouldPersistOneStoredFactAndMultipleInboxTargets() {
         MessageDocumentRepository messageRepository = mock(MessageDocumentRepository.class);
         InboxDocumentRepository inboxRepository = mock(InboxDocumentRepository.class);
-        when(messageRepository.save(any(MessageDocument.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(inboxRepository.save(any(InboxDocument.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        HistoryTaskPersistenceService persistenceService = mock(HistoryTaskPersistenceService.class);
+        when(persistenceService.persist(any()))
+                .thenReturn(new HistoryTaskPersistenceService.PersistedHistory(new MessageDocument(), List.of(10L, 10L), true));
 
-        MessageStoreServiceImpl service = new MessageStoreServiceImpl(messageRepository, inboxRepository);
+        MessageStoreServiceImpl service = new MessageStoreServiceImpl(messageRepository, inboxRepository, persistenceService);
 
         MessageProto message = new MessageProto();
         message.setClientMsgId("c-g-1");
@@ -144,7 +149,76 @@ class MessageStoreServiceImplTest {
         List<Long> sequences = service.saveOfflineMessages(message, List.of("userB", "userC"));
 
         assertIterableEquals(List.of(10L, 10L), sequences);
-        verify(messageRepository).save(any(MessageDocument.class));
+        verify(persistenceService).persist(any());
+    }
+
+    @Test
+    void markDeliveredShouldStampDeliveryWithoutMarkingMessageRead() {
+        MessageDocumentRepository messageRepository = mock(MessageDocumentRepository.class);
+        InboxDocumentRepository inboxRepository = mock(InboxDocumentRepository.class);
+        HistoryTaskPersistenceService persistenceService = mock(HistoryTaskPersistenceService.class);
+
+        InboxDocument inbox = new InboxDocument();
+        inbox.setId("userB:s-1");
+        inbox.setUserId("userB");
+        inbox.setServerMsgId("s-1");
+        inbox.setRead(false);
+        when(inboxRepository.findById("userB:s-1")).thenReturn(Optional.of(inbox));
+
+        MessageStoreServiceImpl service = new MessageStoreServiceImpl(messageRepository, inboxRepository, persistenceService);
+
+        service.markDelivered("userB", "s-1");
+
+        assertFalse(inbox.isRead());
+        verify(inboxRepository).save(eq(inbox));
+    }
+
+    @Test
+    void persistShouldUpsertMessageOnceAndWriteInboxPerReceiver() {
+        MessageDocumentRepository messageRepository = mock(MessageDocumentRepository.class);
+        InboxDocumentRepository inboxRepository = mock(InboxDocumentRepository.class);
+        when(messageRepository.existsById("msg-1")).thenReturn(false, true);
+        when(inboxRepository.existsById("userB:msg-1")).thenReturn(false, true);
+        when(inboxRepository.existsById("userC:msg-1")).thenReturn(false, true);
+        when(messageRepository.save(any(MessageDocument.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(inboxRepository.save(any(InboxDocument.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageRepository.findById("msg-1")).thenReturn(Optional.of(messageDocument("msg-1", 10L)));
+        when(inboxRepository.findById("userB:msg-1")).thenReturn(Optional.of(inbox("userB", "msg-1", 10L)));
+        when(inboxRepository.findById("userC:msg-1")).thenReturn(Optional.of(inbox("userC", "msg-1", 10L)));
+
+        HistoryTaskPersistenceService service = new HistoryTaskPersistenceService(messageRepository, inboxRepository);
+
+        com.cheeseocean.im.common.dto.HistoryTask task = new com.cheeseocean.im.common.dto.HistoryTask();
+        task.setEventId("evt-1");
+        task.setMessageId("msg-1");
+        task.setClientMsgId("c-1");
+        task.setConversationId("group:g-1");
+        task.setConversationSeq(10L);
+        task.setSenderId("userA");
+        task.setContent("hello");
+        task.setContentType(101);
+        task.setTargetUserIds(List.of("userB", "userC"));
+
+        service.persist(task);
+        service.persist(task);
+
+        verify(messageRepository, times(1)).save(any(MessageDocument.class));
         verify(inboxRepository, times(2)).save(any(InboxDocument.class));
+    }
+
+    private static MessageDocument messageDocument(String serverMsgId, Long sequence) {
+        MessageDocument document = new MessageDocument();
+        document.setServerMsgId(serverMsgId);
+        document.setSequence(sequence);
+        return document;
+    }
+
+    private static InboxDocument inbox(String userId, String serverMsgId, Long sequence) {
+        InboxDocument inbox = new InboxDocument();
+        inbox.setId(userId + ":" + serverMsgId);
+        inbox.setUserId(userId);
+        inbox.setServerMsgId(serverMsgId);
+        inbox.setSequence(sequence);
+        return inbox;
     }
 }
