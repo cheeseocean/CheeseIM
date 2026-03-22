@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "frontend-design-3": {
+      "name": "Frontend Design",
+      "zip_url": "https://lightmake.site/api/v1/download?slug=frontend-design-3",
+      "source": "skillhub",
+      "version": "0.1.0"
+    }
+  }
+}

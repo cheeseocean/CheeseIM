@@ -1,0 +1,53 @@
+pluginManagement {
+    repositories {
+        maven {
+            url 'https://maven.aliyun.com/repository/gradle-plugin'
+            name 'Aliyun Gradle Plugin'
+        }
+        maven {
+            url 'https://maven.aliyun.com/repository/central'
+            name 'Aliyun Central'
+        }
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
+    repositories {
+        maven {
+            url 'https://maven.aliyun.com/repository/central'
+            name 'Aliyun Central'
+        }
+        maven {
+            url 'https://maven.aliyun.com/repository/public'
+            name 'Aliyun Public'
+        }
+        maven {
+            url 'https://maven.aliyun.com/repository/spring'
+            name 'Aliyun Spring'
+        }
+        // 添加 Apache 仓库
+        maven {
+            url 'https://repository.apache.org/content/repositories/releases/'
+            name 'Apache Releases'
+        }
+        mavenCentral()
+        // 私有仓库
+        maven {
+            url = uri("https://maven.pkg.github.com/cheeseocean/CheesePackages")
+            name = 'GitHub Packages'
+            // Requires USERNAME and TOKEN env vars when resolving private CheesePackages artifacts.
+            credentials {
+                username = System.getenv("USERNAME")
+                password = System.getenv("TOKEN")
+            }
+        }
+    }
+}
+
+rootProject.name = 'java-client-demo'
+
+include 'cli-demo'
+include 'client-core'
