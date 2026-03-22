@@ -4,7 +4,7 @@
 
 ## Responsibility
 
-- persist one durable message fact per accepted logical message
+- persist durable message history for sequenced conversation messages
 - persist history truth into `message_block` and `message_id_mapping`
 - serve history pull, conversation views, and resource checks from block history plus Redis hot state
 - update receipt/read convergence state through Redis-backed conversation state
