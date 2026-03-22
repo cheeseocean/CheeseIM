@@ -51,11 +51,23 @@ dependencies {
 
 sourceSets {
     main {
-        java.srcDirs = [rootProject.file('common/src/main/java')]
-        resources.srcDirs = [rootProject.file('common/src/main/resources')]
+        java.srcDirs = [
+                rootProject.file('common-core/src/main/java'),
+                rootProject.file('common/src/main/java')
+        ]
+        resources.srcDirs = [
+                rootProject.file('common-core/src/main/resources'),
+                rootProject.file('common/src/main/resources')
+        ]
     }
     test {
-        java.srcDirs = [rootProject.file('common/src/test/java')]
-        resources.srcDirs = [rootProject.file('common/src/test/resources')]
+        java.srcDirs = [
+                rootProject.file('common-core/src/test/java'),
+                rootProject.file('common/src/test/java')
+        ]
+        resources.srcDirs = [
+                rootProject.file('common-core/src/test/resources'),
+                rootProject.file('common/src/test/resources')
+        ]
     }
 }
