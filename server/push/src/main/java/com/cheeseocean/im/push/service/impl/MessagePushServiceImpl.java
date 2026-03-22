@@ -1,5 +1,6 @@
 package com.cheeseocean.im.push.service.impl;
 
+import com.cheeseocean.im.common.api.event.OfflinePushEvent;
 import com.cheeseocean.im.common.api.MessagePushService;
 import com.cheeseocean.im.common.dto.MessageProto;
 import com.cheeseocean.im.common.dto.OfflinePushTask;
@@ -48,6 +49,10 @@ public class MessagePushServiceImpl implements MessagePushService {
 
     public PushResult pushOffline(OfflinePushTask task) {
         return pushOffline(task.getReceiverId(), toMessageProto(task));
+    }
+
+    public PushResult pushOffline(OfflinePushEvent event) {
+        return pushOffline(event.getUserId(), toMessageProto(event));
     }
 
     @Override
@@ -109,6 +114,16 @@ public class MessagePushServiceImpl implements MessagePushService {
         proto.setContentType(task.getContentType());
         proto.setSessionType(task.getSessionType());
         proto.setAttachedInfo(task.getAttachedInfo());
+        return proto;
+    }
+
+    private MessageProto toMessageProto(OfflinePushEvent event) {
+        MessageProto proto = new MessageProto();
+        proto.setServerMsgId(event.getServerMsgId());
+        proto.setConversationId(event.getConversationId());
+        proto.setConversationSeq(event.getSeq());
+        proto.setReceiverId(event.getUserId());
+        proto.setContent(event.getContent());
         return proto;
     }
 }
