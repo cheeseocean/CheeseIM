@@ -1,7 +1,7 @@
 package com.cheeseocean.im.postbox.permission;
 
 import com.cheeseocean.im.common.api.permission.ResourcePermissionDubboService;
-import com.cheeseocean.im.common.model.auth.PermissionCheckResult;
+import com.cheeseocean.im.common.core.auth.PermissionCheckResult;
 import org.apache.dubbo.config.annotation.DubboService;
 
 @DubboService

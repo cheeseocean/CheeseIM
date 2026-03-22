@@ -1,7 +1,7 @@
 package com.cheeseocean.im.postoffice.kickoff;
 
 import com.cheeseocean.im.common.api.connection.KickoffCommandDubboService;
-import com.cheeseocean.im.common.model.auth.KickoffCommand;
+import com.cheeseocean.im.common.core.auth.KickoffCommand;
 import com.cheeseocean.im.postoffice.connection.ConnectionManager;
 import org.apache.dubbo.config.annotation.DubboService;
 

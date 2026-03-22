@@ -2,7 +2,7 @@ package com.cheeseocean.im.postoffice.service;
 
 import com.cheeseocean.im.common.api.dto.message.SendMessageReq;
 import com.cheeseocean.im.common.api.dto.message.Message;
-import com.cheeseocean.im.common.enums.ConnectionState;
+import com.cheeseocean.im.common.core.enums.ConnectionState;
 import com.cheeseocean.im.postoffice.connection.ConnectionContext;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import org.junit.jupiter.api.Test;

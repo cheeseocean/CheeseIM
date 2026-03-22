@@ -1,7 +1,7 @@
 package com.cheeseocean.im.authcenter.auth;
 
 import com.cheeseocean.im.authcenter.config.AuthCenterConfig;
-import com.cheeseocean.im.common.model.auth.SessionPrincipal;
+import com.cheeseocean.im.common.core.auth.SessionPrincipal;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;

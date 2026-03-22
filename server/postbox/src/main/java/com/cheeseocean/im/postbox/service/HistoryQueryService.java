@@ -1,10 +1,10 @@
 package com.cheeseocean.im.postbox.service;
 
 import com.cheeseocean.im.common.api.permission.ConversationPermissionDubboService;
-import com.cheeseocean.im.common.enums.ConversationAction;
-import com.cheeseocean.im.common.model.auth.PermissionCheckRequest;
-import com.cheeseocean.im.common.model.auth.PermissionCheckResult;
-import com.cheeseocean.im.common.model.auth.SessionPrincipal;
+import com.cheeseocean.im.common.core.auth.PermissionCheckRequest;
+import com.cheeseocean.im.common.core.auth.PermissionCheckResult;
+import com.cheeseocean.im.common.core.auth.SessionPrincipal;
+import com.cheeseocean.im.common.core.enums.ConversationAction;
 import com.cheeseocean.im.postbox.api.HistoryMessageResponse;
 import com.cheeseocean.im.postbox.history.MessageBlockDoc;
 import com.cheeseocean.im.postbox.history.MessageSlot;

@@ -1,6 +1,6 @@
 package com.cheeseocean.im.authcenter.repository;
 
-import com.cheeseocean.im.common.constants.RedisKeys;
+import com.cheeseocean.im.common.core.constants.RedisKeys;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -52,10 +52,10 @@ public class FriendRepository {
     }
 
     private String friendKey(String userId) {
-        return RedisKeys.USER_FRIENDS + userId;
+        return RedisKeys.userFriends(userId);
     }
 
     private String requestKey(String userId) {
-        return RedisKeys.USER_FRIEND_REQUESTS + userId;
+        return RedisKeys.userFriendRequests(userId);
     }
 }

@@ -1,7 +1,7 @@
 package com.cheeseocean.im.authcenter.repository;
 
-import com.cheeseocean.im.common.constants.RedisKeys;
-import com.cheeseocean.im.common.model.auth.SessionPrincipal;
+import com.cheeseocean.im.common.core.auth.SessionPrincipal;
+import com.cheeseocean.im.common.core.constants.RedisKeys;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -20,19 +20,19 @@ public class SessionRepository {
     }
 
     public void save(SessionPrincipal session, long ttlMs) {
-        redisTemplate.opsForValue().set(RedisKeys.USER_SESSION + session.getSessionId(), session, ttlMs, TimeUnit.MILLISECONDS);
-        redisTemplate.opsForSet().add(RedisKeys.USER_SESSIONS + session.getUserId(), session.getSessionId());
-        redisTemplate.expire(RedisKeys.USER_SESSIONS + session.getUserId(), ttlMs, TimeUnit.MILLISECONDS);
-        redisTemplate.opsForValue().set(RedisKeys.DEVICE_SESSION + session.getUserId() + ":" + session.getDeviceId(),
+        redisTemplate.opsForValue().set(RedisKeys.userSession(session.getSessionId()), session, ttlMs, TimeUnit.MILLISECONDS);
+        redisTemplate.opsForSet().add(RedisKeys.userSessions(session.getUserId()), session.getSessionId());
+        redisTemplate.expire(RedisKeys.userSessions(session.getUserId()), ttlMs, TimeUnit.MILLISECONDS);
+        redisTemplate.opsForValue().set(RedisKeys.deviceSession(session.getUserId(), session.getDeviceId()),
                 session.getSessionId(), ttlMs, TimeUnit.MILLISECONDS);
     }
 
     public SessionPrincipal findBySessionId(String sessionId) {
-        return (SessionPrincipal) redisTemplate.opsForValue().get(RedisKeys.USER_SESSION + sessionId);
+        return (SessionPrincipal) redisTemplate.opsForValue().get(RedisKeys.userSession(sessionId));
     }
 
     public List<SessionPrincipal> findByUserId(String userId) {
-        Set<Object> sessionIds = redisTemplate.opsForSet().members(RedisKeys.USER_SESSIONS + userId);
+        Set<Object> sessionIds = redisTemplate.opsForSet().members(RedisKeys.userSessions(userId));
         if (sessionIds == null || sessionIds.isEmpty()) {
             return List.of();
         }
@@ -47,7 +47,7 @@ public class SessionRepository {
     }
 
     public SessionPrincipal findByDevice(String userId, String deviceId) {
-        Object sessionId = redisTemplate.opsForValue().get(RedisKeys.DEVICE_SESSION + userId + ":" + deviceId);
+        Object sessionId = redisTemplate.opsForValue().get(RedisKeys.deviceSession(userId, deviceId));
         return sessionId == null ? null : findBySessionId(String.valueOf(sessionId));
     }
 }

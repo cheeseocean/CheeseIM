@@ -1,7 +1,7 @@
 package com.cheeseocean.im.authcenter.controller;
 
 import com.cheeseocean.im.common.api.session.SessionIssueService;
-import com.cheeseocean.im.common.model.auth.WsTicketPrincipal;
+import com.cheeseocean.im.common.core.auth.WsTicketPrincipal;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.util.StringUtils;

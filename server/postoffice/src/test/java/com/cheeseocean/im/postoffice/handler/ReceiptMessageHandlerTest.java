@@ -1,7 +1,7 @@
 package com.cheeseocean.im.postoffice.handler;
 
 import com.cheeseocean.im.common.api.event.ReceiptEvent;
-import com.cheeseocean.im.common.enums.ConnectionState;
+import com.cheeseocean.im.common.core.enums.ConnectionState;
 import com.cheeseocean.im.postoffice.auth.ConnectionSessionGuard;
 import com.cheeseocean.im.postoffice.connection.ConnectionContext;
 import com.cheeseocean.im.postoffice.connection.UserConnection;

@@ -1,4 +1,4 @@
-package com.cheeseocean.im.common.model.auth;
+package com.cheeseocean.im.common.core.auth;
 
 import java.io.Serializable;
 

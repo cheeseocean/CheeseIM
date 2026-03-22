@@ -1,6 +1,6 @@
 package com.cheeseocean.im.postoffice.connection;
 
-import com.cheeseocean.im.common.enums.ConnectionState;
+import com.cheeseocean.im.common.core.enums.ConnectionState;
 
 import java.io.Serializable;
 

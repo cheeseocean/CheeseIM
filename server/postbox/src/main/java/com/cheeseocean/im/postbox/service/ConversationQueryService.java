@@ -1,11 +1,11 @@
 package com.cheeseocean.im.postbox.service;
 
-import com.cheeseocean.im.common.enums.ConversationAction;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
+import com.cheeseocean.im.common.core.auth.PermissionCheckRequest;
+import com.cheeseocean.im.common.core.auth.PermissionCheckResult;
+import com.cheeseocean.im.common.core.auth.SessionPrincipal;
+import com.cheeseocean.im.common.core.enums.ConversationAction;
 import com.cheeseocean.im.common.core.util.ConversationIdUtil;
-import com.cheeseocean.im.common.model.auth.PermissionCheckRequest;
-import com.cheeseocean.im.common.model.auth.PermissionCheckResult;
-import com.cheeseocean.im.common.model.auth.SessionPrincipal;
 import com.cheeseocean.im.postbox.api.ConversationSummaryResponse;
 import com.cheeseocean.im.postbox.history.MessageIdMappingDoc;
 import com.cheeseocean.im.postbox.history.MessageSlot;

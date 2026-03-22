@@ -1,23 +1,29 @@
-package com.cheeseocean.im.common.model.auth;
+package com.cheeseocean.im.common.core.auth;
 
 import java.io.Serializable;
 
-public class ConnectionPrincipal implements Serializable {
+public class WsTicketPrincipal implements Serializable {
 
-    private String connId;
+    private String ticket;
     private String userId;
     private String tenantId;
     private String sessionId;
     private String deviceId;
     private String platform;
     private Long tokenVersion;
+    private Long expireAt;
+    private boolean used;
 
-    public String getConnId() {
-        return connId;
+    public boolean isExpired(long now) {
+        return expireAt != null && expireAt <= now;
     }
 
-    public void setConnId(String connId) {
-        this.connId = connId;
+    public String getTicket() {
+        return ticket;
+    }
+
+    public void setTicket(String ticket) {
+        this.ticket = ticket;
     }
 
     public String getUserId() {
@@ -66,5 +72,21 @@ public class ConnectionPrincipal implements Serializable {
 
     public void setTokenVersion(Long tokenVersion) {
         this.tokenVersion = tokenVersion;
+    }
+
+    public Long getExpireAt() {
+        return expireAt;
+    }
+
+    public void setExpireAt(Long expireAt) {
+        this.expireAt = expireAt;
+    }
+
+    public boolean isUsed() {
+        return used;
+    }
+
+    public void setUsed(boolean used) {
+        this.used = used;
     }
 }

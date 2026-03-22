@@ -1,7 +1,7 @@
 package com.cheeseocean.im.postbox.permission;
 
-import com.cheeseocean.im.common.model.auth.PermissionCheckRequest;
-import com.cheeseocean.im.common.model.auth.PermissionCheckResult;
+import com.cheeseocean.im.common.core.auth.PermissionCheckRequest;
+import com.cheeseocean.im.common.core.auth.PermissionCheckResult;
 import com.cheeseocean.im.postbox.service.BlockMessageQueryService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

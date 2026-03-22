@@ -1,7 +1,7 @@
 package com.cheeseocean.im.postbox.controller;
 
 import com.cheeseocean.im.common.api.permission.ResourcePermissionDubboService;
-import com.cheeseocean.im.common.model.auth.SessionPrincipal;
+import com.cheeseocean.im.common.core.auth.SessionPrincipal;
 import com.cheeseocean.im.postbox.api.AttachmentDownloadAuthorizationResponse;
 import com.cheeseocean.im.postbox.auth.AccessTokenSessionResolver;
 import com.cheeseocean.im.postbox.permission.AttachmentAccessService;

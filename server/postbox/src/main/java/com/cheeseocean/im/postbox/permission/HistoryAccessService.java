@@ -1,7 +1,7 @@
 package com.cheeseocean.im.postbox.permission;
 
-import com.cheeseocean.im.common.model.auth.PermissionCheckRequest;
-import com.cheeseocean.im.common.model.auth.PermissionCheckResult;
+import com.cheeseocean.im.common.core.auth.PermissionCheckRequest;
+import com.cheeseocean.im.common.core.auth.PermissionCheckResult;
 import com.cheeseocean.im.postbox.history.MessageIdMappingDoc;
 import com.cheeseocean.im.postbox.history.MessageIdMappingRepository;
 import org.springframework.stereotype.Service;

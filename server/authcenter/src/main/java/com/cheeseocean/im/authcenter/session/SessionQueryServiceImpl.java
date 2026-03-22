@@ -4,8 +4,8 @@ import com.cheeseocean.im.authcenter.auth.AccessTokenPrincipal;
 import com.cheeseocean.im.authcenter.auth.AccessTokenService;
 import com.cheeseocean.im.authcenter.repository.UserSecurityRepository;
 import com.cheeseocean.im.common.api.session.SessionQueryService;
-import com.cheeseocean.im.common.constants.RedisKeys;
-import com.cheeseocean.im.common.model.auth.SessionPrincipal;
+import com.cheeseocean.im.common.core.auth.SessionPrincipal;
+import com.cheeseocean.im.common.core.constants.RedisKeys;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -41,7 +41,7 @@ public class SessionQueryServiceImpl implements SessionQueryService {
 
     @Override
     public SessionPrincipal getBySessionId(String sessionId) {
-        return (SessionPrincipal) redisTemplate.opsForValue().get(RedisKeys.USER_SESSION + sessionId);
+        return (SessionPrincipal) redisTemplate.opsForValue().get(RedisKeys.userSession(sessionId));
     }
 
     @Override

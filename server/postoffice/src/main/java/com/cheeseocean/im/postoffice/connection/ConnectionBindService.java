@@ -1,7 +1,7 @@
 package com.cheeseocean.im.postoffice.connection;
 
-import com.cheeseocean.im.common.enums.ConnectionState;
-import com.cheeseocean.im.common.model.auth.SessionPrincipal;
+import com.cheeseocean.im.common.core.auth.SessionPrincipal;
+import com.cheeseocean.im.common.core.enums.ConnectionState;
 import org.springframework.stereotype.Service;
 
 @Service

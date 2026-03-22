@@ -1,6 +1,6 @@
 package com.cheeseocean.im.common.api.permission;
 
-import com.cheeseocean.im.common.model.auth.PermissionCheckResult;
+import com.cheeseocean.im.common.core.auth.PermissionCheckResult;
 
 public interface ResourcePermissionDubboService {
 

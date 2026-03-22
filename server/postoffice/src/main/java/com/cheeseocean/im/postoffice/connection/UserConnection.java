@@ -159,7 +159,7 @@ public class UserConnection implements Serializable {
         this.token = token;
         this.status = STATUS_AUTHENTICATED;
         if (context != null) {
-            context.setState(com.cheeseocean.im.common.enums.ConnectionState.AUTHENTICATED);
+            context.setState(com.cheeseocean.im.common.core.enums.ConnectionState.AUTHENTICATED);
         }
         updateLastActiveTime();
     }

@@ -3,9 +3,9 @@ package com.cheeseocean.im.authcenter.session;
 import com.cheeseocean.im.authcenter.auth.AccessTokenPrincipal;
 import com.cheeseocean.im.authcenter.auth.AccessTokenService;
 import com.cheeseocean.im.common.api.session.SessionIssueService;
-import com.cheeseocean.im.common.constants.RedisKeys;
-import com.cheeseocean.im.common.model.auth.SessionPrincipal;
-import com.cheeseocean.im.common.model.auth.WsTicketPrincipal;
+import com.cheeseocean.im.common.core.auth.SessionPrincipal;
+import com.cheeseocean.im.common.core.auth.WsTicketPrincipal;
+import com.cheeseocean.im.common.core.constants.RedisKeys;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -32,23 +32,23 @@ public class SessionIssueServiceImpl implements SessionIssueService {
     public WsTicketPrincipal issueWsTicket(String accessToken, String deviceId, String platform, String clientVersion) {
         AccessTokenPrincipal principal = accessTokenService.validate(accessToken);
         SessionPrincipal session = sessionTicketService.buildSession(principal, deviceId, platform, clientVersion);
-        redisTemplate.opsForValue().set(RedisKeys.USER_SESSION + session.getSessionId(), session,
+        redisTemplate.opsForValue().set(RedisKeys.userSession(session.getSessionId()), session,
                 accessTokenService.getTokenExpirationMs(), TimeUnit.MILLISECONDS);
-        redisTemplate.opsForSet().add(RedisKeys.USER_SESSIONS + session.getUserId(), session.getSessionId());
-        redisTemplate.expire(RedisKeys.USER_SESSIONS + session.getUserId(),
+        redisTemplate.opsForSet().add(RedisKeys.userSessions(session.getUserId()), session.getSessionId());
+        redisTemplate.expire(RedisKeys.userSessions(session.getUserId()),
                 accessTokenService.getTokenExpirationMs(), TimeUnit.MILLISECONDS);
-        redisTemplate.opsForValue().set(RedisKeys.DEVICE_SESSION + session.getUserId() + ":" + session.getDeviceId(),
+        redisTemplate.opsForValue().set(RedisKeys.deviceSession(session.getUserId(), session.getDeviceId()),
                 session.getSessionId(), accessTokenService.getTokenExpirationMs(), TimeUnit.MILLISECONDS);
 
         WsTicketPrincipal ticket = sessionTicketService.buildTicket(session);
-        redisTemplate.opsForValue().set(RedisKeys.WS_TICKET + ticket.getTicket(), ticket,
+        redisTemplate.opsForValue().set(RedisKeys.wsTicket(ticket.getTicket()), ticket,
                 sessionTicketService.wsTicketTtlMs(), TimeUnit.MILLISECONDS);
         return ticket;
     }
 
     @Override
     public WsTicketPrincipal consumeWsTicket(String ticket) {
-        String key = RedisKeys.WS_TICKET + ticket;
+        String key = RedisKeys.wsTicket(ticket);
         WsTicketPrincipal principal = (WsTicketPrincipal) redisTemplate.opsForValue().get(key);
         if (principal == null) {
             return null;

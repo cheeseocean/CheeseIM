@@ -1,4 +1,4 @@
-package com.cheeseocean.im.common.enums;
+package com.cheeseocean.im.common.core.enums;
 
 public enum SessionStatus {
     ACTIVE,

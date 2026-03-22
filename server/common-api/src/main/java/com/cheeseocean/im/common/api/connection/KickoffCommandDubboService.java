@@ -1,6 +1,6 @@
 package com.cheeseocean.im.common.api.connection;
 
-import com.cheeseocean.im.common.model.auth.KickoffCommand;
+import com.cheeseocean.im.common.core.auth.KickoffCommand;
 
 public interface KickoffCommandDubboService {
 

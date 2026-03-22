@@ -2,7 +2,37 @@ package com.cheeseocean.im.common.core.constants;
 
 public final class RedisKeys {
 
+    private static final String AUTH_PREFIX = "cheese_im";
+
     private RedisKeys() {
+    }
+
+    public static String wsTicket(String ticket) {
+        return AUTH_PREFIX + ":ws_ticket:" + ticket;
+    }
+
+    public static String userSession(String sessionId) {
+        return AUTH_PREFIX + ":user_session:" + sessionId;
+    }
+
+    public static String userSessions(String userId) {
+        return AUTH_PREFIX + ":user_sessions:" + userId;
+    }
+
+    public static String deviceSession(String userId, String deviceId) {
+        return AUTH_PREFIX + ":device_session:" + userId + ":" + deviceId;
+    }
+
+    public static String userSecurity(String userId) {
+        return AUTH_PREFIX + ":user_security:" + userId;
+    }
+
+    public static String userFriends(String userId) {
+        return AUTH_PREFIX + ":user_friends:" + userId;
+    }
+
+    public static String userFriendRequests(String userId) {
+        return AUTH_PREFIX + ":user_friend_requests:" + userId;
     }
 
     public static String onlineUser(String userId) {

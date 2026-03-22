@@ -1,6 +1,6 @@
-package com.cheeseocean.im.common.model.auth;
+package com.cheeseocean.im.common.core.auth;
 
-import com.cheeseocean.im.common.enums.SessionStatus;
+import com.cheeseocean.im.common.core.enums.SessionStatus;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.io.Serializable;

@@ -2,8 +2,8 @@ package com.cheeseocean.im.postoffice.auth;
 
 import com.cheeseocean.im.common.api.session.SessionIssueService;
 import com.cheeseocean.im.common.api.session.SessionQueryService;
-import com.cheeseocean.im.common.model.auth.SessionPrincipal;
-import com.cheeseocean.im.common.model.auth.WsTicketPrincipal;
+import com.cheeseocean.im.common.core.auth.SessionPrincipal;
+import com.cheeseocean.im.common.core.auth.WsTicketPrincipal;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.stereotype.Service;
 

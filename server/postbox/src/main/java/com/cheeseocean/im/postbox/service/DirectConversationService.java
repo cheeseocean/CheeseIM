@@ -1,8 +1,8 @@
 package com.cheeseocean.im.postbox.service;
 
 import com.cheeseocean.im.common.api.friend.FriendRelationService;
+import com.cheeseocean.im.common.core.auth.SessionPrincipal;
 import com.cheeseocean.im.common.core.util.ConversationIdUtil;
-import com.cheeseocean.im.common.model.auth.SessionPrincipal;
 import com.cheeseocean.im.postbox.api.ConversationSummaryResponse;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.postbox.history.MessageSlot;
