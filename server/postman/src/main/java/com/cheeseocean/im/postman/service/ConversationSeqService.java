@@ -1,6 +1,6 @@
 package com.cheeseocean.im.postman.service;
 
-import com.cheeseocean.im.common.constants.RedisKeys;
+import com.cheeseocean.im.common.core.constants.RedisKeys;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -14,7 +14,7 @@ public class ConversationSeqService {
     }
 
     public long nextSeq(String conversationId) {
-        Long seq = redisTemplate.opsForValue().increment(RedisKeys.conversationSeq(conversationId));
+        Long seq = redisTemplate.opsForValue().increment(RedisKeys.convMaxSeq(conversationId));
         if (seq == null) {
             throw new IllegalStateException("Failed to allocate conversation seq");
         }

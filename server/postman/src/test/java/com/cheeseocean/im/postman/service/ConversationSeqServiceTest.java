@@ -1,5 +1,6 @@
 package com.cheeseocean.im.postman.service;
 
+import com.cheeseocean.im.common.core.constants.RedisKeys;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
@@ -16,11 +17,11 @@ class ConversationSeqServiceTest {
         StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
         ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.increment("cheese_im:conversation:seq:single:userA:userB")).thenReturn(1001L);
+        when(valueOperations.increment(RedisKeys.convMaxSeq("c1:userA:userB"))).thenReturn(1001L);
 
         ConversationSeqService service = new ConversationSeqService(redisTemplate);
 
-        assertEquals(1001L, service.nextSeq("single:userA:userB"));
+        assertEquals(1001L, service.nextSeq("c1:userA:userB"));
     }
 
     @Test
@@ -28,10 +29,10 @@ class ConversationSeqServiceTest {
         StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
         ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.increment("cheese_im:conversation:seq:single:userA:userB")).thenReturn(null);
+        when(valueOperations.increment(RedisKeys.convMaxSeq("c1:userA:userB"))).thenReturn(null);
 
         ConversationSeqService service = new ConversationSeqService(redisTemplate);
 
-        assertThrows(IllegalStateException.class, () -> service.nextSeq("single:userA:userB"));
+        assertThrows(IllegalStateException.class, () -> service.nextSeq("c1:userA:userB"));
     }
 }

@@ -1,8 +1,12 @@
 package com.cheeseocean.im.postman.listener;
 
-import com.cheeseocean.im.common.constants.KafkaTopics;
-import com.cheeseocean.im.common.dto.HistoryTask;
-import com.cheeseocean.im.common.dto.IngressEvent;
+import com.cheeseocean.im.common.api.dto.message.MessageOptions;
+import com.cheeseocean.im.common.api.dto.message.SequencedMessage;
+import com.cheeseocean.im.common.api.event.DeliveryEvent;
+import com.cheeseocean.im.common.api.event.HistoryEvent;
+import com.cheeseocean.im.common.api.event.IngressEvent;
+import com.cheeseocean.im.common.core.constants.TopicNames;
+import com.cheeseocean.im.postman.service.ConversationSeqService;
 import com.cheeseocean.im.postman.service.GroupFanoutPlanner;
 import com.cheeseocean.im.postman.service.GroupMembershipFacade;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,8 +15,9 @@ import org.springframework.kafka.core.KafkaTemplate;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -22,67 +27,113 @@ import static org.mockito.Mockito.when;
 class IngressEventListenerTest {
 
     @Test
-    void ingressListenerShouldPublishHistoryTaskForSingleChat() {
+    void ingressListenerShouldPublishHistoryAndDeliveryForSingleChat() {
         KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
+        ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
+        when(conversationSeqService.nextSeq("c1:userA:userB")).thenReturn(1001L);
         IngressEventListener listener = new IngressEventListener(
                 new ObjectMapper(),
                 kafkaTemplate,
                 groupMembershipFacade,
-                new GroupFanoutPlanner(2));
+                new GroupFanoutPlanner(2),
+                conversationSeqService);
 
         listener.handle(singleIngressEvent());
 
-        verify(kafkaTemplate).send(eq(KafkaTopics.Message.HISTORY), anyString(), any(HistoryTask.class));
+        var historyCaptor = forClass(HistoryEvent.class);
+        var deliveryCaptor = forClass(DeliveryEvent.class);
+        verify(kafkaTemplate).send(eq(TopicNames.HISTORY), eq("c1:userA:userB"), historyCaptor.capture());
+        verify(kafkaTemplate).send(eq(TopicNames.DELIVERY), eq("c1:userA:userB"), deliveryCaptor.capture());
+
+        SequencedMessage message = historyCaptor.getValue().getMessages().get(0);
+        assertEquals(1001L, message.getSeq());
+        assertEquals("userB", deliveryCaptor.getValue().getTargetUserIds().get(0));
     }
 
     @Test
-    void ingressListenerShouldSplitGroupMembersIntoBatches() {
+    void ingressListenerShouldSplitGroupMembersIntoBatchesAndPublishDelivery() {
         KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
-        when(groupMembershipFacade.loadTargets("group:crew")).thenReturn(List.of("u1", "u2", "u3"));
+        ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
+        when(groupMembershipFacade.loadTargets("c2:crew")).thenReturn(List.of("u1", "u2", "u3"));
+        when(conversationSeqService.nextSeq("c2:crew")).thenReturn(2002L);
 
         IngressEventListener listener = new IngressEventListener(
                 new ObjectMapper(),
                 kafkaTemplate,
                 groupMembershipFacade,
-                new GroupFanoutPlanner(2));
+                new GroupFanoutPlanner(2),
+                conversationSeqService);
 
         listener.handle(groupIngressEvent());
 
-        verify(groupMembershipFacade).loadTargets("group:crew");
+        verify(groupMembershipFacade).loadTargets("c2:crew");
+        verify(kafkaTemplate).send(eq(TopicNames.HISTORY), eq("c2:crew"), any(HistoryEvent.class));
         verify(kafkaTemplate, times(2))
-                .send(eq(KafkaTopics.Message.HISTORY), anyString(), any(HistoryTask.class));
+                .send(eq(TopicNames.DELIVERY), eq("c2:crew"), any(DeliveryEvent.class));
+    }
+
+    @Test
+    void ingressListenerShouldSkipDeliveryWhenOnlinePushIsDisabled() {
+        KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
+        GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
+        ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
+        when(conversationSeqService.nextSeq("c1:userA:userB")).thenReturn(1001L);
+
+        IngressEventListener listener = new IngressEventListener(
+                new ObjectMapper(),
+                kafkaTemplate,
+                groupMembershipFacade,
+                new GroupFanoutPlanner(2),
+                conversationSeqService);
+
+        IngressEvent event = singleIngressEvent();
+        event.getOptions().setNeedOnlinePush(false);
+
+        listener.handle(event);
+
+        verify(kafkaTemplate).send(eq(TopicNames.HISTORY), eq("c1:userA:userB"), any(HistoryEvent.class));
+        verify(kafkaTemplate, times(0)).send(eq(TopicNames.DELIVERY), eq("c1:userA:userB"), any(DeliveryEvent.class));
     }
 
     private static IngressEvent singleIngressEvent() {
         IngressEvent event = new IngressEvent();
-        event.setEventId("evt-single");
-        event.setTraceId("trace-single");
-        event.setMessageId("msg-single");
+        MessageOptions options = new MessageOptions();
+        options.setNeedHistory(true);
+        options.setNeedOnlinePush(true);
+        options.setNeedOfflinePush(true);
+        options.setSenderSync(false);
+        event.setRequestId("req-single");
         event.setClientMsgId("client-single");
-        event.setConversationId("single:userA:userB");
-        event.setConversationSeq(1001L);
+        event.setConversationId("c1:userA:userB");
+        event.setServerMsgId("msg-single");
         event.setSenderId("userA");
-        event.setReceiverId("userB");
+        event.setRecvId("userB");
         event.setSessionType(1);
         event.setContentType(101);
         event.setContent("hello");
+        event.setOptions(options);
         return event;
     }
 
     private static IngressEvent groupIngressEvent() {
         IngressEvent event = new IngressEvent();
-        event.setEventId("evt-group");
-        event.setTraceId("trace-group");
-        event.setMessageId("msg-group");
+        MessageOptions options = new MessageOptions();
+        options.setNeedHistory(true);
+        options.setNeedOnlinePush(true);
+        options.setNeedOfflinePush(true);
+        options.setSenderSync(true);
+        event.setRequestId("req-group");
         event.setClientMsgId("client-group");
-        event.setConversationId("group:crew");
-        event.setConversationSeq(2002L);
+        event.setConversationId("c2:crew");
+        event.setServerMsgId("msg-group");
         event.setSenderId("captain");
+        event.setGroupId("crew");
         event.setSessionType(2);
         event.setContentType(101);
         event.setContent("assemble");
+        event.setOptions(options);
         return event;
     }
 }
