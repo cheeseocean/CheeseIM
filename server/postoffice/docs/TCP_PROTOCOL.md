@@ -387,7 +387,7 @@ class TcpClient {
 ### 调试方式
 
 - 查看 `postoffice` 应用日志确认 TCP 服务状态
-- 运行 `ImFlowSmokeTest` 验证 TCP/WebSocket 共用处理链
+- 运行 `TcpClientTest` 和 `MessageSendReqMapperTest` 验证 TCP 协议编解码与发送请求映射链路
 
 ### 日志配置
 

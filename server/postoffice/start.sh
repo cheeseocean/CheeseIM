@@ -66,7 +66,7 @@ echo "   WebSocket gateway logs"
 echo "   TCP gateway logs"
 echo ""
 echo "🎮 Run smoke test:"
-echo "   ./gradlew :postoffice:test --tests \"com.cheeseocean.im.postoffice.ImFlowSmokeTest\""
+echo "   ./gradlew :postoffice:test --tests \"*TcpClientTest\" --tests \"*MessageSendReqMapperTest\""
 echo ""
 
 # 启动应用

@@ -74,7 +74,7 @@ echo "   4. 收到已送达/已读后取消无效待发 push"
 echo ""
 echo "🎮 Run verification:"
 echo "   ./gradlew :push:test"
-echo "   ./gradlew :postoffice:test --tests \"com.cheeseocean.im.postoffice.ImFlowSmokeTest\""
+echo "   ./gradlew :push:test --tests \"*DeliveryEventListenerTest\" --tests \"*OfflinePushEventListenerTest\""
 echo ""
 
 # 启动应用
