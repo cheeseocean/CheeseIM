@@ -1,5 +1,6 @@
 package com.cheeseocean.im.common.core.serializer;
 
+import com.cheeseocean.im.common.core.util.ObjectMapperFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.Deserializer;
@@ -17,8 +18,7 @@ public class GenericKafkaDeserializer<T> implements Deserializer<T> {
     private Class<T> targetType;
 
     public GenericKafkaDeserializer() {
-        this.objectMapper = new ObjectMapper();
-        objectMapper.findAndRegisterModules();
+        this.objectMapper = ObjectMapperFactory.createDefaultMapper();
     }
 
     public GenericKafkaDeserializer(Class<T> targetType) {

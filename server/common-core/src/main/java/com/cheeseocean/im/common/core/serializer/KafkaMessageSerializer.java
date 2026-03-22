@@ -1,5 +1,6 @@
 package com.cheeseocean.im.common.core.serializer;
 
+import com.cheeseocean.im.common.core.util.ObjectMapperFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.Serializer;
@@ -17,8 +18,7 @@ public class KafkaMessageSerializer implements Serializer<Object> {
 
     @Override
     public void configure(Map<String, ?> configs, boolean isKey) {
-        this.objectMapper = new ObjectMapper();
-        objectMapper.findAndRegisterModules();
+        this.objectMapper = ObjectMapperFactory.createDefaultMapper();
         LOGGER.debug("KafkaMessageSerializer configured, isKey: {}", isKey);
     }
 
