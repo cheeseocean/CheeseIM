@@ -1,6 +1,8 @@
 package com.cheeseocean.im.push.util;
 
 import com.cheeseocean.im.common.api.dto.message.Message;
+import com.cheeseocean.im.common.core.constants.MessageConstants;
+import com.cheeseocean.im.common.core.constants.MessageDisplayConstants;
 import com.cheeseocean.im.push.entity.PushMessage;
 
 import java.util.HashMap;
@@ -38,10 +40,10 @@ public class PushMessageBuilder {
             builder.pushMessage.setSenderNickname(originalMessage.getSenderNickname());
 
             // 设置会话信息
-            if (originalMessage.getSessionType() == 1) {
+            if (originalMessage.getSessionType() == MessageConstants.SESSION_TYPE_SINGLE) {
                 // 单聊
                 builder.pushMessage.setConversationID("single_" + originalMessage.getSendID() + "_" + originalMessage.getRecvID());
-            } else if (originalMessage.getSessionType() == 2) {
+            } else if (originalMessage.getSessionType() == MessageConstants.SESSION_TYPE_GROUP) {
                 // 群聊
                 builder.pushMessage.setConversationID("group_" + originalMessage.getGroupID());
             }
@@ -260,7 +262,7 @@ public class PushMessageBuilder {
     public PushMessageBuilder asImageMessage() {
         this.pushMessage.setPushType(2);
         this.pushMessage.setPriority(1);
-        this.pushMessage.setContent("[图片]");
+        this.pushMessage.setContent(MessageDisplayConstants.PUSH_CONTENT_IMAGE);
         return this;
     }
     
@@ -270,7 +272,7 @@ public class PushMessageBuilder {
     public PushMessageBuilder asVoiceMessage() {
         this.pushMessage.setPushType(3);
         this.pushMessage.setPriority(1);
-        this.pushMessage.setContent("[语音]");
+        this.pushMessage.setContent(MessageDisplayConstants.PUSH_CONTENT_VOICE);
         return this;
     }
     
@@ -280,7 +282,7 @@ public class PushMessageBuilder {
     public PushMessageBuilder asVideoMessage() {
         this.pushMessage.setPushType(4);
         this.pushMessage.setPriority(1);
-        this.pushMessage.setContent("[视频]");
+        this.pushMessage.setContent(MessageDisplayConstants.PUSH_CONTENT_VIDEO);
         return this;
     }
     
@@ -290,7 +292,7 @@ public class PushMessageBuilder {
     public PushMessageBuilder asFileMessage() {
         this.pushMessage.setPushType(5);
         this.pushMessage.setPriority(1);
-        this.pushMessage.setContent("[文件]");
+        this.pushMessage.setContent(MessageDisplayConstants.PUSH_CONTENT_FILE);
         return this;
     }
     
@@ -300,7 +302,7 @@ public class PushMessageBuilder {
     public PushMessageBuilder asLocationMessage() {
         this.pushMessage.setPushType(6);
         this.pushMessage.setPriority(1);
-        this.pushMessage.setContent("[位置]");
+        this.pushMessage.setContent(MessageDisplayConstants.PUSH_CONTENT_LOCATION);
         return this;
     }
     

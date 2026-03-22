@@ -85,7 +85,7 @@ public class DeliveryEventListener {
     }
 
     private void emitOfflinePushIfNeeded(String userId, SequencedMessage message) {
-        if (message.getOptions() == null || !message.getOptions().isNeedOfflinePush()) {
+        if (message.getOptions() == null || !Boolean.TRUE.equals(message.getOptions().isNeedOfflinePush())) {
             return;
         }
         kafkaTemplate.send(TopicNames.OFFLINE_PUSH, userId, toOfflinePushEvent(userId, message));
@@ -110,6 +110,10 @@ public class DeliveryEventListener {
         event.setConversationId(message.getConversationId());
         event.setSeq(message.getSeq());
         event.setServerMsgId(message.getServerMsgId());
+        event.setSenderId(message.getSenderId());
+        event.setSessionType(message.getSessionType());
+        event.setContentType(message.getContentType());
+        event.setNotification(message.getOptions() != null && Boolean.TRUE.equals(message.getOptions().isNotification()));
         event.setTitle(message.getSenderId());
         event.setContent(message.getContent());
         event.setExt(message.getExt());

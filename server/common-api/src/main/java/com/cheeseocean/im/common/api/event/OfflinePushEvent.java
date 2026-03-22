@@ -12,6 +12,10 @@ public class OfflinePushEvent implements Serializable {
     private String conversationId;
     private Long seq;
     private String serverMsgId;
+    private String senderId;
+    private Integer sessionType;
+    private Integer contentType;
+    private boolean notification;
     private String title;
     private String content;
     private Map<String, String> ext = new HashMap<>();
@@ -46,6 +50,38 @@ public class OfflinePushEvent implements Serializable {
 
     public void setServerMsgId(String serverMsgId) {
         this.serverMsgId = serverMsgId;
+    }
+
+    public String getSenderId() {
+        return senderId;
+    }
+
+    public void setSenderId(String senderId) {
+        this.senderId = senderId;
+    }
+
+    public Integer getSessionType() {
+        return sessionType;
+    }
+
+    public void setSessionType(Integer sessionType) {
+        this.sessionType = sessionType;
+    }
+
+    public Integer getContentType() {
+        return contentType;
+    }
+
+    public void setContentType(Integer contentType) {
+        this.contentType = contentType;
+    }
+
+    public boolean isNotification() {
+        return notification;
+    }
+
+    public void setNotification(boolean notification) {
+        this.notification = notification;
     }
 
     public String getTitle() {

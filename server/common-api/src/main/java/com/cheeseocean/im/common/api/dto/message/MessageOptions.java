@@ -6,76 +6,76 @@ public class MessageOptions implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private boolean needHistory;
-    private boolean needConversation;
-    private boolean needUnreadCount;
-    private boolean needOnlinePush;
-    private boolean needOfflinePush;
-    private boolean senderSync;
-    private boolean notification;
-    private boolean needLastMessage;
+    private Boolean needHistory;
+    private Boolean needConversation;
+    private Boolean needUnreadCount;
+    private Boolean needOnlinePush;
+    private Boolean needOfflinePush;
+    private Boolean senderSync;
+    private Boolean notification;
+    private Boolean needLastMessage;
 
-    public boolean isNeedHistory() {
+    public Boolean isNeedHistory() {
         return needHistory;
     }
 
-    public void setNeedHistory(boolean needHistory) {
+    public void setNeedHistory(Boolean needHistory) {
         this.needHistory = needHistory;
     }
 
-    public boolean isNeedConversation() {
+    public Boolean isNeedConversation() {
         return needConversation;
     }
 
-    public void setNeedConversation(boolean needConversation) {
+    public void setNeedConversation(Boolean needConversation) {
         this.needConversation = needConversation;
     }
 
-    public boolean isNeedUnreadCount() {
+    public Boolean isNeedUnreadCount() {
         return needUnreadCount;
     }
 
-    public void setNeedUnreadCount(boolean needUnreadCount) {
+    public void setNeedUnreadCount(Boolean needUnreadCount) {
         this.needUnreadCount = needUnreadCount;
     }
 
-    public boolean isNeedOnlinePush() {
+    public Boolean isNeedOnlinePush() {
         return needOnlinePush;
     }
 
-    public void setNeedOnlinePush(boolean needOnlinePush) {
+    public void setNeedOnlinePush(Boolean needOnlinePush) {
         this.needOnlinePush = needOnlinePush;
     }
 
-    public boolean isNeedOfflinePush() {
+    public Boolean isNeedOfflinePush() {
         return needOfflinePush;
     }
 
-    public void setNeedOfflinePush(boolean needOfflinePush) {
+    public void setNeedOfflinePush(Boolean needOfflinePush) {
         this.needOfflinePush = needOfflinePush;
     }
 
-    public boolean isSenderSync() {
+    public Boolean isSenderSync() {
         return senderSync;
     }
 
-    public void setSenderSync(boolean senderSync) {
+    public void setSenderSync(Boolean senderSync) {
         this.senderSync = senderSync;
     }
 
-    public boolean isNotification() {
+    public Boolean isNotification() {
         return notification;
     }
 
-    public void setNotification(boolean notification) {
+    public void setNotification(Boolean notification) {
         this.notification = notification;
     }
 
-    public boolean isNeedLastMessage() {
+    public Boolean isNeedLastMessage() {
         return needLastMessage;
     }
 
-    public void setNeedLastMessage(boolean needLastMessage) {
+    public void setNeedLastMessage(Boolean needLastMessage) {
         this.needLastMessage = needLastMessage;
     }
 }

@@ -13,6 +13,9 @@ public final class TcpMessageTypes {
     public static final byte TCP_SEND_MSG_REQ = 30;
     public static final byte TCP_SEND_MSG_RESP = 31;
     public static final byte TCP_RECV_MSG_NOTIFY = 32;
+    public static final byte TCP_MSG_READ_RECEIPT = 33;
+    public static final byte TCP_REVOKE_MSG_REQ = 34;
+    public static final byte TCP_REVOKE_MSG_NOTIFY = 35;
 
     private TcpMessageTypes() {
     }

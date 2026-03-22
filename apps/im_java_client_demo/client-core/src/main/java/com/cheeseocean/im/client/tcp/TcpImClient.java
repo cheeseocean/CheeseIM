@@ -62,6 +62,42 @@ public class TcpImClient {
     }
 
     public String sendText(String peerUserId, String text) throws IOException {
+        return sendSingleChat(peerUserId, text, PayloadFactory.CONTENT_TYPE_TEXT);
+    }
+
+    public String sendTyping(String peerUserId) throws IOException {
+        return sendSingleChat(peerUserId, "typing", PayloadFactory.CONTENT_TYPE_TYPING);
+    }
+
+    public String sendReadCursor(String peerUserId, long seq) throws IOException {
+        String operationId = nextOperationId();
+        String clientMsgId = "cli-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        session.setLatestClientMsgId(clientMsgId);
+        requestTracker.remember(operationId, "read");
+        writePacket(new TcpPacket(
+                TcpMessageTypes.TCP_SEND_MSG_REQ,
+                operationId,
+                System.currentTimeMillis(),
+                payloadFactory.readReceiptPayload(clientMsgId, peerUserId, seq)
+        ));
+        return operationId;
+    }
+
+    public String revokeMessage(String peerUserId, String serverMsgId) throws IOException {
+        String operationId = nextOperationId();
+        String clientMsgId = "cli-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+        session.setLatestClientMsgId(clientMsgId);
+        requestTracker.remember(operationId, "revoke");
+        writePacket(new TcpPacket(
+                TcpMessageTypes.TCP_SEND_MSG_REQ,
+                operationId,
+                System.currentTimeMillis(),
+                payloadFactory.revokeNotifyPayload(clientMsgId, peerUserId, serverMsgId)
+        ));
+        return operationId;
+    }
+
+    public String sendSingleChat(String peerUserId, String content, int contentType) throws IOException {
         String operationId = nextOperationId();
         String clientMsgId = "cli-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         session.setLatestClientMsgId(clientMsgId);
@@ -70,7 +106,7 @@ public class TcpImClient {
                 TcpMessageTypes.TCP_SEND_MSG_REQ,
                 operationId,
                 System.currentTimeMillis(),
-                payloadFactory.singleChatTextPayload(clientMsgId, peerUserId, text)
+                payloadFactory.singleChatPayload(clientMsgId, peerUserId, content, contentType)
         ));
         return operationId;
     }
@@ -127,7 +163,9 @@ public class TcpImClient {
                 requestTracker.resolve(packet.operationId());
                 listener.onSendAck(packet);
             }
-            case TcpMessageTypes.TCP_RECV_MSG_NOTIFY -> listener.onMessage(packet);
+            case TcpMessageTypes.TCP_RECV_MSG_NOTIFY,
+                    TcpMessageTypes.TCP_MSG_READ_RECEIPT,
+                    TcpMessageTypes.TCP_REVOKE_MSG_NOTIFY -> listener.onMessage(packet);
             default -> {
             }
         }

@@ -22,12 +22,15 @@ import java.util.Objects;
 public class HistoryQueryService {
 
     private final MongoTemplate mongoTemplate;
+    private final MessagePreviewResolver messagePreviewResolver;
 
     @DubboReference(check = false)
     private ConversationPermissionDubboService conversationPermissionDubboService;
 
-    public HistoryQueryService(MongoTemplate mongoTemplate) {
+    public HistoryQueryService(MongoTemplate mongoTemplate,
+                               MessagePreviewResolver messagePreviewResolver) {
         this.mongoTemplate = mongoTemplate;
+        this.messagePreviewResolver = messagePreviewResolver;
     }
 
     public List<HistoryMessageResponse> getConversationMessages(SessionPrincipal session, String conversationId, int limit) {
@@ -66,7 +69,8 @@ public class HistoryQueryService {
         response.setConversationId(conversationId);
         response.setSenderId(message.getSenderId());
         response.setReceiverId(message.getRecvId());
-        response.setContent(message.getContent());
+        response.setContent(messagePreviewResolver.resolvePreview(message));
+        response.setPreviewType(messagePreviewResolver.resolvePreviewType(message));
         response.setContentType(message.getContentType());
         response.setSequence(message.getSeq());
         response.setCreatedAt(message.getSendTime() == null ? null : java.time.Instant.ofEpochMilli(message.getSendTime()));

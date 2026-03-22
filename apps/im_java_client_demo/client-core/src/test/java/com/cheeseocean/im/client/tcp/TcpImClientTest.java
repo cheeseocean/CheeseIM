@@ -93,6 +93,71 @@ class TcpImClientTest {
     }
 
     @Test
+    void sendTypingShouldEmitTypingContentType() throws Exception {
+        FakeTransport transport = new FakeTransport();
+        ClientSession session = new ClientSession();
+        session.setConnectionState(ConnectionState.AUTHENTICATED);
+        TcpImClient client = new TcpImClient(
+                new TcpClientConfig("127.0.0.1", 5148),
+                session,
+                transportFactory(transport),
+                IncomingMessageListener.noop()
+        );
+        client.attachTransportForTest(transport);
+
+        client.sendTyping("userB");
+
+        TcpPacket outbound = transport.firstOutboundPacket();
+        assertEquals(TcpMessageTypes.TCP_SEND_MSG_REQ, outbound.msgType());
+        assertTrue(outbound.data().contains("\"recvID\":\"userB\""));
+        assertTrue(outbound.data().contains("\"contentType\":4002"));
+    }
+
+    @Test
+    void sendReadCursorShouldEmitReadReceiptMessagePayload() throws Exception {
+        FakeTransport transport = new FakeTransport();
+        ClientSession session = new ClientSession();
+        session.setConnectionState(ConnectionState.AUTHENTICATED);
+        TcpImClient client = new TcpImClient(
+                new TcpClientConfig("127.0.0.1", 5148),
+                session,
+                transportFactory(transport),
+                IncomingMessageListener.noop()
+        );
+        client.attachTransportForTest(transport);
+
+        client.sendReadCursor("userB", 19L);
+
+        TcpPacket outbound = transport.firstOutboundPacket();
+        assertEquals(TcpMessageTypes.TCP_SEND_MSG_REQ, outbound.msgType());
+        assertTrue(outbound.data().contains("\"recvID\":\"userB\""));
+        assertTrue(outbound.data().contains("\"content\":\"19\""));
+        assertTrue(outbound.data().contains("\"contentType\":2004"));
+    }
+
+    @Test
+    void revokeMessageShouldEmitRevokeNotifyMessagePayload() throws Exception {
+        FakeTransport transport = new FakeTransport();
+        ClientSession session = new ClientSession();
+        session.setConnectionState(ConnectionState.AUTHENTICATED);
+        TcpImClient client = new TcpImClient(
+                new TcpClientConfig("127.0.0.1", 5148),
+                session,
+                transportFactory(transport),
+                IncomingMessageListener.noop()
+        );
+        client.attachTransportForTest(transport);
+
+        client.revokeMessage("userB", "msg-1");
+
+        TcpPacket outbound = transport.firstOutboundPacket();
+        assertEquals(TcpMessageTypes.TCP_SEND_MSG_REQ, outbound.msgType());
+        assertTrue(outbound.data().contains("\"recvID\":\"userB\""));
+        assertTrue(outbound.data().contains("\"content\":\"msg-1\""));
+        assertTrue(outbound.data().contains("\"contentType\":2005"));
+    }
+
+    @Test
     void inboundNotifyShouldBeDeliveredToListener() throws Exception {
         byte[] inbound = TcpPacketCodec.encode(new TcpPacket(
                 TcpMessageTypes.TCP_RECV_MSG_NOTIFY,

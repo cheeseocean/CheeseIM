@@ -9,6 +9,11 @@ public final class MessageConstants {
     public static final int CONTENT_TYPE_FILE = 105;
     public static final int CONTENT_TYPE_LOCATION = 106;
     public static final int CONTENT_TYPE_CUSTOM = 200;
+    public static final int CONTENT_TYPE_READ_RECEIPT = 2004;
+    public static final int CONTENT_TYPE_REVOKE_NOTIFY = 2005;
+    public static final int CONTENT_TYPE_TYPING = 4002;
+    public static final int CONTENT_TYPE_SYSTEM_NOTIFY = 7001;
+    public static final int CONTENT_TYPE_FORCE_LOGOUT = 7002;
 
     public static final int SESSION_TYPE_SINGLE = 1;
     public static final int SESSION_TYPE_GROUP = 2;

@@ -3,6 +3,7 @@ package com.cheeseocean.im.push.service;
 import com.cheeseocean.im.common.api.dto.push.OfflinePushReq;
 import com.cheeseocean.im.common.api.dto.push.PushResult;
 import com.cheeseocean.im.common.api.event.OfflinePushEvent;
+import com.cheeseocean.im.common.core.constants.MessageConstants;
 import com.cheeseocean.im.common.core.enums.DeliveryState;
 import com.cheeseocean.im.push.entity.OfflinePushResult;
 import com.cheeseocean.im.push.entity.PushAttempt;
@@ -13,6 +14,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -88,11 +90,17 @@ class MessagePushServiceImplTest {
         task.setConversationId("single:userA:userB");
         task.setSeq(17L);
         task.setUserId("userB");
+        task.setSenderId("system");
+        task.setSessionType(MessageConstants.SESSION_TYPE_NOTIFICATION);
+        task.setContentType(MessageConstants.CONTENT_TYPE_SYSTEM_NOTIFY);
+        task.setNotification(true);
         task.setContent("ping");
 
         PushResult result = service.pushOffline(task);
 
         assertTrue(result.isSuccess());
-        verify(offlinePushService).pushMessageToUser(any(), eq("userB"));
+        var messageCaptor = forClass(com.cheeseocean.im.common.api.dto.message.Message.class);
+        verify(offlinePushService).pushMessageToUser(messageCaptor.capture(), eq("userB"));
+        assertTrue(Boolean.TRUE.equals(messageCaptor.getValue().getOptions().get("notification")));
     }
 }

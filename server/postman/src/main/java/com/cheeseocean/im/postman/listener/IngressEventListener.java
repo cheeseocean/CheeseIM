@@ -4,9 +4,13 @@ import com.cheeseocean.im.common.api.dto.message.SequencedMessage;
 import com.cheeseocean.im.common.api.event.DeliveryEvent;
 import com.cheeseocean.im.common.api.event.HistoryEvent;
 import com.cheeseocean.im.common.api.event.IngressEvent;
+import com.cheeseocean.im.common.core.constants.MessageConstants;
 import com.cheeseocean.im.common.core.constants.TopicNames;
 import com.cheeseocean.im.postman.service.GroupFanoutPlanner;
 import com.cheeseocean.im.postman.service.GroupMembershipFacade;
+import com.cheeseocean.im.postman.service.MessagePolicyEngine;
+import com.cheeseocean.im.postman.service.MessageRouteDecision;
+import com.cheeseocean.im.postman.service.MessageStateService;
 import com.cheeseocean.im.postman.service.ConversationSeqService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -28,17 +32,23 @@ public class IngressEventListener {
     private final GroupMembershipFacade groupMembershipFacade;
     private final GroupFanoutPlanner groupFanoutPlanner;
     private final ConversationSeqService conversationSeqService;
+    private final MessagePolicyEngine messagePolicyEngine;
+    private final MessageStateService messageStateService;
 
     public IngressEventListener(ObjectMapper objectMapper,
                                 KafkaTemplate<String, Object> kafkaTemplate,
                                 GroupMembershipFacade groupMembershipFacade,
                                 GroupFanoutPlanner groupFanoutPlanner,
-                                ConversationSeqService conversationSeqService) {
+                                ConversationSeqService conversationSeqService,
+                                MessagePolicyEngine messagePolicyEngine,
+                                MessageStateService messageStateService) {
         this.objectMapper = objectMapper.copy().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         this.kafkaTemplate = kafkaTemplate;
         this.groupMembershipFacade = groupMembershipFacade;
         this.groupFanoutPlanner = groupFanoutPlanner;
         this.conversationSeqService = conversationSeqService;
+        this.messagePolicyEngine = messagePolicyEngine;
+        this.messageStateService = messageStateService;
     }
 
     @KafkaListener(topics = TopicNames.INGRESS, groupId = "postman-ingress")
@@ -53,8 +63,9 @@ public class IngressEventListener {
     void handle(IngressEvent event) {
         long seq = conversationSeqService.nextSeq(event.getConversationId());
         SequencedMessage message = toSequencedMessage(event, seq);
+        MessageRouteDecision decision = messagePolicyEngine.decide(event);
 
-        if (event.getOptions() == null || event.getOptions().isNeedHistory()) {
+        if (decision.persistHistory()) {
             HistoryEvent historyEvent = new HistoryEvent();
             historyEvent.setConversationId(event.getConversationId());
             historyEvent.setBeginSeq(seq);
@@ -63,20 +74,22 @@ public class IngressEventListener {
             kafkaTemplate.send(TopicNames.HISTORY, event.getConversationId(), historyEvent);
         }
 
-        if (event.getOptions() != null && !event.getOptions().isNeedOnlinePush()) {
+        List<String> targets = resolveTargets(message, decision);
+        messageStateService.apply(message, targets);
+
+        if (!decision.sendDelivery()) {
             return;
         }
 
-        if (event.getSessionType() != null && event.getSessionType() == 2) {
-            routeGroupIngress(message);
+        if (event.getSessionType() != null && event.getSessionType() == MessageConstants.SESSION_TYPE_GROUP) {
+            routeGroupIngress(message, targets);
             return;
         }
-        kafkaTemplate.send(TopicNames.DELIVERY, event.getConversationId(), singleDelivery(message));
+        kafkaTemplate.send(TopicNames.DELIVERY, event.getConversationId(), singleDelivery(message, targets));
     }
 
-    private void routeGroupIngress(SequencedMessage message) {
-        List<String> members = groupMembershipFacade.loadTargets(message.getConversationId());
-        for (List<String> batch : groupFanoutPlanner.partition(members)) {
+    private void routeGroupIngress(SequencedMessage message, List<String> targets) {
+        for (List<String> batch : groupFanoutPlanner.partition(targets)) {
             DeliveryEvent deliveryEvent = new DeliveryEvent();
             deliveryEvent.setConversationId(message.getConversationId());
             deliveryEvent.setMessage(message);
@@ -85,12 +98,22 @@ public class IngressEventListener {
         }
     }
 
-    private DeliveryEvent singleDelivery(SequencedMessage message) {
+    private DeliveryEvent singleDelivery(SequencedMessage message, List<String> targets) {
         DeliveryEvent deliveryEvent = new DeliveryEvent();
         deliveryEvent.setConversationId(message.getConversationId());
         deliveryEvent.setMessage(message);
-        deliveryEvent.setTargetUserIds(List.of(message.getRecvId()));
+        deliveryEvent.setTargetUserIds(targets);
         return deliveryEvent;
+    }
+
+    private List<String> resolveTargets(SequencedMessage message, MessageRouteDecision decision) {
+        if (message.getSessionType() != null && message.getSessionType() == MessageConstants.SESSION_TYPE_GROUP) {
+            return groupMembershipFacade.loadTargets(message.getConversationId());
+        }
+        if (decision.senderSync() && message.getSenderId() != null) {
+            return List.of(message.getRecvId(), message.getSenderId());
+        }
+        return List.of(message.getRecvId());
     }
 
     private SequencedMessage toSequencedMessage(IngressEvent event, long seq) {

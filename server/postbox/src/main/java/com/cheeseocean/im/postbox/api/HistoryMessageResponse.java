@@ -1,5 +1,7 @@
 package com.cheeseocean.im.postbox.api;
 
+import com.cheeseocean.im.common.core.enums.MessagePreviewType;
+
 import java.time.Instant;
 
 public class HistoryMessageResponse {
@@ -10,6 +12,7 @@ public class HistoryMessageResponse {
     private String senderId;
     private String receiverId;
     private String content;
+    private MessagePreviewType previewType;
     private Integer contentType;
     private Long sequence;
     private Instant createdAt;
@@ -60,6 +63,14 @@ public class HistoryMessageResponse {
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    public MessagePreviewType getPreviewType() {
+        return previewType;
+    }
+
+    public void setPreviewType(MessagePreviewType previewType) {
+        this.previewType = previewType;
     }
 
     public Integer getContentType() {

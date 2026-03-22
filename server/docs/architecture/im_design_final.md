@@ -464,14 +464,21 @@ needLastMessage
 
 9.3 推荐规则表
 
-消息类型	needHistory	needConversation	needUnreadCount	needOnlinePush	needOfflinePush	senderSync
-普通单聊消息	Y	Y	Y	Y	Y	可配
-普通群聊消息	Y	Y	Y	Y	Y	N
-已读回执	可选	Y	N	Y	N	N
-输入中	N	N	N	Y	N	N
-撤回通知	Y	Y	N	Y	N	Y
-系统通知	可选	可选	N	可选	N	N
-入群退群通知	Y	Y	通常 N	Y	可选	N
+消息类型	needHistory	needConversation	needUnreadCount	needOnlinePush	needOfflinePush	senderSync	isNotification	needLastMessage
+普通单聊消息	Y	Y	Y	Y	Y	可配	N	Y
+普通群聊消息	Y	Y	Y	Y	Y	N	N	Y
+已读回执	可选，默认 N	Y	N	Y	N	N	N	N
+输入中	N	N	N	Y	N	N	N	N
+撤回通知	Y	Y	N	Y	N	Y	Y	Y
+系统通知（展示型）	按产品定义，通常 Y	Y	按产品定义	按产品定义	N	N	Y	Y
+系统通知（静默控制型）	N	N	N	N	N	N	Y	N
+入群退群通知	Y	Y	通常 N	Y	可选	N	Y	Y
+
+补充约束：
+	•	isNotification=Y 的消息，表示按“通知消息”路径处理，可与普通聊天消息在 UI 展示和会话聚合上区分。
+	•	needLastMessage 用来控制是否刷新会话卡片预览。输入中、已读回执这类瞬时/状态类消息应为 N；普通消息、撤回通知、展示型系统通知、入群退群通知应为 Y。
+	•	系统通知不能只写成笼统“可选”，至少要拆成“展示型”和“静默控制型”两类，否则 postman、push、客户端会对是否建会话、是否计未读、是否刷新 lastMessage 产生歧义。
+	•	已读回执的 needHistory 保持“默认 N、审计场景可开”；这与详细设计里的默认策略建议保持一致。
 
 
 ⸻

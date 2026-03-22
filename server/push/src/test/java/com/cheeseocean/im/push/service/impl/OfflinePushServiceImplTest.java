@@ -1,6 +1,8 @@
 package com.cheeseocean.im.push.service.impl;
 
 import com.cheeseocean.im.common.api.dto.message.Message;
+import com.cheeseocean.im.common.core.constants.MessageConstants;
+import com.cheeseocean.im.common.core.constants.MessageDisplayConstants;
 import com.cheeseocean.im.push.entity.OfflinePushConfig;
 import com.cheeseocean.im.push.entity.OfflinePushResult;
 import com.cheeseocean.im.push.entity.PushMessage;
@@ -25,6 +27,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
+import org.mockito.ArgumentCaptor;
 import static org.mockito.Mockito.*;
 
 /**
@@ -66,8 +69,8 @@ class OfflinePushServiceImplTest {
         testMessage.setSendID("sender-123");
         testMessage.setRecvID("receiver-123");
         testMessage.setContent("Test message content");
-        testMessage.setContentType(101); // 文本消息
-        testMessage.setSessionType(1); // 单聊
+        testMessage.setContentType(MessageConstants.CONTENT_TYPE_TEXT);
+        testMessage.setSessionType(MessageConstants.SESSION_TYPE_SINGLE);
         testMessage.setSenderNickname("Test Sender");
 
         // 设置目标用户
@@ -143,6 +146,143 @@ class OfflinePushServiceImplTest {
                         && "Test Sender".equals(message.getTitle())
                         && "Test message content".equals(message.getContent())
                         && "test-msg-123".equals(message.getMessageID())));
+    }
+
+    @Test
+    void pushMessageToUsersShouldUseSystemNotificationTitleForNotificationMessages() {
+        Map<Integer, String> deviceTokens = new HashMap<>();
+        deviceTokens.put(1, "ios-token-1");
+        when(deviceTokenService.getUserDeviceTokens("user1")).thenReturn(deviceTokens);
+
+        when(pushProvider.supportsPlatform(1)).thenReturn(true);
+        when(pushProvider.isAvailable()).thenReturn(true);
+        when(pushProvider.getProviderName()).thenReturn("TestProvider");
+        when(pushProvider.sendPush(any(PushMessage.class)))
+                .thenReturn(PushProvider.PushResult.success("provider-msg-2"));
+
+        Map<Object, Object> configMap = new HashMap<>();
+        configMap.put("userID", "user1");
+        configMap.put("enabled", "true");
+        when(hashOperations.entries(anyString())).thenReturn(configMap);
+
+        Message notificationMessage = new Message();
+        notificationMessage.setServerMsgID("notification-msg-1");
+        notificationMessage.setSendID("system");
+        notificationMessage.setRecvID("user1");
+        notificationMessage.setContent("Your policy was updated");
+        notificationMessage.setContentType(MessageConstants.CONTENT_TYPE_SYSTEM_NOTIFY);
+        notificationMessage.setSessionType(MessageConstants.SESSION_TYPE_NOTIFICATION);
+        notificationMessage.setOptions(Map.of("notification", true));
+
+        OfflinePushResult result = offlinePushService.pushMessageToUsers(notificationMessage, List.of("user1"));
+
+        assertNotNull(result);
+        verify(pushProvider).sendPush(argThat(message ->
+                "系统通知".equals(message.getTitle())
+                        && "Your policy was updated".equals(message.getContent())
+                        && "notification-msg-1".equals(message.getMessageID())));
+    }
+
+    @Test
+    void pushMessageToUsersShouldUseNotificationFallbackContentWhenNotificationBodyIsBlank() {
+        Map<Integer, String> deviceTokens = new HashMap<>();
+        deviceTokens.put(1, "ios-token-1");
+        when(deviceTokenService.getUserDeviceTokens("user1")).thenReturn(deviceTokens);
+
+        when(pushProvider.supportsPlatform(1)).thenReturn(true);
+        when(pushProvider.isAvailable()).thenReturn(true);
+        when(pushProvider.getProviderName()).thenReturn("TestProvider");
+        when(pushProvider.sendPush(any(PushMessage.class)))
+                .thenReturn(PushProvider.PushResult.success("provider-msg-3"));
+
+        Map<Object, Object> configMap = new HashMap<>();
+        configMap.put("userID", "user1");
+        configMap.put("enabled", "true");
+        when(hashOperations.entries(anyString())).thenReturn(configMap);
+
+        Message notificationMessage = new Message();
+        notificationMessage.setServerMsgID("notification-msg-2");
+        notificationMessage.setSendID("system");
+        notificationMessage.setRecvID("user1");
+        notificationMessage.setContent("   ");
+        notificationMessage.setContentType(MessageConstants.CONTENT_TYPE_FORCE_LOGOUT);
+        notificationMessage.setSessionType(MessageConstants.SESSION_TYPE_NOTIFICATION);
+        notificationMessage.setOptions(Map.of("notification", true));
+
+        OfflinePushResult result = offlinePushService.pushMessageToUsers(notificationMessage, List.of("user1"));
+
+        assertNotNull(result);
+        verify(pushProvider).sendPush(argThat(message ->
+                MessageDisplayConstants.PUSH_TITLE_SYSTEM_NOTIFICATION.equals(message.getTitle())
+                        && MessageDisplayConstants.PUSH_CONTENT_NEW_SYSTEM_NOTIFICATION.equals(message.getContent())));
+    }
+
+    @Test
+    void pushMessageToUsersShouldUseSharedFallbackLabelsForNonTextContent() {
+        Map<Integer, String> deviceTokens = new HashMap<>();
+        deviceTokens.put(1, "ios-token-1");
+        when(deviceTokenService.getUserDeviceTokens("user1")).thenReturn(deviceTokens);
+
+        when(pushProvider.supportsPlatform(1)).thenReturn(true);
+        when(pushProvider.isAvailable()).thenReturn(true);
+        when(pushProvider.getProviderName()).thenReturn("TestProvider");
+        when(pushProvider.sendPush(any(PushMessage.class)))
+                .thenReturn(PushProvider.PushResult.success("provider-msg-4"));
+
+        Map<Object, Object> configMap = new HashMap<>();
+        configMap.put("userID", "user1");
+        configMap.put("enabled", "true");
+        when(hashOperations.entries(anyString())).thenReturn(configMap);
+
+        Message imageMessage = new Message();
+        imageMessage.setServerMsgID("image-msg-1");
+        imageMessage.setSendID("userA");
+        imageMessage.setRecvID("user1");
+        imageMessage.setContent("");
+        imageMessage.setContentType(MessageConstants.CONTENT_TYPE_IMAGE);
+        imageMessage.setSessionType(MessageConstants.SESSION_TYPE_GROUP);
+        imageMessage.setSenderNickname(null);
+
+        OfflinePushResult result = offlinePushService.pushMessageToUsers(imageMessage, List.of("user1"));
+
+        assertNotNull(result);
+        verify(pushProvider).sendPush(argThat(message ->
+                MessageDisplayConstants.PUSH_TITLE_GROUP_MESSAGE.equals(message.getTitle())
+                        && MessageDisplayConstants.PUSH_CONTENT_IMAGE.equals(message.getContent())));
+    }
+
+    @Test
+    void pushMessageToUsersShouldFallbackToDirectTitleWhenSessionTypeIsMissing() {
+        Map<Integer, String> deviceTokens = new HashMap<>();
+        deviceTokens.put(1, "ios-token-1");
+        when(deviceTokenService.getUserDeviceTokens("user1")).thenReturn(deviceTokens);
+
+        when(pushProvider.supportsPlatform(1)).thenReturn(true);
+        when(pushProvider.isAvailable()).thenReturn(true);
+        when(pushProvider.getProviderName()).thenReturn("TestProvider");
+        when(pushProvider.sendPush(any(PushMessage.class)))
+                .thenReturn(PushProvider.PushResult.success("provider-msg-5"));
+
+        Map<Object, Object> configMap = new HashMap<>();
+        configMap.put("userID", "user1");
+        configMap.put("enabled", "true");
+        when(hashOperations.entries(anyString())).thenReturn(configMap);
+
+        Message messageWithoutSessionType = new Message();
+        messageWithoutSessionType.setServerMsgID("missing-session-type");
+        messageWithoutSessionType.setSendID("userA");
+        messageWithoutSessionType.setRecvID("user1");
+        messageWithoutSessionType.setContent("hello");
+        messageWithoutSessionType.setContentType(MessageConstants.CONTENT_TYPE_TEXT);
+        messageWithoutSessionType.setSenderNickname("userA");
+
+        OfflinePushResult result = offlinePushService.pushMessageToUsers(messageWithoutSessionType, List.of("user1"));
+
+        assertNotNull(result);
+        ArgumentCaptor<PushMessage> messageCaptor = ArgumentCaptor.forClass(PushMessage.class);
+        verify(pushProvider).sendPush(messageCaptor.capture());
+        assertEquals("userA", messageCaptor.getValue().getTitle());
+        assertEquals("hello", messageCaptor.getValue().getContent());
     }
 
     @Test

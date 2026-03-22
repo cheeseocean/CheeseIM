@@ -14,6 +14,7 @@ import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
+import java.util.HashMap;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -99,6 +100,13 @@ public class MessagePushServiceImpl implements OfflinePushRpc {
         if (proto.getExt() != null) {
             message.setAttachedInfo(proto.getExt().get("attachedInfo"));
         }
+        Map<String, Boolean> options = new HashMap<>();
+        if (proto.getExt() != null && proto.getExt().containsKey("notification")) {
+            options.put("notification", Boolean.parseBoolean(proto.getExt().get("notification")));
+        }
+        if (!options.isEmpty()) {
+            message.setOptions(options);
+        }
         return message;
     }
 
@@ -109,7 +117,12 @@ public class MessagePushServiceImpl implements OfflinePushRpc {
         req.setSeq(event.getSeq());
         req.setServerMsgId(event.getServerMsgId());
         req.setContent(event.getContent());
-        req.setExt(event.getExt());
+        Map<String, String> ext = new HashMap<>(event.getExt());
+        ext.put("notification", String.valueOf(event.isNotification()));
+        req.setExt(ext);
+        req.setSenderId(event.getSenderId());
+        req.setSessionType(event.getSessionType());
+        req.setContentType(event.getContentType());
         return req;
     }
 }

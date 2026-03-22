@@ -2,9 +2,11 @@ package com.cheeseocean.im.postbox.service;
 
 import com.cheeseocean.im.common.api.friend.FriendRelationService;
 import com.cheeseocean.im.common.core.auth.SessionPrincipal;
+import com.cheeseocean.im.common.core.constants.MessageDisplayConstants;
 import com.cheeseocean.im.common.core.util.ConversationIdUtil;
 import com.cheeseocean.im.postbox.api.ConversationSummaryResponse;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
+import com.cheeseocean.im.common.core.enums.ConversationKind;
 import com.cheeseocean.im.postbox.history.MessageSlot;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -17,14 +19,17 @@ public class DirectConversationService {
 
     private final BlockMessageQueryService blockMessageQueryService;
     private final StringRedisTemplate redisTemplate;
+    private final ConversationPresentationResolver conversationPresentationResolver;
 
     @DubboReference(check = false)
     private FriendRelationService friendRelationService;
 
     public DirectConversationService(BlockMessageQueryService blockMessageQueryService,
-                                     StringRedisTemplate redisTemplate) {
+                                     StringRedisTemplate redisTemplate,
+                                     ConversationPresentationResolver conversationPresentationResolver) {
         this.blockMessageQueryService = blockMessageQueryService;
         this.redisTemplate = redisTemplate;
+        this.conversationPresentationResolver = conversationPresentationResolver;
     }
 
     public ConversationSummaryResponse startConversation(SessionPrincipal session, String friendUserId) {
@@ -44,17 +49,19 @@ public class DirectConversationService {
 
         ConversationSummaryResponse response = new ConversationSummaryResponse();
         response.setConversationId(conversationId);
-        response.setTitle(friendUserId);
-        response.setSubtitle("Direct conversation");
-        response.setKind("DIRECT");
+        response.setTitle(conversationPresentationResolver.resolveTitle(conversationId, session.getUserId()));
+        response.setSubtitle(conversationPresentationResolver.resolveSubtitle(ConversationKind.DIRECT));
+        response.setKind(ConversationKind.DIRECT);
         response.setPeerUserId(friendUserId);
         response.setUnreadCount(loadUnreadCount(session.getUserId(), conversationId));
         response.setAccentColor(pickAccentColor(conversationId));
         if (message != null) {
-            response.setLastMessagePreview(message.getContent() == null || message.getContent().isBlank() ? "Attachment" : message.getContent());
+            response.setLastMessagePreview(message.getContent() == null || message.getContent().isBlank()
+                    ? MessageDisplayConstants.PREVIEW_ATTACHMENT
+                    : message.getContent());
             response.setLastMessageTime(message.getSendTime() == null ? System.currentTimeMillis() : message.getSendTime());
         } else {
-            response.setLastMessagePreview("No messages yet");
+            response.setLastMessagePreview(MessageDisplayConstants.CONVERSATION_PREVIEW_EMPTY);
             response.setLastMessageTime(System.currentTimeMillis());
         }
         return response;

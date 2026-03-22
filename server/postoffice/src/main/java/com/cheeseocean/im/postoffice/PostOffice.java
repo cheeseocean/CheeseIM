@@ -9,7 +9,7 @@ import java.util.Map;
 /**
  * CheeseIM PostOffice 启动类
  *
- * @author CheeseIM
+ * @author xxxcrel
  */
 @SpringBootApplication(scanBasePackages = {"com.cheeseocean.im.postoffice", "com.cheeseocean.im.common"})
 @EnableDubbo
@@ -17,7 +17,7 @@ public class PostOffice {
 
     public static void main(String[] args) {
         SpringApplication application = new SpringApplication(PostOffice.class);
-        application.setDefaultProperties(Map.of("spring.config.name", "application-postoffice"));
+        application.setDefaultProperties(Map.of("spring.config.name", "cheeseim-postoffice"));
         application.run(args);
     }
 }

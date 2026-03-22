@@ -58,10 +58,3 @@ include 'push'
 include 'authcenter'
 include 'config'
 include 'bootstrap-all'
-include ':apps:im_java_client_demo'
-include ':apps:im_java_client_demo:client-core'
-include ':apps:im_java_client_demo:cli-demo'
-
-project(':apps:im_java_client_demo').projectDir = file('../apps/im_java_client_demo')
-project(':apps:im_java_client_demo:client-core').projectDir = file('../apps/im_java_client_demo/client-core')
-project(':apps:im_java_client_demo:cli-demo').projectDir = file('../apps/im_java_client_demo/cli-demo')

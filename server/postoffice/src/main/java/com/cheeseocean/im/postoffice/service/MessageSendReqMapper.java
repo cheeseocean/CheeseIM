@@ -45,14 +45,14 @@ public class MessageSendReqMapper {
             return null;
         }
         MessageOptions options = new MessageOptions();
-        options.setNeedHistory(Boolean.TRUE.equals(source.get("needHistory")));
-        options.setNeedConversation(Boolean.TRUE.equals(source.get("needConversation")));
-        options.setNeedUnreadCount(Boolean.TRUE.equals(source.get("needUnreadCount")));
-        options.setNeedOnlinePush(Boolean.TRUE.equals(source.get("needOnlinePush")));
-        options.setNeedOfflinePush(Boolean.TRUE.equals(source.get("needOfflinePush")));
-        options.setSenderSync(Boolean.TRUE.equals(source.get("senderSync")));
-        options.setNotification(Boolean.TRUE.equals(source.get("notification")));
-        options.setNeedLastMessage(Boolean.TRUE.equals(source.get("needLastMessage")));
+        options.setNeedHistory(source.get("needHistory"));
+        options.setNeedConversation(source.get("needConversation"));
+        options.setNeedUnreadCount(source.get("needUnreadCount"));
+        options.setNeedOnlinePush(source.get("needOnlinePush"));
+        options.setNeedOfflinePush(source.get("needOfflinePush"));
+        options.setSenderSync(source.get("senderSync"));
+        options.setNotification(source.get("notification"));
+        options.setNeedLastMessage(source.get("needLastMessage"));
         return options;
     }
 }

@@ -36,6 +36,19 @@ class CheeseMessageTest {
     }
 
     @Test
+    void toWsMessageShouldTranslateTcpReadReceiptToWsReadNotify() {
+        CheeseMessage message = new CheeseMessage(
+                CheeseMessageType.TCP_MSG_READ_RECEIPT,
+                "op-read-1",
+                "{\"receiptType\":\"READ_CURSOR\",\"seq\":19}"
+        );
+
+        WSMessage wsMessage = message.toWSMessage();
+
+        assertEquals(WSMessageType.WS_MSG_READ_NOTIFY, wsMessage.getMsgType());
+    }
+
+    @Test
     void fromWsMessageShouldSerializeObjectPayloadAsJson() {
         DispatchPayload payload = new DispatchPayload();
         payload.setServerMsgId("msg-1");
@@ -58,5 +71,19 @@ class CheeseMessageTest {
         assertTrue(cheeseMessage.getData().contains("\"serverMsgId\":\"msg-1\""));
         assertTrue(cheeseMessage.getData().contains("\"seq\":7"));
         assertTrue(cheeseMessage.getData().contains("\"content\":\"hello\""));
+    }
+
+    @Test
+    void fromWsMessageShouldTranslateWsRevokeNotifyToTcpRevokeNotify() {
+        WSMessage wsMessage = new WSMessage();
+        wsMessage.setMsgType(WSMessageType.WS_MSG_REVOKE_NOTIFY);
+        wsMessage.setOperationID("op-revoke-1");
+        wsMessage.setSendTime(1710000000002L);
+        wsMessage.setData("{\"targetServerMsgId\":\"msg-1\"}");
+
+        CheeseMessage cheeseMessage = CheeseMessage.fromWSMessage(wsMessage);
+
+        assertEquals(CheeseMessageType.TCP_REVOKE_MSG_NOTIFY, cheeseMessage.getMsgType());
+        assertTrue(cheeseMessage.getData().contains("\"targetServerMsgId\":\"msg-1\""));
     }
 }

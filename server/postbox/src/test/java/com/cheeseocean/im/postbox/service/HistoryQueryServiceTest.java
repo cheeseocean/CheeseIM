@@ -2,6 +2,8 @@ package com.cheeseocean.im.postbox.service;
 
 import com.cheeseocean.im.common.core.auth.PermissionCheckResult;
 import com.cheeseocean.im.common.core.auth.SessionPrincipal;
+import com.cheeseocean.im.common.core.constants.MessageConstants;
+import com.cheeseocean.im.common.core.enums.MessagePreviewType;
 import com.cheeseocean.im.common.core.enums.SessionStatus;
 import com.cheeseocean.im.postbox.api.HistoryMessageResponse;
 import com.cheeseocean.im.postbox.history.MessageBlockDoc;
@@ -30,7 +32,7 @@ class HistoryQueryServiceTest {
         var permissionService = mock(com.cheeseocean.im.common.api.permission.ConversationPermissionDubboService.class);
         when(permissionService.check(any())).thenReturn(PermissionCheckResult.allow());
 
-        HistoryQueryService service = new HistoryQueryService(mongoTemplate);
+        HistoryQueryService service = new HistoryQueryService(mongoTemplate, new MessagePreviewResolver());
         org.springframework.test.util.ReflectionTestUtils.setField(service, "conversationPermissionDubboService", permissionService);
 
         List<HistoryMessageResponse> messages = service.getConversationMessages(session("userB"), "single:userA:userB", 2);
@@ -39,6 +41,32 @@ class HistoryQueryServiceTest {
         assertEquals(102L, messages.get(0).getSequence());
         assertEquals("s-102", messages.get(0).getServerMsgId());
         assertEquals(101L, messages.get(1).getSequence());
+    }
+
+    @Test
+    void getConversationMessagesShouldRenderReadableContentForSpecialMessageTypes() {
+        MongoTemplate mongoTemplate = mock(MongoTemplate.class);
+        when(mongoTemplate.find(any(), org.mockito.ArgumentMatchers.eq(MessageBlockDoc.class)))
+                .thenReturn(List.of(block(1L, messages(
+                        slot(103L, "s-103", "c-103", "userA", "userB", "raw-system", MessageConstants.CONTENT_TYPE_SYSTEM_NOTIFY),
+                        slot(102L, "s-102", "c-102", "userA", "userB", "raw-revoke", MessageConstants.CONTENT_TYPE_REVOKE_NOTIFY),
+                        slot(101L, "s-101", "c-101", "userA", "userB", "raw-read", MessageConstants.CONTENT_TYPE_READ_RECEIPT)
+                ))));
+
+        var permissionService = mock(com.cheeseocean.im.common.api.permission.ConversationPermissionDubboService.class);
+        when(permissionService.check(any())).thenReturn(PermissionCheckResult.allow());
+
+        HistoryQueryService service = new HistoryQueryService(mongoTemplate, new MessagePreviewResolver());
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "conversationPermissionDubboService", permissionService);
+
+        List<HistoryMessageResponse> messages = service.getConversationMessages(session("userB"), "single:userA:userB", 3);
+
+        assertEquals("系统通知", messages.get(0).getContent());
+        assertEquals(MessagePreviewType.SYSTEM, messages.get(0).getPreviewType());
+        assertEquals("你撤回了一条消息", messages.get(1).getContent());
+        assertEquals(MessagePreviewType.REVOKE, messages.get(1).getPreviewType());
+        assertEquals("[已读回执]", messages.get(2).getContent());
+        assertEquals(MessagePreviewType.READ_RECEIPT, messages.get(2).getPreviewType());
     }
 
     private static SessionPrincipal session(String userId) {
@@ -70,6 +98,16 @@ class HistoryQueryServiceTest {
                                     String senderId,
                                     String recvId,
                                     String content) {
+        return slot(seq, serverMsgId, clientMsgId, senderId, recvId, content, 101);
+    }
+
+    private static MessageSlot slot(long seq,
+                                    String serverMsgId,
+                                    String clientMsgId,
+                                    String senderId,
+                                    String recvId,
+                                    String content,
+                                    int contentType) {
         MessageSlot slot = new MessageSlot();
         slot.setSeq(seq);
         slot.setServerMsgId(serverMsgId);
@@ -77,7 +115,7 @@ class HistoryQueryServiceTest {
         slot.setSenderId(senderId);
         slot.setRecvId(recvId);
         slot.setContent(content);
-        slot.setContentType(101);
+        slot.setContentType(contentType);
         slot.setSendTime(System.currentTimeMillis());
         return slot;
     }

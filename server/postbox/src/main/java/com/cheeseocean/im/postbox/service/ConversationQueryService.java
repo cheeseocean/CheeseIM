@@ -1,15 +1,18 @@
 package com.cheeseocean.im.postbox.service;
 
+import com.cheeseocean.im.common.api.dto.message.ConversationLastMessageSummary;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.common.core.auth.PermissionCheckRequest;
 import com.cheeseocean.im.common.core.auth.PermissionCheckResult;
 import com.cheeseocean.im.common.core.auth.SessionPrincipal;
 import com.cheeseocean.im.common.core.enums.ConversationAction;
+import com.cheeseocean.im.common.core.enums.ConversationKind;
 import com.cheeseocean.im.common.core.util.ConversationIdUtil;
 import com.cheeseocean.im.postbox.api.ConversationSummaryResponse;
 import com.cheeseocean.im.postbox.history.MessageIdMappingDoc;
 import com.cheeseocean.im.postbox.history.MessageSlot;
 import com.cheeseocean.im.postbox.permission.ConversationPermissionService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -30,17 +33,24 @@ public class ConversationQueryService {
             "#99a8ff",
             "#8ce0b8"
     );
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final BlockMessageQueryService blockMessageQueryService;
     private final StringRedisTemplate redisTemplate;
     private final ConversationPermissionService conversationPermissionService;
+    private final MessagePreviewResolver messagePreviewResolver;
+    private final ConversationPresentationResolver conversationPresentationResolver;
 
     public ConversationQueryService(BlockMessageQueryService blockMessageQueryService,
                                     StringRedisTemplate redisTemplate,
-                                    ConversationPermissionService conversationPermissionService) {
+                                    ConversationPermissionService conversationPermissionService,
+                                    MessagePreviewResolver messagePreviewResolver,
+                                    ConversationPresentationResolver conversationPresentationResolver) {
         this.blockMessageQueryService = blockMessageQueryService;
         this.redisTemplate = redisTemplate;
         this.conversationPermissionService = conversationPermissionService;
+        this.messagePreviewResolver = messagePreviewResolver;
+        this.conversationPresentationResolver = conversationPresentationResolver;
     }
 
     public List<ConversationSummaryResponse> listConversations(SessionPrincipal session, int limit) {
@@ -93,64 +103,44 @@ public class ConversationQueryService {
             return null;
         }
 
+        ConversationKind kind = conversationPresentationResolver.resolveKind(accumulator.latestMapping.getConversationId());
         ConversationSummaryResponse response = new ConversationSummaryResponse();
         response.setConversationId(accumulator.latestMapping.getConversationId());
-        response.setKind(detectKind(accumulator.latestMapping.getConversationId()));
-        response.setTitle(resolveTitle(accumulator.latestMapping.getConversationId(), currentUserId));
-        response.setSubtitle(resolveSubtitle(accumulator.latestMapping.getConversationId()));
+        response.setKind(kind);
+        response.setTitle(conversationPresentationResolver.resolveTitle(accumulator.latestMapping.getConversationId(), currentUserId));
+        response.setSubtitle(conversationPresentationResolver.resolveSubtitle(kind));
         response.setPeerUserId(ConversationIdUtil.peerUser(accumulator.latestMapping.getConversationId(), currentUserId));
-        response.setLastMessagePreview(resolvePreview(message));
-        response.setLastMessageTime(resolveTime(message.getSendTime(), accumulator.latestMapping.getSendTime()));
+        ConversationLastMessageSummary summary = loadLastMessageSummary(accumulator.latestMapping.getConversationId());
+        if (summary != null) {
+            response.setLastMessagePreview(summary.getPreviewText() != null ? summary.getPreviewText() : summary.getContent());
+            response.setLastMessagePreviewType(summary.getPreviewType());
+            response.setLastMessageTime(summary.getSendTime());
+            response.setNotification(summary.isNotification());
+        } else if (shouldShowLastMessage(message)) {
+            response.setLastMessagePreview(messagePreviewResolver.resolvePreview(message));
+            response.setLastMessagePreviewType(messagePreviewResolver.resolvePreviewType(message));
+            response.setLastMessageTime(resolveTime(message.getSendTime(), accumulator.latestMapping.getSendTime()));
+            response.setNotification(message.getOptions() != null && Boolean.TRUE.equals(message.getOptions().isNotification()));
+        }
         response.setUnreadCount(accumulator.unreadCount);
         response.setAccentColor(pickAccentColor(accumulator.latestMapping.getConversationId()));
         return response;
     }
 
-    private String detectKind(String conversationId) {
-        if (conversationId.startsWith("c1:")) {
-            return "DIRECT";
+    private ConversationLastMessageSummary loadLastMessageSummary(String conversationId) {
+        String raw = redisTemplate.opsForValue().get(RedisKeys.convLastMsg(conversationId));
+        if (!StringUtils.hasText(raw)) {
+            return null;
         }
-        if (conversationId.startsWith("c2:")) {
-            return "GROUP";
+        try {
+            return OBJECT_MAPPER.readValue(raw, ConversationLastMessageSummary.class);
+        } catch (Exception e) {
+            return null;
         }
-        if (conversationId.startsWith("c4:")) {
-            return "CHANNEL";
-        }
-        return "DIRECT";
     }
 
-    private String resolveTitle(String conversationId, String currentUserId) {
-        String[] parts = conversationId.split(":");
-        if (conversationId.startsWith("c1:") && parts.length == 3) {
-            return currentUserId.equals(parts[1]) ? parts[2] : parts[1];
-        }
-        if (parts.length >= 2) {
-            return parts[1];
-        }
-        return conversationId;
-    }
-
-    private String resolveSubtitle(String conversationId) {
-        if (conversationId.startsWith("c1:")) {
-            return "Direct conversation";
-        }
-        if (conversationId.startsWith("c2:")) {
-            return "Group conversation";
-        }
-        if (conversationId.startsWith("c4:")) {
-            return "Channel conversation";
-        }
-        return "Conversation";
-    }
-
-    private String resolvePreview(MessageSlot message) {
-        if (StringUtils.hasText(message.getContent())) {
-            return message.getContent();
-        }
-        if (message.getExt() != null && !message.getExt().isEmpty()) {
-            return "Attachment";
-        }
-        return "Unsupported message";
+    private boolean shouldShowLastMessage(MessageSlot message) {
+        return message.getOptions() == null || !Boolean.FALSE.equals(message.getOptions().isNeedLastMessage());
     }
 
     private Long resolveTime(Long sendTime, Long mappingSendTime) {

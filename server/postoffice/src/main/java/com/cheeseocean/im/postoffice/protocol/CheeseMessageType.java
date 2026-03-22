@@ -310,6 +310,8 @@ public class CheeseMessageType {
             case TCP_SEND_MSG_REQ: return WSMessageType.WS_SEND_MSG_REQ;
             case TCP_SEND_MSG_RESP: return WSMessageType.WS_SEND_MSG_RESP;
             case TCP_RECV_MSG_NOTIFY: return WSMessageType.WS_RECV_MSG_NOTIFY;
+            case TCP_MSG_READ_RECEIPT: return WSMessageType.WS_MSG_READ_NOTIFY;
+            case TCP_REVOKE_MSG_NOTIFY: return WSMessageType.WS_MSG_REVOKE_NOTIFY;
             case TCP_USER_ONLINE_NOTIFY: return WSMessageType.WS_USER_ONLINE_NOTIFY;
             case TCP_USER_OFFLINE_NOTIFY: return WSMessageType.WS_USER_OFFLINE_NOTIFY;
             case TCP_FORCE_LOGOUT_NOTIFY: return WSMessageType.WS_FORCE_LOGOUT_NOTIFY;
@@ -336,6 +338,8 @@ public class CheeseMessageType {
             case WSMessageType.WS_SEND_MSG_REQ: return TCP_SEND_MSG_REQ;
             case WSMessageType.WS_SEND_MSG_RESP: return TCP_SEND_MSG_RESP;
             case WSMessageType.WS_RECV_MSG_NOTIFY: return TCP_RECV_MSG_NOTIFY;
+            case WSMessageType.WS_MSG_READ_NOTIFY: return TCP_MSG_READ_RECEIPT;
+            case WSMessageType.WS_MSG_REVOKE_NOTIFY: return TCP_REVOKE_MSG_NOTIFY;
             case WSMessageType.WS_USER_ONLINE_NOTIFY: return TCP_USER_ONLINE_NOTIFY;
             case WSMessageType.WS_USER_OFFLINE_NOTIFY: return TCP_USER_OFFLINE_NOTIFY;
             case WSMessageType.WS_FORCE_LOGOUT_NOTIFY: return TCP_FORCE_LOGOUT_NOTIFY;

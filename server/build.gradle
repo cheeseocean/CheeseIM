@@ -179,6 +179,13 @@ subprojects {
         options.compilerArgs += ['-parameters']
     }
 
+    tasks.withType(JavaExec).configureEach {
+        jvmArgs += [
+                '--add-opens=java.base/java.lang=ALL-UNNAMED',
+                '--add-opens=java.base/java.math=ALL-UNNAMED'
+        ]
+    }
+
     tasks.withType(Javadoc).configureEach {
         options.encoding = 'UTF-8'
         options.charSet = 'UTF-8'

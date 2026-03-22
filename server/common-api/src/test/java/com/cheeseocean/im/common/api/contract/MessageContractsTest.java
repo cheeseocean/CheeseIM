@@ -2,6 +2,7 @@ package com.cheeseocean.im.common.api.contract;
 
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchMessageReq;
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchPayload;
+import com.cheeseocean.im.common.api.dto.message.ConversationLastMessageSummary;
 import com.cheeseocean.im.common.api.dto.message.MessageOptions;
 import com.cheeseocean.im.common.api.dto.message.SendMessageReq;
 import com.cheeseocean.im.common.api.dto.message.SendMessageResp;
@@ -9,6 +10,7 @@ import com.cheeseocean.im.common.api.dto.message.SequencedMessage;
 import com.cheeseocean.im.common.api.event.DeliveryEvent;
 import com.cheeseocean.im.common.api.event.HistoryEvent;
 import com.cheeseocean.im.common.api.event.IngressEvent;
+import com.cheeseocean.im.common.core.enums.MessagePreviewType;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -114,5 +116,25 @@ class MessageContractsTest {
 
         assertEquals("conn-1", req.getConnectionIds().get(0));
         assertEquals("smsg-1", req.getPayload().getServerMsgId());
+    }
+
+    @Test
+    void conversationLastMessageSummaryCarriesProjectionFields() {
+        ConversationLastMessageSummary summary = new ConversationLastMessageSummary();
+        summary.setSeq(11L);
+        summary.setSenderId("system");
+        summary.setContent("System notice");
+        summary.setContentType(7001);
+        summary.setPreviewText("系统通知");
+        summary.setPreviewType(MessagePreviewType.SYSTEM);
+        summary.setSendTime(123L);
+        summary.setNotification(true);
+
+        assertEquals(11L, summary.getSeq());
+        assertEquals("system", summary.getSenderId());
+        assertEquals(7001, summary.getContentType());
+        assertEquals("系统通知", summary.getPreviewText());
+        assertEquals(MessagePreviewType.SYSTEM, summary.getPreviewType());
+        assertTrue(summary.isNotification());
     }
 }

@@ -1,14 +1,19 @@
 package com.cheeseocean.im.postbox.api;
 
+import com.cheeseocean.im.common.core.enums.ConversationKind;
+import com.cheeseocean.im.common.core.enums.MessagePreviewType;
+
 public class ConversationSummaryResponse {
 
     private String conversationId;
     private String title;
     private String subtitle;
-    private String kind;
+    private ConversationKind kind;
     private String peerUserId;
     private String lastMessagePreview;
+    private MessagePreviewType lastMessagePreviewType;
     private Long lastMessageTime;
+    private boolean notification;
     private int unreadCount;
     private String accentColor;
 
@@ -36,11 +41,11 @@ public class ConversationSummaryResponse {
         this.subtitle = subtitle;
     }
 
-    public String getKind() {
+    public ConversationKind getKind() {
         return kind;
     }
 
-    public void setKind(String kind) {
+    public void setKind(ConversationKind kind) {
         this.kind = kind;
     }
 
@@ -60,12 +65,28 @@ public class ConversationSummaryResponse {
         this.lastMessagePreview = lastMessagePreview;
     }
 
+    public MessagePreviewType getLastMessagePreviewType() {
+        return lastMessagePreviewType;
+    }
+
+    public void setLastMessagePreviewType(MessagePreviewType lastMessagePreviewType) {
+        this.lastMessagePreviewType = lastMessagePreviewType;
+    }
+
     public Long getLastMessageTime() {
         return lastMessageTime;
     }
 
     public void setLastMessageTime(Long lastMessageTime) {
         this.lastMessageTime = lastMessageTime;
+    }
+
+    public boolean isNotification() {
+        return notification;
+    }
+
+    public void setNotification(boolean notification) {
+        this.notification = notification;
     }
 
     public int getUnreadCount() {

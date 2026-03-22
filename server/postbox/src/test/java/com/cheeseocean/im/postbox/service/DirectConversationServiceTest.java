@@ -3,6 +3,7 @@ package com.cheeseocean.im.postbox.service;
 import com.cheeseocean.im.common.api.friend.FriendRelationService;
 import com.cheeseocean.im.common.core.auth.SessionPrincipal;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
+import com.cheeseocean.im.common.core.enums.ConversationKind;
 import com.cheeseocean.im.common.core.enums.SessionStatus;
 import com.cheeseocean.im.postbox.history.MessageSlot;
 import org.junit.jupiter.api.Test;
@@ -32,7 +33,7 @@ class DirectConversationServiceTest {
         slot.setSendTime(123L);
         when(blockMessageQueryService.findSlot("c1:userA:userB", 8L)).thenReturn(slot);
 
-        DirectConversationService service = new DirectConversationService(blockMessageQueryService, redisTemplate);
+        DirectConversationService service = new DirectConversationService(blockMessageQueryService, redisTemplate, new ConversationPresentationResolver());
         FriendRelationService friendRelationService = mock(FriendRelationService.class);
         when(friendRelationService.areAcceptedFriends("userA", "userB")).thenReturn(true);
         ReflectionTestUtils.setField(service, "friendRelationService", friendRelationService);
@@ -40,6 +41,9 @@ class DirectConversationServiceTest {
         var response = service.startConversation(session("userA"), "userB");
 
         assertEquals("c1:userA:userB", response.getConversationId());
+        assertEquals("userB", response.getTitle());
+        assertEquals("Direct conversation", response.getSubtitle());
+        assertEquals(ConversationKind.DIRECT, response.getKind());
         assertEquals(2, response.getUnreadCount());
         assertEquals("hello", response.getLastMessagePreview());
         assertEquals(123L, response.getLastMessageTime());
