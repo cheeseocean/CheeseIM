@@ -1,15 +1,15 @@
 package com.cheeseocean.im.postoffice.handler;
 
-import com.cheeseocean.im.common.api.MessageDeliveryService;
-import com.cheeseocean.im.common.dto.DeliveryCommand;
-import com.cheeseocean.im.common.dto.DeliveryResult;
+import com.cheeseocean.im.common.api.dto.message.SendMessageReq;
+import com.cheeseocean.im.common.api.dto.message.SendMessageResp;
+import com.cheeseocean.im.common.api.rpc.MessageSendRpc;
 import com.cheeseocean.im.common.entity.Message;
 import com.cheeseocean.im.postoffice.auth.ConnectionSessionGuard;
 import com.cheeseocean.im.postoffice.connection.ConnectionContext;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.postoffice.protocol.WSMessage;
 import com.cheeseocean.im.postoffice.protocol.WSMessageType;
-import com.cheeseocean.im.postoffice.service.MessageProtoMapper;
+import com.cheeseocean.im.postoffice.service.MessageSendReqMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.slf4j.Logger;
@@ -31,13 +31,13 @@ public class ChatMessageHandler implements MessageHandler {
     private static final Logger logger = LoggerFactory.getLogger(ChatMessageHandler.class);
     
     @DubboReference(check = false)
-    private MessageDeliveryService messageDeliveryService;
+    private MessageSendRpc messageSendRpc;
 
     @Autowired
     private ObjectMapper objectMapper;
 
     @Autowired
-    private MessageProtoMapper messageProtoMapper;
+    private MessageSendReqMapper messageSendReqMapper;
 
     @Autowired
     private ConnectionSessionGuard connectionSessionGuard;
@@ -85,34 +85,32 @@ public class ChatMessageHandler implements MessageHandler {
             msgData.setSendID(context.getUserId());
             msgData.setPlatformID(context.getPlatformId() != null ? context.getPlatformId() : connection.getPlatformID());
             
-            DeliveryCommand command = messageProtoMapper.toDeliveryCommand(msgData, connection);
-            DeliveryResult deliveryResult = messageDeliveryService.deliver(command);
+            SendMessageReq req = messageSendReqMapper.map(msgData, connection, operationID);
+            SendMessageResp deliveryResult = messageSendRpc.sendMessage(req);
             
             // 更新连接统计
             connection.incrementSendMsg();
             
             // 检查发送结果
-            if (deliveryResult == null || !deliveryResult.isSuccess()) {
-                logger.warn("Message send failed: userID={}, clientMsgID={}, status={}",
-                           connection.getUserID(), msgData.getClientMsgID(),
-                           deliveryResult != null ? deliveryResult.getStatus() : "null");
+            if (deliveryResult == null || !deliveryResult.isAccepted()) {
+                logger.warn("Message send failed: userID={}, clientMsgID={}",
+                           connection.getUserID(), msgData.getClientMsgID());
 
                 WSMessage errorResp = WSMessage.errorResp(operationID,
                                                          1004,
-                                                         deliveryResult != null ? deliveryResult.getStatus() : "消息发送失败");
+                                                         "消息发送失败");
                 return HandleResult.failure("消息发送失败", errorResp);
             }
             
-            logger.info("Message accepted successfully: userID={}, clientMsgID={}, serverMsgID={}, conversationSeq={}",
-                       context.getUserId(), msgData.getClientMsgID(), deliveryResult.getServerMsgId(),
-                       deliveryResult.getConversationSeq());
+            logger.info("Message accepted successfully: userID={}, clientMsgID={}, serverMsgID={}",
+                       context.getUserId(), msgData.getClientMsgID(), deliveryResult.getServerMsgId());
             
             // 创建发送消息响应
             WSMessage sendMsgRespMsg = WSMessage.sendMsgResp(operationID, 
                                                             deliveryResult.getServerMsgId(),
                                                             msgData.getClientMsgID(),
                                                             System.currentTimeMillis(),
-                                                            deliveryResult.getConversationSeq());
+                                                            null);
             
             return HandleResult.success(sendMsgRespMsg);
             
