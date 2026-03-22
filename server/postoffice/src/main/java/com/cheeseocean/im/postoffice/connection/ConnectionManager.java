@@ -1,6 +1,7 @@
 package com.cheeseocean.im.postoffice.connection;
 
 import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
+import com.cheeseocean.im.postoffice.protocol.CheeseMessage;
 import com.cheeseocean.im.postoffice.service.OnlineRouteService;
 import com.cheeseocean.im.postoffice.protocol.WSMessage;
 import com.cheeseocean.im.postoffice.protocol.WSMessageType;
@@ -374,9 +375,14 @@ public class ConnectionManager {
             if (connection == null || connection.getChannel() == null || !connection.getChannel().isActive()) {
                 return false;
             }
-            
-            String messageJson = objectMapper.writeValueAsString(message);
-            connection.getChannel().writeAndFlush(new TextWebSocketFrame(messageJson));
+
+            if ("TCP".equalsIgnoreCase(connection.getProtocol())) {
+                CheeseMessage tcpMessage = CheeseMessage.fromWSMessage(message);
+                connection.getChannel().writeAndFlush(tcpMessage);
+            } else {
+                String messageJson = objectMapper.writeValueAsString(message);
+                connection.getChannel().writeAndFlush(new TextWebSocketFrame(messageJson));
+            }
             connection.incrementSendMsg();
             
             return true;

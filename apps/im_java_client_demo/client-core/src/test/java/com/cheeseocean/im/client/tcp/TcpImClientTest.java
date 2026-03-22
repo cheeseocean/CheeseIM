@@ -47,12 +47,12 @@ class TcpImClientTest {
     }
 
     @Test
-    void authenticateShouldSendTcpAuthReqWithTokenUserAndPlatform() throws Exception {
+    void authenticateShouldSendTcpAuthReqWithTicket() throws Exception {
         FakeTransport transport = new FakeTransport();
         ClientSession session = new ClientSession();
         session.setUserId("userA");
         session.setPlatformId(2);
-        session.setAccessToken("access-token");
+        session.setWsTicket("ws-ticket-1");
         TcpImClient client = new TcpImClient(
                 new TcpClientConfig("127.0.0.1", 5148),
                 session,
@@ -65,9 +65,7 @@ class TcpImClientTest {
 
         TcpPacket outbound = transport.firstOutboundPacket();
         assertEquals(TcpMessageTypes.TCP_AUTH_REQ, outbound.msgType());
-        assertTrue(outbound.data().contains("\"token\":\"access-token\""));
-        assertTrue(outbound.data().contains("\"userID\":\"userA\""));
-        assertTrue(outbound.data().contains("\"platformID\":2"));
+        assertTrue(outbound.data().contains("\"ticket\":\"ws-ticket-1\""));
     }
 
     @Test

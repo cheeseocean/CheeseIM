@@ -7,6 +7,7 @@ import com.cheeseocean.im.postoffice.handler.MessageHandler;
 import com.cheeseocean.im.postoffice.handler.MessageHandlerFactory;
 import com.cheeseocean.im.postoffice.protocol.CheeseMessage;
 import com.cheeseocean.im.postoffice.protocol.WSMessage;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.timeout.IdleState;
@@ -25,6 +26,7 @@ import java.net.InetSocketAddress;
  * @author CheeseIM
  */
 @Component
+@ChannelHandler.Sharable
 public class CheeseServerHandler extends SimpleChannelInboundHandler<CheeseMessage> {
     
     private static final Logger logger = LoggerFactory.getLogger(CheeseServerHandler.class);
@@ -52,9 +54,13 @@ public class CheeseServerHandler extends SimpleChannelInboundHandler<CheeseMessa
             connection.setChannel(ctx.channel());
             connection.setClientIP(clientIP);
             connection.setProtocol("TCP");
-            
-            // 将连接与Channel关联，但暂时不添加到用户连接映射
-            // 等认证成功后再调用connectionManager.addConnection
+
+            if (!connectionManager.registerPendingConnection(connection)) {
+                logger.warn("Failed to register pending TCP connection: connectionID={}, remoteAddress={}",
+                        connectionID, ctx.channel().remoteAddress());
+                ctx.close();
+                return;
+            }
             
             logger.info("TCP connection created: connectionID={}, clientIP={}", connectionID, clientIP);
             

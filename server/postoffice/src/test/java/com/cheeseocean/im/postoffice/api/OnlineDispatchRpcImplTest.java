@@ -4,6 +4,7 @@ import com.cheeseocean.im.common.api.dto.dispatch.DispatchMessageReq;
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchPayload;
 import com.cheeseocean.im.postoffice.connection.ConnectionManager;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
+import com.cheeseocean.im.postoffice.protocol.CheeseMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
@@ -28,6 +29,7 @@ class OnlineDispatchRpcImplTest {
         EmbeddedChannel activeChannel = new EmbeddedChannel();
         UserConnection activeConnection = new UserConnection("conn-1", "userB", 1, activeChannel);
         activeConnection.setAuthenticated("token");
+        activeConnection.setProtocol("WebSocket");
 
         @SuppressWarnings("unchecked")
         Map<String, UserConnection> connectionMap =
@@ -53,6 +55,41 @@ class OnlineDispatchRpcImplTest {
         TextWebSocketFrame outbound = activeChannel.readOutbound();
         assertNotNull(outbound);
         assertFalse(outbound.text().isBlank());
+    }
+
+    @Test
+    void dispatchShouldWriteTcpFramesForTcpConnections() {
+        ConnectionManager connectionManager = new ConnectionManager();
+        ReflectionTestUtils.setField(connectionManager, "objectMapper", new ObjectMapper());
+
+        EmbeddedChannel activeChannel = new EmbeddedChannel();
+        UserConnection activeConnection = new UserConnection("conn-2", "userB", 2, activeChannel);
+        activeConnection.setAuthenticated("token");
+        activeConnection.setProtocol("TCP");
+
+        @SuppressWarnings("unchecked")
+        Map<String, UserConnection> connectionMap =
+                (Map<String, UserConnection>) ReflectionTestUtils.getField(connectionManager, "connectionMap");
+        @SuppressWarnings("unchecked")
+        Map<String, Set<String>> userConnectionMap =
+                (Map<String, Set<String>>) ReflectionTestUtils.getField(connectionManager, "userConnectionMap");
+        connectionMap.put("conn-2", activeConnection);
+        userConnectionMap.put("userB", Set.of("conn-2"));
+
+        OnlineDispatchRpcImpl service = new OnlineDispatchRpcImpl(connectionManager);
+
+        DispatchMessageReq req = new DispatchMessageReq();
+        req.setUserId("userB");
+        req.setPayload(payload("srv-3", "hello-tcp"));
+
+        var resp = service.dispatchMessage(req);
+
+        assertEquals(1, resp.getResults().size());
+        assertEquals(true, resp.getResults().get(0).isSuccess());
+
+        Object outbound = activeChannel.readOutbound();
+        assertNotNull(outbound);
+        assertEquals(CheeseMessage.class, outbound.getClass());
     }
 
     @Test

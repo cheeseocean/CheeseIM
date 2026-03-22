@@ -62,6 +62,33 @@ public class AuthHttpClient {
         }
     }
 
+    public WsTicketResponse issueWsTicket(String accessToken) {
+        try {
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + "/api/im/ws-ticket"))
+                    .header("Authorization", "Bearer " + accessToken)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString("{}", StandardCharsets.UTF_8))
+                    .build();
+
+            RawHttpResponse response = httpExchange.execute(httpRequest);
+            if (response.statusCode() >= 400) {
+                throw new IllegalStateException("ws ticket failed: http " + response.statusCode());
+            }
+
+            WsTicketResponse wsTicketResponse = objectMapper.readValue(response.body(), WsTicketResponse.class);
+            if (wsTicketResponse.ticket() == null || wsTicketResponse.ticket().isBlank()) {
+                throw new IllegalStateException("ticket missing in ws ticket response");
+            }
+            return wsTicketResponse;
+        } catch (IOException e) {
+            throw new UncheckedIOException("failed to issue ws ticket", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("ws ticket interrupted", e);
+        }
+    }
+
     private static String trimTrailingSlash(String baseUrl) {
         if (baseUrl.endsWith("/")) {
             return baseUrl.substring(0, baseUrl.length() - 1);

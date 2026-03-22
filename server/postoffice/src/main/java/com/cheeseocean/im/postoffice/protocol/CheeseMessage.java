@@ -1,5 +1,8 @@
 package com.cheeseocean.im.postoffice.protocol;
 
+import com.cheeseocean.im.common.core.util.ObjectMapperFactory;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -29,6 +32,7 @@ import java.nio.charset.StandardCharsets;
 public class CheeseMessage implements Serializable {
     
     private static final long serialVersionUID = 1L;
+    private static final ObjectMapper OBJECT_MAPPER = ObjectMapperFactory.createDefaultMapper();
     
     // 协议常量
     public static final short MAGIC = (short) 0xCEEE; // CheeseIM 协议标识
@@ -167,7 +171,7 @@ public class CheeseMessage implements Serializable {
      */
     public WSMessage toWSMessage() {
         WSMessage wsMessage = new WSMessage();
-        wsMessage.setMsgType((int) msgType);
+        wsMessage.setMsgType(CheeseMessageType.tcpToWsMessageType(msgType));
         wsMessage.setOperationID(operationID);
         wsMessage.setSendTime(timestamp);
         
@@ -210,8 +214,7 @@ public class CheeseMessage implements Serializable {
                 if (wsMessage.getData() instanceof String) {
                     cheeseMessage.data = (String) wsMessage.getData();
                 } else {
-                    // 这里可以使用Jackson等JSON库序列化
-                    cheeseMessage.data = wsMessage.getData().toString();
+                    cheeseMessage.data = OBJECT_MAPPER.writeValueAsString(wsMessage.getData());
                 }
                 cheeseMessage.dataLength = cheeseMessage.data.getBytes(StandardCharsets.UTF_8).length;
             } catch (Exception e) {

@@ -5,6 +5,7 @@ public class ClientSession {
     private String userId;
     private Integer platformId;
     private String accessToken;
+    private String wsTicket;
     private ConnectionState connectionState = ConnectionState.DISCONNECTED;
     private String latestServerMsgId;
     private String latestClientMsgId;
@@ -31,6 +32,14 @@ public class ClientSession {
 
     public void setAccessToken(String accessToken) {
         this.accessToken = accessToken;
+    }
+
+    public String getWsTicket() {
+        return wsTicket;
+    }
+
+    public void setWsTicket(String wsTicket) {
+        this.wsTicket = wsTicket;
     }
 
     public ConnectionState getConnectionState() {

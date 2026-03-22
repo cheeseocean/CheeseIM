@@ -10,11 +10,9 @@ public class PayloadFactory {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public String authPayload(String token, String userId, Integer platformId) {
+    public String authPayload(String ticket) {
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("token", token);
-        payload.put("userID", userId);
-        payload.put("platformID", platformId);
+        payload.put("ticket", ticket);
         return toJson(payload);
     }
 

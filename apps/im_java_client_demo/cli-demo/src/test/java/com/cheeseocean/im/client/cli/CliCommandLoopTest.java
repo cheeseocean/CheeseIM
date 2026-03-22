@@ -31,4 +31,13 @@ class CliCommandLoopTest {
 
         assertEquals(ParsedCommand.Type.HELP, command.type());
     }
+
+    @Test
+    void formatInboundMessageShouldExtractReadableFields() {
+        String formatted = CliCommandLoop.LoggingListener.formatInboundMessage(
+                "{\"serverMsgId\":\"msg-1\",\"clientMsgID\":\"client-1\",\"sendID\":\"userA\",\"recvID\":\"userB\",\"content\":\"hello\",\"contentType\":101,\"sessionType\":1,\"sendTime\":1710000000002}"
+        );
+
+        assertEquals("from=userA to=userB content=hello serverMsgId=msg-1 seq=-", formatted);
+    }
 }

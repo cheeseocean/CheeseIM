@@ -47,4 +47,25 @@ class AuthHttpClientTest {
 
         assertEquals("access token missing in auth response", error.getMessage());
     }
+
+    @Test
+    void issueWsTicketShouldUseBearerTokenAndParseTicket() throws Exception {
+        AuthHttpClient client = new AuthHttpClient(
+                "http://127.0.0.1:8080",
+                request -> {
+                    assertEquals("http://127.0.0.1:8080/api/im/ws-ticket", request.uri().toString());
+                    assertEquals("POST", request.method());
+                    assertEquals("Bearer access-token", request.headers().firstValue("Authorization").orElseThrow());
+                    return new AuthHttpClient.RawHttpResponse(200, """
+                            {"ticket":"ws-ticket-1","expire_at":1710000200000,"ws_url":"/ws"}
+                            """);
+                }
+        );
+
+        WsTicketResponse response = client.issueWsTicket("access-token");
+
+        assertEquals("ws-ticket-1", response.ticket());
+        assertEquals(1710000200000L, response.expireAt());
+        assertEquals("/ws", response.wsUrl());
+    }
 }

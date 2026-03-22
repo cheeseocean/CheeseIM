@@ -57,7 +57,7 @@ public class TcpImClient {
                 TcpMessageTypes.TCP_AUTH_REQ,
                 operationId,
                 System.currentTimeMillis(),
-                payloadFactory.authPayload(session.getAccessToken(), session.getUserId(), session.getPlatformId())
+                payloadFactory.authPayload(session.getWsTicket())
         ));
     }
 

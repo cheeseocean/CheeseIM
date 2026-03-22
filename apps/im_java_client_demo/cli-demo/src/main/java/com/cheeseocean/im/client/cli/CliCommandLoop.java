@@ -3,6 +3,7 @@ package com.cheeseocean.im.client.cli;
 import com.cheeseocean.im.client.auth.AuthHttpClient;
 import com.cheeseocean.im.client.auth.AuthLoginRequest;
 import com.cheeseocean.im.client.auth.AuthLoginResponse;
+import com.cheeseocean.im.client.auth.WsTicketResponse;
 import com.cheeseocean.im.client.protocol.TcpPacket;
 import com.cheeseocean.im.client.session.ConnectionState;
 import com.cheeseocean.im.client.tcp.IncomingMessageListener;
@@ -111,6 +112,8 @@ public class CliCommandLoop {
         if (demoState.session().getAccessToken() == null || demoState.session().getAccessToken().isBlank()) {
             throw new IllegalStateException("login first");
         }
+        WsTicketResponse wsTicket = authHttpClient.issueWsTicket(demoState.session().getAccessToken());
+        demoState.session().setWsTicket(wsTicket.ticket());
         TcpImClient client = new TcpImClient(
                 tcpClientConfig,
                 demoState.session(),
@@ -139,7 +142,7 @@ public class CliCommandLoop {
         printer.println("heartbeat sent");
     }
 
-    private static final class LoggingListener implements IncomingMessageListener {
+    static final class LoggingListener implements IncomingMessageListener {
 
         private final ConsolePrinter printer;
         private final DemoState demoState;
@@ -172,7 +175,7 @@ public class CliCommandLoop {
 
         @Override
         public void onMessage(TcpPacket packet) {
-            printer.println("[tcp] inbound: " + packet.data());
+            printer.println("[tcp] inbound: " + formatInboundMessage(packet.data()));
         }
 
         @Override
@@ -198,6 +201,52 @@ public class CliCommandLoop {
                 return null;
             }
             return json.substring(valueStart, valueEnd);
+        }
+
+        static String formatInboundMessage(String json) {
+            String from = valueOrDash(extractField(json, "sendID"));
+            String to = valueOrDash(extractField(json, "recvID"));
+            String content = valueOrDash(extractField(json, "content"));
+            String serverMsgId = valueOrDash(firstNonBlank(
+                    extractField(json, "serverMsgID"),
+                    extractField(json, "serverMsgId")
+            ));
+            String seq = valueOrDash(extractNumericField(json, "seq"));
+            return "from=" + from
+                    + " to=" + to
+                    + " content=" + content
+                    + " serverMsgId=" + serverMsgId
+                    + " seq=" + seq;
+        }
+
+        private static String extractNumericField(String json, String field) {
+            String pattern = "\"" + field + "\":";
+            int start = json.indexOf(pattern);
+            if (start < 0) {
+                return null;
+            }
+            int valueStart = start + pattern.length();
+            int valueEnd = valueStart;
+            while (valueEnd < json.length() && Character.isDigit(json.charAt(valueEnd))) {
+                valueEnd++;
+            }
+            if (valueEnd == valueStart) {
+                return null;
+            }
+            return json.substring(valueStart, valueEnd);
+        }
+
+        private static String valueOrDash(String value) {
+            return value == null || value.isBlank() ? "-" : value;
+        }
+
+        private static String firstNonBlank(String... values) {
+            for (String value : values) {
+                if (value != null && !value.isBlank()) {
+                    return value;
+                }
+            }
+            return null;
         }
     }
 }
