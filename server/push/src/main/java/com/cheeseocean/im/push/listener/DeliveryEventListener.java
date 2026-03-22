@@ -37,12 +37,6 @@ public class DeliveryEventListener {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    public DeliveryEventListener(OnlineRouteQueryRpc onlineRouteQueryRpc,
-                                 OnlineDispatchRpc onlineDispatchRpc,
-                                 KafkaTemplate<String, Object> kafkaTemplate) {
-        this(new ObjectMapper(), onlineRouteQueryRpc, onlineDispatchRpc, kafkaTemplate);
-    }
-
     @KafkaListener(topics = TopicNames.DELIVERY, groupId = "push-delivery")
     public void onMessage(String payload) {
         try {

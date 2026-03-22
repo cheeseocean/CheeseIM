@@ -3,8 +3,6 @@ package com.cheeseocean.im.bootstrap.all;
 import com.cheeseocean.im.authcenter.AuthCenter;
 import com.cheeseocean.im.postbox.Postbox;
 import com.cheeseocean.im.postbox.config.JacksonConfig;
-import com.cheeseocean.im.postbox.config.KafkaConfig;
-import com.cheeseocean.im.postbox.config.RedisConfig;
 import com.cheeseocean.im.postman.Postman;
 import com.cheeseocean.im.postoffice.PostOffice;
 import com.cheeseocean.im.push.Push;
@@ -35,12 +33,8 @@ import java.util.Map;
                 @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = Postbox.class),
                 @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = Push.class),
                 @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = AuthCenter.class),
-                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = com.cheeseocean.im.postoffice.config.RedisConfig.class),
-                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = RedisConfig.class),
                 @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = com.cheeseocean.im.postman.config.JacksonConfig.class),
-                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = com.cheeseocean.im.postman.config.KafkaConfig.class),
                 @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = JacksonConfig.class),
-                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = KafkaConfig.class),
         }
 )
 @EnableDubbo(scanBasePackages = {

@@ -10,6 +10,7 @@ import com.cheeseocean.im.common.api.event.OfflinePushEvent;
 import com.cheeseocean.im.common.api.route.OnlineRouteQueryRpc;
 import com.cheeseocean.im.common.api.rpc.OnlineDispatchRpc;
 import com.cheeseocean.im.common.core.constants.TopicNames;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.kafka.core.KafkaTemplate;
 
@@ -36,7 +37,7 @@ class DeliveryEventListenerTest {
         dispatchResp.setResults(List.of(new DispatchResult("conn-1", true, "OK", "delivered")));
         when(onlineDispatchRpc.dispatchMessage(any())).thenReturn(dispatchResp);
 
-        DeliveryEventListener listener = new DeliveryEventListener(routeQueryRpc, onlineDispatchRpc, kafkaTemplate);
+        DeliveryEventListener listener = new DeliveryEventListener(new ObjectMapper(), routeQueryRpc, onlineDispatchRpc, kafkaTemplate);
         listener.handle(event(true));
 
         verify(onlineDispatchRpc).dispatchMessage(any());
@@ -52,7 +53,7 @@ class DeliveryEventListenerTest {
 
         when(routeQueryRpc.findByUser("userB")).thenReturn(List.of());
 
-        DeliveryEventListener listener = new DeliveryEventListener(routeQueryRpc, onlineDispatchRpc, kafkaTemplate);
+        DeliveryEventListener listener = new DeliveryEventListener(new ObjectMapper(), routeQueryRpc, onlineDispatchRpc, kafkaTemplate);
         listener.handle(event(true));
 
         verify(onlineDispatchRpc, never()).dispatchMessage(any());
@@ -68,7 +69,7 @@ class DeliveryEventListenerTest {
 
         when(routeQueryRpc.findByUser("userB")).thenReturn(List.of());
 
-        DeliveryEventListener listener = new DeliveryEventListener(routeQueryRpc, onlineDispatchRpc, kafkaTemplate);
+        DeliveryEventListener listener = new DeliveryEventListener(new ObjectMapper(), routeQueryRpc, onlineDispatchRpc, kafkaTemplate);
         listener.handle(event(false));
 
         verify(onlineDispatchRpc, never()).dispatchMessage(any());

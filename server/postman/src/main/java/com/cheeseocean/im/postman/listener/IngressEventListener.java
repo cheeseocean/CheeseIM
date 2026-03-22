@@ -12,7 +12,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
@@ -31,7 +30,7 @@ public class IngressEventListener {
     private final ConversationSeqService conversationSeqService;
 
     public IngressEventListener(ObjectMapper objectMapper,
-                                @Qualifier("postmanObjectKafkaTemplate") KafkaTemplate<String, Object> kafkaTemplate,
+                                KafkaTemplate<String, Object> kafkaTemplate,
                                 GroupMembershipFacade groupMembershipFacade,
                                 GroupFanoutPlanner groupFanoutPlanner,
                                 ConversationSeqService conversationSeqService) {

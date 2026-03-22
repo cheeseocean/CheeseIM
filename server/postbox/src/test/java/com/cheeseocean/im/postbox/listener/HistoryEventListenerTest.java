@@ -4,6 +4,7 @@ import com.cheeseocean.im.common.api.dto.message.MessageOptions;
 import com.cheeseocean.im.common.api.dto.message.SequencedMessage;
 import com.cheeseocean.im.common.api.event.HistoryEvent;
 import com.cheeseocean.im.postbox.history.BlockHistoryPersistenceService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -14,11 +15,11 @@ import static org.mockito.Mockito.verify;
 class HistoryEventListenerTest {
 
     @Test
-    void onMessageShouldPersistHistoryEvent() {
+    void onMessageShouldPersistHistoryEvent() throws Exception {
         BlockHistoryPersistenceService persistenceService = mock(BlockHistoryPersistenceService.class);
-        HistoryEventListener listener = new HistoryEventListener(persistenceService);
+        HistoryEventListener listener = new HistoryEventListener(new ObjectMapper(), persistenceService);
 
-        listener.onMessage(event());
+        listener.onMessage(new ObjectMapper().writeValueAsString(event()));
 
         verify(persistenceService).persist(org.mockito.ArgumentMatchers.any(HistoryEvent.class));
     }
