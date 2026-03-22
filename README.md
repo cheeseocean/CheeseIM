@@ -1,318 +1,309 @@
 # CheeseIM
 
-🧀 **CheeseIM** - 企业级即时通讯系统
+中文/[英文](./README.en.md)
 
-基于 Spring Boot + Netty + MongoDB + Kafka 构建的高性能、可扩展的即时通讯解决方案。
+CheeseIM 是一个即时通讯系统仓库，当前以 Java 17 的多模块后端为核心，同时包含客户端 Demo、Web/Flutter 客户端和 TCP SDK。
 
-## ✨ 核心特性
+当前仓库重点在于一条经过重构的 IM 消息链路，主要服务边界如下：
 
-### 🔐 安全特性
-- **端到端加密** - AES加密保护消息传输安全
-- **Token认证** - JWT令牌机制，支持多设备登录
-- **消息审核** - 智能敏感词过滤，违规行为检测
-- **权限控制** - 细粒度用户权限管理
-- **数据备份** - 自动消息备份与恢复机制
+- `postoffice`：接入层、长连接管理、在线路由
+- `postman`：消息投递编排、幂等、补偿、状态收敛
+- `postbox`：消息持久化、历史查询、会话视图
+- `push`：在线投递执行、离线推送决策与适配
+- `authcenter`：轻量登录与认证引导
 
-### 📱 多端支持
-- **跨平台客户端** - 支持iOS/Android/Web/PC
-- **多设备同步** - 消息实时同步到所有设备
-- **离线推送** - APNs/FCM/JPush多渠道推送
-- **设备管理** - 在线设备监控与管理
-- **智能路由** - 消息智能路由分发
+如果你是第一次进入仓库，建议先把它理解成一个 monorepo：
 
-### 💬 消息功能
-- **多媒体消息** - 文本/图片/语音/视频/文件/位置
-- **消息状态** - 发送状态、已读回执、消息撤回
-- **消息搜索** - 全文搜索、多条件筛选、搜索建议
-- **消息转发** - 支持单条/批量转发
-- **引用回复** - 消息引用与回复功能
-- **@提醒** - 群聊@成员提醒
-- **正在输入** - 实时输入状态显示
+- 根目录用于聚合服务端、客户端、SDK 与文档
+- 后端主要从 `server/` 目录构建和运行
+- 客户端和 SDK 在各自子目录独立开发
 
-### 👥 社交功能
-- **好友系统** - 好友添加/删除/备注/分组
-- **群组聊天** - 群组创建/管理/权限控制
-- **在线状态** - 实时在线状态显示
-- **用户资料** - 头像/昵称/个性签名
-- **黑名单** - 用户屏蔽功能
+## 仓库结构
 
-### 🚀 性能优化
-- **分布式架构** - 微服务架构，支持水平扩展
-- **消息队列** - Kafka异步消息处理
-- **缓存机制** - Redis多级缓存优化
-- **连接池** - Netty连接池管理
-- **负载均衡** - 支持多实例负载均衡
-- **数据分片** - MongoDB分片存储
-
-### 📊 监控运维
-- **系统监控** - 实时性能监控
-- **连接统计** - 在线用户/连接数统计
-- **消息统计** - 消息发送/接收统计
-- **告警通知** - 异常情况自动告警
-- **日志分析** - 结构化日志记录
-- **健康检查** - 服务健康状态检查
-
-## 🏗️ 技术架构
-
-### 核心技术栈
-- **后端框架**: Spring Boot 2.7+
-- **网络通信**: Netty 4.1+
-- **数据存储**: MongoDB 5.0+
-- **消息队列**: Apache Kafka 2.8+
-- **缓存**: Redis 6.0+
-- **RPC框架**: Apache Dubbo 3.1+
-- **注册中心**: Nacos 2.0+ / Zookeeper
-- **协议**: MQTT / WebSocket
-
-### 系统架构
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   iOS Client    │    │  Android Client │    │   Web Client    │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-                    ┌─────────────────┐
-                    │  Load Balancer  │
-                    └─────────────────┘
-                                 │
-         ┌───────────────────────┼───────────────────────┐
-         │                       │                       │
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   PostOffice    │    │    PostMan      │    │      CMS        │
-│  (Gateway)      │    │  (Delivery)     │    │  (Management)   │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-                    ┌─────────────────┐
-                    │     Kafka       │
-                    └─────────────────┘
-                                 │
-         ┌───────────────────────┼───────────────────────┐
-         │                       │                       │
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│    Message      │    │     Friend      │    │     Group       │
-│   Service       │    │    Service      │    │    Service      │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-                    ┌─────────────────┐
-                    │    MongoDB      │
-                    └─────────────────┘
+```text
+CheeseIM/
+├── server/                  # Java 17 Gradle 多模块后端
+│   ├── authcenter/          # 认证服务
+│   ├── bootstrap-all/       # all-in-one 启动聚合模块
+│   ├── common-api/          # 跨模块 API/契约
+│   ├── common-core/         # 共享基础设施与通用能力
+│   ├── config/              # 多服务配置文件
+│   ├── postoffice/          # 网关 / TCP / WebSocket 接入
+│   ├── postman/             # 投递编排与状态机
+│   ├── postbox/             # 消息存储与查询
+│   └── push/                # 在线投递执行与离线推送
+├── apps/
+│   ├── im_flutter_client/   # Flutter 客户端
+│   ├── im_java_client_demo/ # Java TCP 客户端 Demo
+│   └── im_web_client/       # React + Vite Web 客户端
+├── sdks/
+│   └── im_tcp_sdk/          # Dart TCP SDK
+├── distro/docker/           # 本地中间件编排
+└── docs/                    # 运行手册、设计文档、计划文档
 ```
 
-## 📦 模块说明
+## 核心服务职责
 
-### 核心模块
-- **postoffice** - 网关服务，处理客户端连接和消息路由
-- **postman** - 消息投递服务，负责消息分发和推送
-- **message** - 消息服务，处理消息存储和检索
-- **push** - 推送服务，处理离线消息推送
-- **cms** - 内容管理服务，消息审核和管理
+### `postoffice`
 
-### 业务模块
-- **business/friend** - 好友关系管理
-- **business/group** - 群组管理
-- **business/user** - 用户管理
+`postoffice` 是接入层与在线路由层，负责：
 
-### 基础模块
-- **common** - 公共组件和工具类
-- **client** - 客户端SDK
+- 处理 TCP / WebSocket 长连接
+- 认证、心跳、断连与会话绑定
+- 维护用户-设备-网关节点的在线路由
+- 规范化客户端消息与回执后转发给后续服务
 
-## 🚀 快速开始
+它不负责最终消息真相、离线存储或完整投递编排。
 
-### 环境要求
-- JDK 11+
-- Maven 3.6+
-- MongoDB 5.0+
-- Redis 6.0+
-- Kafka 2.8+
+### `postman`
 
-### 本地开发
+`postman` 是消息链路中的编排核心，负责：
 
-1. **克隆项目**
+- 消息幂等校验
+- 会话序列分配
+- 投递状态推进
+- 回执、已读、撤回等状态收敛
+- 补偿任务与死信处理
+
+它不直接承担查询侧存储模型，也不负责网关接入。
+
+### `postbox`
+
+`postbox` 是存储边界，负责：
+
+- 持久化消息历史
+- 维护消息块和消息 ID 映射
+- 提供历史拉取、会话视图与部分查询能力
+- 维护与会话状态相关的 Redis 热数据
+
+### `push`
+
+`push` 是投递执行与离线推送边界，负责：
+
+- 消费投递事件并执行在线投递
+- 判断是否需要厂商离线推送
+- 对推送尝试去重
+- 在回执收敛后取消过期推送
+- 对接 APNs / FCM / 极光等推送适配器
+
+### `authcenter`
+
+`authcenter` 提供轻量认证入口，当前主要用于本地联调和 Demo 登录流程。
+
+## 技术栈
+
+### 后端
+
+- Java 17
+- Gradle 多模块构建
+- Spring Boot 3.2.x
+- Apache Dubbo 3.x
+- Netty
+- Kafka
+- Redis
+- MongoDB
+
+### 客户端与 SDK
+
+- React + Vite Web 客户端
+- Flutter 客户端
+- Dart TCP SDK
+- Java TCP CLI Demo
+
+## 基础依赖
+
+按当前配置，后端默认依赖以下中间件：
+
+- Nacos：服务注册与配置中心
+- Kafka：异步事件流与投递链路
+- Redis：在线路由、热状态、幂等/缓存数据
+- MongoDB：消息历史与持久化查询数据
+
+仓库内已提供本地中间件编排文件：
+
 ```bash
-git clone https://github.com/cheeseocean/CheeseIM.git
-cd CheeseIM
+docker-compose -f distro/docker/docker-compose.middleware.yml up -d
 ```
 
-2. **启动中间件**
+该编排当前包含：
+
+- `nacos`
+- `kafka`
+- `zookeeper`
+- `kafka-console`
+
+说明：
+
+- Redis 和 MongoDB 需要你自行准备，默认地址分别是 `localhost:6379` 与 `localhost:27017`
+- 后端配置文件位于 `server/config/src/main/resources/`
+
+## 运行方式
+
+### 1. 启动中间件
+
+在仓库根目录执行：
+
 ```bash
-cd distro/docker
-docker-compose -f docker-compose.middleware.yml up -d
+docker-compose -f distro/docker/docker-compose.middleware.yml up -d
 ```
 
-3. **配置数据库**
+### 2. 进入服务端目录
+
+后端 Gradle Wrapper 位于 `server/`：
+
 ```bash
-# 创建MongoDB数据库
-mongo
-use cheese_im
+cd server
 ```
 
-4. **编译项目**
+### 3. 构建服务端
+
 ```bash
 ./gradlew build
 ```
 
-5. **启动服务**
+### 4. 启动核心服务
+
+本地联调通常需要分别启动以下模块：
+
 ```bash
-# 启动消息服务
-./gradlew :message:bootRun
-
-# 启动网关服务
-./gradlew :postoffice:bootRun
-
-# 启动投递服务
+./gradlew :authcenter:bootRun
+./gradlew :postbox:bootRun
 ./gradlew :postman:bootRun
+./gradlew :push:bootRun
+./gradlew :postoffice:bootRun
 ```
 
-### Docker部署
+### 5. 启动 all-in-one 模式
+
+如果你希望以单进程方式本地运行全部后端模块，可以使用 `bootstrap-all`：
 
 ```bash
-# 构建镜像
-docker build -t cheeseim:latest .
-
-# 启动完整服务
-docker-compose up -d
+./gradlew :bootstrap-all:bootRun
 ```
 
-## 📋 API文档
+当前 `application-all.yml` 显示：
 
-### WebSocket连接
-```javascript
-// 连接WebSocket
-const ws = new WebSocket('ws://localhost:8080/ws');
+- all-in-one HTTP 端口为 `18079`
+- Dubbo 使用 `injvm`，不注册到外部注册中心
 
-// 发送消息
-ws.send(JSON.stringify({
-    type: 'message',
-    data: {
-        to: 'userID',
-        content: 'Hello World',
-        contentType: 101
-    }
-}));
-```
+## 常用端口
 
-### REST API
+按当前配置文件，默认端口如下：
+
+- `postoffice` HTTP：`18080`
+- `postoffice` WebSocket：`5147`
+- `postoffice` TCP：`5148`
+- `postman` HTTP：`18081`
+- `postbox` HTTP：`18082`
+- `push` HTTP：`18083`
+- `authcenter` HTTP：`18084`
+- `bootstrap-all` HTTP：`18079`
+- Nacos：`8848`
+- Kafka：`9092`
+
+## 客户端与 Demo
+
+### Java TCP Client Demo
+
+`apps/im_java_client_demo` 是当前后端联调最直接的客户端 Demo，用来验证：
+
+- 登录
+- TCP 连接与认证
+- 单聊文本消息发送
+- 入站消息接收
+
+运行方式：
+
 ```bash
-# 发送消息
-POST /api/v1/message/send
-{
-    "msgData": {
-        "sendID": "user1",
-        "recvID": "user2",
-        "content": "Hello",
-        "contentType": 101,
-        "sessionType": 1
-    }
-}
-
-# 获取消息历史
-GET /api/v1/message/history?conversationId=xxx&page=0&size=20
-
-# 搜索消息
-GET /api/v1/message/search?keyword=hello&userID=xxx
+cd server
+./gradlew :apps:im_java_client_demo:cli-demo:run --args="--host 127.0.0.1 --tcp-port 5148 --base-url http://127.0.0.1:18084"
 ```
 
-## 🔧 配置说明
+说明：
 
-### 应用配置
-```yaml
-# application.yml
-spring:
-  data:
-    mongodb:
-      host: localhost
-      port: 27017
-      database: cheese_im
-  
-  kafka:
-    bootstrap-servers: localhost:9092
-    
-  redis:
-    host: localhost
-    port: 6379
+- 上面的命令使用当前仓库 `authcenter` 的默认 HTTP 端口 `18084`
+- `apps/im_java_client_demo/README.md` 中仍保留了旧示例 `8080`
+- 使用前请根据你的本地启动方式确认 `base-url`
 
-cheeseim:
-  jwt:
-    secret: your-secret-key
-    expiration: 86400
-  
-  push:
-    apns:
-      enabled: true
-      key-path: /path/to/apns.p8
-    fcm:
-      enabled: true
-      key-path: /path/to/fcm.json
+### Web / Flutter / Dart SDK
+
+仓库中还包含：
+
+- `apps/im_web_client`
+- `apps/im_flutter_client`
+- `sdks/im_tcp_sdk`
+
+它们的开发与测试入口可参考 [docs/client-runbook.md](/Users/xxxcrel/Develop/backend/java/CheeseIM/docs/client-runbook.md)。
+
+## 测试与验证
+
+### 后端单模块测试
+
+在 `server/` 目录执行：
+
+```bash
+./gradlew :postoffice:test
+./gradlew :postman:test
+./gradlew :postbox:test
+./gradlew :push:test
 ```
 
-### Dubbo配置
-```properties
-# dubbo.properties
-dubbo.application.name=cheeseim-service
-dubbo.registry.address=nacos://localhost:8848
-dubbo.protocol.port=20880
+### 本地冒烟验证
+
+项目内已有本地 IM 冒烟手册：
+
+[docs/superpowers/runbooks/im-local-smoke-test.md](/Users/xxxcrel/Develop/backend/java/CheeseIM/docs/superpowers/runbooks/im-local-smoke-test.md)
+
+其中包含：
+
+- 在线投递
+- 离线回退
+- 重连拉取
+- 已读后取消推送
+
+最小回归命令示例：
+
+```bash
+cd server
+./gradlew :postbox:test :postman:test :push:test :postoffice:test
 ```
 
-## 📈 性能指标
+## 配置入口
 
-### 基准测试
-- **并发连接**: 10万+ WebSocket连接
-- **消息吞吐**: 10万+ 消息/秒
-- **响应延迟**: < 100ms (P99)
-- **可用性**: 99.9%+
+当前主要配置文件位于：
 
-### 扩展性
-- **水平扩展**: 支持多实例部署
-- **数据分片**: MongoDB自动分片
-- **缓存优化**: Redis集群支持
-- **消息队列**: Kafka分区扩展
+- `server/config/src/main/resources/common.yml`
+- `server/config/src/main/resources/application-postoffice.yml`
+- `server/config/src/main/resources/application-postman.yml`
+- `server/config/src/main/resources/application-postbox.yml`
+- `server/config/src/main/resources/application-push.yml`
+- `server/config/src/main/resources/application-authcenter.yml`
+- `server/config/src/main/resources/application-all.yml`
 
-## 🤝 贡献指南
+模块级默认行为包括：
 
-1. Fork 项目
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 打开 Pull Request
+- `postoffice` 默认开启 WebSocket 和 TCP 接入
+- `postman` 默认开启补偿监听
+- `push` 默认开启定时任务
+- `postbox` 默认启用 MongoDB、Redis、Kafka 相关配置
 
-## 📄 开源协议
+## 设计文档
 
-本项目采用 [Apache License 2.0](LICENSE) 开源协议。
+如果你想先理解当前重构后的架构，而不是直接读代码，建议先看：
 
-## 🙋‍♂️ 联系我们
+- [docs/superpowers/specs/2026-03-17-im-architecture-design.md](/Users/xxxcrel/Develop/backend/java/CheeseIM/docs/superpowers/specs/2026-03-17-im-architecture-design.md)
+- [docs/superpowers/specs/2026-03-17-im-message-pipeline-invariants.md](/Users/xxxcrel/Develop/backend/java/CheeseIM/docs/superpowers/specs/2026-03-17-im-message-pipeline-invariants.md)
+- [docs/client-runbook.md](/Users/xxxcrel/Develop/backend/java/CheeseIM/docs/client-runbook.md)
 
-- **作者**: xxxcrel
-- **邮箱**: xxxcrel@gmail.com
-- **项目地址**: https://github.com/cheeseocean/CheeseIM
-- **文档地址**: https://docs.cheeseim.com
+`server/` 目录下也保留了较多历史设计资料与重构文档，可作为深入阅读入口。
 
-## 🎯 路线图
+## 当前状态与注意事项
 
-### v1.1.0 (计划中)
-- [ ] 音视频通话功能
-- [ ] 文件传输优化
-- [ ] 消息加密增强
-- [ ] 管理后台界面
+这个仓库当前更适合被理解为“正在收敛中的 IM 系统实现”，而不是一个已经把所有面向终端产品能力都打磨完成的成品。
 
-### v1.2.0 (计划中)
-- [ ] 机器人接入
-- [ ] 消息翻译
-- [ ] 语音识别
-- [ ] 表情包支持
+阅读和使用时建议注意：
 
-### v2.0.0 (规划中)
-- [ ] 微服务重构
-- [ ] 云原生部署
-- [ ] AI智能助手
-- [ ] 区块链集成
-
----
-
-⭐ 如果这个项目对你有帮助，请给我们一个 Star！
-
-🧀 **CheeseIM** - 让沟通更简单，让连接更紧密！
+- 根目录是 monorepo，不要直接假设后端命令都在根目录执行
+- 后端实际构建和启动入口在 `server/`
+- 本文档只描述当前代码与配置能支撑的事实
+- 某些旧 Demo 或设计文档中的端口示例可能和当前默认配置不同，运行前请以 `server/config` 下配置为准
