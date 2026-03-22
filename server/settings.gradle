@@ -33,7 +33,6 @@ dependencyResolutionManagement {
             url 'https://repository.apache.org/content/repositories/releases/'
             name 'Apache Releases'
         }
-        mavenLocal()
         mavenCentral()
         // 私有仓库
         maven {
@@ -53,7 +52,8 @@ rootProject.name = 'CheeseIMServer'
 include 'postoffice'
 include 'postman'
 include 'postbox'
-include 'common'
+include 'common-core'
+include 'common-api'
 include 'push'
 include 'authcenter'
 include 'config'

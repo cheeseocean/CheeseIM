@@ -2,7 +2,7 @@ package com.cheeseocean.im.push.listener;
 
 import com.cheeseocean.im.common.constants.KafkaTopics;
 import com.cheeseocean.im.common.dto.OfflinePushTask;
-import com.cheeseocean.im.postoffice.service.OnlineRouteService;
+import com.cheeseocean.im.common.api.route.OnlineRouteQueryRpc;
 import com.cheeseocean.im.push.service.impl.MessagePushServiceImpl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,14 +14,14 @@ public class OfflinePushTaskListener {
 
     private final ObjectMapper objectMapper;
     private final MessagePushServiceImpl messagePushService;
-    private final OnlineRouteService onlineRouteService;
+    private final OnlineRouteQueryRpc onlineRouteQueryRpc;
 
     public OfflinePushTaskListener(ObjectMapper objectMapper,
                                    MessagePushServiceImpl messagePushService,
-                                   OnlineRouteService onlineRouteService) {
+                                   OnlineRouteQueryRpc onlineRouteQueryRpc) {
         this.objectMapper = objectMapper;
         this.messagePushService = messagePushService;
-        this.onlineRouteService = onlineRouteService;
+        this.onlineRouteQueryRpc = onlineRouteQueryRpc;
     }
 
     @KafkaListener(topics = KafkaTopics.Message.OFFLINE_PUSH, groupId = "push-offline")
@@ -34,7 +34,7 @@ public class OfflinePushTaskListener {
     }
 
     void handle(OfflinePushTask task) {
-        if (!onlineRouteService.findByUser(task.getReceiverId()).isEmpty()) {
+        if (!onlineRouteQueryRpc.findByUser(task.getReceiverId()).isEmpty()) {
             return;
         }
         messagePushService.pushOffline(task);

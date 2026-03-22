@@ -1,7 +1,7 @@
 dependencies {
-    implementation project(':common')
+    implementation project(':common-core')
+    implementation project(':common-api')
     implementation project(':config')
-    implementation project(':postoffice')
     implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.springframework.boot:spring-boot-starter-web'

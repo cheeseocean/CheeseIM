@@ -2,7 +2,7 @@ package com.cheeseocean.im.push.listener;
 
 import com.cheeseocean.im.common.dto.OfflinePushTask;
 import com.cheeseocean.im.common.dto.PushResult;
-import com.cheeseocean.im.postoffice.service.OnlineRouteService;
+import com.cheeseocean.im.common.api.route.OnlineRouteQueryRpc;
 import com.cheeseocean.im.push.service.impl.MessagePushServiceImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -19,11 +19,11 @@ class OfflinePushTaskListenerTest {
 
     @Test
     void offlinePushListenerShouldSkipVendorPushWhenUserCameBackOnline() throws Exception {
-        OnlineRouteService onlineRouteService = mock(OnlineRouteService.class);
-        when(onlineRouteService.findByUser("userB")).thenReturn(List.of(new com.cheeseocean.im.common.dto.RouteSnapshot()));
+        OnlineRouteQueryRpc onlineRouteQueryRpc = mock(OnlineRouteQueryRpc.class);
+        when(onlineRouteQueryRpc.findByUser("userB")).thenReturn(List.of(new com.cheeseocean.im.common.dto.RouteSnapshot()));
 
         MessagePushServiceImpl messagePushService = mock(MessagePushServiceImpl.class);
-        OfflinePushTaskListener listener = new OfflinePushTaskListener(new ObjectMapper(), messagePushService, onlineRouteService);
+        OfflinePushTaskListener listener = new OfflinePushTaskListener(new ObjectMapper(), messagePushService, onlineRouteQueryRpc);
 
         listener.onMessage(new ObjectMapper().writeValueAsString(task()));
 
@@ -32,13 +32,13 @@ class OfflinePushTaskListenerTest {
 
     @Test
     void offlinePushListenerShouldTriggerVendorPushWhenUserIsStillOffline() throws Exception {
-        OnlineRouteService onlineRouteService = mock(OnlineRouteService.class);
-        when(onlineRouteService.findByUser("userB")).thenReturn(List.of());
+        OnlineRouteQueryRpc onlineRouteQueryRpc = mock(OnlineRouteQueryRpc.class);
+        when(onlineRouteQueryRpc.findByUser("userB")).thenReturn(List.of());
 
         MessagePushServiceImpl messagePushService = mock(MessagePushServiceImpl.class);
         when(messagePushService.pushOffline(any(OfflinePushTask.class))).thenReturn(PushResult.success("userB", "offline-push"));
 
-        OfflinePushTaskListener listener = new OfflinePushTaskListener(new ObjectMapper(), messagePushService, onlineRouteService);
+        OfflinePushTaskListener listener = new OfflinePushTaskListener(new ObjectMapper(), messagePushService, onlineRouteQueryRpc);
         listener.onMessage(new ObjectMapper().writeValueAsString(task()));
 
         verify(messagePushService).pushOffline(any(OfflinePushTask.class));

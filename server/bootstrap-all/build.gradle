@@ -1,5 +1,6 @@
 dependencies {
-    implementation project(':common')
+    implementation project(':common-core')
+    implementation project(':common-api')
     implementation project(':config')
     implementation project(':authcenter')
     implementation project(':postoffice')
