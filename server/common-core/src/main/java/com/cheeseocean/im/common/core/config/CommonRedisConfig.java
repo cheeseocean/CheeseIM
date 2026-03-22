@@ -1,4 +1,4 @@
-package com.cheeseocean.im.common.config;
+package com.cheeseocean.im.common.core.config;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;

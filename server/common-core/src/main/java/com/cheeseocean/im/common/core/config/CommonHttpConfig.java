@@ -1,4 +1,4 @@
-package com.cheeseocean.im.common.config;
+package com.cheeseocean.im.common.core.config;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;

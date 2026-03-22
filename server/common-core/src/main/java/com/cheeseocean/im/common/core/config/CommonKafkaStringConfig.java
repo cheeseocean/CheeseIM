@@ -1,4 +1,4 @@
-package com.cheeseocean.im.common.config;
+package com.cheeseocean.im.common.core.config;
 
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
