@@ -6,8 +6,8 @@
 
 - accept and authenticate long-lived client connections
 - maintain per-user, per-device online route snapshots
-- normalize inbound chat and ack traffic before forwarding to the delivery core
-- deliver online fanout results back to `postman`
+- normalize inbound chat and ack traffic before forwarding to `postbox` / `postman`
+- execute connection-level online dispatch for `push` through `OnlineDispatchRpc`
 
 ## Core Types
 
@@ -15,11 +15,12 @@
 - `ChatMessageHandler`
 - `HeartbeatMessageHandler`
 - `RedisOnlineRouteService`
-- `GatewayPushServiceImpl`
+- `OnlineDispatchRpcImpl`
+- `OnlineRouteQueryRpcImpl`
 
 ## Not In Scope
 
-`postoffice` does not own durable message truth, offline storage, or final delivery convergence. Those responsibilities belong to `postbox`, `push`, and `postman`.
+`postoffice` does not own durable message truth, offline storage, or delivery orchestration. Those responsibilities belong to `postbox`, `push`, and `postman`.
 
 ## Verification
 

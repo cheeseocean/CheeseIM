@@ -1,5 +1,10 @@
 # IM 鉴权体系设计
 
+> 状态：已过期。
+> 当前共享鉴权契约与模块边界已收敛到 `common-core/common-api` 和
+> [2026-03-22-im-full-refactor-design.md](/Users/xxxcrel/Develop/backend/java/CheeseIM/server/docs/superpowers/specs/2026-03-22-im-full-refactor-design.md)。
+> 本文保留仅用于历史设计参考，其中 `:common` 模块、旧 Dubbo 接口路径与旧编译命令不再适用于当前工程。
+
 ## 1. 目标
 
 构建一套适用于中大型 IM 系统的鉴权体系，满足：

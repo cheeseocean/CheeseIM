@@ -1,23 +1,23 @@
 # Postman
 
-`postman` is the delivery core of the rebuilt IM architecture.
+`postman` is the orchestration core of the rebuilt IM architecture.
 
 ## Responsibility
 
-- accept normalized send commands from the gateway path
-- enforce idempotency and generate stable delivery outcomes
-- orchestrate message persistence through `postbox`
-- coordinate online fanout through `postoffice`
+- consume normalized ingress events from `postbox`
+- enforce idempotency and allocate stable conversation `seq`
+- orchestrate history fanout to `postbox`
+- orchestrate delivery fanout to `push`
 - converge ack, read, and recall state
 - schedule compensation and dead-letter handling for incomplete delivery
 
 ## Core Types
 
-- `MessageDeliveryServiceImpl`
+- `IngressEventListener`
+- `ConversationSeqService`
 - `MessageIdempotencyService`
-- `DeliveryStateMachine`
 - `DeliveryCompensationService`
-- `GroupFanoutPlanner`
+- `ReceiptEventListener`
 
 ## Not In Scope
 
@@ -25,9 +25,9 @@ The module does not carry query-side or storage-side ownership:
 
 - history-query APIs
 - Mongo persistence models
-- conversation sequence utilities
+- history persistence models
 
-Storage truth now lives in `postbox`, and delivery truth lives in the service set above.
+History truth lives in `postbox`, online dispatch lives in `postoffice`, and delivery execution lives in `push`.
 
 ## Verification
 

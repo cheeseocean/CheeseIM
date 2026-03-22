@@ -1,5 +1,10 @@
 # IM 消息架构重构设计
 
+> 状态：已过期。
+> 当前实现已按一次性重构方案收敛到
+> [2026-03-22-im-full-refactor-design.md](/Users/xxxcrel/Develop/backend/java/CheeseIM/server/docs/superpowers/specs/2026-03-22-im-full-refactor-design.md)。
+> 本文保留仅用于历史方案追溯，其中关于 `postman` 直接承接入口、`postbox` inbox 投影、以及旧 `HistoryTask/OfflinePushTask` 等内容已不再代表当前代码。
+
 ## 1. 目标
 
 将当前消息发送主链路从：
