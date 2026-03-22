@@ -1,6 +1,5 @@
 package com.cheeseocean.im.postman.service;
 
-import com.cheeseocean.im.common.dto.DeliveryCommand;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -26,43 +25,5 @@ public class GroupFanoutPlanner {
             batches.add(List.copyOf(memberIds.subList(start, end)));
         }
         return batches;
-    }
-
-    public FanoutPlan plan(DeliveryCommand command, List<String> memberIds) {
-        List<FanoutBatch> batches = new ArrayList<>();
-        for (List<String> batch : partition(memberIds)) {
-            batches.add(new FanoutBatch(batch));
-        }
-        return new FanoutPlan(command.getConversationId(), batches);
-    }
-
-    public static final class FanoutPlan {
-        private final String conversationId;
-        private final List<FanoutBatch> batches;
-
-        public FanoutPlan(String conversationId, List<FanoutBatch> batches) {
-            this.conversationId = conversationId;
-            this.batches = List.copyOf(batches);
-        }
-
-        public String getConversationId() {
-            return conversationId;
-        }
-
-        public List<FanoutBatch> getBatches() {
-            return batches;
-        }
-    }
-
-    public static final class FanoutBatch {
-        private final List<String> receiverIds;
-
-        public FanoutBatch(List<String> receiverIds) {
-            this.receiverIds = List.copyOf(receiverIds);
-        }
-
-        public List<String> getReceiverIds() {
-            return receiverIds;
-        }
     }
 }
