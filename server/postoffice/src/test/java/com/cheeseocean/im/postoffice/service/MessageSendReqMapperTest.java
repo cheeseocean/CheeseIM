@@ -26,6 +26,7 @@ class MessageSendReqMapperTest {
         message.setSessionType(1);
         message.setSendTime(123L);
         message.setOptions(Map.of("needHistory", true, "needOnlinePush", true));
+        message.setAttachedInfo("{\"attachmentId\":\"att-1\",\"downloadUrl\":\"https://cdn.example.com/a\"}");
 
         SendMessageReq req = mapper.map(message, connection, "op-1");
 
@@ -35,6 +36,7 @@ class MessageSendReqMapperTest {
         assertEquals(101, req.getContentType());
         assertTrue(req.getOptions().isNeedHistory());
         assertTrue(req.getOptions().isNeedOnlinePush());
+        assertEquals("{\"attachmentId\":\"att-1\",\"downloadUrl\":\"https://cdn.example.com/a\"}", req.getExt().get("attachedInfo"));
     }
 
     @Test

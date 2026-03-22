@@ -21,9 +21,9 @@ Those responsibilities now live in the validated `postoffice` and `postman` flow
 
 ## Core Types
 
-- `MessageDocument`
-- `InboxDocument`
-- `MessageStoreServiceImpl`
+- `message_block`
+- `message_id_mapping`
+- `BlockMessageQueryService`
 
 ## Verification
 
@@ -31,4 +31,5 @@ Those responsibilities now live in the validated `postoffice` and `postman` flow
 ./gradlew :postbox:test
 ```
 
-Primary regression coverage lives in `postbox/src/test/java/com/cheeseocean/im/postbox/service/MessageStoreServiceImplTest.java`.
+Primary regression coverage lives in `postbox/src/test/java/com/cheeseocean/im/postbox/history/BlockHistoryPersistenceServiceTest.java`
+and `postbox/src/test/java/com/cheeseocean/im/postbox/service/ConversationQueryServiceTest.java`.

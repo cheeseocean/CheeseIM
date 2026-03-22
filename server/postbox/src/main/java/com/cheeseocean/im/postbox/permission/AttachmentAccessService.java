@@ -2,32 +2,30 @@ package com.cheeseocean.im.postbox.permission;
 
 import com.cheeseocean.im.common.model.auth.PermissionCheckRequest;
 import com.cheeseocean.im.common.model.auth.PermissionCheckResult;
-import com.cheeseocean.im.postbox.entity.MessageDocument;
-import com.cheeseocean.im.postbox.repository.MessageDocumentRepository;
+import com.cheeseocean.im.postbox.service.BlockMessageQueryService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class AttachmentAccessService {
 
-    private final MessageDocumentRepository messageDocumentRepository;
+    private final BlockMessageQueryService blockMessageQueryService;
     private final ConversationPermissionService conversationPermissionService;
     private final ObjectMapper objectMapper;
 
-    public AttachmentAccessService(MessageDocumentRepository messageDocumentRepository,
+    public AttachmentAccessService(BlockMessageQueryService blockMessageQueryService,
                                    ConversationPermissionService conversationPermissionService,
                                    ObjectMapper objectMapper) {
-        this.messageDocumentRepository = messageDocumentRepository;
+        this.blockMessageQueryService = blockMessageQueryService;
         this.conversationPermissionService = conversationPermissionService;
         this.objectMapper = objectMapper;
     }
 
     public PermissionCheckResult checkAttachmentRead(String tenantId, String userId, String attachmentId) {
-        MessageDocument message = findAttachmentMessage(attachmentId);
+        AttachmentMessage message = findAttachmentMessage(attachmentId);
         if (message == null) {
             return PermissionCheckResult.deny("ATTACHMENT_NOT_FOUND", "attachment not found");
         }
@@ -35,7 +33,7 @@ public class AttachmentAccessService {
         PermissionCheckRequest request = new PermissionCheckRequest();
         request.setTenantId(tenantId);
         request.setUserId(userId);
-        request.setConversationId(message.getConversationId());
+        request.setConversationId(message.conversationId());
         request.setAction("READ");
         return conversationPermissionService.check(request);
     }
@@ -54,8 +52,8 @@ public class AttachmentAccessService {
     }
 
     public AttachmentDescriptor resolveAttachment(String attachmentId) {
-        MessageDocument message = findAttachmentMessage(attachmentId);
-        AttachmentDescriptor descriptor = parseAttachedInfo(message == null ? null : message.getAttachedInfo());
+        AttachmentMessage message = findAttachmentMessage(attachmentId);
+        AttachmentDescriptor descriptor = parseAttachedInfo(message == null ? null : message.attachedInfo());
         if (descriptor == null) {
             return null;
         }
@@ -65,11 +63,13 @@ public class AttachmentAccessService {
         return descriptor;
     }
 
-    private MessageDocument findAttachmentMessage(String attachmentId) {
-        List<MessageDocument> candidates = messageDocumentRepository.findByAttachedInfoContaining(attachmentId);
+    private AttachmentMessage findAttachmentMessage(String attachmentId) {
+        List<BlockMessageQueryService.AttachmentMessageCandidate> candidates =
+                blockMessageQueryService.findAttachmentCandidates(attachmentId, 20);
         return candidates.stream()
+                .map(candidate -> new AttachmentMessage(candidate.conversationId(), candidate.serverMsgId(), candidate.attachedInfo()))
                 .filter(message -> {
-                    AttachmentDescriptor descriptor = parseAttachedInfo(message.getAttachedInfo());
+                    AttachmentDescriptor descriptor = parseAttachedInfo(message.attachedInfo());
                     return descriptor != null && attachmentId.equals(descriptor.getAttachmentId());
                 })
                 .findFirst()
@@ -103,5 +103,8 @@ public class AttachmentAccessService {
             }
         }
         return null;
+    }
+
+    private record AttachmentMessage(String conversationId, String serverMsgId, String attachedInfo) {
     }
 }

@@ -7,6 +7,7 @@ import com.cheeseocean.im.postoffice.connection.ConnectionContext;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @Component
@@ -27,7 +28,16 @@ public class MessageSendReqMapper {
         req.setContent(message.getContent());
         req.setSendTime(message.getSendTime());
         req.setOptions(mapOptions(message.getOptions()));
+        req.setExt(mapExt(message));
         return req;
+    }
+
+    private Map<String, String> mapExt(Message message) {
+        Map<String, String> ext = new HashMap<>();
+        if (message.getAttachedInfo() != null && !message.getAttachedInfo().isBlank()) {
+            ext.put("attachedInfo", message.getAttachedInfo());
+        }
+        return ext;
     }
 
     private MessageOptions mapOptions(Map<String, Boolean> source) {
