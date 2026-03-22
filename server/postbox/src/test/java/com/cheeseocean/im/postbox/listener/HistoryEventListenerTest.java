@@ -1,0 +1,48 @@
+package com.cheeseocean.im.postbox.listener;
+
+import com.cheeseocean.im.common.api.dto.message.MessageOptions;
+import com.cheeseocean.im.common.api.dto.message.SequencedMessage;
+import com.cheeseocean.im.common.api.event.HistoryEvent;
+import com.cheeseocean.im.postbox.history.BlockHistoryPersistenceService;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+
+class HistoryEventListenerTest {
+
+    @Test
+    void onMessageShouldPersistHistoryEvent() {
+        BlockHistoryPersistenceService persistenceService = mock(BlockHistoryPersistenceService.class);
+        HistoryEventListener listener = new HistoryEventListener(persistenceService);
+
+        listener.onMessage(event());
+
+        verify(persistenceService).persist(org.mockito.ArgumentMatchers.any(HistoryEvent.class));
+    }
+
+    private static HistoryEvent event() {
+        MessageOptions options = new MessageOptions();
+        options.setNeedHistory(true);
+        SequencedMessage message = new SequencedMessage();
+        message.setConversationId("c1:u100:u200");
+        message.setSeq(1L);
+        message.setServerMsgId("s1");
+        message.setClientMsgId("c1");
+        message.setSenderId("u100");
+        message.setRecvId("u200");
+        message.setSessionType(1);
+        message.setContentType(101);
+        message.setContent("hello");
+        message.setOptions(options);
+
+        HistoryEvent event = new HistoryEvent();
+        event.setConversationId("c1:u100:u200");
+        event.setBeginSeq(1L);
+        event.setEndSeq(1L);
+        event.setMessages(List.of(message));
+        return event;
+    }
+}
