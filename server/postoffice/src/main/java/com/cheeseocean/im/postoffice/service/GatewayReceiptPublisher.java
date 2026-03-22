@@ -1,7 +1,7 @@
 package com.cheeseocean.im.postoffice.service;
 
 import com.cheeseocean.im.common.constants.KafkaTopics;
-import com.cheeseocean.im.common.dto.ReceiptEvent;
+import com.cheeseocean.im.common.api.event.ReceiptEvent;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 

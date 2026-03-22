@@ -1,7 +1,7 @@
 package com.cheeseocean.im.postoffice.service;
 
 import com.cheeseocean.im.common.constants.RedisKeys;
-import com.cheeseocean.im.common.dto.RouteSnapshot;
+import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;

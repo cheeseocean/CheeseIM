@@ -1,6 +1,6 @@
 package com.cheeseocean.im.push.service;
 
-import com.cheeseocean.im.common.dto.MessageProto;
+import com.cheeseocean.im.common.api.dto.push.OfflinePushReq;
 import com.cheeseocean.im.common.entity.DeliveryState;
 import com.cheeseocean.im.push.entity.PushAttempt;
 import org.springframework.stereotype.Service;
@@ -10,7 +10,7 @@ import java.util.Optional;
 @Service
 public class PushDecisionService {
 
-    public PushDecision decide(String userId, MessageProto message, DeliveryState deliveryState, Optional<PushAttempt> existingAttempt) {
+    public PushDecision decide(String userId, OfflinePushReq message, DeliveryState deliveryState, Optional<PushAttempt> existingAttempt) {
         if (deliveryState == DeliveryState.ONLINE_CONFIRMED || deliveryState == DeliveryState.READ) {
             return new PushDecision(false, null, "already-confirmed");
         }

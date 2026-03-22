@@ -1,10 +1,9 @@
 package com.cheeseocean.im.push.service.impl;
 
+import com.cheeseocean.im.common.api.dto.push.OfflinePushReq;
+import com.cheeseocean.im.common.api.dto.push.PushResult;
 import com.cheeseocean.im.common.api.event.OfflinePushEvent;
-import com.cheeseocean.im.common.api.MessagePushService;
-import com.cheeseocean.im.common.dto.MessageProto;
-import com.cheeseocean.im.common.dto.OfflinePushTask;
-import com.cheeseocean.im.common.dto.PushResult;
+import com.cheeseocean.im.common.api.rpc.OfflinePushRpc;
 import com.cheeseocean.im.common.entity.DeliveryState;
 import com.cheeseocean.im.common.entity.Message;
 import com.cheeseocean.im.push.entity.OfflinePushResult;
@@ -19,8 +18,8 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
-@DubboService(interfaceClass = MessagePushService.class)
-public class MessagePushServiceImpl implements MessagePushService {
+@DubboService(interfaceClass = OfflinePushRpc.class)
+public class MessagePushServiceImpl implements OfflinePushRpc {
 
     private final OfflinePushService offlinePushService;
     private final PushDecisionService decisionService;
@@ -33,26 +32,25 @@ public class MessagePushServiceImpl implements MessagePushService {
     }
 
     @Override
-    public PushResult pushOffline(String userId, MessageProto message) {
-        DeliveryState state = deliveryStates.getOrDefault(key(message.getServerMsgId(), userId), DeliveryState.INBOXED);
+    public PushResult pushOffline(OfflinePushReq req) {
+        if (req == null || req.getUserId() == null || req.getServerMsgId() == null) {
+            return PushResult.failed(req == null ? null : req.getUserId(), "invalid-request");
+        }
+        DeliveryState state = deliveryStates.getOrDefault(key(req.getServerMsgId(), req.getUserId()), DeliveryState.INBOXED);
         PushDecisionService.PushDecision decision = decisionService.decide(
-                userId, message, state, Optional.ofNullable(attempts.get(key(message.getServerMsgId(), userId))));
+                req.getUserId(), req, state, Optional.ofNullable(attempts.get(key(req.getServerMsgId(), req.getUserId()))));
 
         if (!decision.shouldPush()) {
-            return PushResult.failed(userId, decision.reason());
+            return PushResult.failed(req.getUserId(), decision.reason());
         }
 
-        attempts.put(key(message.getServerMsgId(), userId), decision.attempt());
-        OfflinePushResult result = offlinePushService.pushMessageToUser(toMessage(message), userId);
-        return result.isSuccess() ? PushResult.success(userId, "offline-push") : PushResult.failed(userId, result.getErrorMessage());
-    }
-
-    public PushResult pushOffline(OfflinePushTask task) {
-        return pushOffline(task.getReceiverId(), toMessageProto(task));
+        attempts.put(key(req.getServerMsgId(), req.getUserId()), decision.attempt());
+        OfflinePushResult result = offlinePushService.pushMessageToUser(toMessage(req), req.getUserId());
+        return result.isSuccess() ? PushResult.success(req.getUserId(), "offline-push") : PushResult.failed(req.getUserId(), result.getErrorMessage());
     }
 
     public PushResult pushOffline(OfflinePushEvent event) {
-        return pushOffline(event.getUserId(), toMessageProto(event));
+        return pushOffline(toRequest(event));
     }
 
     @Override
@@ -90,40 +88,28 @@ public class MessagePushServiceImpl implements MessagePushService {
         return serverMsgId + ":" + userId;
     }
 
-    private Message toMessage(MessageProto proto) {
+    private Message toMessage(OfflinePushReq proto) {
         Message message = new Message();
-        message.setClientMsgID(proto.getClientMsgId());
         message.setServerMsgID(proto.getServerMsgId());
         message.setSendID(proto.getSenderId());
-        message.setRecvID(proto.getReceiverId());
+        message.setRecvID(proto.getUserId());
         message.setContent(proto.getContent());
         message.setContentType(proto.getContentType());
         message.setSessionType(proto.getSessionType());
-        message.setOfflinePushInfo(proto.getOfflinePushInfo());
+        if (proto.getExt() != null) {
+            message.setAttachedInfo(proto.getExt().get("attachedInfo"));
+        }
         return message;
     }
 
-    private MessageProto toMessageProto(OfflinePushTask task) {
-        MessageProto proto = new MessageProto();
-        proto.setServerMsgId(task.getMessageId());
-        proto.setConversationId(task.getConversationId());
-        proto.setConversationSeq(task.getConversationSeq());
-        proto.setSenderId(task.getSenderId());
-        proto.setReceiverId(task.getReceiverId());
-        proto.setContent(task.getContent());
-        proto.setContentType(task.getContentType());
-        proto.setSessionType(task.getSessionType());
-        proto.setAttachedInfo(task.getAttachedInfo());
-        return proto;
-    }
-
-    private MessageProto toMessageProto(OfflinePushEvent event) {
-        MessageProto proto = new MessageProto();
-        proto.setServerMsgId(event.getServerMsgId());
-        proto.setConversationId(event.getConversationId());
-        proto.setConversationSeq(event.getSeq());
-        proto.setReceiverId(event.getUserId());
-        proto.setContent(event.getContent());
-        return proto;
+    private OfflinePushReq toRequest(OfflinePushEvent event) {
+        OfflinePushReq req = new OfflinePushReq();
+        req.setUserId(event.getUserId());
+        req.setConversationId(event.getConversationId());
+        req.setSeq(event.getSeq());
+        req.setServerMsgId(event.getServerMsgId());
+        req.setContent(event.getContent());
+        req.setExt(event.getExt());
+        return req;
     }
 }

@@ -1,6 +1,6 @@
 package com.cheeseocean.im.push.service;
 
-import com.cheeseocean.im.common.dto.MessageProto;
+import com.cheeseocean.im.common.api.dto.push.OfflinePushReq;
 import com.cheeseocean.im.common.entity.DeliveryState;
 import com.cheeseocean.im.push.entity.PushAttempt;
 import org.junit.jupiter.api.Test;
@@ -15,9 +15,9 @@ class PushDecisionServiceTest {
     @Test
     void shouldNotPushWhenAnotherDeviceAlreadyConfirmedReceipt() {
         PushDecisionService service = new PushDecisionService();
-        MessageProto message = new MessageProto();
+        OfflinePushReq message = new OfflinePushReq();
         message.setServerMsgId("s-1");
-        message.setReceiverId("userB");
+        message.setUserId("userB");
 
         PushDecisionService.PushDecision decision = service.decide("userB", message, DeliveryState.ONLINE_CONFIRMED, Optional.empty());
 
@@ -27,9 +27,9 @@ class PushDecisionServiceTest {
     @Test
     void sameServerMsgIdShouldNotCreateDuplicatePushAttempt() {
         PushDecisionService service = new PushDecisionService();
-        MessageProto message = new MessageProto();
+        OfflinePushReq message = new OfflinePushReq();
         message.setServerMsgId("s-2");
-        message.setReceiverId("userB");
+        message.setUserId("userB");
 
         PushAttempt existing = new PushAttempt("s-2", "userB");
         PushDecisionService.PushDecision decision = service.decide("userB", message, DeliveryState.INBOXED, Optional.of(existing));

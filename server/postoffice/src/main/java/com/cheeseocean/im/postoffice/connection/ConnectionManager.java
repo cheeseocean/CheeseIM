@@ -1,6 +1,6 @@
 package com.cheeseocean.im.postoffice.connection;
 
-import com.cheeseocean.im.common.dto.RouteSnapshot;
+import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
 import com.cheeseocean.im.postoffice.service.OnlineRouteService;
 import com.cheeseocean.im.postoffice.protocol.WSMessage;
 import com.cheeseocean.im.postoffice.protocol.WSMessageType;

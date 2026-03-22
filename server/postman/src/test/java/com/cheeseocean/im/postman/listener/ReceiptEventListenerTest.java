@@ -1,8 +1,8 @@
 package com.cheeseocean.im.postman.listener;
 
+import com.cheeseocean.im.common.api.event.ReceiptEvent;
 import com.cheeseocean.im.common.api.dto.receipt.ReceiptAckReq;
 import com.cheeseocean.im.common.api.rpc.ReceiptAckRpc;
-import com.cheeseocean.im.common.dto.ReceiptEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

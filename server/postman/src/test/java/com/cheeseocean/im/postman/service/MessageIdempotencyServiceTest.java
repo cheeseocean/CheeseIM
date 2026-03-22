@@ -1,6 +1,6 @@
 package com.cheeseocean.im.postman.service;
 
-import com.cheeseocean.im.common.dto.DeliveryResult;
+import com.cheeseocean.im.common.api.dto.message.DeliveryResult;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;

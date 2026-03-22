@@ -1,4 +1,4 @@
-package com.cheeseocean.im.common.dto;
+package com.cheeseocean.im.common.api.event;
 
 import java.io.Serializable;
 
@@ -22,17 +22,6 @@ public class ReceiptEvent implements Serializable {
 
     public static ReceiptEvent readCursor(String userId, String conversationId, Long seq, String deviceId) {
         return create("READ_CURSOR", userId, conversationId, null, seq, deviceId);
-    }
-
-    public static ReceiptEvent fromLegacyAck(DeliveryAck ack) {
-        if ("READ".equals(ack.getAckType())) {
-            return readCursorFromLegacyAck(ack);
-        }
-        return create(ack.getAckType(), ack.getUserId(), ack.getConversationId(), ack.getServerMsgId(), ack.getSeq(), ack.getDeviceId(), ack.getEventTime());
-    }
-
-    public static ReceiptEvent readCursorFromLegacyAck(DeliveryAck ack) {
-        return create("READ_CURSOR", ack.getUserId(), ack.getConversationId(), null, ack.getSeq(), ack.getDeviceId(), ack.getEventTime());
     }
 
     private static ReceiptEvent create(String receiptType, String userId, String conversationId, String serverMsgId, Long seq, String deviceId) {

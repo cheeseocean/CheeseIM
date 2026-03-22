@@ -10,7 +10,7 @@ import com.cheeseocean.im.common.api.event.OfflinePushEvent;
 import com.cheeseocean.im.common.api.route.OnlineRouteQueryRpc;
 import com.cheeseocean.im.common.api.rpc.OnlineDispatchRpc;
 import com.cheeseocean.im.common.core.constants.TopicNames;
-import com.cheeseocean.im.common.dto.RouteSnapshot;
+import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.kafka.annotation.KafkaListener;

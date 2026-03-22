@@ -4,12 +4,12 @@ import com.cheeseocean.im.common.api.dto.dispatch.DispatchMessageResp;
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchResult;
 import com.cheeseocean.im.common.api.dto.message.MessageOptions;
 import com.cheeseocean.im.common.api.dto.message.SequencedMessage;
+import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
 import com.cheeseocean.im.common.api.event.DeliveryEvent;
 import com.cheeseocean.im.common.api.event.OfflinePushEvent;
 import com.cheeseocean.im.common.api.route.OnlineRouteQueryRpc;
 import com.cheeseocean.im.common.api.rpc.OnlineDispatchRpc;
 import com.cheeseocean.im.common.core.constants.TopicNames;
-import com.cheeseocean.im.common.dto.RouteSnapshot;
 import org.junit.jupiter.api.Test;
 import org.springframework.kafka.core.KafkaTemplate;
 

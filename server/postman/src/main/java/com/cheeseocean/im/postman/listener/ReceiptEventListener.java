@@ -1,9 +1,9 @@
 package com.cheeseocean.im.postman.listener;
 
 import com.cheeseocean.im.common.api.dto.receipt.ReceiptAckReq;
+import com.cheeseocean.im.common.api.event.ReceiptEvent;
 import com.cheeseocean.im.common.api.rpc.ReceiptAckRpc;
 import com.cheeseocean.im.common.constants.KafkaTopics;
-import com.cheeseocean.im.common.dto.ReceiptEvent;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.DeserializationFeature;

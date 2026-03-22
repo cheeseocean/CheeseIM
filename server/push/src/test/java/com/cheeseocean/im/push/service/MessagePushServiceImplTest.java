@@ -1,8 +1,8 @@
 package com.cheeseocean.im.push.service;
 
-import com.cheeseocean.im.common.dto.MessageProto;
-import com.cheeseocean.im.common.dto.OfflinePushTask;
-import com.cheeseocean.im.common.dto.PushResult;
+import com.cheeseocean.im.common.api.dto.push.OfflinePushReq;
+import com.cheeseocean.im.common.api.dto.push.PushResult;
+import com.cheeseocean.im.common.api.event.OfflinePushEvent;
 import com.cheeseocean.im.common.entity.DeliveryState;
 import com.cheeseocean.im.push.entity.OfflinePushResult;
 import com.cheeseocean.im.push.entity.PushAttempt;
@@ -28,12 +28,12 @@ class MessagePushServiceImplTest {
         PushDecisionService decisionService = new PushDecisionService();
         MessagePushServiceImpl service = new MessagePushServiceImpl(offlinePushService, decisionService);
 
-        MessageProto message = new MessageProto();
+        OfflinePushReq message = new OfflinePushReq();
         message.setServerMsgId("s-1");
-        message.setReceiverId("userB");
+        message.setUserId("userB");
         service.recordDeliveryState("s-1", "userB", DeliveryState.ONLINE_CONFIRMED);
 
-        PushResult result = service.pushOffline("userB", message);
+        PushResult result = service.pushOffline(message);
 
         assertFalse(result.isSuccess());
         verifyNoInteractions(offlinePushService);
@@ -46,12 +46,12 @@ class MessagePushServiceImplTest {
 
         MessagePushServiceImpl service = new MessagePushServiceImpl(offlinePushService, new PushDecisionService());
 
-        MessageProto message = new MessageProto();
+        OfflinePushReq message = new OfflinePushReq();
         message.setServerMsgId("s-2");
-        message.setReceiverId("userB");
+        message.setUserId("userB");
 
-        PushResult first = service.pushOffline("userB", message);
-        PushResult second = service.pushOffline("userB", message);
+        PushResult first = service.pushOffline(message);
+        PushResult second = service.pushOffline(message);
 
         assertTrue(first.isSuccess());
         assertFalse(second.isSuccess());
@@ -65,10 +65,10 @@ class MessagePushServiceImplTest {
 
         MessagePushServiceImpl service = new MessagePushServiceImpl(offlinePushService, new PushDecisionService());
 
-        MessageProto message = new MessageProto();
+        OfflinePushReq message = new OfflinePushReq();
         message.setServerMsgId("s-3");
-        message.setReceiverId("userB");
-        service.pushOffline("userB", message);
+        message.setUserId("userB");
+        service.pushOffline(message);
 
         service.cancelPending("s-3", "userB");
 
@@ -77,19 +77,17 @@ class MessagePushServiceImplTest {
     }
 
     @Test
-    void offlinePushTaskShouldMapIntoExistingPushFlow() {
+    void offlinePushEventShouldMapIntoExistingPushFlow() {
         OfflinePushService offlinePushService = mock(OfflinePushService.class);
         when(offlinePushService.pushMessageToUser(any(), eq("userB"))).thenReturn(OfflinePushResult.success(java.util.List.of("userB")));
 
         MessagePushServiceImpl service = new MessagePushServiceImpl(offlinePushService, new PushDecisionService());
 
-        OfflinePushTask task = new OfflinePushTask();
-        task.setMessageId("s-4");
+        OfflinePushEvent task = new OfflinePushEvent();
+        task.setServerMsgId("s-4");
         task.setConversationId("single:userA:userB");
-        task.setConversationSeq(17L);
-        task.setSenderId("userA");
-        task.setReceiverId("userB");
-        task.setSessionType(1);
+        task.setSeq(17L);
+        task.setUserId("userB");
         task.setContent("ping");
 
         PushResult result = service.pushOffline(task);

@@ -1,7 +1,7 @@
 package com.cheeseocean.im.postoffice.api;
 
 import com.cheeseocean.im.common.api.route.OnlineRouteQueryRpc;
-import com.cheeseocean.im.common.dto.RouteSnapshot;
+import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
 import com.cheeseocean.im.postoffice.service.OnlineRouteService;
 import org.apache.dubbo.config.annotation.DubboService;
 

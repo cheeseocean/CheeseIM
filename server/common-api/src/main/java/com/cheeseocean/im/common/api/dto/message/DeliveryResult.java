@@ -1,4 +1,4 @@
-package com.cheeseocean.im.common.dto;
+package com.cheeseocean.im.common.api.dto.message;
 
 import com.cheeseocean.im.common.entity.DeliveryState;
 
@@ -16,17 +16,6 @@ public class DeliveryResult implements Serializable {
     private Long conversationSeq;
     private DeliveryState state;
 
-    public static DeliveryResult accepted(String serverMsgId, long conversationSeq) {
-        DeliveryResult result = new DeliveryResult();
-        result.success = true;
-        result.status = "ACCEPTED";
-        result.receiverOnline = false;
-        result.serverMsgId = serverMsgId;
-        result.conversationSeq = conversationSeq;
-        result.state = DeliveryState.PERSISTED;
-        return result;
-    }
-
     public static DeliveryResult onlineSuccess(String serverMsgId) {
         DeliveryResult result = new DeliveryResult();
         result.success = true;
@@ -34,25 +23,6 @@ public class DeliveryResult implements Serializable {
         result.receiverOnline = true;
         result.serverMsgId = serverMsgId;
         result.state = DeliveryState.ONLINE_CONFIRMED;
-        return result;
-    }
-
-    public static DeliveryResult failed(String status) {
-        DeliveryResult result = new DeliveryResult();
-        result.success = false;
-        result.status = status;
-        result.receiverOnline = false;
-        result.state = DeliveryState.FAILED_FINAL;
-        return result;
-    }
-
-    public static DeliveryResult acceptedAck(String serverMsgId) {
-        DeliveryResult result = new DeliveryResult();
-        result.success = true;
-        result.status = "ACK_ACCEPTED";
-        result.receiverOnline = false;
-        result.serverMsgId = serverMsgId;
-        result.state = DeliveryState.PERSISTED;
         return result;
     }
 

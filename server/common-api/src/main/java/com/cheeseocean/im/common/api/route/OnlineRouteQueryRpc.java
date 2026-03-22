@@ -1,6 +1,6 @@
 package com.cheeseocean.im.common.api.route;
 
-import com.cheeseocean.im.common.dto.RouteSnapshot;
+import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
 
 import java.util.List;
 

@@ -2,8 +2,8 @@ package com.cheeseocean.im.push.listener;
 
 import com.cheeseocean.im.common.api.event.OfflinePushEvent;
 import com.cheeseocean.im.common.api.route.OnlineRouteQueryRpc;
-import com.cheeseocean.im.common.dto.PushResult;
-import com.cheeseocean.im.common.dto.RouteSnapshot;
+import com.cheeseocean.im.common.api.dto.push.PushResult;
+import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
 import com.cheeseocean.im.push.service.impl.MessagePushServiceImpl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;

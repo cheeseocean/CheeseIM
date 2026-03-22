@@ -1,4 +1,4 @@
-package com.cheeseocean.im.common.dto;
+package com.cheeseocean.im.common.api.dto.route;
 
 import java.io.Serializable;
 
