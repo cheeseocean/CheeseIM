@@ -6,32 +6,28 @@ import com.cheeseocean.im.common.model.auth.PermissionCheckRequest;
 import com.cheeseocean.im.common.model.auth.PermissionCheckResult;
 import com.cheeseocean.im.common.model.auth.SessionPrincipal;
 import com.cheeseocean.im.postbox.api.HistoryMessageResponse;
-import com.cheeseocean.im.postbox.entity.InboxDocument;
-import com.cheeseocean.im.postbox.entity.MessageDocument;
-import com.cheeseocean.im.postbox.repository.InboxDocumentRepository;
-import com.cheeseocean.im.postbox.repository.MessageDocumentRepository;
+import com.cheeseocean.im.postbox.history.MessageBlockDoc;
+import com.cheeseocean.im.postbox.history.MessageSlot;
 import org.apache.dubbo.config.annotation.DubboReference;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
-import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.Objects;
 
 @Service
 public class HistoryQueryService {
 
-    private final InboxDocumentRepository inboxDocumentRepository;
-    private final MessageDocumentRepository messageDocumentRepository;
+    private final MongoTemplate mongoTemplate;
 
     @DubboReference(check = false)
     private ConversationPermissionDubboService conversationPermissionDubboService;
 
-    public HistoryQueryService(InboxDocumentRepository inboxDocumentRepository,
-                               MessageDocumentRepository messageDocumentRepository) {
-        this.inboxDocumentRepository = inboxDocumentRepository;
-        this.messageDocumentRepository = messageDocumentRepository;
+    public HistoryQueryService(MongoTemplate mongoTemplate) {
+        this.mongoTemplate = mongoTemplate;
     }
 
     public List<HistoryMessageResponse> getConversationMessages(SessionPrincipal session, String conversationId, int limit) {
@@ -47,38 +43,33 @@ public class HistoryQueryService {
             throw new IllegalStateException(permission == null ? "history access denied" : permission.getMessage());
         }
 
-        List<InboxDocument> inboxItems = inboxDocumentRepository
-                .findByUserIdAndConversationIdOrderBySequenceDesc(session.getUserId(), conversationId)
-                .stream()
+        Query query = Query.query(Criteria.where("conversationId").is(conversationId))
+                .with(Sort.by(Sort.Direction.DESC, "blockNo"));
+
+        int blockFetchSize = Math.max(1, (limit + 99) / 100);
+        query.limit(blockFetchSize);
+
+        return mongoTemplate.find(query, MessageBlockDoc.class).stream()
+                .flatMap(block -> block.getMessages().stream())
+                .filter(Objects::nonNull)
+                .filter(slot -> slot.getSeq() != null)
+                .sorted((left, right) -> Long.compare(right.getSeq(), left.getSeq()))
                 .limit(limit)
-                .toList();
-
-        Map<String, MessageDocument> messageById = messageDocumentRepository.findAllById(
-                        inboxItems.stream().map(InboxDocument::getServerMsgId).toList())
-                .stream()
-                .collect(Collectors.toMap(MessageDocument::getServerMsgId, Function.identity()));
-
-        return inboxItems.stream()
-                .map(inbox -> toResponse(inbox, messageById.get(inbox.getServerMsgId())))
-                .filter(item -> item != null)
-                .sorted(Comparator.comparing(HistoryMessageResponse::getSequence).reversed())
+                .map(slot -> toResponse(conversationId, slot))
                 .toList();
     }
 
-    private HistoryMessageResponse toResponse(InboxDocument inbox, MessageDocument message) {
-        if (message == null) {
-            return null;
-        }
+    private HistoryMessageResponse toResponse(String conversationId, MessageSlot message) {
         HistoryMessageResponse response = new HistoryMessageResponse();
         response.setServerMsgId(message.getServerMsgId());
         response.setClientMsgId(message.getClientMsgId());
-        response.setConversationId(message.getConversationId());
+        response.setConversationId(conversationId);
         response.setSenderId(message.getSenderId());
-        response.setReceiverId(message.getReceiverId());
+        response.setReceiverId(message.getRecvId());
         response.setContent(message.getContent());
         response.setContentType(message.getContentType());
-        response.setSequence(inbox.getSequence());
-        response.setCreatedAt(message.getCreatedAt());
+        response.setSequence(message.getSeq());
+        response.setCreatedAt(message.getSendTime() == null ? null : java.time.Instant.ofEpochMilli(message.getSendTime()));
         return response;
     }
 }

@@ -1,8 +1,8 @@
 package com.cheeseocean.im.postman.listener;
 
-import com.cheeseocean.im.common.api.MessageStoreService;
+import com.cheeseocean.im.common.api.dto.receipt.ReceiptAckReq;
+import com.cheeseocean.im.common.api.rpc.ReceiptAckRpc;
 import com.cheeseocean.im.common.constants.KafkaTopics;
-import com.cheeseocean.im.common.dto.DeliveryAck;
 import com.cheeseocean.im.common.dto.ReceiptEvent;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -20,11 +20,11 @@ import org.springframework.stereotype.Component;
 public class ReceiptEventListener {
 
     private final ObjectMapper objectMapper;
-    private final MessageStoreService messageStoreService;
+    private final ReceiptAckRpc receiptAckRpc;
 
-    public ReceiptEventListener(ObjectMapper objectMapper, MessageStoreService messageStoreService) {
+    public ReceiptEventListener(ObjectMapper objectMapper, ReceiptAckRpc receiptAckRpc) {
         this.objectMapper = objectMapper.copy().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        this.messageStoreService = messageStoreService;
+        this.receiptAckRpc = receiptAckRpc;
     }
 
     @KafkaListener(topics = KafkaTopics.Message.RECEIPT, groupId = "postman-receipt")
@@ -37,7 +37,7 @@ public class ReceiptEventListener {
     }
 
     void handle(ReceiptEvent event) {
-        DeliveryAck ack = new DeliveryAck();
+        ReceiptAckReq ack = new ReceiptAckReq();
         ack.setServerMsgId(event.getServerMsgId());
         ack.setConversationId(event.getConversationId());
         ack.setUserId(event.getUserId());
@@ -45,6 +45,6 @@ public class ReceiptEventListener {
         ack.setEventTime(event.getReceiptTime());
         ack.setSeq(event.getSeq());
         ack.setAckType(event.isReadCursor() ? "READ" : "RECEIVED");
-        messageStoreService.applyAck(ack);
+        receiptAckRpc.apply(ack);
     }
 }
