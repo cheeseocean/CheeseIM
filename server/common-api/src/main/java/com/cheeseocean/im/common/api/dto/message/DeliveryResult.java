@@ -1,6 +1,6 @@
 package com.cheeseocean.im.common.api.dto.message;
 
-import com.cheeseocean.im.common.entity.DeliveryState;
+import com.cheeseocean.im.common.core.enums.DeliveryState;
 
 import java.io.Serializable;
 

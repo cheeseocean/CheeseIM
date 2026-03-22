@@ -1,8 +1,8 @@
 package com.cheeseocean.im.postman.service;
 
-import com.cheeseocean.im.common.constants.KafkaTopics;
-import com.cheeseocean.im.common.entity.DeliveryState;
-import com.cheeseocean.im.common.entity.DeliveryTask;
+import com.cheeseocean.im.common.api.dto.message.DeliveryTask;
+import com.cheeseocean.im.common.core.constants.TopicNames;
+import com.cheeseocean.im.common.core.enums.DeliveryState;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -49,7 +49,7 @@ public class DeliveryCompensationService {
     public DeliveryTask schedule(DeliveryTask task) {
         DeliveryTask retryTask = copyOf(task);
         retryTask.markRetryScheduled(task.getRetryCount() + 1, Instant.now().plusSeconds(retryDelaySeconds));
-        publish(KafkaTopics.Ops.RETRY, retryTask);
+        publish(TopicNames.RETRY, retryTask);
         emitStateChange(retryTask);
         return retryTask;
     }
@@ -57,7 +57,7 @@ public class DeliveryCompensationService {
     public DeliveryTask publishDeadLetter(DeliveryTask task) {
         DeliveryTask deadLetter = copyOf(task);
         deadLetter.moveTo(DeliveryState.FAILED_FINAL);
-        publish(KafkaTopics.Ops.DLQ, deadLetter);
+        publish(TopicNames.DLQ, deadLetter);
         emitStateChange(deadLetter);
         return deadLetter;
     }

@@ -56,4 +56,8 @@ public final class RedisKeys {
     public static String deliveryIdem(String serverMsgId, String userId, String connectionId) {
         return "idem:delivery:" + serverMsgId + ":" + userId + ":" + connectionId;
     }
+
+    public static String consumerDedup(String consumerGroup, String eventId) {
+        return "idem:consumer:" + consumerGroup + ":" + eventId;
+    }
 }

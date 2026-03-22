@@ -1,6 +1,7 @@
 package com.cheeseocean.im.postman.service;
 
 import com.cheeseocean.im.common.api.dto.message.DeliveryResult;
+import com.cheeseocean.im.common.core.constants.RedisKeys;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
@@ -24,12 +25,12 @@ class MessageIdempotencyServiceTest {
         StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
         ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get("cheese_im:delivery:idempotency:userA:single:userA:userB:c-1"))
+        when(valueOperations.get(RedisKeys.postmanIdem("c1:userA:userB", "c-1")))
                 .thenReturn("s-1|ACCEPTED|1001|INIT");
 
         MessageIdempotencyService service = new MessageIdempotencyService(redisTemplate);
 
-        Optional<DeliveryResult> existing = service.findExisting("userA", "single:userA:userB", "c-1");
+        Optional<DeliveryResult> existing = service.findExisting("userA", "c1:userA:userB", "c-1");
 
         assertTrue(existing.isPresent());
         assertEquals("s-1", existing.get().getServerMsgId());
@@ -46,9 +47,9 @@ class MessageIdempotencyServiceTest {
         MessageIdempotencyService service = new MessageIdempotencyService(redisTemplate);
         DeliveryResult result = DeliveryResult.onlineSuccess("s-1");
 
-        service.remember("userA", "single:userA:userB", "c-1", result);
+        service.remember("userA", "c1:userA:userB", "c-1", result);
 
-        verify(valueOperations).set(eq("cheese_im:delivery:idempotency:userA:single:userA:userB:c-1"),
+        verify(valueOperations).set(eq(RedisKeys.postmanIdem("c1:userA:userB", "c-1")),
                 eq("s-1|ONLINE_CONFIRMED||ONLINE_CONFIRMED"), anyLong(), eq(TimeUnit.HOURS));
     }
 }

@@ -1,5 +1,6 @@
-package com.cheeseocean.im.common.entity;
+package com.cheeseocean.im.common.api.dto.message;
 
+import com.cheeseocean.im.common.core.enums.DeliveryState;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 

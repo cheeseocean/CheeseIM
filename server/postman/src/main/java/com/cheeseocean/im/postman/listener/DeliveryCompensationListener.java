@@ -1,7 +1,7 @@
 package com.cheeseocean.im.postman.listener;
 
-import com.cheeseocean.im.common.constants.KafkaTopics;
-import com.cheeseocean.im.common.entity.DeliveryTask;
+import com.cheeseocean.im.common.api.dto.message.DeliveryTask;
+import com.cheeseocean.im.common.core.constants.TopicNames;
 import com.cheeseocean.im.postman.service.DeliveryCompensationService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -31,7 +31,7 @@ public class DeliveryCompensationListener {
         this.deliveryCompensationService = deliveryCompensationService;
     }
 
-    @KafkaListener(topics = KafkaTopics.Ops.RETRY, groupId = "postman-delivery-compensation")
+    @KafkaListener(topics = TopicNames.RETRY, groupId = "postman-delivery-compensation")
     public void onCompensation(String payload) {
         try {
             DeliveryTask task = objectMapper.readValue(payload, DeliveryTask.class);

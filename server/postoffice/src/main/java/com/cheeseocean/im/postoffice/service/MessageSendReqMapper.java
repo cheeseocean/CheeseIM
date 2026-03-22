@@ -1,8 +1,8 @@
 package com.cheeseocean.im.postoffice.service;
 
 import com.cheeseocean.im.common.api.dto.message.MessageOptions;
+import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.dto.message.SendMessageReq;
-import com.cheeseocean.im.common.entity.Message;
 import com.cheeseocean.im.postoffice.connection.ConnectionContext;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import org.springframework.stereotype.Component;

@@ -1,4 +1,4 @@
-package com.cheeseocean.im.common.entity;
+package com.cheeseocean.im.common.core.enums;
 
 public enum DeliveryState {
     INIT,

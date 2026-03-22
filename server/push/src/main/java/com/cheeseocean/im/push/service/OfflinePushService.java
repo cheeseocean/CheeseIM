@@ -1,6 +1,6 @@
 package com.cheeseocean.im.push.service;
 
-import com.cheeseocean.im.common.entity.Message;
+import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.push.entity.OfflinePushConfig;
 import com.cheeseocean.im.push.entity.OfflinePushResult;
 

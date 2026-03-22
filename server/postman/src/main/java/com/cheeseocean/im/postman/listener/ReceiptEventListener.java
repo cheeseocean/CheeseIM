@@ -3,7 +3,7 @@ package com.cheeseocean.im.postman.listener;
 import com.cheeseocean.im.common.api.dto.receipt.ReceiptAckReq;
 import com.cheeseocean.im.common.api.event.ReceiptEvent;
 import com.cheeseocean.im.common.api.rpc.ReceiptAckRpc;
-import com.cheeseocean.im.common.constants.KafkaTopics;
+import com.cheeseocean.im.common.core.constants.TopicNames;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -27,7 +27,7 @@ public class ReceiptEventListener {
         this.receiptAckRpc = receiptAckRpc;
     }
 
-    @KafkaListener(topics = KafkaTopics.Message.RECEIPT, groupId = "postman-receipt")
+    @KafkaListener(topics = TopicNames.RECEIPT, groupId = "postman-receipt")
     public void onMessage(String payload) {
         try {
             handle(objectMapper.readValue(payload, ReceiptEvent.class));

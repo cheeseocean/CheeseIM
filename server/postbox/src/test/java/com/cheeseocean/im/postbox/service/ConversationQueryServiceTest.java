@@ -34,29 +34,29 @@ class ConversationQueryServiceTest {
 
         when(blockMessageQueryService.findRecentConversationMappings(100))
                 .thenReturn(List.of(
-                        mapping("single:userA:userB", 8L, "s-2", "userA", 1742382300000L),
-                        mapping("single:userA:userB", 7L, "s-1", "userA", 1742382000000L),
-                        mapping("group:crew", 6L, "g-2", "userC", 1742375400000L)
+                        mapping("c1:userA:userB", 8L, "s-2", "userA", 1742382300000L),
+                        mapping("c1:userA:userB", 7L, "s-1", "userA", 1742382000000L),
+                        mapping("c2:crew", 6L, "g-2", "userC", 1742375400000L)
                 ));
-        when(blockMessageQueryService.findSlot("single:userA:userB", 8L))
-                .thenReturn(message(8L, "s-2", "single:userA:userB", "userA", "Need the final mockups."));
-        when(blockMessageQueryService.findSlot("group:crew", 6L))
-                .thenReturn(message(6L, "g-2", "group:crew", "userC", "Stand-up moved to 11:30."));
-        when(valueOperations.get(RedisKeys.userUnread("userB", "single:userA:userB"))).thenReturn("1");
-        when(valueOperations.get(RedisKeys.userUnread("userB", "group:crew"))).thenReturn("1");
+        when(blockMessageQueryService.findSlot("c1:userA:userB", 8L))
+                .thenReturn(message(8L, "s-2", "c1:userA:userB", "userA", "Need the final mockups."));
+        when(blockMessageQueryService.findSlot("c2:crew", 6L))
+                .thenReturn(message(6L, "g-2", "c2:crew", "userC", "Stand-up moved to 11:30."));
+        when(valueOperations.get(RedisKeys.userUnread("userB", "c1:userA:userB"))).thenReturn("1");
+        when(valueOperations.get(RedisKeys.userUnread("userB", "c2:crew"))).thenReturn("1");
 
         ConversationQueryService service = new ConversationQueryService(blockMessageQueryService, redisTemplate, permissionService);
 
         List<ConversationSummaryResponse> conversations = service.listConversations(session("userB"), 20);
 
         assertEquals(2, conversations.size());
-        assertEquals("single:userA:userB", conversations.get(0).getConversationId());
+        assertEquals("c1:userA:userB", conversations.get(0).getConversationId());
         assertEquals("userA", conversations.get(0).getTitle());
         assertEquals("Need the final mockups.", conversations.get(0).getLastMessagePreview());
         assertEquals(1, conversations.get(0).getUnreadCount());
         assertEquals("DIRECT", conversations.get(0).getKind());
 
-        assertEquals("group:crew", conversations.get(1).getConversationId());
+        assertEquals("c2:crew", conversations.get(1).getConversationId());
         assertEquals("crew", conversations.get(1).getTitle());
         assertEquals("Group conversation", conversations.get(1).getSubtitle());
         assertEquals(1, conversations.get(1).getUnreadCount());
@@ -75,20 +75,20 @@ class ConversationQueryServiceTest {
         when(blockMessageQueryService.findRecentConversationMappings(50))
                 .thenReturn(List.of(
                         mapping("channel:ops", 9L, "s-1", "userC", 1742382600000L),
-                        mapping("single:userA:userB", 8L, "s-2", "userA", 1742382300000L)
+                        mapping("c1:userA:userB", 8L, "s-2", "userA", 1742382300000L)
                 ));
         when(permissionService.check(any()))
                 .thenReturn(PermissionCheckResult.deny("DENIED", "no access"))
                 .thenReturn(PermissionCheckResult.allow());
-        when(blockMessageQueryService.findSlot("single:userA:userB", 8L))
-                .thenReturn(message(8L, "s-2", "single:userA:userB", "userA", "Hello"));
+        when(blockMessageQueryService.findSlot("c1:userA:userB", 8L))
+                .thenReturn(message(8L, "s-2", "c1:userA:userB", "userA", "Hello"));
 
         ConversationQueryService service = new ConversationQueryService(blockMessageQueryService, redisTemplate, permissionService);
 
         List<ConversationSummaryResponse> conversations = service.listConversations(session("userB"), 1);
 
         assertEquals(1, conversations.size());
-        assertIterableEquals(List.of("single:userA:userB"), conversations.stream().map(ConversationSummaryResponse::getConversationId).toList());
+        assertIterableEquals(List.of("c1:userA:userB"), conversations.stream().map(ConversationSummaryResponse::getConversationId).toList());
     }
 
     private SessionPrincipal session(String userId) {

@@ -1,8 +1,8 @@
 package com.cheeseocean.im.postman.service;
 
-import com.cheeseocean.im.common.constants.RedisKeys;
 import com.cheeseocean.im.common.api.dto.message.DeliveryResult;
-import com.cheeseocean.im.common.entity.DeliveryState;
+import com.cheeseocean.im.common.core.constants.RedisKeys;
+import com.cheeseocean.im.common.core.enums.DeliveryState;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -21,7 +21,7 @@ public class MessageIdempotencyService {
     }
 
     public Optional<DeliveryResult> findExisting(String senderId, String conversationId, String clientMsgId) {
-        String raw = redisTemplate.opsForValue().get(RedisKeys.idempotency(senderId, conversationId, clientMsgId));
+        String raw = redisTemplate.opsForValue().get(RedisKeys.postmanIdem(conversationId, clientMsgId));
         if (raw == null || raw.isBlank()) {
             return Optional.empty();
         }
@@ -54,7 +54,7 @@ public class MessageIdempotencyService {
         String state = result.getState() == null ? "" : result.getState().name();
         String value = String.join("|", result.getServerMsgId(), status, conversationSeq, state);
         redisTemplate.opsForValue().set(
-                RedisKeys.idempotency(senderId, conversationId, clientMsgId),
+                RedisKeys.postmanIdem(conversationId, clientMsgId),
                 value,
                 TTL_HOURS,
                 TimeUnit.HOURS

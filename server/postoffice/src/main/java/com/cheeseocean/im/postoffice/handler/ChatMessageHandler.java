@@ -1,9 +1,9 @@
 package com.cheeseocean.im.postoffice.handler;
 
+import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.dto.message.SendMessageReq;
 import com.cheeseocean.im.common.api.dto.message.SendMessageResp;
 import com.cheeseocean.im.common.api.rpc.MessageSendRpc;
-import com.cheeseocean.im.common.entity.Message;
 import com.cheeseocean.im.postoffice.auth.ConnectionSessionGuard;
 import com.cheeseocean.im.postoffice.connection.ConnectionContext;
 import com.cheeseocean.im.postoffice.connection.UserConnection;

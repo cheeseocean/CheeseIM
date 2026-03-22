@@ -1,8 +1,8 @@
 package com.cheeseocean.im.postbox.service;
 
 import com.cheeseocean.im.common.api.friend.FriendRelationService;
+import com.cheeseocean.im.common.core.util.ConversationIdUtil;
 import com.cheeseocean.im.common.model.auth.SessionPrincipal;
-import com.cheeseocean.im.common.utils.ConversationIds;
 import com.cheeseocean.im.postbox.api.ConversationSummaryResponse;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.postbox.history.MessageSlot;
@@ -38,7 +38,7 @@ public class DirectConversationService {
             throw new IllegalStateException("friend relationship required");
         }
 
-        String conversationId = ConversationIds.direct(session.getUserId(), friendUserId);
+        String conversationId = ConversationIdUtil.single(session.getUserId(), friendUserId);
         Long latestSeq = loadLatestSeq(conversationId);
         MessageSlot message = latestSeq == null ? null : blockMessageQueryService.findSlot(conversationId, latestSeq);
 

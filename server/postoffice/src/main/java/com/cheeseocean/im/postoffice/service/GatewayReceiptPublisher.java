@@ -1,7 +1,7 @@
 package com.cheeseocean.im.postoffice.service;
 
-import com.cheeseocean.im.common.constants.KafkaTopics;
 import com.cheeseocean.im.common.api.event.ReceiptEvent;
+import com.cheeseocean.im.common.core.constants.TopicNames;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
@@ -16,7 +16,7 @@ public class GatewayReceiptPublisher {
 
     public void publish(ReceiptEvent event) {
         try {
-            kafkaTemplate.send(KafkaTopics.Message.RECEIPT, event.getConversationId(), event);
+            kafkaTemplate.send(TopicNames.RECEIPT, event.getConversationId(), event);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to publish receipt event " + event.getEventId(), e);
         }

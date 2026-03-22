@@ -23,14 +23,14 @@ class DirectConversationServiceTest {
         @SuppressWarnings("unchecked")
         ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(RedisKeys.convMaxSeq("single:userA:userB"))).thenReturn("8");
-        when(valueOperations.get(RedisKeys.userUnread("userA", "single:userA:userB"))).thenReturn("2");
+        when(valueOperations.get(RedisKeys.convMaxSeq("c1:userA:userB"))).thenReturn("8");
+        when(valueOperations.get(RedisKeys.userUnread("userA", "c1:userA:userB"))).thenReturn("2");
 
         MessageSlot slot = new MessageSlot();
         slot.setSeq(8L);
         slot.setContent("hello");
         slot.setSendTime(123L);
-        when(blockMessageQueryService.findSlot("single:userA:userB", 8L)).thenReturn(slot);
+        when(blockMessageQueryService.findSlot("c1:userA:userB", 8L)).thenReturn(slot);
 
         DirectConversationService service = new DirectConversationService(blockMessageQueryService, redisTemplate);
         FriendRelationService friendRelationService = mock(FriendRelationService.class);
@@ -39,7 +39,7 @@ class DirectConversationServiceTest {
 
         var response = service.startConversation(session("userA"), "userB");
 
-        assertEquals("single:userA:userB", response.getConversationId());
+        assertEquals("c1:userA:userB", response.getConversationId());
         assertEquals(2, response.getUnreadCount());
         assertEquals("hello", response.getLastMessagePreview());
         assertEquals(123L, response.getLastMessageTime());

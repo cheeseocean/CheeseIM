@@ -1,6 +1,6 @@
 package com.cheeseocean.im.postman.api;
 
-import com.cheeseocean.im.common.entity.Message;
+import com.cheeseocean.im.common.api.dto.message.Message;
 
 import java.io.Serializable;
 

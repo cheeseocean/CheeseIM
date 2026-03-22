@@ -1,7 +1,7 @@
 package com.cheeseocean.im.postbox.policy;
 
 import com.cheeseocean.im.common.api.friend.FriendRelationService;
-import com.cheeseocean.im.common.utils.ConversationIds;
+import com.cheeseocean.im.common.core.util.ConversationIdUtil;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.stereotype.Component;
 
@@ -15,7 +15,7 @@ public class DirectChatPolicy {
         if (conversationId == null || userId == null) {
             return false;
         }
-        String peerUserId = ConversationIds.peerUser(conversationId, userId);
+        String peerUserId = ConversationIdUtil.peerUser(conversationId, userId);
         return peerUserId != null && friendRelationService != null && friendRelationService.areAcceptedFriends(userId, peerUserId);
     }
 }

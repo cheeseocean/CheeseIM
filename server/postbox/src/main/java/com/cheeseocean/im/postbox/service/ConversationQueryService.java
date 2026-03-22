@@ -2,6 +2,7 @@ package com.cheeseocean.im.postbox.service;
 
 import com.cheeseocean.im.common.enums.ConversationAction;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
+import com.cheeseocean.im.common.core.util.ConversationIdUtil;
 import com.cheeseocean.im.common.model.auth.PermissionCheckRequest;
 import com.cheeseocean.im.common.model.auth.PermissionCheckResult;
 import com.cheeseocean.im.common.model.auth.SessionPrincipal;
@@ -9,7 +10,6 @@ import com.cheeseocean.im.postbox.api.ConversationSummaryResponse;
 import com.cheeseocean.im.postbox.history.MessageIdMappingDoc;
 import com.cheeseocean.im.postbox.history.MessageSlot;
 import com.cheeseocean.im.postbox.permission.ConversationPermissionService;
-import com.cheeseocean.im.common.utils.ConversationIds;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -98,7 +98,7 @@ public class ConversationQueryService {
         response.setKind(detectKind(accumulator.latestMapping.getConversationId()));
         response.setTitle(resolveTitle(accumulator.latestMapping.getConversationId(), currentUserId));
         response.setSubtitle(resolveSubtitle(accumulator.latestMapping.getConversationId()));
-        response.setPeerUserId(ConversationIds.peerUser(accumulator.latestMapping.getConversationId(), currentUserId));
+        response.setPeerUserId(ConversationIdUtil.peerUser(accumulator.latestMapping.getConversationId(), currentUserId));
         response.setLastMessagePreview(resolvePreview(message));
         response.setLastMessageTime(resolveTime(message.getSendTime(), accumulator.latestMapping.getSendTime()));
         response.setUnreadCount(accumulator.unreadCount);
@@ -107,13 +107,13 @@ public class ConversationQueryService {
     }
 
     private String detectKind(String conversationId) {
-        if (conversationId.startsWith("single:")) {
+        if (conversationId.startsWith("c1:")) {
             return "DIRECT";
         }
-        if (conversationId.startsWith("group:")) {
+        if (conversationId.startsWith("c2:")) {
             return "GROUP";
         }
-        if (conversationId.startsWith("channel:")) {
+        if (conversationId.startsWith("c4:")) {
             return "CHANNEL";
         }
         return "DIRECT";
@@ -121,7 +121,7 @@ public class ConversationQueryService {
 
     private String resolveTitle(String conversationId, String currentUserId) {
         String[] parts = conversationId.split(":");
-        if (conversationId.startsWith("single:") && parts.length == 3) {
+        if (conversationId.startsWith("c1:") && parts.length == 3) {
             return currentUserId.equals(parts[1]) ? parts[2] : parts[1];
         }
         if (parts.length >= 2) {
@@ -131,13 +131,13 @@ public class ConversationQueryService {
     }
 
     private String resolveSubtitle(String conversationId) {
-        if (conversationId.startsWith("single:")) {
+        if (conversationId.startsWith("c1:")) {
             return "Direct conversation";
         }
-        if (conversationId.startsWith("group:")) {
+        if (conversationId.startsWith("c2:")) {
             return "Group conversation";
         }
-        if (conversationId.startsWith("channel:")) {
+        if (conversationId.startsWith("c4:")) {
             return "Channel conversation";
         }
         return "Conversation";
@@ -174,7 +174,7 @@ public class ConversationQueryService {
         if (conversationId == null || userId == null) {
             return false;
         }
-        if (conversationId.startsWith("single:")) {
+        if (conversationId.startsWith("c1:")) {
             return conversationId.endsWith(":" + userId) || conversationId.contains(":" + userId + ":");
         }
         return true;

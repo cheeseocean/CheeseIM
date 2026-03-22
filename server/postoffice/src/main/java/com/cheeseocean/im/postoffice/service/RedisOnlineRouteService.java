@@ -1,7 +1,7 @@
 package com.cheeseocean.im.postoffice.service;
 
-import com.cheeseocean.im.common.constants.RedisKeys;
 import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
+import com.cheeseocean.im.common.core.constants.RedisKeys;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -25,7 +25,7 @@ public class RedisOnlineRouteService implements OnlineRouteService {
 
     @Override
     public void register(RouteSnapshot snapshot) {
-        String key = RedisKeys.onlineRoute(snapshot.getUserId());
+        String key = RedisKeys.onlineUser(snapshot.getUserId());
         redisTemplate.opsForHash().putAll(key, Map.of(
                 field(snapshot.getDeviceId(), "gatewayNode"), snapshot.getGatewayNode(),
                 field(snapshot.getDeviceId(), "connectedAt"), snapshot.getConnectedAt(),
@@ -36,14 +36,14 @@ public class RedisOnlineRouteService implements OnlineRouteService {
 
     @Override
     public void refresh(String userId, String deviceId, long heartbeatAt) {
-        String key = RedisKeys.onlineRoute(userId);
+        String key = RedisKeys.onlineUser(userId);
         redisTemplate.opsForHash().put(key, field(deviceId, "heartbeatAt"), heartbeatAt);
         redisTemplate.expire(key, ROUTE_TTL_MINUTES, TimeUnit.MINUTES);
     }
 
     @Override
     public void unregister(String userId, String deviceId) {
-        redisTemplate.opsForHash().delete(RedisKeys.onlineRoute(userId),
+        redisTemplate.opsForHash().delete(RedisKeys.onlineUser(userId),
                 field(deviceId, "gatewayNode"),
                 field(deviceId, "connectedAt"),
                 field(deviceId, "heartbeatAt"));
@@ -52,7 +52,7 @@ public class RedisOnlineRouteService implements OnlineRouteService {
     @Override
     public List<RouteSnapshot> findByUser(String userId) {
         HashOperations<String, Object, Object> hashOperations = redisTemplate.opsForHash();
-        Map<Object, Object> entries = hashOperations.entries(RedisKeys.onlineRoute(userId));
+        Map<Object, Object> entries = hashOperations.entries(RedisKeys.onlineUser(userId));
         Map<String, RouteSnapshot> snapshots = new LinkedHashMap<>();
         for (Map.Entry<Object, Object> entry : entries.entrySet()) {
             String field = String.valueOf(entry.getKey());

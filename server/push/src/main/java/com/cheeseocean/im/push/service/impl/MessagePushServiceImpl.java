@@ -1,11 +1,11 @@
 package com.cheeseocean.im.push.service.impl;
 
+import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.dto.push.OfflinePushReq;
 import com.cheeseocean.im.common.api.dto.push.PushResult;
 import com.cheeseocean.im.common.api.event.OfflinePushEvent;
 import com.cheeseocean.im.common.api.rpc.OfflinePushRpc;
-import com.cheeseocean.im.common.entity.DeliveryState;
-import com.cheeseocean.im.common.entity.Message;
+import com.cheeseocean.im.common.core.enums.DeliveryState;
 import com.cheeseocean.im.push.entity.OfflinePushResult;
 import com.cheeseocean.im.push.entity.PushAttempt;
 import com.cheeseocean.im.push.service.OfflinePushService;

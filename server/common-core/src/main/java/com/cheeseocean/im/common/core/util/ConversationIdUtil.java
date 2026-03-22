@@ -36,4 +36,21 @@ public final class ConversationIdUtil {
     public static String notification(String userId) {
         return "c3:" + userId;
     }
+
+    public static String peerUser(String conversationId, String currentUserId) {
+        if (conversationId == null || currentUserId == null || !conversationId.startsWith("c1:")) {
+            return null;
+        }
+        String[] parts = conversationId.split(":");
+        if (parts.length != 3) {
+            return null;
+        }
+        if (currentUserId.equals(parts[1])) {
+            return parts[2];
+        }
+        if (currentUserId.equals(parts[2])) {
+            return parts[1];
+        }
+        return null;
+    }
 }

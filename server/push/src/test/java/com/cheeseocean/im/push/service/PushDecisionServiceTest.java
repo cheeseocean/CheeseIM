@@ -1,7 +1,7 @@
 package com.cheeseocean.im.push.service;
 
 import com.cheeseocean.im.common.api.dto.push.OfflinePushReq;
-import com.cheeseocean.im.common.entity.DeliveryState;
+import com.cheeseocean.im.common.core.enums.DeliveryState;
 import com.cheeseocean.im.push.entity.PushAttempt;
 import org.junit.jupiter.api.Test;
 

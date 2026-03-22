@@ -1,8 +1,8 @@
 package com.cheeseocean.im.postman.service;
 
-import com.cheeseocean.im.common.constants.KafkaTopics;
-import com.cheeseocean.im.common.entity.DeliveryState;
-import com.cheeseocean.im.common.entity.DeliveryTask;
+import com.cheeseocean.im.common.api.dto.message.DeliveryTask;
+import com.cheeseocean.im.common.core.constants.TopicNames;
+import com.cheeseocean.im.common.core.enums.DeliveryState;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
@@ -35,7 +35,7 @@ class DeliveryCompensationServiceTest {
         assertEquals(1, scheduled.getRetryCount());
         assertEquals(DeliveryState.FAILED_RECOVERABLE, scheduled.getState());
         assertNotNull(scheduled.getNextRetryAt());
-        verify(kafkaTemplate).send(eq(KafkaTopics.Ops.RETRY), eq("s-1"), contains("\"retryCount\":1"));
+        verify(kafkaTemplate).send(eq(TopicNames.RETRY), eq("s-1"), contains("\"retryCount\":1"));
     }
 
     @Test
@@ -56,7 +56,7 @@ class DeliveryCompensationServiceTest {
         DeliveryTask deadLettered = service.handleTimeout(task);
 
         assertEquals(DeliveryState.FAILED_FINAL, deadLettered.getState());
-        verify(kafkaTemplate).send(eq(KafkaTopics.Ops.DLQ), eq("s-2"), contains("\"serverMsgId\":\"s-2\""));
+        verify(kafkaTemplate).send(eq(TopicNames.DLQ), eq("s-2"), contains("\"serverMsgId\":\"s-2\""));
         assertEquals(1.0d, meterRegistry.get("im.delivery.state").tag("state", "FAILED_FINAL").counter().count());
     }
 }

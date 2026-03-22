@@ -1,6 +1,7 @@
 package com.cheeseocean.im.postoffice.service;
 
 import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
+import com.cheeseocean.im.common.core.constants.RedisKeys;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -37,8 +38,8 @@ class RedisOnlineRouteServiceTest {
 
         service.register(snapshot);
 
-        verify(hashOperations).putAll(eq("cheese_im:route:u1"), any(Map.class));
-        verify(redisTemplate).expire("cheese_im:route:u1", 30, TimeUnit.MINUTES);
+        verify(hashOperations).putAll(eq(RedisKeys.onlineUser("u1")), any(Map.class));
+        verify(redisTemplate).expire(RedisKeys.onlineUser("u1"), 30, TimeUnit.MINUTES);
     }
 
     @Test
@@ -47,7 +48,7 @@ class RedisOnlineRouteServiceTest {
         @SuppressWarnings("unchecked")
         HashOperations<String, Object, Object> hashOperations = mock(HashOperations.class);
         when(redisTemplate.opsForHash()).thenReturn(hashOperations);
-        when(hashOperations.entries("cheese_im:route:u1")).thenReturn(Map.of(
+        when(hashOperations.entries(RedisKeys.onlineUser("u1"))).thenReturn(Map.of(
                 "ios-1.gatewayNode", "gateway-a",
                 "ios-1.connectedAt", 100L,
                 "ios-1.heartbeatAt", 200L
@@ -76,7 +77,7 @@ class RedisOnlineRouteServiceTest {
 
         service.unregister("u1", "ios-1");
 
-        verify(hashOperations).delete("cheese_im:route:u1",
+        verify(hashOperations).delete(RedisKeys.onlineUser("u1"),
                 "ios-1.gatewayNode", "ios-1.connectedAt", "ios-1.heartbeatAt");
     }
 }
