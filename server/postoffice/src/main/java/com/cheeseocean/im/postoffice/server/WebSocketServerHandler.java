@@ -1,6 +1,6 @@
 package com.cheeseocean.im.postoffice.server;
 
-import com.cheeseocean.im.common.utils.IdGenerator;
+import com.cheeseocean.im.common.core.util.IdGenerator;
 import com.cheeseocean.im.common.core.enums.ConnectionState;
 import com.cheeseocean.im.postoffice.connection.ConnectionManager;
 import com.cheeseocean.im.postoffice.connection.ConnectionContext;

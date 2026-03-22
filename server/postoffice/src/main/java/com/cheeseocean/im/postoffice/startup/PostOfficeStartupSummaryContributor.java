@@ -1,7 +1,7 @@
 package com.cheeseocean.im.postoffice.startup;
 
-import com.cheeseocean.im.common.startup.StartupSummaryContributor;
-import com.cheeseocean.im.common.startup.StartupSummaryItem;
+import com.cheeseocean.im.common.core.startup.StartupSummaryContributor;
+import com.cheeseocean.im.common.core.startup.StartupSummaryItem;
 import com.cheeseocean.im.postoffice.config.IMServerConfig;
 import org.springframework.stereotype.Component;
 

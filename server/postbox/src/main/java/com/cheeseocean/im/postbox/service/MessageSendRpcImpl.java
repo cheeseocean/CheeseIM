@@ -7,7 +7,7 @@ import com.cheeseocean.im.common.api.event.IngressEvent;
 import com.cheeseocean.im.common.api.rpc.MessageSendRpc;
 import com.cheeseocean.im.common.core.enums.SessionType;
 import com.cheeseocean.im.common.core.util.ConversationIdUtil;
-import com.cheeseocean.im.common.utils.IdGenerator;
+import com.cheeseocean.im.common.core.util.IdGenerator;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.stereotype.Service;
 

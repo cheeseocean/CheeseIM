@@ -1,4 +1,4 @@
-package com.cheeseocean.im.common.startup;
+package com.cheeseocean.im.common.core.startup;
 
 import java.util.List;
 

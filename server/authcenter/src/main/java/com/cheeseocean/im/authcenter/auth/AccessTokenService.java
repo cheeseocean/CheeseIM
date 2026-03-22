@@ -1,7 +1,7 @@
 package com.cheeseocean.im.authcenter.auth;
 
 import com.cheeseocean.im.authcenter.config.AuthCenterConfig;
-import com.cheeseocean.im.common.constants.MessageConstants;
+import com.cheeseocean.im.common.core.constants.MessageConstants;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;

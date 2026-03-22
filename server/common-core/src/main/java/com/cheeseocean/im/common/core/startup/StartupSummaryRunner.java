@@ -1,4 +1,4 @@
-package com.cheeseocean.im.common.startup;
+package com.cheeseocean.im.common.core.startup;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +20,7 @@ import java.util.List;
 @Order(Ordered.LOWEST_PRECEDENCE)
 public class StartupSummaryRunner implements ApplicationListener<ApplicationReadyEvent> {
 
-    private static final Logger log = LoggerFactory.getLogger(StartupSummaryRunner.class);
+    private static final Logger LOG = LoggerFactory.getLogger(StartupSummaryRunner.class);
 
     private final Environment environment;
     private final List<StartupSummaryContributor> contributors;
@@ -76,7 +76,7 @@ public class StartupSummaryRunner implements ApplicationListener<ApplicationRead
         }
 
         builder.append("==========================================================");
-        log.info(builder.toString());
+        LOG.info(builder.toString());
     }
 
     private String resolveApplicationName() {
@@ -122,7 +122,7 @@ public class StartupSummaryRunner implements ApplicationListener<ApplicationRead
         try {
             return InetAddress.getLocalHost().getHostAddress();
         } catch (UnknownHostException ex) {
-            log.warn("Failed to resolve local host address, fallback to localhost");
+            LOG.warn("Failed to resolve local host address, fallback to localhost");
             return "localhost";
         }
     }
