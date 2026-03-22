@@ -4,11 +4,10 @@ import com.cheeseocean.im.common.api.friend.FriendRelationService;
 import com.cheeseocean.im.common.model.auth.SessionPrincipal;
 import com.cheeseocean.im.common.utils.ConversationIds;
 import com.cheeseocean.im.postbox.api.ConversationSummaryResponse;
-import com.cheeseocean.im.postbox.entity.InboxDocument;
-import com.cheeseocean.im.postbox.entity.MessageDocument;
-import com.cheeseocean.im.postbox.repository.InboxDocumentRepository;
-import com.cheeseocean.im.postbox.repository.MessageDocumentRepository;
+import com.cheeseocean.im.common.core.constants.RedisKeys;
+import com.cheeseocean.im.postbox.history.MessageSlot;
 import org.apache.dubbo.config.annotation.DubboReference;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,16 +15,16 @@ import java.util.List;
 @Service
 public class DirectConversationService {
 
-    private final InboxDocumentRepository inboxDocumentRepository;
-    private final MessageDocumentRepository messageDocumentRepository;
+    private final BlockMessageQueryService blockMessageQueryService;
+    private final StringRedisTemplate redisTemplate;
 
     @DubboReference(check = false)
     private FriendRelationService friendRelationService;
 
-    public DirectConversationService(InboxDocumentRepository inboxDocumentRepository,
-                                     MessageDocumentRepository messageDocumentRepository) {
-        this.inboxDocumentRepository = inboxDocumentRepository;
-        this.messageDocumentRepository = messageDocumentRepository;
+    public DirectConversationService(BlockMessageQueryService blockMessageQueryService,
+                                     StringRedisTemplate redisTemplate) {
+        this.blockMessageQueryService = blockMessageQueryService;
+        this.redisTemplate = redisTemplate;
     }
 
     public ConversationSummaryResponse startConversation(SessionPrincipal session, String friendUserId) {
@@ -40,10 +39,8 @@ public class DirectConversationService {
         }
 
         String conversationId = ConversationIds.direct(session.getUserId(), friendUserId);
-        List<InboxDocument> inboxItems = inboxDocumentRepository
-                .findByUserIdAndConversationIdOrderBySequenceDesc(session.getUserId(), conversationId);
-        InboxDocument latestInbox = inboxItems.isEmpty() ? null : inboxItems.get(0);
-        MessageDocument message = latestInbox == null ? null : messageDocumentRepository.findByServerMsgId(latestInbox.getServerMsgId());
+        Long latestSeq = loadLatestSeq(conversationId);
+        MessageSlot message = latestSeq == null ? null : blockMessageQueryService.findSlot(conversationId, latestSeq);
 
         ConversationSummaryResponse response = new ConversationSummaryResponse();
         response.setConversationId(conversationId);
@@ -51,11 +48,11 @@ public class DirectConversationService {
         response.setSubtitle("Direct conversation");
         response.setKind("DIRECT");
         response.setPeerUserId(friendUserId);
-        response.setUnreadCount((int) inboxItems.stream().filter(item -> !item.isRead()).count());
+        response.setUnreadCount(loadUnreadCount(session.getUserId(), conversationId));
         response.setAccentColor(pickAccentColor(conversationId));
         if (message != null) {
             response.setLastMessagePreview(message.getContent() == null || message.getContent().isBlank() ? "Attachment" : message.getContent());
-            response.setLastMessageTime(message.getCreatedAt() == null ? System.currentTimeMillis() : message.getCreatedAt().toEpochMilli());
+            response.setLastMessageTime(message.getSendTime() == null ? System.currentTimeMillis() : message.getSendTime());
         } else {
             response.setLastMessagePreview("No messages yet");
             response.setLastMessageTime(System.currentTimeMillis());
@@ -66,5 +63,29 @@ public class DirectConversationService {
     private String pickAccentColor(String conversationId) {
         List<String> colors = List.of("#6ef1c6", "#79d7ff", "#f8b56a", "#ff8f7a", "#99a8ff", "#8ce0b8");
         return colors.get(Math.floorMod(conversationId.hashCode(), colors.size()));
+    }
+
+    private int loadUnreadCount(String userId, String conversationId) {
+        String raw = redisTemplate.opsForValue().get(RedisKeys.userUnread(userId, conversationId));
+        if (raw == null || raw.isBlank()) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(raw);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    private Long loadLatestSeq(String conversationId) {
+        String raw = redisTemplate.opsForValue().get(RedisKeys.convMaxSeq(conversationId));
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(raw);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

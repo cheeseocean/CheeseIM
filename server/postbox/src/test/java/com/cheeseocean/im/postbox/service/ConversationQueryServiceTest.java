@@ -1,17 +1,17 @@
 package com.cheeseocean.im.postbox.service;
 
 import com.cheeseocean.im.common.enums.SessionStatus;
+import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.common.model.auth.PermissionCheckResult;
 import com.cheeseocean.im.common.model.auth.SessionPrincipal;
 import com.cheeseocean.im.postbox.api.ConversationSummaryResponse;
-import com.cheeseocean.im.postbox.entity.InboxDocument;
-import com.cheeseocean.im.postbox.entity.MessageDocument;
+import com.cheeseocean.im.postbox.history.MessageIdMappingDoc;
+import com.cheeseocean.im.postbox.history.MessageSlot;
 import com.cheeseocean.im.postbox.permission.ConversationPermissionService;
-import com.cheeseocean.im.postbox.repository.InboxDocumentRepository;
-import com.cheeseocean.im.postbox.repository.MessageDocumentRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 
-import java.time.Instant;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -24,24 +24,28 @@ class ConversationQueryServiceTest {
 
     @Test
     void listConversationsShouldAggregateLatestMessageAndUnreadCounts() {
-        InboxDocumentRepository inboxRepository = mock(InboxDocumentRepository.class);
-        MessageDocumentRepository messageRepository = mock(MessageDocumentRepository.class);
+        BlockMessageQueryService blockMessageQueryService = mock(BlockMessageQueryService.class);
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        @SuppressWarnings("unchecked")
+        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         ConversationPermissionService permissionService = mock(ConversationPermissionService.class);
         when(permissionService.check(any())).thenReturn(PermissionCheckResult.allow());
 
-        InboxDocument latestSingle = inbox("userB", "s-2", "single:userA:userB", 8L, false, "2026-03-19T11:05:00Z");
-        InboxDocument olderSingle = inbox("userB", "s-1", "single:userA:userB", 7L, true, "2026-03-19T11:00:00Z");
-        InboxDocument latestGroup = inbox("userB", "g-2", "group:crew", 6L, false, "2026-03-19T10:30:00Z");
-        when(inboxRepository.findByUserIdOrderBySequenceDesc("userB"))
-                .thenReturn(List.of(latestSingle, olderSingle, latestGroup));
+        when(blockMessageQueryService.findRecentConversationMappings(100))
+                .thenReturn(List.of(
+                        mapping("single:userA:userB", 8L, "s-2", "userA", 1742382300000L),
+                        mapping("single:userA:userB", 7L, "s-1", "userA", 1742382000000L),
+                        mapping("group:crew", 6L, "g-2", "userC", 1742375400000L)
+                ));
+        when(blockMessageQueryService.findSlot("single:userA:userB", 8L))
+                .thenReturn(message(8L, "s-2", "single:userA:userB", "userA", "Need the final mockups."));
+        when(blockMessageQueryService.findSlot("group:crew", 6L))
+                .thenReturn(message(6L, "g-2", "group:crew", "userC", "Stand-up moved to 11:30."));
+        when(valueOperations.get(RedisKeys.userUnread("userB", "single:userA:userB"))).thenReturn("1");
+        when(valueOperations.get(RedisKeys.userUnread("userB", "group:crew"))).thenReturn("1");
 
-        MessageDocument singleMessage = message("s-2", "single:userA:userB", "userA", "Need the final mockups.");
-        singleMessage.setCreatedAt(Instant.parse("2026-03-19T11:05:00Z"));
-        MessageDocument groupMessage = message("g-2", "group:crew", "userC", "Stand-up moved to 11:30.");
-        groupMessage.setCreatedAt(Instant.parse("2026-03-19T10:30:00Z"));
-        when(messageRepository.findAllById(List.of("s-2", "g-2"))).thenReturn(List.of(singleMessage, groupMessage));
-
-        ConversationQueryService service = new ConversationQueryService(inboxRepository, messageRepository, permissionService);
+        ConversationQueryService service = new ConversationQueryService(blockMessageQueryService, redisTemplate, permissionService);
 
         List<ConversationSummaryResponse> conversations = service.listConversations(session("userB"), 20);
 
@@ -61,20 +65,25 @@ class ConversationQueryServiceTest {
 
     @Test
     void listConversationsShouldSkipDeniedConversationsAndRespectLimit() {
-        InboxDocumentRepository inboxRepository = mock(InboxDocumentRepository.class);
-        MessageDocumentRepository messageRepository = mock(MessageDocumentRepository.class);
+        BlockMessageQueryService blockMessageQueryService = mock(BlockMessageQueryService.class);
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        @SuppressWarnings("unchecked")
+        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         ConversationPermissionService permissionService = mock(ConversationPermissionService.class);
 
-        InboxDocument denied = inbox("userB", "s-1", "channel:ops", 9L, false, "2026-03-19T11:10:00Z");
-        InboxDocument allowed = inbox("userB", "s-2", "single:userA:userB", 8L, false, "2026-03-19T11:05:00Z");
-        when(inboxRepository.findByUserIdOrderBySequenceDesc("userB"))
-                .thenReturn(List.of(denied, allowed));
+        when(blockMessageQueryService.findRecentConversationMappings(50))
+                .thenReturn(List.of(
+                        mapping("channel:ops", 9L, "s-1", "userC", 1742382600000L),
+                        mapping("single:userA:userB", 8L, "s-2", "userA", 1742382300000L)
+                ));
         when(permissionService.check(any()))
                 .thenReturn(PermissionCheckResult.deny("DENIED", "no access"))
                 .thenReturn(PermissionCheckResult.allow());
-        when(messageRepository.findAllById(List.of("s-2"))).thenReturn(List.of(message("s-2", "single:userA:userB", "userA", "Hello")));
+        when(blockMessageQueryService.findSlot("single:userA:userB", 8L))
+                .thenReturn(message(8L, "s-2", "single:userA:userB", "userA", "Hello"));
 
-        ConversationQueryService service = new ConversationQueryService(inboxRepository, messageRepository, permissionService);
+        ConversationQueryService service = new ConversationQueryService(blockMessageQueryService, redisTemplate, permissionService);
 
         List<ConversationSummaryResponse> conversations = service.listConversations(session("userB"), 1);
 
@@ -92,23 +101,23 @@ class ConversationQueryServiceTest {
         return session;
     }
 
-    private InboxDocument inbox(String userId, String serverMsgId, String conversationId, long sequence, boolean read, String createdAt) {
-        InboxDocument inbox = new InboxDocument();
-        inbox.setUserId(userId);
-        inbox.setServerMsgId(serverMsgId);
-        inbox.setConversationId(conversationId);
-        inbox.setSequence(sequence);
-        inbox.setRead(read);
-        inbox.setCreatedAt(Instant.parse(createdAt));
-        return inbox;
+    private MessageIdMappingDoc mapping(String conversationId, long seq, String serverMsgId, String senderId, long sendTime) {
+        MessageIdMappingDoc mapping = new MessageIdMappingDoc();
+        mapping.setConversationId(conversationId);
+        mapping.setSeq(seq);
+        mapping.setServerMsgId(serverMsgId);
+        mapping.setSenderId(senderId);
+        mapping.setSendTime(sendTime);
+        return mapping;
     }
 
-    private MessageDocument message(String serverMsgId, String conversationId, String senderId, String content) {
-        MessageDocument document = new MessageDocument();
-        document.setServerMsgId(serverMsgId);
-        document.setConversationId(conversationId);
-        document.setSenderId(senderId);
-        document.setContent(content);
-        return document;
+    private MessageSlot message(long seq, String serverMsgId, String conversationId, String senderId, String content) {
+        MessageSlot slot = new MessageSlot();
+        slot.setSeq(seq);
+        slot.setServerMsgId(serverMsgId);
+        slot.setSenderId(senderId);
+        slot.setContent(content);
+        slot.setSendTime(System.currentTimeMillis());
+        return slot;
     }
 }

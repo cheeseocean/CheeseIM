@@ -1,26 +1,23 @@
 package com.cheeseocean.im.postbox.service;
 
 import com.cheeseocean.im.common.enums.ConversationAction;
+import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.common.model.auth.PermissionCheckRequest;
 import com.cheeseocean.im.common.model.auth.PermissionCheckResult;
 import com.cheeseocean.im.common.model.auth.SessionPrincipal;
 import com.cheeseocean.im.postbox.api.ConversationSummaryResponse;
-import com.cheeseocean.im.postbox.entity.InboxDocument;
-import com.cheeseocean.im.postbox.entity.MessageDocument;
+import com.cheeseocean.im.postbox.history.MessageIdMappingDoc;
+import com.cheeseocean.im.postbox.history.MessageSlot;
 import com.cheeseocean.im.postbox.permission.ConversationPermissionService;
-import com.cheeseocean.im.postbox.repository.InboxDocumentRepository;
-import com.cheeseocean.im.postbox.repository.MessageDocumentRepository;
 import com.cheeseocean.im.common.utils.ConversationIds;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Service
 public class ConversationQueryService {
@@ -34,32 +31,33 @@ public class ConversationQueryService {
             "#8ce0b8"
     );
 
-    private final InboxDocumentRepository inboxDocumentRepository;
-    private final MessageDocumentRepository messageDocumentRepository;
+    private final BlockMessageQueryService blockMessageQueryService;
+    private final StringRedisTemplate redisTemplate;
     private final ConversationPermissionService conversationPermissionService;
 
-    public ConversationQueryService(InboxDocumentRepository inboxDocumentRepository,
-                                    MessageDocumentRepository messageDocumentRepository,
+    public ConversationQueryService(BlockMessageQueryService blockMessageQueryService,
+                                    StringRedisTemplate redisTemplate,
                                     ConversationPermissionService conversationPermissionService) {
-        this.inboxDocumentRepository = inboxDocumentRepository;
-        this.messageDocumentRepository = messageDocumentRepository;
+        this.blockMessageQueryService = blockMessageQueryService;
+        this.redisTemplate = redisTemplate;
         this.conversationPermissionService = conversationPermissionService;
     }
 
     public List<ConversationSummaryResponse> listConversations(SessionPrincipal session, int limit) {
-        List<InboxDocument> inboxItems = inboxDocumentRepository.findByUserIdOrderBySequenceDesc(session.getUserId());
+        List<MessageIdMappingDoc> mappings = blockMessageQueryService.findRecentConversationMappings(Math.max(limit * 5, 50));
         Map<String, ConversationAccumulator> byConversation = new LinkedHashMap<>();
-        for (InboxDocument inbox : inboxItems) {
+        for (MessageIdMappingDoc mapping : mappings) {
+            if (mapping.getConversationId() == null || !mayBelongToUser(session.getUserId(), mapping.getConversationId())) {
+                continue;
+            }
             ConversationAccumulator accumulator = byConversation.computeIfAbsent(
-                    inbox.getConversationId(),
+                    mapping.getConversationId(),
                     ignored -> new ConversationAccumulator()
             );
-            if (accumulator.latestInbox == null) {
-                accumulator.latestInbox = inbox;
+            if (accumulator.latestMapping == null) {
+                accumulator.latestMapping = mapping;
             }
-            if (!inbox.isRead()) {
-                accumulator.unreadCount++;
-            }
+            accumulator.unreadCount = loadUnreadCount(session.getUserId(), mapping.getConversationId());
         }
 
         List<ConversationAccumulator> visibleAccumulators = new ArrayList<>();
@@ -80,36 +78,31 @@ public class ConversationQueryService {
             }
         }
 
-        Map<String, MessageDocument> messageById = messageDocumentRepository.findAllById(
-                        visibleAccumulators.stream()
-                                .map(accumulator -> accumulator.latestInbox.getServerMsgId())
-                                .toList())
-                .stream()
-                .collect(Collectors.toMap(MessageDocument::getServerMsgId, Function.identity()));
-
         return visibleAccumulators.stream()
-                .map(accumulator -> toResponse(session.getUserId(), accumulator, messageById.get(accumulator.latestInbox.getServerMsgId())))
+                .map(accumulator -> toResponse(session.getUserId(), accumulator))
                 .filter(response -> response != null)
                 .toList();
     }
 
     private ConversationSummaryResponse toResponse(String currentUserId,
-                                                   ConversationAccumulator accumulator,
-                                                   MessageDocument message) {
+                                                   ConversationAccumulator accumulator) {
+        MessageSlot message = blockMessageQueryService.findSlot(
+                accumulator.latestMapping.getConversationId(),
+                accumulator.latestMapping.getSeq());
         if (message == null) {
             return null;
         }
 
         ConversationSummaryResponse response = new ConversationSummaryResponse();
-        response.setConversationId(accumulator.latestInbox.getConversationId());
-        response.setKind(detectKind(accumulator.latestInbox.getConversationId()));
-        response.setTitle(resolveTitle(accumulator.latestInbox.getConversationId(), currentUserId));
-        response.setSubtitle(resolveSubtitle(accumulator.latestInbox.getConversationId()));
-        response.setPeerUserId(ConversationIds.peerUser(accumulator.latestInbox.getConversationId(), currentUserId));
+        response.setConversationId(accumulator.latestMapping.getConversationId());
+        response.setKind(detectKind(accumulator.latestMapping.getConversationId()));
+        response.setTitle(resolveTitle(accumulator.latestMapping.getConversationId(), currentUserId));
+        response.setSubtitle(resolveSubtitle(accumulator.latestMapping.getConversationId()));
+        response.setPeerUserId(ConversationIds.peerUser(accumulator.latestMapping.getConversationId(), currentUserId));
         response.setLastMessagePreview(resolvePreview(message));
-        response.setLastMessageTime(resolveTime(message.getCreatedAt(), accumulator.latestInbox.getCreatedAt()));
+        response.setLastMessageTime(resolveTime(message.getSendTime(), accumulator.latestMapping.getSendTime()));
         response.setUnreadCount(accumulator.unreadCount);
-        response.setAccentColor(pickAccentColor(accumulator.latestInbox.getConversationId()));
+        response.setAccentColor(pickAccentColor(accumulator.latestMapping.getConversationId()));
         return response;
     }
 
@@ -150,19 +143,41 @@ public class ConversationQueryService {
         return "Conversation";
     }
 
-    private String resolvePreview(MessageDocument message) {
+    private String resolvePreview(MessageSlot message) {
         if (StringUtils.hasText(message.getContent())) {
             return message.getContent();
         }
-        if (StringUtils.hasText(message.getAttachedInfo())) {
+        if (message.getExt() != null && !message.getExt().isEmpty()) {
             return "Attachment";
         }
         return "Unsupported message";
     }
 
-    private Long resolveTime(Instant createdAt, Instant inboxCreatedAt) {
-        Instant candidate = createdAt != null ? createdAt : inboxCreatedAt;
-        return candidate == null ? System.currentTimeMillis() : candidate.toEpochMilli();
+    private Long resolveTime(Long sendTime, Long mappingSendTime) {
+        Long candidate = sendTime != null ? sendTime : mappingSendTime;
+        return candidate == null ? System.currentTimeMillis() : candidate;
+    }
+
+    private int loadUnreadCount(String userId, String conversationId) {
+        String raw = redisTemplate.opsForValue().get(RedisKeys.userUnread(userId, conversationId));
+        if (raw == null || raw.isBlank()) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(raw);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    private boolean mayBelongToUser(String userId, String conversationId) {
+        if (conversationId == null || userId == null) {
+            return false;
+        }
+        if (conversationId.startsWith("single:")) {
+            return conversationId.endsWith(":" + userId) || conversationId.contains(":" + userId + ":");
+        }
+        return true;
     }
 
     private String pickAccentColor(String conversationId) {
@@ -171,7 +186,7 @@ public class ConversationQueryService {
     }
 
     private static final class ConversationAccumulator {
-        private InboxDocument latestInbox;
+        private MessageIdMappingDoc latestMapping;
         private int unreadCount;
     }
 }

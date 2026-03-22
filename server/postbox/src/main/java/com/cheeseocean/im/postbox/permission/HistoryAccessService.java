@@ -1,21 +1,21 @@
 package com.cheeseocean.im.postbox.permission;
 
-import com.cheeseocean.im.postbox.entity.MessageDocument;
-import com.cheeseocean.im.postbox.repository.MessageDocumentRepository;
 import com.cheeseocean.im.common.model.auth.PermissionCheckRequest;
 import com.cheeseocean.im.common.model.auth.PermissionCheckResult;
+import com.cheeseocean.im.postbox.history.MessageIdMappingDoc;
+import com.cheeseocean.im.postbox.history.MessageIdMappingRepository;
 import org.springframework.stereotype.Service;
 
 @Service
 public class HistoryAccessService {
 
     private final ConversationPermissionService conversationPermissionService;
-    private final MessageDocumentRepository messageDocumentRepository;
+    private final MessageIdMappingRepository messageIdMappingRepository;
 
     public HistoryAccessService(ConversationPermissionService conversationPermissionService,
-                                MessageDocumentRepository messageDocumentRepository) {
+                                MessageIdMappingRepository messageIdMappingRepository) {
         this.conversationPermissionService = conversationPermissionService;
-        this.messageDocumentRepository = messageDocumentRepository;
+        this.messageIdMappingRepository = messageIdMappingRepository;
     }
 
     public PermissionCheckResult checkConversationRead(String tenantId, String userId, String conversationId) {
@@ -28,7 +28,7 @@ public class HistoryAccessService {
     }
 
     public PermissionCheckResult checkMessageRead(String tenantId, String userId, String messageId) {
-        MessageDocument message = messageDocumentRepository.findByServerMsgId(messageId);
+        MessageIdMappingDoc message = messageIdMappingRepository.findByServerMsgId(messageId).orElse(null);
         if (message == null) {
             return PermissionCheckResult.deny("MESSAGE_NOT_FOUND", "message not found");
         }
