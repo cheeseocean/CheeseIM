@@ -5,8 +5,9 @@
 ## Responsibility
 
 - persist one durable message fact per accepted logical message
-- persist per-user inbox projections for offline recovery and unread state
-- serve offline pull and projection updates for ack/read/recall convergence
+- persist history truth into `message_block` and `message_id_mapping`
+- serve history pull, conversation views, and resource checks from block history plus Redis hot state
+- update receipt/read convergence state through Redis-backed conversation state
 
 ## Not In Scope
 
@@ -17,7 +18,7 @@ The module no longer owns:
 - online-user statistics
 - gateway-facing REST endpoints
 
-Those responsibilities now live in the validated `postoffice` and `postman` flow.
+Those responsibilities now live in the validated `postoffice`, `postman`, and `push` flow.
 
 ## Core Types
 

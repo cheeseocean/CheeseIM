@@ -13,9 +13,18 @@ echo "3. 清理缓存..."
 ./gradlew clean --refresh-dependencies
 
 echo "4. 检查依赖树..."
-./gradlew :common:dependencies --configuration compileClasspath
+./gradlew :common-core:dependencies --configuration compileClasspath
+./gradlew :common-api:dependencies --configuration compileClasspath
 
 echo "5. 尝试构建..."
-./gradlew build --info
+./gradlew \
+  :common-core:compileJava \
+  :common-api:compileJava \
+  :authcenter:compileJava \
+  :postoffice:compileJava \
+  :postbox:compileJava \
+  :postman:compileJava \
+  :push:compileJava \
+  --info
 
 echo "=== 诊断完成 ==="
