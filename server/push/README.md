@@ -1,9 +1,10 @@
 # Push
 
-`push` is the offline push execution boundary for the rebuilt IM architecture.
+`push` is the delivery-execution and offline-push boundary for the rebuilt IM architecture.
 
 ## Responsibility
 
+- consume `DeliveryEvent` and execute online dispatch through shared RPC seams
 - decide whether a delivery result still needs vendor push
 - deduplicate push attempts by message identity
 - cancel stale push attempts after reconnect or receipt convergence
@@ -14,13 +15,14 @@
 The module does not own:
 
 - online push routing
-- Kafka listener-based retry orchestration
 - transport-envelope translation for gateway protocols
 
 Online delivery belongs to `postoffice`. Delivery truth and compensation belong to `postman`.
 
 ## Core Types
 
+- `DeliveryEventListener`
+- `OfflinePushEventListener`
 - `MessagePushServiceImpl`
 - `PushDecisionService`
 - `PushAttempt`
@@ -30,5 +32,4 @@ Online delivery belongs to `postoffice`. Delivery truth and compensation belong 
 
 ```bash
 ./gradlew :push:test
-./gradlew :postoffice:test --tests "com.cheeseocean.im.postoffice.ImFlowSmokeTest"
 ```

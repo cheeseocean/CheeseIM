@@ -1,18 +1,21 @@
 # Push Architecture
 
-The rebuilt push module is no longer a Kafka listener pipeline. It is a delivery-side service that is invoked after `postman` decides a message still needs offline push.
+`push` is the delivery-execution boundary in the rebuilt IM architecture.
+It consumes `DeliveryEvent`, executes online dispatch via shared RPC contracts, and emits or consumes `OfflinePushEvent` when vendor push is still required.
 
 ## Current Flow
 
-1. `postman` advances delivery state for a message
-2. when online confirmation is missing, `postman` invokes the push boundary
-3. `PushDecisionService` decides whether a push attempt should exist
-4. `MessagePushServiceImpl` creates or suppresses a `PushAttempt`
-5. `OfflinePushServiceImpl` hands the request to provider-specific adapters
-6. reconnect, receipt, or read convergence can cancel stale push attempts
+1. `postman` publishes `DeliveryEvent`
+2. `DeliveryEventListener` queries online routes through `OnlineRouteQueryRpc`
+3. `DeliveryEventListener` dispatches online payloads through `OnlineDispatchRpc`
+4. when the user is offline or online dispatch fails and policy allows it, `push` publishes `OfflinePushEvent`
+5. `OfflinePushEventListener` suppresses stale attempts after reconnect
+6. `MessagePushServiceImpl` and `OfflinePushServiceImpl` hand vendor requests to provider-specific adapters
 
 ## Core Types
 
+- `DeliveryEventListener`
+- `OfflinePushEventListener`
 - `MessagePushServiceImpl`
 - `PushDecisionService`
 - `PushAttempt`
@@ -32,5 +35,4 @@ The following legacy flow has been deleted:
 
 ```bash
 ./gradlew :push:test
-./gradlew :postoffice:test --tests "com.cheeseocean.im.postoffice.ImFlowSmokeTest"
 ```

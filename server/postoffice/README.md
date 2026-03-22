@@ -28,4 +28,5 @@
 ./gradlew :postoffice:test
 ```
 
-The authoritative end-to-end fixture is `postoffice/src/test/java/com/cheeseocean/im/postoffice/ImFlowSmokeTest.java`.
+Key regression coverage lives in `postoffice/src/test/java/com/cheeseocean/im/postoffice/service`
+and `postoffice/src/test/java/com/cheeseocean/im/postoffice/handler`.
