@@ -3,6 +3,7 @@ import type { AuthSession, GatewayConnection, LoginCredentials, SessionState, Ws
 export interface SessionStore {
   getState(): SessionState;
   subscribe(listener: () => void): () => void;
+  getRestorableSession(): AuthSession | null;
   startSignIn(input: LoginCredentials): void;
   setAuthenticated(session: AuthSession): void;
   setTicket(ticket: WsTicket): void;
@@ -17,6 +18,8 @@ interface SessionStoreOptions {
   environmentLabel?: string;
   transportLabel?: string;
 }
+
+const STORAGE_KEY = 'cheeseim.web.auth-session';
 
 const initialState: SessionState = {
   stage: 'signed_out',
@@ -46,6 +49,25 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
     environmentLabel: options.environmentLabel ?? initialState.environmentLabel,
     transportLabel: options.transportLabel ?? initialState.transportLabel,
   };
+  const restoredSession = loadPersistedSession();
+  if (restoredSession != null) {
+    state = {
+      ...state,
+      stage: 'issuing_ticket',
+      lifecycle: 'offline',
+      profile: restoredSession.profile,
+      sessionId: restoredSession.sessionId,
+      deviceId: restoredSession.deviceId,
+      deviceName: restoredSession.deviceName,
+      platform: restoredSession.platform,
+      accessToken: restoredSession.tokens.accessToken,
+      refreshToken: restoredSession.tokens.refreshToken,
+      accessExpireAt: restoredSession.tokens.accessExpireAt,
+      refreshExpireAt: restoredSession.tokens.refreshExpireAt,
+      statusLabel: 'Restoring session',
+      ticketStatusLabel: 'Reissuing ws ticket',
+    };
+  }
   const listeners = new Set<() => void>();
 
   function emit(): void {
@@ -60,6 +82,9 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
   return {
     getState() {
       return state;
+    },
+    getRestorableSession() {
+      return toAuthSession(state);
     },
     subscribe(listener) {
       listeners.add(listener);
@@ -77,6 +102,7 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
       });
     },
     setAuthenticated(session) {
+      persistSession(session);
       patch({
         stage: 'issuing_ticket',
         profile: session.profile,
@@ -122,6 +148,7 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
       });
     },
     handleForceLogout(message) {
+      clearPersistedSession();
       patch({
         stage: 'error',
         lifecycle: 'offline',
@@ -138,6 +165,7 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
       });
     },
     reset() {
+      clearPersistedSession();
       state = {
         ...initialState,
         environmentLabel: options.environmentLabel ?? initialState.environmentLabel,
@@ -146,4 +174,94 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
       emit();
     },
   };
+}
+
+function toAuthSession(state: SessionState): AuthSession | null {
+  if (
+    state.profile == null ||
+    state.sessionId == null ||
+    state.deviceId == null ||
+    state.accessToken == null ||
+    state.refreshToken == null ||
+    state.accessExpireAt == null ||
+    state.refreshExpireAt == null
+  ) {
+    return null;
+  }
+  return {
+    sessionId: state.sessionId,
+    deviceId: state.deviceId,
+    deviceName: state.deviceName,
+    platform: state.platform,
+    profile: state.profile,
+    tokens: {
+      accessToken: state.accessToken,
+      refreshToken: state.refreshToken,
+      accessExpireAt: state.accessExpireAt,
+      refreshExpireAt: state.refreshExpireAt,
+    },
+  };
+}
+
+function persistSession(session: AuthSession): void {
+  const storage = getBrowserStorage();
+  if (storage == null) {
+    return;
+  }
+  storage.setItem(STORAGE_KEY, JSON.stringify(session));
+}
+
+function clearPersistedSession(): void {
+  const storage = getBrowserStorage();
+  if (storage == null) {
+    return;
+  }
+  storage.removeItem(STORAGE_KEY);
+}
+
+function loadPersistedSession(): AuthSession | null {
+  const storage = getBrowserStorage();
+  if (storage == null) {
+    return null;
+  }
+  const raw = storage.getItem(STORAGE_KEY);
+  if (raw == null || raw.trim() === '') {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw) as AuthSession;
+    if (
+      parsed == null ||
+      parsed.sessionId == null ||
+      parsed.deviceId == null ||
+      parsed.profile == null ||
+      parsed.tokens?.accessToken == null ||
+      parsed.tokens?.refreshToken == null ||
+      parsed.tokens?.accessExpireAt == null ||
+      parsed.tokens?.refreshExpireAt == null
+    ) {
+      clearPersistedSession();
+      return null;
+    }
+    return parsed;
+  } catch {
+    clearPersistedSession();
+    return null;
+  }
+}
+
+function getBrowserStorage(): Storage | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  const storage = window.localStorage as Partial<Storage> | undefined;
+  if (
+    storage == null ||
+    typeof storage.getItem !== 'function' ||
+    typeof storage.setItem !== 'function' ||
+    typeof storage.removeItem !== 'function'
+  ) {
+    return null;
+  }
+  return storage as Storage;
 }

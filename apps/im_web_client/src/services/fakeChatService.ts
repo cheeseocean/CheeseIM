@@ -1,6 +1,17 @@
 import type { ChatService } from './contracts';
 import type { AuthSession, ConversationSummary, FriendRequestSummary, FriendSummary, HistoryPage } from '../domain/types';
-import { acceptFriendRequest, getConversationList, getFriendList, getHistoryPage, getIncomingFriendRequests, sendFriendRequest, startDirectConversation } from './fakeData';
+import {
+  acceptFriendRequest,
+  cancelFriendRequest,
+  getConversationList,
+  getFriendList,
+  getHistoryPage,
+  getIncomingFriendRequests,
+  getOutgoingFriendRequests,
+  rejectFriendRequest,
+  sendFriendRequest,
+  startDirectConversation,
+} from './fakeData';
 
 export function createFakeChatService(): ChatService {
   return {
@@ -16,13 +27,25 @@ export function createFakeChatService(): ChatService {
       await sleep(80);
       return getIncomingFriendRequests();
     },
-    async sendFriendRequest(friendUserId: string, _session: AuthSession): Promise<FriendRequestSummary> {
+    async listOutgoingFriendRequests(_session: AuthSession): Promise<FriendRequestSummary[]> {
+      await sleep(80);
+      return getOutgoingFriendRequests();
+    },
+    async sendFriendRequest(friendUserId: string, requestMessage: string, _session: AuthSession): Promise<FriendRequestSummary> {
       await sleep(120);
-      return sendFriendRequest(friendUserId);
+      return sendFriendRequest(friendUserId, requestMessage);
     },
     async acceptFriendRequest(friendUserId: string, _session: AuthSession): Promise<FriendSummary> {
       await sleep(120);
       return acceptFriendRequest(friendUserId);
+    },
+    async rejectFriendRequest(friendUserId: string, _session: AuthSession): Promise<FriendRequestSummary> {
+      await sleep(120);
+      return rejectFriendRequest(friendUserId);
+    },
+    async cancelFriendRequest(friendUserId: string, _session: AuthSession): Promise<FriendRequestSummary> {
+      await sleep(120);
+      return cancelFriendRequest(friendUserId);
     },
     async startDirectConversation(friendUserId: string, _session: AuthSession): Promise<ConversationSummary> {
       await sleep(120);

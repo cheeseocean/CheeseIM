@@ -23,6 +23,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class DeliveryEventListenerTest {
 
@@ -41,7 +42,10 @@ class DeliveryEventListenerTest {
         DeliveryEventListener listener = new DeliveryEventListener(new ObjectMapper(), routeQueryRpc, onlineDispatchRpc, kafkaTemplate);
         listener.handle(event(true));
 
-        verify(onlineDispatchRpc).dispatchMessage(any());
+        var captor = org.mockito.ArgumentCaptor.forClass(com.cheeseocean.im.common.api.dto.dispatch.DispatchMessageReq.class);
+        verify(onlineDispatchRpc).dispatchMessage(captor.capture());
+        assertEquals("userA", captor.getValue().getPayload().getExt().get("senderId"));
+        assertEquals("userB", captor.getValue().getPayload().getExt().get("recvId"));
         verify(kafkaTemplate, never()).send(eq(TopicNames.OFFLINE_PUSH), eq("userB"), any(OfflinePushEvent.class));
     }
 

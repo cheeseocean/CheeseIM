@@ -5,6 +5,7 @@ import com.cheeseocean.im.postbox.Postbox;
 import com.cheeseocean.im.postman.Postman;
 import com.cheeseocean.im.postoffice.PostOffice;
 import com.cheeseocean.im.push.Push;
+import com.cheeseocean.im.social.Social;
 import org.apache.dubbo.config.spring.context.annotation.EnableDubbo;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -21,6 +22,7 @@ import java.util.Map;
         basePackages = {
                 "com.cheeseocean.im.common",
                 "com.cheeseocean.im.authcenter",
+                "com.cheeseocean.im.social",
                 "com.cheeseocean.im.postoffice",
                 "com.cheeseocean.im.postman",
                 "com.cheeseocean.im.postbox",
@@ -32,11 +34,13 @@ import java.util.Map;
                 @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = Postbox.class),
                 @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = Push.class),
                 @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = AuthCenter.class),
+                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = Social.class),
         }
 )
 @EnableDubbo(scanBasePackages = {
         "com.cheeseocean.im.common",
         "com.cheeseocean.im.authcenter",
+        "com.cheeseocean.im.social",
         "com.cheeseocean.im.postoffice",
         "com.cheeseocean.im.postman",
         "com.cheeseocean.im.postbox",
@@ -44,7 +48,10 @@ import java.util.Map;
 })
 @EnableKafka
 @EnableScheduling
-@EnableMongoRepositories(basePackages = "com.cheeseocean.im.postbox")
+@EnableMongoRepositories(basePackages = {
+        "com.cheeseocean.im.postbox",
+        "com.cheeseocean.im.social"
+})
 public class AllInOneApplication {
 
     public static void main(String[] args) {

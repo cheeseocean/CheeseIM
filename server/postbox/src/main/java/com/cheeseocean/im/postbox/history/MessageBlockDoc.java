@@ -2,10 +2,13 @@ package com.cheeseocean.im.postbox.history;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Document("message_block")
 public class MessageBlockDoc {
@@ -16,7 +19,8 @@ public class MessageBlockDoc {
     private Long blockNo;
     private Long startSeq;
     private Long endSeq;
-    private List<MessageSlot> messages = new ArrayList<>();
+    @Field("messages")
+    private Map<String, MessageSlot> messageMap = new LinkedHashMap<>();
     private Instant createdAt;
     private Instant updatedAt;
 
@@ -61,11 +65,50 @@ public class MessageBlockDoc {
     }
 
     public List<MessageSlot> getMessages() {
+        if (messageMap == null || messageMap.isEmpty()) {
+            return new ArrayList<>();
+        }
+        int maxIndex = -1;
+        for (String key : messageMap.keySet()) {
+            try {
+                maxIndex = Math.max(maxIndex, Integer.parseInt(key));
+            } catch (NumberFormatException ignored) {
+                // Ignore malformed legacy keys instead of failing all reads.
+            }
+        }
+        if (maxIndex < 0) {
+            return new ArrayList<>();
+        }
+        List<MessageSlot> messages = new ArrayList<>(java.util.Collections.nCopies(maxIndex + 1, null));
+        for (Map.Entry<String, MessageSlot> entry : messageMap.entrySet()) {
+            try {
+                messages.set(Integer.parseInt(entry.getKey()), entry.getValue());
+            } catch (NumberFormatException ignored) {
+                // Ignore malformed legacy keys instead of failing all reads.
+            }
+        }
         return messages;
     }
 
     public void setMessages(List<MessageSlot> messages) {
-        this.messages = messages == null ? new ArrayList<>() : new ArrayList<>(messages);
+        this.messageMap = new LinkedHashMap<>();
+        if (messages == null) {
+            return;
+        }
+        for (int i = 0; i < messages.size(); i++) {
+            MessageSlot slot = messages.get(i);
+            if (slot != null) {
+                this.messageMap.put(String.valueOf(i), slot);
+            }
+        }
+    }
+
+    public Map<String, MessageSlot> getMessageMap() {
+        return messageMap;
+    }
+
+    public void setMessageMap(Map<String, MessageSlot> messageMap) {
+        this.messageMap = messageMap == null ? new LinkedHashMap<>() : new LinkedHashMap<>(messageMap);
     }
 
     public Instant getCreatedAt() {

@@ -11,9 +11,15 @@ public interface FriendRelationService {
 
     List<FriendRequestSummary> listIncomingRequests(String userId);
 
-    FriendRequestSummary sendFriendRequest(String userId, String friendUserId);
+    List<FriendRequestSummary> listOutgoingRequests(String userId);
+
+    FriendRequestSummary sendFriendRequest(String userId, String friendUserId, String requestMessage);
 
     FriendSummary acceptFriendRequest(String userId, String friendUserId);
+
+    FriendRequestSummary rejectFriendRequest(String userId, String friendUserId);
+
+    FriendRequestSummary cancelFriendRequest(String userId, String friendUserId);
 
     boolean areAcceptedFriends(String userId, String friendUserId);
 }

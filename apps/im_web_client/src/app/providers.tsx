@@ -47,7 +47,7 @@ export function createDefaultDependencies(): AppDependencies {
   return {
     sessionStore: createSessionStore({
       environmentLabel: usingReal
-        ? 'AuthCenter · PostOffice · Postbox · Live Mode'
+        ? 'AuthCenter · Social · PostOffice · Postbox · Live Mode'
         : 'Fake Auth · Fake Gateway · Local Mode',
       transportLabel: usingReal ? 'PostOffice WebSocket' : 'Mock Gateway',
     }),
@@ -60,7 +60,7 @@ export function createDefaultDependencies(): AppDependencies {
       : createFakeAuthService(),
     chatService: usingReal
       ? createRealChatService({
-        authBaseUrl: config.authBaseUrl,
+        socialBaseUrl: config.socialBaseUrl,
         imBaseUrl: config.imBaseUrl,
         })
       : createFakeChatService(),

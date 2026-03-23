@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Java IM TUI — CLI 对话框实例</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:       #0d0f14;
+            --panel:    #13161d;
+            --surface:  #1a1e28;
+            --surface2: #222636;
+            --border:   #2c3045;
+            --border2:  #3a3f58;
+            --green:    #3dffa0;
+            --cyan:     #38d4f5;
+            --yellow:   #ffd166;
+            --red:      #ff6b6b;
+            --purple:   #c084fc;
+            --blue:     #60a5fa;
+            --text:     #dde1f0;
+            --muted:    #5a6280;
+            --dim:      #2e3348;
+            --online:   #3dffa0;
+            --away:     #ffd166;
+            --offline:  #5a6280;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ─── PAGE HEADER ─── */
+        .page-header {
+            padding: 18px 28px 14px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: var(--panel);
+        }
+        .page-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: -0.01em;
+        }
+        .page-title span { color: var(--green); }
+        .badge {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            padding: 3px 9px;
+            border-radius: 3px;
+            background: rgba(61,255,160,0.12);
+            color: var(--green);
+            border: 1px solid rgba(61,255,160,0.25);
+        }
+        .kbd-hint {
+            margin-left: auto;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        kbd {
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            border-radius: 3px;
+            padding: 2px 7px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--muted);
+        }
+        .kbd-sep { color: var(--muted); font-size: 10px; }
+
+        /* ─── MAIN LAYOUT ─── */
+        .layout {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 53px);
+            overflow: hidden;
+        }
+
+        /* ─── LEFT PANEL ─── */
+        .left-panel {
+            width: 240px;
+            min-width: 240px;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            background: var(--panel);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+        }
+        .tab {
+            flex: 1;
+            padding: 10px 0;
+            text-align: center;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: color 0.15s, border-color 0.15s;
+            user-select: none;
+            position: relative;
+        }
+        .tab:hover { color: var(--text); }
+        .tab.active { color: var(--green); border-bottom-color: var(--green); }
+        .tab .tab-count {
+            display: inline-block;
+            background: rgba(61,255,160,0.15);
+            color: var(--green);
+            border-radius: 8px;
+            font-size: 9px;
+            padding: 0 5px;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+
+        /* Search */
+        .search-box {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .search-box input {
+            width: 100%;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            padding: 6px 10px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text);
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .search-box input:focus { border-color: var(--green); }
+        .search-box input::placeholder { color: var(--muted); }
+
+        /* List */
+        .contact-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 6px 0;
+        }
+        .contact-list::-webkit-scrollbar { width: 4px; }
+        .contact-list::-webkit-scrollbar-track { background: transparent; }
+        .contact-list::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-left: 2px solid transparent;
+            transition: background 0.12s, border-color 0.12s;
+            position: relative;
+        }
+        .contact-item:hover { background: var(--surface); }
+        .contact-item.active {
+            background: var(--surface2);
+            border-left-color: var(--green);
+        }
+        .contact-item.active .contact-name { color: var(--green); }
+
+        .avatar {
+            width: 32px; height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+            flex-shrink: 0;
+            position: relative;
+            font-family: 'Outfit', sans-serif;
+        }
+        .status-dot {
+            position: absolute;
+            bottom: -1px; right: -1px;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            border: 1.5px solid var(--panel);
+        }
+        .status-dot.online  { background: var(--online); }
+        .status-dot.away    { background: var(--away); }
+        .status-dot.offline { background: var(--offline); }
+
+        .contact-info { flex: 1; min-width: 0; }
+        .contact-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .contact-preview {
+            font-size: 10px;
+            color: var(--muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 2px;
+        }
+        .contact-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 3px;
+            flex-shrink: 0;
+        }
+        .contact-time { font-size: 9px; color: var(--muted); }
+        .unread-badge {
+            background: var(--green);
+            color: #000;
+            border-radius: 8px;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 1px 5px;
+            min-width: 16px;
+            text-align: center;
+        }
+
+        /* ─── RIGHT PANEL ─── */
+        .right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Chat header */
+        .chat-header {
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--panel);
+            flex-shrink: 0;
+        }
+        .chat-name {
+            font-family: 'Outfit', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text);
+        }
+        .chat-status {
+            font-size: 10px;
+            color: var(--online);
+            margin-top: 1px;
+        }
+        .chat-status::before {
+            content: '●';
+            margin-right: 4px;
+            font-size: 8px;
+        }
+        .chat-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 6px;
+        }
+        .action-btn {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--muted);
+            border-radius: 5px;
+            padding: 5px 10px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            cursor: pointer;
+            transition: color 0.15s, border-color 0.15s;
+        }
+        .action-btn:hover { color: var(--text); border-color: var(--border2); }
+
+        /* Messages */
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .messages::-webkit-scrollbar { width: 4px; }
+        .messages::-webkit-scrollbar-track { background: transparent; }
+        .messages::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+
+        .day-sep {
+            text-align: center;
+            margin: 12px 0 8px;
+            position: relative;
+        }
+        .day-sep::before {
+            content: '';
+            position: absolute;
+            left: 0; right: 0;
+            top: 50%;
+            height: 1px;
+            background: var(--border);
+        }
+        .day-sep span {
+            position: relative;
+            background: var(--bg);
+            padding: 0 12px;
+            font-size: 10px;
+            color: var(--muted);
+            letter-spacing: 0.1em;
+        }
+
+        .msg-row {
+            display: flex;
+            gap: 10px;
+            padding: 3px 0;
+            max-width: 100%;
+        }
+        .msg-row.self { flex-direction: row-reverse; }
+
+        .msg-avatar {
+            width: 28px; height: 28px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            flex-shrink: 0;
+            font-family: 'Outfit', sans-serif;
+            align-self: flex-end;
+            margin-bottom: 2px;
+        }
+
+        .msg-content { max-width: 62%; display: flex; flex-direction: column; gap: 2px; }
+        .msg-row.self .msg-content { align-items: flex-end; }
+
+        .msg-sender {
+            font-size: 10px;
+            color: var(--muted);
+            margin-bottom: 2px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .msg-row.self .msg-sender { flex-direction: row-reverse; }
+
+        .bubble {
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 12px;
+            line-height: 1.6;
+            word-break: break-word;
+            position: relative;
+            animation: bubbleIn 0.2s ease both;
+        }
+        @keyframes bubbleIn {
+            from { opacity: 0; transform: translateY(6px) scale(0.97); }
+            to   { opacity: 1; transform: none; }
+        }
+
+        .bubble.other {
+            background: var(--surface2);
+            color: var(--text);
+            border-bottom-left-radius: 3px;
+        }
+        .bubble.self {
+            background: rgba(61,255,160,0.12);
+            border: 1px solid rgba(61,255,160,0.2);
+            color: var(--text);
+            border-bottom-right-radius: 3px;
+        }
+        .bubble.self .msg-text { color: #d4f7e8; }
+
+        .msg-time {
+            font-size: 9px;
+            color: var(--muted);
+            margin-top: 2px;
+            padding: 0 2px;
+        }
+        .msg-status { color: var(--cyan); }
+
+        /* System msg */
+        .system-msg {
+            text-align: center;
+            font-size: 10px;
+            color: var(--muted);
+            padding: 4px 0;
+            font-style: italic;
+        }
+
+        /* Input area */
+        .input-area {
+            border-top: 1px solid var(--border);
+            background: var(--panel);
+            padding: 12px 16px;
+            flex-shrink: 0;
+        }
+
+        .input-toolbar {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+        .tool-btn {
+            background: none;
+            border: none;
+            color: var(--muted);
+            font-size: 13px;
+            cursor: pointer;
+            padding: 2px 5px;
+            border-radius: 3px;
+            transition: color 0.15s, background 0.15s;
+        }
+        .tool-btn:hover { color: var(--text); background: var(--surface); }
+
+        .input-row {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+        }
+        .input-wrap {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            transition: border-color 0.15s;
+        }
+        .input-wrap:focus-within { border-color: var(--green); }
+
+        #msgInput {
+            flex: 1;
+            background: none;
+            border: none;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            outline: none;
+            resize: none;
+            line-height: 1.5;
+            max-height: 80px;
+        }
+        #msgInput::placeholder { color: var(--muted); }
+
+        .send-hint {
+            font-size: 9px;
+            color: var(--muted);
+            margin-left: 8px;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        .send-btn {
+            background: var(--green);
+            border: none;
+            color: #000;
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            letter-spacing: 0.05em;
+            transition: opacity 0.15s, transform 0.1s;
+            flex-shrink: 0;
+        }
+        .send-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+        .send-btn:active { transform: scale(0.97); }
+
+        /* ─── CODE PANEL (bottom section) ─── */
+        .code-section {
+            border-top: 2px solid var(--border);
+            background: var(--panel);
+            display: flex;
+            flex-direction: column;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease;
+        }
+        .code-section.open { max-height: 440px; }
+
+        .code-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg);
+            flex-shrink: 0;
+        }
+        .code-tab {
+            padding: 8px 16px;
+            font-size: 11px;
+            color: var(--muted);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: color 0.15s;
+            white-space: nowrap;
+        }
+        .code-tab.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+        .code-tab:hover { color: var(--text); }
+
+        .code-body {
+            overflow-y: auto;
+            flex: 1;
+        }
+        .code-body::-webkit-scrollbar { width: 4px; }
+        .code-body::-webkit-scrollbar-thumb { background: var(--dim); }
+
+        .code-pane { display: none; }
+        .code-pane.active { display: block; }
+
+        pre {
+            padding: 16px 20px;
+            font-size: 11.5px;
+            line-height: 1.75;
+            overflow-x: auto;
+            tab-size: 2;
+        }
+        .kw  { color: #ff79c6; }
+        .cl  { color: #8be9fd; }
+        .fn  { color: #50fa7b; }
+        .str { color: #f1fa8c; }
+        .cm  { color: #6272a4; font-style: italic; }
+        .an  { color: #bd93f9; }
+        .num { color: #bd93f9; }
+        .op  { color: #6272a4; }
+        .pl  { color: #f8f8f2; }
+        .field { color: #ffb86c; }
+
+        /* Toggle code button */
+        .toggle-code {
+            position: fixed;
+            bottom: 20px;
+            right: 24px;
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            color: var(--cyan);
+            border-radius: 6px;
+            padding: 7px 14px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            cursor: pointer;
+            z-index: 100;
+            transition: border-color 0.15s, background 0.15s;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+        .toggle-code:hover { border-color: var(--cyan); background: var(--surface); }
+
+        /* scrollbar for messages */
+    </style>
+</head>
+<body>
+
+<!-- Page Header -->
+<div class="page-header">
+    <span class="page-title"><span>IM</span>-TUI &nbsp;/&nbsp; Java CLI 对话框实例</span>
+    <span class="badge">INTERACTIVE</span>
+    <div class="kbd-hint">
+        <kbd>Tab</kbd><span class="kbd-sep">切换面板</span>
+        <kbd>↑↓</kbd><span class="kbd-sep">导航</span>
+        <kbd>Enter</kbd><span class="kbd-sep">发送</span>
+        <kbd>Ctrl+C</kbd><span class="kbd-sep">退出</span>
+    </div>
+</div>
+
+<!-- Main Layout -->
+<div class="layout">
+
+    <!-- LEFT: Contact panel -->
+    <div class="left-panel">
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('friends')">好友<span class="tab-count">5</span></div>
+            <div class="tab" onclick="switchTab('groups')">群组<span class="tab-count">3</span></div>
+            <div class="tab" onclick="switchTab('recent')">最近</div>
+        </div>
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="/ 搜索..." oninput="filterContacts(this.value)">
+        </div>
+        <div class="contact-list" id="contactList"></div>
+    </div>
+
+    <!-- RIGHT: Chat panel -->
+    <div class="right-panel">
+        <div class="chat-header" id="chatHeader">
+            <div class="avatar" id="chatAvatar" style="background:#1e2535;color:var(--muted);width:34px;height:34px;border-radius:8px;font-size:13px;display:flex;align-items:center;justify-content:center;font-family:'Outfit',sans-serif;">?</div>
+            <div>
+                <div class="chat-name" id="chatName">请选择联系人</div>
+                <div class="chat-status" id="chatStatus" style="color:var(--muted)">选择左侧联系人开始对话</div>
+            </div>
+            <div class="chat-actions">
+                <button class="action-btn" onclick="clearChat()">清空</button>
+                <button class="action-btn" onclick="showHistory()">历史</button>
+            </div>
+        </div>
+
+        <div class="messages" id="messages">
+            <div class="system-msg">— 选择一个联系人开始聊天 —</div>
+        </div>
+
+        <div class="input-area">
+            <div class="input-toolbar">
+                <button class="tool-btn" title="表情">😊</button>
+                <button class="tool-btn" title="文件">📎</button>
+                <button class="tool-btn" title="图片">🖼</button>
+                <button class="tool-btn" title="截图">✂️</button>
+            </div>
+            <div class="input-row">
+                <div class="input-wrap">
+                    <textarea id="msgInput" rows="1" placeholder="输入消息... (Enter 发送，Shift+Enter 换行)" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+                    <span class="send-hint">Enter ↵</span>
+                </div>
+                <button class="send-btn" onclick="sendMessage()">SEND</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Code section (collapsible) -->
+<div class="code-section" id="codeSection">
+    <div class="code-tabs">
+        <div class="code-tab active" onclick="switchCodeTab('tui')">TUILayout.java</div>
+        <div class="code-tab" onclick="switchCodeTab('contact')">ContactPanel.java</div>
+        <div class="code-tab" onclick="switchCodeTab('chat')">ChatPanel.java</div>
+        <div class="code-tab" onclick="switchCodeTab('input')">InputBar.java</div>
+        <div class="code-tab" onclick="switchCodeTab('renderer')">IMRenderer.java</div>
+    </div>
+    <div class="code-body">
+
+        <div class="code-pane active" id="pane-tui">
+<pre><span class="cm">// TUILayout.java — 主布局，用 Lanterna 实现左右分栏</span>
+<span class="kw">public class</span> <span class="cl">TUILayout</span> {
+
+  <span class="kw">private final</span> <span class="cl">Screen</span>        <span class="field">screen</span><span class="op">;</span>
+  <span class="kw">private final</span> <span class="cl">ContactPanel</span>  <span class="field">contactPanel</span><span class="op">;</span>
+  <span class="kw">private final</span> <span class="cl">ChatPanel</span>     <span class="field">chatPanel</span><span class="op">;</span>
+  <span class="kw">private final</span> <span class="cl">InputBar</span>      <span class="field">inputBar</span><span class="op">;</span>
+  <span class="kw">private       </span><span class="cl">FocusTarget</span>   <span class="field">focus</span> <span class="op">=</span> <span class="cl">FocusTarget</span><span class="op">.</span><span class="field">CONTACT</span><span class="op">;</span>
+
+  <span class="kw">public</span> <span class="fn">TUILayout</span><span class="op">(</span><span class="cl">IMService</span> <span class="pl">service</span><span class="op">) {</span>
+    <span class="cl">Terminal</span> <span class="pl">terminal</span> <span class="op">=</span> <span class="kw">new</span> <span class="cl">DefaultTerminalFactory</span><span class="op">().</span><span class="fn">createTerminal</span><span class="op">();</span>
+    <span class="field">screen</span> <span class="op">=</span> <span class="kw">new</span> <span class="cl">TerminalScreen</span><span class="op">(</span><span class="pl">terminal</span><span class="op">);</span>
+    <span class="field">screen</span><span class="op">.</span><span class="fn">startScreen</span><span class="op">();</span>
+
+    <span class="kw">int</span> <span class="pl">W</span> <span class="op">=</span> <span class="field">screen</span><span class="op">.</span><span class="fn">getTerminalSize</span><span class="op">().</span><span class="fn">getColumns</span><span class="op">();</span>
+    <span class="kw">int</span> <span class="pl">H</span> <span class="op">=</span> <span class="field">screen</span><span class="op">.</span><span class="fn">getTerminalSize</span><span class="op">().</span><span class="fn">getRows</span><span class="op">();</span>
+    <span class="kw">int</span> <span class="pl">leftW</span> <span class="op">=</span> <span class="num">28</span><span class="op">;</span>  <span class="cm">// 左侧联系人面板宽度</span>
+
+    <span class="field">contactPanel</span> <span class="op">=</span> <span class="kw">new</span> <span class="cl">ContactPanel</span><span class="op">(</span><span class="field">screen</span><span class="op">,</span>
+        <span class="kw">new</span> <span class="cl">TerminalRectangle</span><span class="op">(</span><span class="num">0</span><span class="op">,</span> <span class="num">0</span><span class="op">,</span> <span class="pl">leftW</span><span class="op">,</span> <span class="pl">H</span><span class="op">-</span><span class="num">3</span><span class="op">),</span> <span class="pl">service</span><span class="op">);</span>
+
+    <span class="field">chatPanel</span> <span class="op">=</span> <span class="kw">new</span> <span class="cl">ChatPanel</span><span class="op">(</span><span class="field">screen</span><span class="op">,</span>
+        <span class="kw">new</span> <span class="cl">TerminalRectangle</span><span class="op">(</span><span class="pl">leftW</span><span class="op">+</span><span class="num">1</span><span class="op">,</span> <span class="num">0</span><span class="op">,</span> <span class="pl">W</span><span class="op">-</span><span class="pl">leftW</span><span class="op">-</span><span class="num">1</span><span class="op">,</span> <span class="pl">H</span><span class="op">-</span><span class="num">3</span><span class="op">),</span> <span class="pl">service</span><span class="op">);</span>
+
+    <span class="field">inputBar</span> <span class="op">=</span> <span class="kw">new</span> <span class="cl">InputBar</span><span class="op">(</span><span class="field">screen</span><span class="op">,</span>
+        <span class="kw">new</span> <span class="cl">TerminalRectangle</span><span class="op">(</span><span class="pl">leftW</span><span class="op">+</span><span class="num">1</span><span class="op">,</span> <span class="pl">H</span><span class="op">-</span><span class="num">3</span><span class="op">,</span> <span class="pl">W</span><span class="op">-</span><span class="pl">leftW</span><span class="op">-</span><span class="num">1</span><span class="op">,</span> <span class="num">3</span><span class="op">));</span>
+  <span class="op">}</span>
+
+  <span class="kw">public void</span> <span class="fn">run</span><span class="op">()</span> <span class="kw">throws</span> <span class="cl">IOException</span> <span class="op">{</span>
+    <span class="fn">render</span><span class="op">();</span>
+    <span class="kw">while</span> <span class="op">(</span><span class="kw">true</span><span class="op">) {</span>
+      <span class="cl">KeyStroke</span> <span class="pl">key</span> <span class="op">=</span> <span class="field">screen</span><span class="op">.</span><span class="fn">readInput</span><span class="op">();</span>
+      <span class="kw">if</span> <span class="op">(</span><span class="fn">isQuit</span><span class="op">(</span><span class="pl">key</span><span class="op">))</span> <span class="kw">break</span><span class="op">;</span>
+      <span class="fn">handleKey</span><span class="op">(</span><span class="pl">key</span><span class="op">);</span>
+      <span class="fn">render</span><span class="op">();</span>
+    <span class="op">}</span>
+    <span class="field">screen</span><span class="op">.</span><span class="fn">stopScreen</span><span class="op">();</span>
+  <span class="op">}</span>
+
+  <span class="kw">private void</span> <span class="fn">handleKey</span><span class="op">(</span><span class="cl">KeyStroke</span> <span class="pl">key</span><span class="op">) {</span>
+    <span class="cm">// Tab 切换焦点</span>
+    <span class="kw">if</span> <span class="op">(</span><span class="pl">key</span><span class="op">.</span><span class="fn">getKeyType</span><span class="op">() ==</span> <span class="cl">KeyType</span><span class="op">.</span><span class="field">Tab</span><span class="op">) {</span>
+      <span class="field">focus</span> <span class="op">=</span> <span class="field">focus</span><span class="op">.</span><span class="fn">next</span><span class="op">();</span> <span class="kw">return</span><span class="op">;</span>
+    <span class="op">}</span>
+    <span class="kw">switch</span> <span class="op">(</span><span class="field">focus</span><span class="op">) {</span>
+      <span class="kw">case</span> <span class="field">CONTACT</span> <span class="op">-></span> <span class="field">contactPanel</span><span class="op">.</span><span class="fn">handleKey</span><span class="op">(</span><span class="pl">key</span><span class="op">);</span>
+      <span class="kw">case</span> <span class="field">CHAT</span>    <span class="op">-></span> <span class="field">chatPanel</span><span class="op">.</span><span class="fn">handleKey</span><span class="op">(</span><span class="pl">key</span><span class="op">);</span>
+      <span class="kw">case</span> <span class="field">INPUT</span>   <span class="op">-></span> <span class="field">inputBar</span><span class="op">.</span><span class="fn">handleKey</span><span class="op">(</span><span class="pl">key</span><span class="op">);</span>
+    <span class="op">}</span>
+  <span class="op">}</span>
+
+  <span class="kw">private void</span> <span class="fn">render</span><span class="op">()</span> <span class="kw">throws</span> <span class="cl">IOException</span> <span class="op">{</span>
+    <span class="field">screen</span><span class="op">.</span><span class="fn">clear</span><span class="op">();</span>
+    <span class="fn">drawDivider</span><span class="op">();</span>       <span class="cm">// 中间竖线</span>
+    <span class="field">contactPanel</span><span class="op">.</span><span class="fn">render</span><span class="op">(</span><span class="field">focus</span> <span class="op">==</span> <span class="cl">FocusTarget</span><span class="op">.</span><span class="field">CONTACT</span><span class="op">);</span>
+    <span class="field">chatPanel</span><span class="op">.</span><span class="fn">render</span><span class="op">(</span><span class="field">focus</span> <span class="op">==</span> <span class="cl">FocusTarget</span><span class="op">.</span><span class="field">CHAT</span><span class="op">);</span>
+    <span class="field">inputBar</span><span class="op">.</span><span class="fn">render</span><span class="op">(</span><span class="field">focus</span> <span class="op">==</span> <span class="cl">FocusTarget</span><span class="op">.</span><span class="field">INPUT</span><span class="op">);</span>
+    <span class="field">screen</span><span class="op">.</span><span class="fn">refresh</span><span class="op">();</span>
+  <span class="op">}</span>
+<span class="op">}</span></pre>
+        </div>
+
+        <div class="code-pane" id="pane-contact">
+<pre><span class="cm">// ContactPanel.java — 左侧 Tab 联系人面板</span>
+<span class="kw">public class</span> <span class="cl">ContactPanel</span> {
+
+  <span class="kw">private final</span> <span class="cl">Screen</span>           <span class="field">screen</span><span class="op">;</span>
+  <span class="kw">private final</span> <span class="cl">TerminalRectangle</span> <span class="field">rect</span><span class="op">;</span>
+  <span class="kw">private final</span> <span class="cl">IMService</span>         <span class="field">service</span><span class="op">;</span>
+  <span class="kw">private</span>       <span class="cl">TabType</span>           <span class="field">tab</span>      <span class="op">=</span> <span class="cl">TabType</span><span class="op">.</span><span class="field">FRIENDS</span><span class="op">;</span>
+  <span class="kw">private</span>       <span class="kw">int</span>              <span class="field">selected</span> <span class="op">=</span> <span class="num">0</span><span class="op">;</span>
+  <span class="kw">private</span>       <span class="kw">int</span>              <span class="field">scrollY</span>  <span class="op">=</span> <span class="num">0</span><span class="op">;</span>
+
+  <span class="kw">public void</span> <span class="fn">render</span><span class="op">(</span><span class="kw">boolean</span> <span class="pl">focused</span><span class="op">) {</span>
+    <span class="cl">TextGraphics</span> <span class="pl">g</span> <span class="op">=</span> <span class="field">screen</span><span class="op">.</span><span class="fn">newTextGraphics</span><span class="op">();</span>
+    <span class="fn">drawBorder</span><span class="op">(</span><span class="pl">g</span><span class="op">,</span> <span class="pl">focused</span><span class="op">);</span>
+
+    <span class="cm">// ① 顶部 Tab 栏</span>
+    <span class="fn">drawTabs</span><span class="op">(</span><span class="pl">g</span><span class="op">);</span>
+
+    <span class="cm">// ② 联系人列表（虚拟滚动）</span>
+    <span class="cl">List</span><span class="op">&lt;</span><span class="cl">Contact</span><span class="op">&gt;</span> <span class="pl">list</span> <span class="op">=</span> <span class="fn">getList</span><span class="op">();</span>
+    <span class="kw">int</span> <span class="pl">visRows</span> <span class="op">=</span> <span class="field">rect</span><span class="op">.</span><span class="fn">height</span><span class="op">() -</span> <span class="num">3</span><span class="op">;</span>
+    <span class="kw">for</span> <span class="op">(</span><span class="kw">int</span> <span class="pl">i</span> <span class="op">=</span> <span class="field">scrollY</span><span class="op">;</span>
+         <span class="pl">i</span> <span class="op">&lt;</span> <span class="pl">list</span><span class="op">.</span><span class="fn">size</span><span class="op">()</span> <span class="op">&& (</span><span class="pl">i</span><span class="op">-</span><span class="field">scrollY</span><span class="op">) &lt;</span> <span class="pl">visRows</span><span class="op">;</span> <span class="pl">i</span><span class="op">++) {</span>
+      <span class="kw">boolean</span> <span class="pl">sel</span> <span class="op">=</span> <span class="op">(</span><span class="pl">i</span> <span class="op">==</span> <span class="field">selected</span><span class="op">);</span>
+      <span class="fn">drawContactRow</span><span class="op">(</span><span class="pl">g</span><span class="op">,</span> <span class="pl">list</span><span class="op">.</span><span class="fn">get</span><span class="op">(</span><span class="pl">i</span><span class="op">),</span>
+          <span class="field">rect</span><span class="op">.</span><span class="fn">top</span><span class="op">() +</span> <span class="num">3</span> <span class="op">+</span> <span class="op">(</span><span class="pl">i</span><span class="op">-</span><span class="field">scrollY</span><span class="op">),</span> <span class="pl">sel</span><span class="op">);</span>
+    <span class="op">}</span>
+  <span class="op">}</span>
+
+  <span class="kw">private void</span> <span class="fn">drawContactRow</span><span class="op">(</span><span class="cl">TextGraphics</span> <span class="pl">g</span><span class="op">,</span>
+      <span class="cl">Contact</span> <span class="pl">c</span><span class="op">,</span> <span class="kw">int</span> <span class="pl">y</span><span class="op">,</span> <span class="kw">boolean</span> <span class="pl">selected</span><span class="op">) {</span>
+    <span class="kw">if</span> <span class="op">(</span><span class="pl">selected</span><span class="op">)</span>
+      <span class="pl">g</span><span class="op">.</span><span class="fn">setBackgroundColor</span><span class="op">(</span><span class="cl">TextColor</span><span class="op">.</span><span class="fn">rgb</span><span class="op">(</span><span class="num">40</span><span class="op">,</span><span class="num">50</span><span class="op">,</span><span class="num">70</span><span class="op">));</span>
+    <span class="cm">// 状态点</span>
+    <span class="pl">g</span><span class="op">.</span><span class="fn">setForegroundColor</span><span class="op">(</span><span class="fn">statusColor</span><span class="op">(</span><span class="pl">c</span><span class="op">.</span><span class="fn">status</span><span class="op">()));</span>
+    <span class="pl">g</span><span class="op">.</span><span class="fn">putString</span><span class="op">(</span><span class="field">rect</span><span class="op">.</span><span class="fn">left</span><span class="op">()+</span><span class="num">1</span><span class="op">,</span> <span class="pl">y</span><span class="op">,</span> <span class="str">"●"</span><span class="op">);</span>
+    <span class="cm">// 昵称</span>
+    <span class="pl">g</span><span class="op">.</span><span class="fn">setForegroundColor</span><span class="op">(</span><span class="fn">nameColor</span><span class="op">(</span><span class="pl">selected</span><span class="op">));</span>
+    <span class="pl">g</span><span class="op">.</span><span class="fn">putString</span><span class="op">(</span><span class="field">rect</span><span class="op">.</span><span class="fn">left</span><span class="op">()+</span><span class="num">3</span><span class="op">,</span> <span class="pl">y</span><span class="op">,</span>
+        <span class="fn">truncate</span><span class="op">(</span><span class="pl">c</span><span class="op">.</span><span class="fn">name</span><span class="op">(),</span> <span class="num">14</span><span class="op">));</span>
+    <span class="cm">// 未读角标</span>
+    <span class="kw">if</span> <span class="op">(</span><span class="pl">c</span><span class="op">.</span><span class="fn">unread</span><span class="op">() &gt;</span> <span class="num">0</span><span class="op">)</span> <span class="op">{</span>
+      <span class="pl">g</span><span class="op">.</span><span class="fn">setForegroundColor</span><span class="op">(</span><span class="cl">TextColor</span><span class="op">.</span><span class="fn">ANSI</span><span class="op">.</span><span class="field">GREEN</span><span class="op">);</span>
+      <span class="pl">g</span><span class="op">.</span><span class="fn">putString</span><span class="op">(</span><span class="field">rect</span><span class="op">.</span><span class="fn">right</span><span class="op">()-</span><span class="num">4</span><span class="op">,</span> <span class="pl">y</span><span class="op">,</span>
+          <span class="str">"["</span><span class="op">+</span><span class="pl">c</span><span class="op">.</span><span class="fn">unread</span><span class="op">()+</span><span class="str">"]"</span><span class="op">);</span>
+    <span class="op">}</span>
+  <span class="op">}</span>
+
+  <span class="kw">public void</span> <span class="fn">handleKey</span><span class="op">(</span><span class="cl">KeyStroke</span> <span class="pl">key</span><span class="op">) {</span>
+    <span class="cl">List</span><span class="op">&lt;</span><span class="cl">Contact</span><span class="op">&gt;</span> <span class="pl">list</span> <span class="op">=</span> <span class="fn">getList</span><span class="op">();</span>
+    <span class="kw">switch</span> <span class="op">(</span><span class="pl">key</span><span class="op">.</span><span class="fn">getKeyType</span><span class="op">()) {</span>
+      <span class="kw">case</span> <span class="field">ArrowUp</span>   <span class="op">->  {</span> <span class="kw">if</span><span class="op">(</span><span class="field">selected</span><span class="op">&gt;</span><span class="num">0</span><span class="op">)</span> <span class="field">selected</span><span class="op">--;</span> <span class="fn">adjustScroll</span><span class="op">();</span> <span class="op">}</span>
+      <span class="kw">case</span> <span class="field">ArrowDown</span> <span class="op">->  {</span> <span class="kw">if</span><span class="op">(</span><span class="field">selected</span><span class="op">&lt;</span><span class="pl">list</span><span class="op">.</span><span class="fn">size</span><span class="op">()-</span><span class="num">1</span><span class="op">)</span> <span class="field">selected</span><span class="op">++;</span> <span class="fn">adjustScroll</span><span class="op">();</span> <span class="op">}</span>
+      <span class="kw">case</span> <span class="field">Enter</span>     <span class="op">-> </span><span class="field">service</span><span class="op">.</span><span class="fn">openChat</span><span class="op">(</span><span class="pl">list</span><span class="op">.</span><span class="fn">get</span><span class="op">(</span><span class="field">selected</span><span class="op">));</span>
+      <span class="kw">case</span> <span class="field">Character</span> <span class="op">-> {</span>
+        <span class="kw">if</span><span class="op">(</span><span class="pl">key</span><span class="op">.</span><span class="fn">getCharacter</span><span class="op">() ==</span> <span class="str">'1'</span><span class="op">)</span> <span class="field">tab</span> <span class="op">=</span> <span class="cl">TabType</span><span class="op">.</span><span class="field">FRIENDS</span><span class="op">;</span>
+        <span class="kw">if</span><span class="op">(</span><span class="pl">key</span><span class="op">.</span><span class="fn">getCharacter</span><span class="op">() ==</span> <span class="str">'2'</span><span class="op">)</span> <span class="field">tab</span> <span class="op">=</span> <span class="cl">TabType</span><span class="op">.</span><span class="field">GROUPS</span><span class="op">;</span>
+        <span class="kw">if</span><span class="op">(</span><span class="pl">key</span><span class="op">.</span><span class="fn">getCharacter</span><span class="op">() ==</span> <span class="str">'3'</span><span class="op">)</span> <span class="field">tab</span> <span class="op">=</span> <span class="cl">TabType</span><span class="op">.</span><span class="field">RECENT</span><span class="op">;</span>
+      <span class="op">}</span>
+    <span class="op">}</span>
+  <span class="op">}</span>
+<span class="op">}</span></pre>
+        </div>
+
+        <div class="code-pane" id="pane-chat">
+<pre><span class="cm">// ChatPanel.java — 右侧消息区（带虚拟滚动）</span>
+<span class="kw">public class</span> <span class="cl">ChatPanel</span> {
+
+  <span class="kw">private final</span> <span class="cl">Screen</span>           <span class="field">screen</span><span class="op">;</span>
+  <span class="kw">private final</span> <span class="cl">TerminalRectangle</span> <span class="field">rect</span><span class="op">;</span>
+  <span class="kw">private final</span> <span class="cl">IMService</span>         <span class="field">service</span><span class="op">;</span>
+  <span class="kw">private</span>       <span class="kw">int</span>               <span class="field">scrollOffset</span> <span class="op">=</span> <span class="num">0</span><span class="op">;</span>
+  <span class="kw">private</span>       <span class="kw">boolean</span>           <span class="field">atBottom</span>     <span class="op">=</span> <span class="kw">true</span><span class="op">;</span>
+
+  <span class="kw">public void</span> <span class="fn">render</span><span class="op">(</span><span class="kw">boolean</span> <span class="pl">focused</span><span class="op">) {</span>
+    <span class="cl">TextGraphics</span> <span class="pl">g</span> <span class="op">=</span> <span class="field">screen</span><span class="op">.</span><span class="fn">newTextGraphics</span><span class="op">();</span>
+    <span class="fn">drawHeader</span><span class="op">(</span><span class="pl">g</span><span class="op">);</span>                   <span class="cm">// 联系人标题栏</span>
+
+    <span class="cl">List</span><span class="op">&lt;</span><span class="cl">Message</span><span class="op">&gt;</span> <span class="pl">msgs</span> <span class="op">=</span> <span class="field">service</span><span class="op">.</span><span class="fn">currentMessages</span><span class="op">();</span>
+    <span class="cl">List</span><span class="op">&lt;</span><span class="cl">RenderLine</span><span class="op">&gt;</span> <span class="pl">lines</span> <span class="op">=</span> <span class="fn">wrap</span><span class="op">(</span><span class="pl">msgs</span><span class="op">);</span> <span class="cm">// 自动折行</span>
+    <span class="kw">int</span> <span class="pl">visible</span> <span class="op">=</span> <span class="field">rect</span><span class="op">.</span><span class="fn">height</span><span class="op">() -</span> <span class="num">2</span><span class="op">;</span>
+
+    <span class="cm">// 新消息到来时自动滚到底部</span>
+    <span class="kw">if</span> <span class="op">(</span><span class="field">atBottom</span><span class="op">)</span>
+      <span class="field">scrollOffset</span> <span class="op">=</span> <span class="cl">Math</span><span class="op">.</span><span class="fn">max</span><span class="op">(</span><span class="num">0</span><span class="op">,</span> <span class="pl">lines</span><span class="op">.</span><span class="fn">size</span><span class="op">() -</span> <span class="pl">visible</span><span class="op">);</span>
+
+    <span class="kw">for</span> <span class="op">(</span><span class="kw">int</span> <span class="pl">i</span> <span class="op">=</span> <span class="field">scrollOffset</span><span class="op">;</span>
+         <span class="pl">i</span> <span class="op">&lt;</span> <span class="pl">lines</span><span class="op">.</span><span class="fn">size</span><span class="op">()</span> <span class="op">&& (</span><span class="pl">i</span><span class="op">-</span><span class="field">scrollOffset</span><span class="op">) &lt;</span> <span class="pl">visible</span><span class="op">;</span> <span class="pl">i</span><span class="op">++) {</span>
+      <span class="fn">drawLine</span><span class="op">(</span><span class="pl">g</span><span class="op">,</span> <span class="pl">lines</span><span class="op">.</span><span class="fn">get</span><span class="op">(</span><span class="pl">i</span><span class="op">),</span>
+               <span class="field">rect</span><span class="op">.</span><span class="fn">top</span><span class="op">()+</span><span class="num">2</span><span class="op">+(</span><span class="pl">i</span><span class="op">-</span><span class="field">scrollOffset</span><span class="op">));</span>
+    <span class="op">}</span>
+    <span class="fn">drawScrollBar</span><span class="op">(</span><span class="pl">g</span><span class="op">,</span> <span class="pl">lines</span><span class="op">.</span><span class="fn">size</span><span class="op">(),</span> <span class="pl">visible</span><span class="op">);</span>
+  <span class="op">}</span>
+
+  <span class="kw">private void</span> <span class="fn">drawLine</span><span class="op">(</span><span class="cl">TextGraphics</span> <span class="pl">g</span><span class="op">,</span>
+      <span class="cl">RenderLine</span> <span class="pl">line</span><span class="op">,</span> <span class="kw">int</span> <span class="pl">y</span><span class="op">) {</span>
+    <span class="kw">if</span> <span class="op">(</span><span class="pl">line</span><span class="op">.</span><span class="fn">isSelf</span><span class="op">()) {</span>
+      <span class="cm">// 自己的消息右对齐，绿色</span>
+      <span class="pl">g</span><span class="op">.</span><span class="fn">setForegroundColor</span><span class="op">(</span><span class="cl">TextColor</span><span class="op">.</span><span class="fn">ANSI</span><span class="op">.</span><span class="field">GREEN</span><span class="op">);</span>
+      <span class="kw">int</span> <span class="pl">x</span> <span class="op">=</span> <span class="field">rect</span><span class="op">.</span><span class="fn">right</span><span class="op">() -</span> <span class="pl">line</span><span class="op">.</span><span class="fn">text</span><span class="op">().</span><span class="fn">length</span><span class="op">() -</span> <span class="num">2</span><span class="op">;</span>
+      <span class="pl">g</span><span class="op">.</span><span class="fn">putString</span><span class="op">(</span><span class="pl">x</span><span class="op">,</span> <span class="pl">y</span><span class="op">,</span> <span class="pl">line</span><span class="op">.</span><span class="fn">text</span><span class="op">());</span>
+    <span class="op">}</span> <span class="kw">else</span> <span class="op">{</span>
+      <span class="cm">// 对方消息左对齐，白色</span>
+      <span class="pl">g</span><span class="op">.</span><span class="fn">setForegroundColor</span><span class="op">(</span><span class="cl">TextColor</span><span class="op">.</span><span class="fn">ANSI</span><span class="op">.</span><span class="field">WHITE</span><span class="op">);</span>
+      <span class="pl">g</span><span class="op">.</span><span class="fn">putString</span><span class="op">(</span><span class="field">rect</span><span class="op">.</span><span class="fn">left</span><span class="op">()+</span><span class="num">1</span><span class="op">,</span> <span class="pl">y</span><span class="op">,</span> <span class="pl">line</span><span class="op">.</span><span class="fn">text</span><span class="op">());</span>
+    <span class="op">}</span>
+  <span class="op">}</span>
+
+  <span class="kw">public void</span> <span class="fn">handleKey</span><span class="op">(</span><span class="cl">KeyStroke</span> <span class="pl">key</span><span class="op">) {</span>
+    <span class="kw">switch</span> <span class="op">(</span><span class="pl">key</span><span class="op">.</span><span class="fn">getKeyType</span><span class="op">()) {</span>
+      <span class="kw">case</span> <span class="field">ArrowUp</span>   <span class="op">-> {</span> <span class="field">scrollOffset</span><span class="op">--;</span> <span class="field">atBottom</span> <span class="op">=</span> <span class="kw">false</span><span class="op">; }</span>
+      <span class="kw">case</span> <span class="field">ArrowDown</span> <span class="op">-> {</span> <span class="field">scrollOffset</span><span class="op">++;</span> <span class="fn">checkAtBottom</span><span class="op">(); }</span>
+      <span class="kw">case</span> <span class="field">End</span>       <span class="op">-> </span><span class="field">atBottom</span> <span class="op">=</span> <span class="kw">true</span><span class="op">;</span>
+    <span class="op">}</span>
+  <span class="op">}</span>
+<span class="op">}</span></pre>
+        </div>
+
+        <div class="code-pane" id="pane-input">
+<pre><span class="cm">// InputBar.java — 底部输入栏（JLine 内嵌）</span>
+<span class="kw">public class</span> <span class="cl">InputBar</span> {
+
+  <span class="kw">private final</span> <span class="cl">Screen</span>           <span class="field">screen</span><span class="op">;</span>
+  <span class="kw">private final</span> <span class="cl">TerminalRectangle</span> <span class="field">rect</span><span class="op">;</span>
+  <span class="kw">private final</span> <span class="cl">StringBuilder</span>    <span class="field">buffer</span>    <span class="op">=</span> <span class="kw">new</span> <span class="cl">StringBuilder</span><span class="op">();</span>
+  <span class="kw">private</span>       <span class="kw">int</span>              <span class="field">cursor</span>    <span class="op">=</span> <span class="num">0</span><span class="op">;</span>
+  <span class="kw">private       </span><span class="cl">Runnable</span>         <span class="field">onSend</span><span class="op">;</span>
+
+  <span class="kw">public void</span> <span class="fn">render</span><span class="op">(</span><span class="kw">boolean</span> <span class="pl">focused</span><span class="op">) {</span>
+    <span class="cl">TextGraphics</span> <span class="pl">g</span> <span class="op">=</span> <span class="field">screen</span><span class="op">.</span><span class="fn">newTextGraphics</span><span class="op">();</span>
+    <span class="cm">// 边框：激活时绿色高亮</span>
+    <span class="pl">g</span><span class="op">.</span><span class="fn">setForegroundColor</span><span class="op">(</span><span class="pl">focused</span>
+        <span class="op">?</span> <span class="cl">TextColor</span><span class="op">.</span><span class="fn">ANSI</span><span class="op">.</span><span class="field">GREEN</span>
+        <span class="op">:</span> <span class="cl">TextColor</span><span class="op">.</span><span class="fn">ANSI</span><span class="op">.</span><span class="field">WHITE</span><span class="op">);</span>
+    <span class="fn">drawBox</span><span class="op">(</span><span class="pl">g</span><span class="op">);</span>
+
+    <span class="cm">// 提示符 + 缓冲内容</span>
+    <span class="pl">g</span><span class="op">.</span><span class="fn">setForegroundColor</span><span class="op">(</span><span class="cl">TextColor</span><span class="op">.</span><span class="fn">ANSI</span><span class="op">.</span><span class="field">CYAN</span><span class="op">);</span>
+    <span class="pl">g</span><span class="op">.</span><span class="fn">putString</span><span class="op">(</span><span class="field">rect</span><span class="op">.</span><span class="fn">left</span><span class="op">()+</span><span class="num">1</span><span class="op">,</span>
+                <span class="field">rect</span><span class="op">.</span><span class="fn">top</span><span class="op">()+</span><span class="num">1</span><span class="op">,</span> <span class="str">"▶ "</span><span class="op">);</span>
+
+    <span class="pl">g</span><span class="op">.</span><span class="fn">setForegroundColor</span><span class="op">(</span><span class="cl">TextColor</span><span class="op">.</span><span class="fn">ANSI</span><span class="op">.</span><span class="field">WHITE</span><span class="op">);</span>
+    <span class="pl">g</span><span class="op">.</span><span class="fn">putString</span><span class="op">(</span><span class="field">rect</span><span class="op">.</span><span class="fn">left</span><span class="op">()+</span><span class="num">4</span><span class="op">,</span>
+                <span class="field">rect</span><span class="op">.</span><span class="fn">top</span><span class="op">()+</span><span class="num">1</span><span class="op">,</span>
+                <span class="field">buffer</span><span class="op">.</span><span class="fn">toString</span><span class="op">());</span>
+
+    <span class="cm">// 光标闪烁（偶数秒显示）</span>
+    <span class="kw">if</span> <span class="op">(</span><span class="pl">focused</span> <span class="op">&& (</span><span class="cl">System</span><span class="op">.</span><span class="fn">currentTimeMillis</span><span class="op">() /</span> <span class="num">500</span><span class="op">) %</span> <span class="num">2</span> <span class="op">==</span> <span class="num">0</span><span class="op">) {</span>
+      <span class="pl">g</span><span class="op">.</span><span class="fn">setForegroundColor</span><span class="op">(</span><span class="cl">TextColor</span><span class="op">.</span><span class="fn">ANSI</span><span class="op">.</span><span class="field">GREEN</span><span class="op">);</span>
+      <span class="pl">g</span><span class="op">.</span><span class="fn">putString</span><span class="op">(</span><span class="field">rect</span><span class="op">.</span><span class="fn">left</span><span class="op">()+</span><span class="num">4</span><span class="op">+</span><span class="field">cursor</span><span class="op">,</span>
+                  <span class="field">rect</span><span class="op">.</span><span class="fn">top</span><span class="op">()+</span><span class="num">1</span><span class="op">,</span> <span class="str">"█"</span><span class="op">);</span>
+    <span class="op">}</span>
+
+    <span class="cm">// 右下角快捷键提示</span>
+    <span class="pl">g</span><span class="op">.</span><span class="fn">setForegroundColor</span><span class="op">(</span><span class="cl">TextColor</span><span class="op">.</span><span class="fn">rgb</span><span class="op">(</span><span class="num">80</span><span class="op">,</span><span class="num">90</span><span class="op">,</span><span class="num">110</span><span class="op">));</span>
+    <span class="pl">g</span><span class="op">.</span><span class="fn">putString</span><span class="op">(</span><span class="field">rect</span><span class="op">.</span><span class="fn">right</span><span class="op">()-</span><span class="num">20</span><span class="op">,</span>
+                <span class="field">rect</span><span class="op">.</span><span class="fn">top</span><span class="op">()+</span><span class="num">2</span><span class="op">,</span>
+                <span class="str">"Enter:发送 Esc:清空"</span><span class="op">);</span>
+  <span class="op">}</span>
+
+  <span class="kw">public void</span> <span class="fn">handleKey</span><span class="op">(</span><span class="cl">KeyStroke</span> <span class="pl">key</span><span class="op">) {</span>
+    <span class="kw">switch</span> <span class="op">(</span><span class="pl">key</span><span class="op">.</span><span class="fn">getKeyType</span><span class="op">()) {</span>
+      <span class="kw">case</span> <span class="field">Enter</span>     <span class="op">-> {</span> <span class="field">onSend</span><span class="op">.</span><span class="fn">run</span><span class="op">();</span> <span class="field">buffer</span><span class="op">.</span><span class="fn">setLength</span><span class="op">(</span><span class="num">0</span><span class="op">);</span> <span class="field">cursor</span><span class="op">=</span><span class="num">0</span><span class="op">; }</span>
+      <span class="kw">case</span> <span class="field">Backspace</span>  <span class="op">-> {</span> <span class="kw">if</span><span class="op">(</span><span class="field">cursor</span><span class="op">&gt;</span><span class="num">0</span><span class="op">)</span> <span class="op">{</span> <span class="field">buffer</span><span class="op">.</span><span class="fn">deleteCharAt</span><span class="op">(--</span><span class="field">cursor</span><span class="op">); } }</span>
+      <span class="kw">case</span> <span class="field">ArrowLeft</span>  <span class="op">-> {</span> <span class="kw">if</span><span class="op">(</span><span class="field">cursor</span><span class="op">&gt;</span><span class="num">0</span><span class="op">)</span> <span class="field">cursor</span><span class="op">--; }</span>
+      <span class="kw">case</span> <span class="field">ArrowRight</span> <span class="op">-> {</span> <span class="kw">if</span><span class="op">(</span><span class="field">cursor</span><span class="op">&lt;</span><span class="field">buffer</span><span class="op">.</span><span class="fn">length</span><span class="op">())</span> <span class="field">cursor</span><span class="op">++; }</span>
+      <span class="kw">case</span> <span class="field">Escape</span>     <span class="op">-> {</span> <span class="field">buffer</span><span class="op">.</span><span class="fn">setLength</span><span class="op">(</span><span class="num">0</span><span class="op">);</span> <span class="field">cursor</span><span class="op">=</span><span class="num">0</span><span class="op">; }</span>
+      <span class="kw">case</span> <span class="field">Character</span>  <span class="op">-> {</span>
+        <span class="field">buffer</span><span class="op">.</span><span class="fn">insert</span><span class="op">(</span><span class="field">cursor</span><span class="op">++,</span> <span class="pl">key</span><span class="op">.</span><span class="fn">getCharacter</span><span class="op">());</span>
+      <span class="op">}</span>
+    <span class="op">}</span>
+  <span class="op">}</span>
+<span class="op">}</span></pre>
+        </div>
+
+        <div class="code-pane" id="pane-renderer">
+<pre><span class="cm">// IMRenderer.java — 统一渲染工具：边框、标题、分隔线</span>
+<span class="kw">public class</span> <span class="cl">IMRenderer</span> <span class="op">{</span>
+
+  <span class="cm">/** 绘制圆角边框，焦点时绿色高亮 */</span>
+  <span class="kw">public static void</span> <span class="fn">drawBox</span><span class="op">(</span><span class="cl">TextGraphics</span> <span class="pl">g</span><span class="op">,</span>
+      <span class="cl">TerminalRectangle</span> <span class="pl">r</span><span class="op">,</span> <span class="kw">boolean</span> <span class="pl">focused</span><span class="op">,</span>
+      <span class="cl">String</span> <span class="pl">title</span><span class="op">) {</span>
+
+    <span class="pl">g</span><span class="op">.</span><span class="fn">setForegroundColor</span><span class="op">(</span><span class="pl">focused</span>
+      <span class="op">?</span> <span class="cl">TextColor</span><span class="op">.</span><span class="fn">ANSI</span><span class="op">.</span><span class="field">GREEN</span>
+      <span class="op">:</span> <span class="cl">TextColor</span><span class="op">.</span><span class="fn">rgb</span><span class="op">(</span><span class="num">60</span><span class="op">,</span><span class="num">70</span><span class="op">,</span><span class="num">90</span><span class="op">));</span>
+
+    <span class="cm">// 四角</span>
+    <span class="pl">g</span><span class="op">.</span><span class="fn">putString</span><span class="op">(</span><span class="pl">r</span><span class="op">.</span><span class="fn">left</span><span class="op">(),</span>    <span class="pl">r</span><span class="op">.</span><span class="fn">top</span><span class="op">(),</span>    <span class="str">"╭"</span><span class="op">);</span>
+    <span class="pl">g</span><span class="op">.</span><span class="fn">putString</span><span class="op">(</span><span class="pl">r</span><span class="op">.</span><span class="fn">right</span><span class="op">()-</span><span class="num">1</span><span class="op">,</span> <span class="pl">r</span><span class="op">.</span><span class="fn">top</span><span class="op">(),</span>    <span class="str">"╮"</span><span class="op">);</span>
+    <span class="pl">g</span><span class="op">.</span><span class="fn">putString</span><span class="op">(</span><span class="pl">r</span><span class="op">.</span><span class="fn">left</span><span class="op">(),</span>    <span class="pl">r</span><span class="op">.</span><span class="fn">bottom</span><span class="op">()-</span><span class="num">1</span><span class="op">,</span> <span class="str">"╰"</span><span class="op">);</span>
+    <span class="pl">g</span><span class="op">.</span><span class="fn">putString</span><span class="op">(</span><span class="pl">r</span><span class="op">.</span><span class="fn">right</span><span class="op">()-</span><span class="num">1</span><span class="op">,</span> <span class="pl">r</span><span class="op">.</span><span class="fn">bottom</span><span class="op">()-</span><span class="num">1</span><span class="op">,</span> <span class="str">"╯"</span><span class="op">);</span>
+    <span class="cm">// 水平线</span>
+    <span class="kw">for</span> <span class="op">(</span><span class="kw">int</span> <span class="pl">x</span><span class="op">=</span><span class="pl">r</span><span class="op">.</span><span class="fn">left</span><span class="op">()+</span><span class="num">1</span><span class="op">;</span> <span class="pl">x</span><span class="op">&lt;</span><span class="pl">r</span><span class="op">.</span><span class="fn">right</span><span class="op">()-</span><span class="num">1</span><span class="op">;</span> <span class="pl">x</span><span class="op">++) {</span>
+      <span class="pl">g</span><span class="op">.</span><span class="fn">putString</span><span class="op">(</span><span class="pl">x</span><span class="op">,</span> <span class="pl">r</span><span class="op">.</span><span class="fn">top</span><span class="op">(),</span>        <span class="str">"─"</span><span class="op">);</span>
+      <span class="pl">g</span><span class="op">.</span><span class="fn">putString</span><span class="op">(</span><span class="pl">x</span><span class="op">,</span> <span class="pl">r</span><span class="op">.</span><span class="fn">bottom</span><span class="op">()-</span><span class="num">1</span><span class="op">,</span> <span class="str">"─"</span><span class="op">);</span>
+    <span class="op">}</span>
+    <span class="cm">// 垂直线</span>
+    <span class="kw">for</span> <span class="op">(</span><span class="kw">int</span> <span class="pl">y</span><span class="op">=</span><span class="pl">r</span><span class="op">.</span><span class="fn">top</span><span class="op">()+</span><span class="num">1</span><span class="op">;</span> <span class="pl">y</span><span class="op">&lt;</span><span class="pl">r</span><span class="op">.</span><span class="fn">bottom</span><span class="op">()-</span><span class="num">1</span><span class="op">;</span> <span class="pl">y</span><span class="op">++) {</span>
+      <span class="pl">g</span><span class="op">.</span><span class="fn">putString</span><span class="op">(</span><span class="pl">r</span><span class="op">.</span><span class="fn">left</span><span class="op">(),</span>    <span class="pl">y</span><span class="op">,</span> <span class="str">"│"</span><span class="op">);</span>
+      <span class="pl">g</span><span class="op">.</span><span class="fn">putString</span><span class="op">(</span><span class="pl">r</span><span class="op">.</span><span class="fn">right</span><span class="op">()-</span><span class="num">1</span><span class="op">,</span> <span class="pl">y</span><span class="op">,</span> <span class="str">"│"</span><span class="op">);</span>
+    <span class="op">}</span>
+    <span class="cm">// 标题嵌入顶部边框</span>
+    <span class="kw">if</span> <span class="op">(</span><span class="pl">title</span> <span class="op">!=</span> <span class="kw">null</span><span class="op">) {</span>
+      <span class="pl">g</span><span class="op">.</span><span class="fn">setForegroundColor</span><span class="op">(</span><span class="cl">TextColor</span><span class="op">.</span><span class="fn">ANSI</span><span class="op">.</span><span class="field">CYAN</span><span class="op">);</span>
+      <span class="pl">g</span><span class="op">.</span><span class="fn">putString</span><span class="op">(</span><span class="pl">r</span><span class="op">.</span><span class="fn">left</span><span class="op">()+</span><span class="num">2</span><span class="op">,</span> <span class="pl">r</span><span class="op">.</span><span class="fn">top</span><span class="op">(),</span>
+                  <span class="str">" "</span><span class="op">+</span><span class="pl">title</span><span class="op">+</span><span class="str">" "</span><span class="op">);</span>
+    <span class="op">}</span>
+  <span class="op">}</span>
+
+  <span class="cm">/** 消息气泡 — 自己右对齐绿色，对方左对齐白色 */</span>
+  <span class="kw">public static void</span> <span class="fn">drawBubble</span><span class="op">(</span><span class="cl">TextGraphics</span> <span class="pl">g</span><span class="op">,</span>
+      <span class="cl">Message</span> <span class="pl">msg</span><span class="op">,</span> <span class="kw">int</span> <span class="pl">y</span><span class="op">,</span> <span class="kw">int</span> <span class="pl">panelWidth</span><span class="op">) {</span>
+    <span class="kw">boolean</span> <span class="pl">self</span> <span class="op">=</span> <span class="pl">msg</span><span class="op">.</span><span class="fn">isSelf</span><span class="op">();</span>
+    <span class="cl">String</span>  <span class="pl">text</span> <span class="op">=</span> <span class="pl">msg</span><span class="op">.</span><span class="fn">content</span><span class="op">();</span>
+    <span class="cl">String</span>  <span class="pl">line</span> <span class="op">=</span> <span class="pl">self</span>
+      <span class="op">?</span> <span class="str">"[你] "</span><span class="op">+</span><span class="pl">text</span>
+      <span class="op">:</span> <span class="str">"["</span><span class="op">+</span><span class="pl">msg</span><span class="op">.</span><span class="fn">sender</span><span class="op">()+</span><span class="str">"] "</span><span class="op">+</span><span class="pl">text</span><span class="op">;</span>
+    <span class="pl">g</span><span class="op">.</span><span class="fn">setForegroundColor</span><span class="op">(</span><span class="pl">self</span>
+      <span class="op">?</span> <span class="cl">TextColor</span><span class="op">.</span><span class="fn">ANSI</span><span class="op">.</span><span class="field">GREEN</span>
+      <span class="op">:</span> <span class="cl">TextColor</span><span class="op">.</span><span class="fn">ANSI</span><span class="op">.</span><span class="field">WHITE</span><span class="op">);</span>
+    <span class="kw">int</span> <span class="pl">x</span> <span class="op">=</span> <span class="pl">self</span>
+      <span class="op">?</span> <span class="pl">panelWidth</span><span class="op">-</span><span class="pl">line</span><span class="op">.</span><span class="fn">length</span><span class="op">()-</span><span class="num">1</span>
+      <span class="op">:</span> <span class="num">1</span><span class="op">;</span>
+    <span class="pl">g</span><span class="op">.</span><span class="fn">putString</span><span class="op">(</span><span class="pl">x</span><span class="op">,</span> <span class="pl">y</span><span class="op">,</span> <span class="pl">line</span><span class="op">);</span>
+  <span class="op">}</span>
+<span class="op">}</span></pre>
+        </div>
+
+    </div>
+</div>
+
+<!-- Toggle button -->
+<button class="toggle-code" id="toggleBtn" onclick="toggleCode()">{ } 查看 Java 源码</button>
+
+<script>
+    // ─── Data ───
+    const contacts = [
+      { id:1, name:'Alice Wang',  status:'online',  avatar:'AW', color:'#2a4a6b', unread:3,  preview:'好的，明天见！',      time:'12:31', msgs:[
+        {self:false, sender:'Alice', text:'嘿，下午有空吗？', time:'12:28'},
+        {self:true,  sender:'Me',    text:'有的，怎么了？',   time:'12:29'},
+        {self:false, sender:'Alice', text:'想约你聊个项目',   time:'12:30'},
+        {self:true,  sender:'Me',    text:'没问题！几点？',   time:'12:30'},
+        {self:false, sender:'Alice', text:'好的，明天见！',   time:'12:31'},
+      ]},
+      { id:2, name:'Bob Chen',    status:'away',    avatar:'BC', color:'#3a2a6b', unread:0,  preview:'代码我 push 了',    time:'11:58', msgs:[
+        {self:false, sender:'Bob', text:'代码我 push 了',     time:'11:55'},
+        {self:true,  sender:'Me',  text:'收到，我 review 一下', time:'11:58'},
+      ]},
+      { id:3, name:'Charlie Liu', status:'online',  avatar:'CL', color:'#2a6b3a', unread:1,  preview:'部署完成了 ✅',     time:'11:20', msgs:[
+        {self:false, sender:'Charlie', text:'服务器部署完成了 ✅', time:'11:19'},
+        {self:true,  sender:'Me',      text:'太棒了！',            time:'11:20'},
+        {self:false, sender:'Charlie', text:'部署完成了 ✅',       time:'11:20'},
+      ]},
+      { id:4, name:'Diana Zhou',  status:'offline', avatar:'DZ', color:'#6b2a2a', unread:0,  preview:'周五开会别忘了',    time:'昨天', msgs:[
+        {self:false, sender:'Diana', text:'周五开会别忘了', time:'昨天 17:00'},
+      ]},
+      { id:5, name:'Evan Ma',     status:'online',  avatar:'EM', color:'#4a3a1a', unread:0,  preview:'OK 没问题',        time:'周一', msgs:[
+        {self:true,  sender:'Me',   text:'需要帮忙吗？',  time:'周一'},
+        {self:false, sender:'Evan', text:'OK 没问题',     time:'周一'},
+      ]},
+    ];
+
+    const groups = [
+      { id:101, name:'前端开发组', status:'online', avatar:'FE', color:'#1a3a5a', unread:5,  preview:'有人看 PR #42 吗',  time:'13:00', msgs:[
+        {self:false, sender:'Alice', text:'有人看 PR #42 吗', time:'13:00'},
+        {self:true,  sender:'Me',    text:'我来看',           time:'13:01'},
+      ]},
+      { id:102, name:'产品讨论',   status:'away',   avatar:'PD', color:'#3a1a5a', unread:0,  preview:'PRD 已更新',       time:'10:30', msgs:[
+        {self:false, sender:'PM', text:'PRD 已更新，请查阅', time:'10:30'},
+      ]},
+      { id:103, name:'架构评审',   status:'online', avatar:'AR', color:'#1a4a3a', unread:2,  preview:'下周四 2PM',       time:'09:15', msgs:[
+        {self:false, sender:'CTO', text:'架构评审下周四 2PM', time:'09:15'},
+        {self:true,  sender:'Me',  text:'收到',               time:'09:16'},
+      ]},
+    ];
+
+    let currentTab = 'friends';
+    let currentContact = null;
+    let filteredContacts = null;
+
+    function getList() {
+      const raw = currentTab === 'groups' ? groups : (currentTab === 'recent' ? [...contacts, ...groups].slice(0,4) : contacts);
+      if (!filteredContacts) return raw;
+      return raw.filter(c => c.name.toLowerCase().includes(filteredContacts));
+    }
+
+    // ─── Render contacts ───
+    function renderContacts() {
+      const list = getList();
+      const el = document.getElementById('contactList');
+      el.innerHTML = '';
+      list.forEach((c, i) => {
+        const div = document.createElement('div');
+        div.className = 'contact-item' + (currentContact?.id === c.id ? ' active' : '');
+        div.onclick = () => openChat(c);
+        div.innerHTML = `
+          <div class="avatar" style="background:${c.color}">
+            ${c.avatar}
+            <span class="status-dot ${c.status}"></span>
+          </div>
+          <div class="contact-info">
+            <div class="contact-name">${c.name}</div>
+            <div class="contact-preview">${c.preview}</div>
+          </div>
+          <div class="contact-meta">
+            <span class="contact-time">${c.time}</span>
+            ${c.unread > 0 ? `<span class="unread-badge">${c.unread}</span>` : ''}
+          </div>
+        `;
+        el.appendChild(div);
+      });
+    }
+
+    // ─── Open chat ───
+    function openChat(contact) {
+      currentContact = contact;
+      contact.unread = 0;
+      document.getElementById('chatAvatar').textContent = contact.avatar;
+      document.getElementById('chatAvatar').style.background = contact.color;
+      document.getElementById('chatName').textContent = contact.name;
+      document.getElementById('chatStatus').style.color = contact.status === 'online' ? 'var(--online)' : contact.status === 'away' ? 'var(--away)' : 'var(--muted)';
+      document.getElementById('chatStatus').textContent = contact.status === 'online' ? '在线' : contact.status === 'away' ? '离开' : '离线';
+      renderMessages();
+      renderContacts();
+      document.getElementById('msgInput').focus();
+    }
+
+    // ─── Render messages ───
+    function renderMessages() {
+      if (!currentContact) return;
+      const el = document.getElementById('messages');
+      el.innerHTML = `<div class="day-sep"><span>今天</span></div>`;
+      currentContact.msgs.forEach(m => {
+        const row = document.createElement('div');
+        row.className = 'msg-row' + (m.self ? ' self' : '');
+        row.innerHTML = `
+          <div class="msg-avatar" style="background:${m.self ? '#1a3020' : currentContact.color}">
+            ${m.self ? 'Me' : currentContact.avatar.charAt(0)}
+          </div>
+          <div class="msg-content">
+            <div class="msg-sender">
+              ${m.self ? 'You' : m.sender}
+              <span style="color:var(--muted);font-size:9px">${m.time}</span>
+            </div>
+            <div class="bubble ${m.self ? 'self' : 'other'}">
+              <span class="msg-text">${m.text}</span>
+            </div>
+          </div>
+        `;
+        el.appendChild(row);
+      });
+      el.scrollTop = el.scrollHeight;
+    }
+
+    // ─── Send message ───
+    function sendMessage() {
+      const input = document.getElementById('msgInput');
+      const text = input.value.trim();
+      if (!text || !currentContact) return;
+      currentContact.msgs.push({ self: true, sender: 'Me', text, time: new Date().toLocaleTimeString('zh',{hour:'2-digit',minute:'2-digit'}) });
+      currentContact.preview = text;
+      currentContact.time = '刚刚';
+      input.value = '';
+      input.style.height = 'auto';
+      renderMessages();
+      renderContacts();
+
+      // Simulate reply
+      if (currentContact.status === 'online') {
+        const replies = ['收到！', '好的 👍', '明白了', '稍等一下...', '嗯嗯', '没问题！', '我看看'];
+        setTimeout(() => {
+          currentContact.msgs.push({
+            self: false,
+            sender: currentContact.name.split(' ')[0],
+            text: replies[Math.floor(Math.random()*replies.length)],
+            time: new Date().toLocaleTimeString('zh',{hour:'2-digit',minute:'2-digit'})
+          });
+          currentContact.preview = currentContact.msgs.at(-1).text;
+          currentContact.unread = 0;
+          renderMessages();
+          renderContacts();
+        }, 800 + Math.random()*800);
+      }
+    }
+
+    function handleKey(e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    }
+
+    function autoResize(el) {
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 80) + 'px';
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      filteredContacts = null;
+      document.querySelectorAll('.tab').forEach((t,i) => {
+        t.classList.toggle('active', ['friends','groups','recent'][i] === tab);
+      });
+      renderContacts();
+    }
+
+    function filterContacts(val) {
+      filteredContacts = val.trim().toLowerCase() || null;
+      renderContacts();
+    }
+
+    function clearChat() {
+      if (!currentContact) return;
+      currentContact.msgs = [];
+      renderMessages();
+    }
+
+    function showHistory() {
+      if (!currentContact) return;
+      const m = document.getElementById('messages');
+      const sys = document.createElement('div');
+      sys.className = 'system-msg';
+      sys.textContent = `— 共 ${currentContact.msgs.length} 条历史消息 —`;
+      m.insertBefore(sys, m.firstChild);
+    }
+
+    // ─── Code panel ───
+    function toggleCode() {
+      const sec = document.getElementById('codeSection');
+      const btn = document.getElementById('toggleBtn');
+      if (sec.classList.contains('open')) {
+        sec.classList.remove('open');
+        btn.textContent = '{ } 查看 Java 源码';
+      } else {
+        sec.classList.add('open');
+        btn.textContent = '✕ 收起源码';
+      }
+    }
+
+    function switchCodeTab(name) {
+      document.querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.code-pane').forEach(p => p.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById('pane-'+name).classList.add('active');
+    }
+
+    // ─── Init ───
+    renderContacts();
+    openChat(contacts[0]);
+</script>
+</body>
+</html>

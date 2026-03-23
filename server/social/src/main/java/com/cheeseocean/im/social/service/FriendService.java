@@ -1,9 +1,9 @@
-package com.cheeseocean.im.authcenter.service;
+package com.cheeseocean.im.social.service;
 
-import com.cheeseocean.im.authcenter.repository.FriendRepository;
 import com.cheeseocean.im.common.api.friend.FriendRelationService;
 import com.cheeseocean.im.common.core.auth.FriendRequestSummary;
 import com.cheeseocean.im.common.core.auth.FriendSummary;
+import com.cheeseocean.im.social.repository.FriendRepository;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.stereotype.Service;
 
@@ -14,9 +14,12 @@ import java.util.List;
 public class FriendService implements FriendRelationService {
 
     private final FriendRepository friendRepository;
+    private final FriendRealtimeNotifier friendRealtimeNotifier;
 
-    public FriendService(FriendRepository friendRepository) {
+    public FriendService(FriendRepository friendRepository,
+                         FriendRealtimeNotifier friendRealtimeNotifier) {
         this.friendRepository = friendRepository;
+        this.friendRealtimeNotifier = friendRealtimeNotifier;
     }
 
     @Override
@@ -28,13 +31,20 @@ public class FriendService implements FriendRelationService {
 
     @Override
     public List<FriendRequestSummary> listIncomingRequests(String userId) {
-        return friendRepository.listIncomingRequestIds(userId).stream()
-                .map(this::toRequestSummary)
+        return friendRepository.listIncomingRequests(userId).stream()
+                .map(record -> toRequestSummary(record.getFromUserId(), "incoming", "pending", record.getRequestMessage()))
                 .toList();
     }
 
     @Override
-    public FriendRequestSummary sendFriendRequest(String userId, String friendUserId) {
+    public List<FriendRequestSummary> listOutgoingRequests(String userId) {
+        return friendRepository.listOutgoingRequests(userId).stream()
+                .map(record -> toRequestSummary(record.getToUserId(), "outgoing", "pending", record.getRequestMessage()))
+                .toList();
+    }
+
+    @Override
+    public FriendRequestSummary sendFriendRequest(String userId, String friendUserId, String requestMessage) {
         if (userId == null || userId.isBlank() || friendUserId == null || friendUserId.isBlank()) {
             throw new IllegalStateException("friend user required");
         }
@@ -44,8 +54,17 @@ public class FriendService implements FriendRelationService {
         if (friendRepository.areAcceptedFriends(userId, friendUserId)) {
             throw new IllegalStateException("friend already added");
         }
-        friendRepository.addRequest(userId, friendUserId);
-        return toRequestSummary(userId);
+        if (friendRepository.hasIncomingRequest(userId, friendUserId)) {
+            throw new IllegalStateException("incoming friend request pending; accept instead");
+        }
+        FriendRepository.FriendRequestRecord existing = friendRepository.getPendingRequest(userId, friendUserId);
+        if (existing == null) {
+            friendRepository.savePendingRequest(userId, friendUserId, requestMessage);
+            friendRealtimeNotifier.friendRequestCreated(userId, friendUserId);
+        } else {
+            requestMessage = existing.getRequestMessage();
+        }
+        return toRequestSummary(friendUserId, "outgoing", "pending", requestMessage);
     }
 
     @Override
@@ -54,7 +73,28 @@ public class FriendService implements FriendRelationService {
             throw new IllegalStateException("friend request not found");
         }
         friendRepository.acceptFriendPair(userId, friendUserId);
+        friendRealtimeNotifier.friendRequestAccepted(userId, friendUserId);
         return toSummary(friendUserId);
+    }
+
+    @Override
+    public FriendRequestSummary rejectFriendRequest(String userId, String friendUserId) {
+        if (!friendRepository.hasIncomingRequest(userId, friendUserId)) {
+            throw new IllegalStateException("friend request not found");
+        }
+        friendRepository.rejectPendingRequest(friendUserId, userId);
+        friendRealtimeNotifier.friendRequestRejected(userId, friendUserId);
+        return toRequestSummary(friendUserId, "incoming", "rejected", null);
+    }
+
+    @Override
+    public FriendRequestSummary cancelFriendRequest(String userId, String friendUserId) {
+        if (!friendRepository.hasOutgoingRequest(userId, friendUserId)) {
+            throw new IllegalStateException("friend request not found");
+        }
+        friendRepository.cancelPendingRequest(userId, friendUserId);
+        friendRealtimeNotifier.friendRequestCancelled(userId, friendUserId);
+        return toRequestSummary(friendUserId, "outgoing", "cancelled", null);
     }
 
     @Override
@@ -73,12 +113,17 @@ public class FriendService implements FriendRelationService {
         return summary;
     }
 
-    private FriendRequestSummary toRequestSummary(String userId) {
+    private FriendRequestSummary toRequestSummary(String userId,
+                                                  String direction,
+                                                  String status,
+                                                  String requestMessage) {
         FriendRequestSummary summary = new FriendRequestSummary();
         summary.setUserId(userId);
         summary.setDisplayName(deriveDisplayName(userId));
         summary.setAvatarSeed(deriveAvatarSeed(userId));
-        summary.setStatus("PENDING");
+        summary.setDirection(direction);
+        summary.setStatus(status);
+        summary.setRequestMessage(requestMessage);
         return summary;
     }
 

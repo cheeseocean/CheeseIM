@@ -19,11 +19,14 @@ export interface ConversationStore {
   setConversations(conversations: ConversationSummary[]): void;
   upsertConversation(conversation: ConversationSummary): void;
   setActiveConversation(conversationId: string | null): void;
+  clearConversationMessages(conversationId: string): void;
   replaceHistory(conversationId: string, page: HistoryPage): void;
   prependHistory(conversationId: string, page: HistoryPage): void;
   setLoadingOlder(conversationId: string, isLoading: boolean): void;
   addOptimisticOutgoing(message: MessageItem): void;
   applyInbound(message: MessageItem): void;
+  markRead(conversationId: string, seq: number): void;
+  markRecalled(conversationId: string, serverId: string): void;
   markDelivered(conversationId: string, localId: string, serverId: string, sentAt: number): void;
   markFailed(conversationId: string, localId: string, reason: string): void;
 }
@@ -94,6 +97,24 @@ export function createConversationStore(): ConversationStore {
                   ? { ...conversation, unreadCount: 0 }
                   : conversation,
               ),
+      };
+      emit();
+    },
+    clearConversationMessages(conversationId) {
+      state = {
+        ...state,
+        messagesByConversation: {
+          ...state.messagesByConversation,
+          [conversationId]: [],
+        },
+        historyMetaByConversation: {
+          ...state.historyMetaByConversation,
+          [conversationId]: {
+            nextCursor: null,
+            hasMore: false,
+            isLoadingOlder: false,
+          },
+        },
       };
       emit();
     },
@@ -170,9 +191,53 @@ export function createConversationStore(): ConversationStore {
     },
     applyInbound(message) {
       const current = state.messagesByConversation[message.conversationId] ?? [];
-      if (current.some((item) => item.serverId != null && item.serverId === message.serverId)) {
+      const duplicateServerIndex = current.findIndex(
+        (item) => item.serverId != null && item.serverId === message.serverId,
+      );
+      if (duplicateServerIndex >= 0) {
+        const duplicate = current[duplicateServerIndex];
+        const mergedDuplicate = {
+          ...duplicate,
+          seq: duplicate.seq ?? message.seq,
+          timestamp: Math.max(duplicate.timestamp, message.timestamp),
+          status:
+            duplicate.status === 'read'
+              ? 'read' as const
+              : message.status,
+        };
+        if (
+          mergedDuplicate.seq === duplicate.seq &&
+          mergedDuplicate.timestamp === duplicate.timestamp &&
+          mergedDuplicate.status === duplicate.status
+        ) {
+          return;
+        }
+        state = {
+          ...state,
+          messagesByConversation: {
+            ...state.messagesByConversation,
+            [message.conversationId]: current.map((item, index) =>
+              index === duplicateServerIndex ? mergedDuplicate : item,
+            ),
+          },
+        };
+        emit();
         return;
       }
+      const optimisticIndex = current.findIndex((item) => item.localId === message.localId);
+      const nextMessages =
+        optimisticIndex >= 0
+          ? current.map((item, index) =>
+              index === optimisticIndex
+                ? {
+                    ...item,
+                    ...message,
+                    direction: item.direction,
+                    senderDisplay: item.senderDisplay,
+                  }
+                : item,
+            )
+          : [...current, message];
       const existingConversation = state.conversations.find(
         (conversation) => conversation.conversationId === message.conversationId,
       );
@@ -180,7 +245,7 @@ export function createConversationStore(): ConversationStore {
         ...state,
         messagesByConversation: {
           ...state.messagesByConversation,
-          [message.conversationId]: [...current, message],
+          [message.conversationId]: nextMessages,
         },
         conversations:
           existingConversation == null
@@ -212,18 +277,92 @@ export function createConversationStore(): ConversationStore {
       }
       emit();
     },
+    markRead(conversationId, seq) {
+      const current = state.messagesByConversation[conversationId] ?? [];
+      const hasSequencedMatch = current.some(
+        (message) =>
+          message.direction === 'outgoing' &&
+          !message.recalled &&
+          message.seq != null &&
+          message.seq <= seq,
+      );
+      const fallbackIndex = hasSequencedMatch
+        ? -1
+        : [...current].reduce(
+            (candidateIndex, message, index) =>
+              message.direction === 'outgoing' &&
+                !message.recalled &&
+                message.seq == null &&
+                message.status !== 'failed'
+                ? index
+                : candidateIndex,
+            -1,
+          );
+      state = {
+        ...state,
+        messagesByConversation: {
+          ...state.messagesByConversation,
+          [conversationId]: current.map((message, index) =>
+            (
+              message.direction === 'outgoing' &&
+              !message.recalled &&
+              (
+                (message.seq != null && message.seq <= seq) ||
+                index === fallbackIndex
+              )
+            )
+              ? {
+                  ...message,
+                  status: 'read' as const,
+                }
+              : message,
+          ),
+        },
+      };
+      emit();
+    },
+    markRecalled(conversationId, serverId) {
+      const current = state.messagesByConversation[conversationId] ?? [];
+      state = {
+        ...state,
+        messagesByConversation: {
+          ...state.messagesByConversation,
+          [conversationId]: current.map((message) =>
+            message.serverId === serverId
+              ? {
+                  ...message,
+                  text: '消息已撤回',
+                  recalled: true,
+                  failureReason: undefined,
+                }
+              : message,
+          ),
+        },
+      };
+      emit();
+    },
     markDelivered(conversationId, localId, serverId, sentAt) {
-      const nextMessages = (state.messagesByConversation[conversationId] ?? []).map((message) =>
-        message.localId === localId
-          ? {
+      const current = state.messagesByConversation[conversationId] ?? [];
+      const targetIndex = current.findIndex((message) => message.localId === localId);
+      const duplicateServerIndex = current.findIndex(
+        (message, index) => index !== targetIndex && message.serverId === serverId,
+      );
+      const nextMessages = current
+        .map((message, index) =>
+          index === targetIndex
+            ? {
               ...message,
               serverId,
               timestamp: sentAt,
-              status: 'delivered' as const,
+              seq:
+                message.seq ??
+                current.find((candidate, index) => index !== targetIndex && candidate.serverId === serverId)?.seq,
+              status: message.status === 'read' ? 'read' as const : 'delivered' as const,
               failureReason: undefined,
             }
-          : message,
-      );
+            : message,
+        )
+        .filter((_, index) => index !== duplicateServerIndex);
       state = {
         ...state,
         messagesByConversation: {
@@ -233,7 +372,10 @@ export function createConversationStore(): ConversationStore {
       };
       updateConversations(conversationId, (conversation) => ({
         ...conversation,
-        lastMessagePreview: nextMessages.at(-1)?.text ?? conversation.lastMessagePreview,
+        lastMessagePreview:
+          nextMessages.length > 0
+            ? nextMessages[nextMessages.length - 1].text
+            : conversation.lastMessagePreview,
         lastMessageTime: sentAt,
       }));
       emit();

@@ -184,6 +184,10 @@ public class DemoState {
         return conversation(peerUserId).peerTyping;
     }
 
+    public List<String> conversationPeers() {
+        return List.copyOf(conversations.keySet());
+    }
+
     private java.util.Optional<ChatMessage> findByClientMsgId(String clientMsgId) {
         return conversations.values().stream()
                 .flatMap(conversation -> conversation.messages.stream())

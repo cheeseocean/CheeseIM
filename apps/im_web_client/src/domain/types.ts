@@ -51,7 +51,9 @@ export interface FriendRequestSummary {
   userId: string;
   displayName: string;
   avatarSeed: string;
-  status: 'PENDING';
+  direction: 'incoming' | 'outgoing';
+  status: 'pending' | 'accepted' | 'rejected' | 'cancelled';
+  requestMessage: string | null;
 }
 
 export interface WsTicket {
@@ -89,7 +91,7 @@ export interface SessionState {
   errorMessage?: string;
 }
 
-export type ConversationKind = 'DIRECT' | 'GROUP';
+export type ConversationKind = 'DIRECT' | 'GROUP' | 'CHANNEL';
 
 export interface ConversationSummary {
   conversationId: string;
@@ -103,11 +105,12 @@ export interface ConversationSummary {
   accentColor: string;
 }
 
-export type MessageStatus = 'sending' | 'delivered' | 'failed' | 'received';
+export type MessageStatus = 'sending' | 'delivered' | 'read' | 'failed' | 'received';
 
 export interface MessageItem {
   localId: string;
   serverId?: string;
+  seq?: number;
   conversationId: string;
   senderId: string;
   senderDisplay: string;
@@ -115,6 +118,7 @@ export interface MessageItem {
   text: string;
   timestamp: number;
   status: MessageStatus;
+  recalled?: boolean;
   failureReason?: string;
 }
 

@@ -8,6 +8,7 @@ import com.cheeseocean.im.common.api.rpc.OnlineDispatchRpc;
 import com.cheeseocean.im.postoffice.connection.ConnectionManager;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.postoffice.protocol.WSMessage;
+import com.cheeseocean.im.postoffice.protocol.WSMessageType;
 import org.apache.dubbo.config.annotation.DubboService;
 
 import java.util.ArrayList;
@@ -72,12 +73,31 @@ public class OnlineDispatchRpcImpl implements OnlineDispatchRpc {
         if (!connectionManager.markDeliveryIfAbsent(payload.getServerMsgId(), userId, connectionId)) {
             return new DispatchResult(connectionId, true, "DUPLICATE", "delivery already recorded");
         }
+        WSMessage message = new WSMessage(resolveMessageType(payload), payload.getServerMsgId(), payload);
         boolean success = connectionManager.sendMessageToConnection(
                 connection,
-                WSMessage.recvMsgNotify(payload.getServerMsgId(), payload));
+                message);
         if (success) {
             return new DispatchResult(connectionId, true, "OK", "delivered");
         }
         return new DispatchResult(connectionId, false, "SEND_FAILED", "connection send failed");
+    }
+
+    private int resolveMessageType(DispatchPayload payload) {
+        if (payload == null || payload.getExt() == null) {
+            return WSMessageType.WS_RECV_MSG_NOTIFY;
+        }
+        String notificationType = payload.getExt().get("notificationType");
+        if ("friend_request_created".equals(notificationType)) {
+            return WSMessageType.WS_FRIEND_REQUEST_NOTIFY;
+        }
+        if ("friend_request_accepted".equals(notificationType)) {
+            return WSMessageType.WS_FRIEND_ADD_NOTIFY;
+        }
+        if ("friend_request_rejected".equals(notificationType)
+                || "friend_request_cancelled".equals(notificationType)) {
+            return WSMessageType.WS_FRIEND_REQUEST_HANDLE_NOTIFY;
+        }
+        return WSMessageType.WS_RECV_MSG_NOTIFY;
     }
 }

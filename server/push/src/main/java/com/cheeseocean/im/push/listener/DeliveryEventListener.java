@@ -101,6 +101,8 @@ public class DeliveryEventListener {
         payload.setContent(message.getContent());
         payload.setSendTime(message.getSendTime());
         payload.setExt(message.getExt());
+        payload.getExt().put("senderId", message.getSenderId());
+        payload.getExt().put("recvId", message.getRecvId());
         return payload;
     }
 

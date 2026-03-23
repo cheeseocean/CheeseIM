@@ -39,8 +39,17 @@ const friendList: FriendSummary[] = [
 ];
 
 const incomingFriendRequests: FriendRequestSummary[] = [
-  { userId: 'u_editor', displayName: 'Rae Mercer', avatarSeed: 'RM', status: 'PENDING' },
+  {
+    userId: 'u_editor',
+    displayName: 'Rae Mercer',
+    avatarSeed: 'RM',
+    direction: 'incoming',
+    status: 'pending',
+    requestMessage: 'Please add me to the editorial loop.',
+  },
 ];
+
+const outgoingFriendRequests: FriendRequestSummary[] = [];
 
 const historyMap: Record<string, { initial: HistoryPage; older?: HistoryPage }> = {
   'conv-design-ops': {
@@ -134,23 +143,39 @@ export function getIncomingFriendRequests(): FriendRequestSummary[] {
   return incomingFriendRequests.map((request) => ({ ...request }));
 }
 
-export function sendFriendRequest(userId: string): FriendRequestSummary {
-  const existing = incomingFriendRequests.find((request) => request.userId === userId);
-  if (existing != null) {
-    return { ...existing };
+export function getOutgoingFriendRequests(): FriendRequestSummary[] {
+  return outgoingFriendRequests.map((request) => ({ ...request }));
+}
+
+export function sendFriendRequest(userId: string, requestMessage: string): FriendRequestSummary {
+  const existingOutgoing = outgoingFriendRequests.find((request) => request.userId === userId);
+  if (existingOutgoing != null) {
+    return { ...existingOutgoing };
   }
-  return {
+  const existingIncoming = incomingFriendRequests.find((request) => request.userId === userId);
+  if (existingIncoming != null) {
+    return { ...existingIncoming };
+  }
+  const request = {
     userId,
     displayName: deriveDisplayName(userId),
     avatarSeed: deriveAvatarSeed(userId),
-    status: 'PENDING',
+    direction: 'outgoing' as const,
+    status: 'pending' as const,
+    requestMessage: requestMessage === '' ? null : requestMessage,
   };
+  outgoingFriendRequests.unshift(request);
+  return { ...request };
 }
 
 export function acceptFriendRequest(userId: string): FriendSummary {
   const requestIndex = incomingFriendRequests.findIndex((request) => request.userId === userId);
   if (requestIndex >= 0) {
     incomingFriendRequests.splice(requestIndex, 1);
+  }
+  const outgoingIndex = outgoingFriendRequests.findIndex((request) => request.userId === userId);
+  if (outgoingIndex >= 0) {
+    outgoingFriendRequests.splice(outgoingIndex, 1);
   }
   const existing = friendList.find((friend) => friend.userId === userId);
   if (existing != null) {
@@ -163,6 +188,38 @@ export function acceptFriendRequest(userId: string): FriendSummary {
   };
   friendList.unshift(friend);
   return { ...friend };
+}
+
+export function rejectFriendRequest(userId: string): FriendRequestSummary {
+  const requestIndex = incomingFriendRequests.findIndex((request) => request.userId === userId);
+  if (requestIndex >= 0) {
+    const [request] = incomingFriendRequests.splice(requestIndex, 1);
+    return { ...request, status: 'rejected' };
+  }
+  return {
+    userId,
+    displayName: deriveDisplayName(userId),
+    avatarSeed: deriveAvatarSeed(userId),
+    direction: 'incoming',
+    status: 'rejected',
+    requestMessage: null,
+  };
+}
+
+export function cancelFriendRequest(userId: string): FriendRequestSummary {
+  const requestIndex = outgoingFriendRequests.findIndex((request) => request.userId === userId);
+  if (requestIndex >= 0) {
+    const [request] = outgoingFriendRequests.splice(requestIndex, 1);
+    return { ...request, status: 'cancelled', requestMessage: request.requestMessage };
+  }
+  return {
+    userId,
+    displayName: deriveDisplayName(userId),
+    avatarSeed: deriveAvatarSeed(userId),
+    direction: 'outgoing',
+    status: 'cancelled',
+    requestMessage: null,
+  };
 }
 
 export function startDirectConversation(friendUserId: string): ConversationSummary {

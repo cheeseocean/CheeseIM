@@ -315,6 +315,10 @@ public class CheeseMessageType {
             case TCP_USER_ONLINE_NOTIFY: return WSMessageType.WS_USER_ONLINE_NOTIFY;
             case TCP_USER_OFFLINE_NOTIFY: return WSMessageType.WS_USER_OFFLINE_NOTIFY;
             case TCP_FORCE_LOGOUT_NOTIFY: return WSMessageType.WS_FORCE_LOGOUT_NOTIFY;
+            case TCP_FRIEND_APPLICATION_NOTIFY: return WSMessageType.WS_FRIEND_REQUEST_NOTIFY;
+            case TCP_FRIEND_APPLICATION_PROCESSED_NOTIFY: return WSMessageType.WS_FRIEND_REQUEST_HANDLE_NOTIFY;
+            case TCP_FRIEND_INFO_CHANGE_NOTIFY: return WSMessageType.WS_FRIEND_ADD_NOTIFY;
+            case TCP_FRIEND_DELETE_NOTIFY: return WSMessageType.WS_FRIEND_DELETE_NOTIFY;
             case TCP_ERROR_RESP: return WSMessageType.WS_ERROR_RESP;
             case TCP_PARAM_ERROR: return WSMessageType.WS_PARAM_ERROR;
             case TCP_PERMISSION_ERROR: return WSMessageType.WS_PERMISSION_ERROR;
@@ -343,6 +347,10 @@ public class CheeseMessageType {
             case WSMessageType.WS_USER_ONLINE_NOTIFY: return TCP_USER_ONLINE_NOTIFY;
             case WSMessageType.WS_USER_OFFLINE_NOTIFY: return TCP_USER_OFFLINE_NOTIFY;
             case WSMessageType.WS_FORCE_LOGOUT_NOTIFY: return TCP_FORCE_LOGOUT_NOTIFY;
+            case WSMessageType.WS_FRIEND_REQUEST_NOTIFY: return TCP_FRIEND_APPLICATION_NOTIFY;
+            case WSMessageType.WS_FRIEND_REQUEST_HANDLE_NOTIFY: return TCP_FRIEND_APPLICATION_PROCESSED_NOTIFY;
+            case WSMessageType.WS_FRIEND_ADD_NOTIFY: return TCP_FRIEND_INFO_CHANGE_NOTIFY;
+            case WSMessageType.WS_FRIEND_DELETE_NOTIFY: return TCP_FRIEND_DELETE_NOTIFY;
             case WSMessageType.WS_ERROR_RESP: return TCP_ERROR_RESP;
             case WSMessageType.WS_PARAM_ERROR: return TCP_PARAM_ERROR;
             case WSMessageType.WS_PERMISSION_ERROR: return TCP_PERMISSION_ERROR;

@@ -3,7 +3,7 @@ import type { AuthSession, ConversationSummary, FriendRequestSummary, FriendSumm
 import { fetchJson } from './http';
 
 interface RealChatServiceOptions {
-  authBaseUrl: string;
+  socialBaseUrl: string;
   imBaseUrl: string;
 }
 
@@ -26,7 +26,9 @@ interface FriendSummaryPayload {
 }
 
 interface FriendRequestPayload extends FriendSummaryPayload {
-  status: 'PENDING';
+  direction: 'incoming' | 'outgoing';
+  status: 'pending' | 'accepted' | 'rejected' | 'cancelled';
+  requestMessage?: string | null;
 }
 
 interface HistoryMessagePayload {
@@ -68,7 +70,7 @@ export function createRealChatService(options: RealChatServiceOptions): ChatServ
     },
     async listFriends(session: AuthSession): Promise<FriendSummary[]> {
       const response = await fetchJson<FriendSummaryPayload[]>(
-        `${options.authBaseUrl}/api/im/friends`,
+        `${options.socialBaseUrl}/api/im/friends`,
         {
           method: 'GET',
           headers: {
@@ -84,7 +86,7 @@ export function createRealChatService(options: RealChatServiceOptions): ChatServ
     },
     async listIncomingFriendRequests(session: AuthSession): Promise<FriendRequestSummary[]> {
       const response = await fetchJson<FriendRequestPayload[]>(
-        `${options.authBaseUrl}/api/im/friends/requests`,
+        `${options.socialBaseUrl}/api/im/friends/requests/incoming`,
         {
           method: 'GET',
           headers: {
@@ -96,30 +98,53 @@ export function createRealChatService(options: RealChatServiceOptions): ChatServ
         userId: request.userId,
         displayName: request.displayName,
         avatarSeed: request.avatarSeed,
+        direction: request.direction,
         status: request.status,
+        requestMessage: request.requestMessage ?? null,
       }));
     },
-    async sendFriendRequest(friendUserId: string, session: AuthSession): Promise<FriendRequestSummary> {
+    async listOutgoingFriendRequests(session: AuthSession): Promise<FriendRequestSummary[]> {
+      const response = await fetchJson<FriendRequestPayload[]>(
+        `${options.socialBaseUrl}/api/im/friends/requests/outgoing`,
+        {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${session.tokens.accessToken}`,
+          },
+        },
+      );
+      return response.map((request) => ({
+        userId: request.userId,
+        displayName: request.displayName,
+        avatarSeed: request.avatarSeed,
+        direction: request.direction,
+        status: request.status,
+        requestMessage: request.requestMessage ?? null,
+      }));
+    },
+    async sendFriendRequest(friendUserId: string, requestMessage: string, session: AuthSession): Promise<FriendRequestSummary> {
       const response = await fetchJson<FriendRequestPayload>(
-        `${options.authBaseUrl}/api/im/friends`,
+        `${options.socialBaseUrl}/api/im/friends/requests`,
         {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${session.tokens.accessToken}`,
           },
-          body: JSON.stringify({ friendUserId }),
+          body: JSON.stringify({ friendUserId, requestMessage }),
         },
       );
       return {
         userId: response.userId,
         displayName: response.displayName,
         avatarSeed: response.avatarSeed,
+        direction: response.direction,
         status: response.status,
+        requestMessage: response.requestMessage ?? null,
       };
     },
     async acceptFriendRequest(friendUserId: string, session: AuthSession): Promise<FriendSummary> {
       const response = await fetchJson<FriendSummaryPayload>(
-        `${options.authBaseUrl}/api/im/friends/accept`,
+        `${options.socialBaseUrl}/api/im/friends/requests/accept`,
         {
           method: 'POST',
           headers: {
@@ -132,6 +157,46 @@ export function createRealChatService(options: RealChatServiceOptions): ChatServ
         userId: response.userId,
         displayName: response.displayName,
         avatarSeed: response.avatarSeed,
+      };
+    },
+    async rejectFriendRequest(friendUserId: string, session: AuthSession): Promise<FriendRequestSummary> {
+      const response = await fetchJson<FriendRequestPayload>(
+        `${options.socialBaseUrl}/api/im/friends/requests/reject`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.tokens.accessToken}`,
+          },
+          body: JSON.stringify({ friendUserId }),
+        },
+      );
+      return {
+        userId: response.userId,
+        displayName: response.displayName,
+        avatarSeed: response.avatarSeed,
+        direction: response.direction,
+        status: response.status,
+        requestMessage: response.requestMessage ?? null,
+      };
+    },
+    async cancelFriendRequest(friendUserId: string, session: AuthSession): Promise<FriendRequestSummary> {
+      const response = await fetchJson<FriendRequestPayload>(
+        `${options.socialBaseUrl}/api/im/friends/requests/cancel`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.tokens.accessToken}`,
+          },
+          body: JSON.stringify({ friendUserId }),
+        },
+      );
+      return {
+        userId: response.userId,
+        displayName: response.displayName,
+        avatarSeed: response.avatarSeed,
+        direction: response.direction,
+        status: response.status,
+        requestMessage: response.requestMessage ?? null,
       };
     },
     async startDirectConversation(friendUserId: string, session: AuthSession): Promise<ConversationSummary> {
@@ -174,7 +239,9 @@ export function createRealChatService(options: RealChatServiceOptions): ChatServ
       );
 
       return {
-        items: response.map((message) => mapHistoryMessage(message, session)),
+        items: response
+          .map((message) => mapHistoryMessage(message, session))
+          .sort((left, right) => left.timestamp - right.timestamp),
         nextCursor: null,
         hasMore: false,
       };
@@ -184,15 +251,18 @@ export function createRealChatService(options: RealChatServiceOptions): ChatServ
 
 function mapHistoryMessage(payload: HistoryMessagePayload, session: AuthSession): MessageItem {
   const outgoing = payload.senderId === session.profile.userId;
+  const recalled = payload.contentType === 2005;
   return {
     localId: payload.clientMsgId || payload.serverMsgId,
     serverId: payload.serverMsgId,
+    seq: payload.sequence,
     conversationId: payload.conversationId,
     senderId: payload.senderId,
     senderDisplay: outgoing ? session.profile.displayName : payload.senderId,
     direction: outgoing ? 'outgoing' : 'incoming',
-    text: payload.content,
+    text: recalled ? '消息已撤回' : payload.content,
     timestamp: Date.parse(payload.createdAt),
+    recalled,
     status: outgoing ? 'delivered' : 'received',
   };
 }

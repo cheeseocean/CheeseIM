@@ -1,6 +1,6 @@
 package com.cheeseocean.im.authcenter.controller;
 
-import com.cheeseocean.im.common.api.session.SessionIssueService;
+import com.cheeseocean.im.authcenter.session.SessionIssueServiceImpl;
 import com.cheeseocean.im.common.core.auth.WsTicketPrincipal;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -20,7 +20,7 @@ import java.util.Map;
 public class WsTicketController {
 
     @Autowired
-    private SessionIssueService sessionIssueService;
+    private SessionIssueServiceImpl sessionIssueService;
 
     @PostMapping("/ws-ticket")
     public Map<String, Object> issue(@RequestHeader("Authorization") String authorization,

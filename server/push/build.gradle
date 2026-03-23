@@ -31,9 +31,6 @@ dependencies {
     // Micrometer for metrics
     implementation 'io.micrometer:micrometer-registry-prometheus'
 
-    // 定时任务支持
-    implementation 'org.springframework.boot:spring-boot-starter-quartz'
-
     // 验证框架
     implementation 'org.springframework.boot:spring-boot-starter-validation'
 

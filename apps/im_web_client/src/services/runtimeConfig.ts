@@ -1,6 +1,7 @@
 export interface AppRuntimeConfig {
   mode: 'fake' | 'real';
   authBaseUrl: string;
+  socialBaseUrl: string;
   imBaseUrl: string;
   wsUrl: string;
 }
@@ -11,6 +12,7 @@ export function createAppRuntimeConfig(
   return {
     mode: env.VITE_IM_SERVICE_MODE === 'real' ? 'real' : 'fake',
     authBaseUrl: env.VITE_AUTH_BASE_URL ?? '',
+    socialBaseUrl: env.VITE_SOCIAL_BASE_URL ?? '',
     imBaseUrl: env.VITE_IM_BASE_URL ?? '',
     wsUrl: env.VITE_IM_WS_URL ?? 'ws://localhost:5147/ws',
   };

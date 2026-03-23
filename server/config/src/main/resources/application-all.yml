@@ -5,6 +5,7 @@ spring:
     import:
       - classpath:common.yml
       - classpath:module-authcenter.yml
+      - classpath:module-social.yml
       - classpath:module-postoffice.yml
       - classpath:module-postman.yml
       - classpath:module-postbox.yml
@@ -18,6 +19,8 @@ app:
     mode: all-in-one
   modules:
     authcenter:
+      enabled: true
+    social:
       enabled: true
 
 cheese:

@@ -18,6 +18,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OnlineDispatchRpcImplTest {
 
@@ -110,6 +111,47 @@ class OnlineDispatchRpcImplTest {
         assertEquals("missing-conn", resp.getResults().get(0).getConnectionId());
         assertEquals(false, resp.getResults().get(0).isSuccess());
         assertEquals("CONNECTION_NOT_FOUND", resp.getResults().get(0).getCode());
+    }
+
+    @Test
+    void dispatchShouldUseFriendNotifyTypeForRelationshipNotifications() throws Exception {
+        ConnectionManager connectionManager = new ConnectionManager();
+        ObjectMapper objectMapper = new ObjectMapper();
+        ReflectionTestUtils.setField(connectionManager, "objectMapper", objectMapper);
+
+        EmbeddedChannel activeChannel = new EmbeddedChannel();
+        UserConnection activeConnection = new UserConnection("conn-3", "userB", 1, activeChannel);
+        activeConnection.setAuthenticated("token");
+        activeConnection.setProtocol("WebSocket");
+
+        @SuppressWarnings("unchecked")
+        Map<String, UserConnection> connectionMap =
+                (Map<String, UserConnection>) ReflectionTestUtils.getField(connectionManager, "connectionMap");
+        @SuppressWarnings("unchecked")
+        Map<String, Set<String>> userConnectionMap =
+                (Map<String, Set<String>>) ReflectionTestUtils.getField(connectionManager, "userConnectionMap");
+        connectionMap.put("conn-3", activeConnection);
+        userConnectionMap.put("userB", Set.of("conn-3"));
+
+        OnlineDispatchRpcImpl service = new OnlineDispatchRpcImpl(connectionManager);
+
+        DispatchPayload payload = payload("friend-evt-1", "refresh");
+        payload.getExt().put("notificationType", "friend_request_created");
+
+        DispatchMessageReq req = new DispatchMessageReq();
+        req.setUserId("userB");
+        req.setPayload(payload);
+
+        var resp = service.dispatchMessage(req);
+
+        assertEquals(1, resp.getResults().size());
+        assertTrue(resp.getResults().get(0).isSuccess());
+
+        TextWebSocketFrame outbound = activeChannel.readOutbound();
+        assertNotNull(outbound);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> frame = objectMapper.readValue(outbound.text(), Map.class);
+        assertEquals(6001, frame.get("msgType"));
     }
 
     private static DispatchPayload payload(String serverMsgId, String content) {

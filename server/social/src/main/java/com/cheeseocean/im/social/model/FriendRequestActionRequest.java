@@ -1,6 +1,6 @@
-package com.cheeseocean.im.authcenter.model;
+package com.cheeseocean.im.social.model;
 
-public class AddFriendRequest {
+public class FriendRequestActionRequest {
 
     private String friendUserId;
 

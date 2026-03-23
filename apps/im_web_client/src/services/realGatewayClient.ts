@@ -1,4 +1,4 @@
-import type { GatewayClient, GatewayEvent, SendTextRequest, SendTextResult } from './contracts';
+import type { GatewayClient, GatewayEvent, SendMessageRequest, SendTextRequest, SendTextResult } from './contracts';
 import type { AuthSession, GatewayConnection, MessageItem, WsTicket } from '../domain/types';
 
 const WS_MESSAGE_TYPES = {
@@ -10,6 +10,10 @@ const WS_MESSAGE_TYPES = {
   sendReq: 2001,
   sendResp: 2002,
   recvNotify: 2003,
+  friendRequestNotify: 6001,
+  friendHandleNotify: 6002,
+  friendAddNotify: 6003,
+  friendDeleteNotify: 6004,
   forceLogout: 7002,
   errorResp: 9001,
   paramError: 9002,
@@ -49,6 +53,27 @@ export function createRealGatewayClient(
 
   function emit(event: GatewayEvent): void {
     listeners.forEach((listener) => listener(event));
+  }
+
+  function sendMessageInternal(input: SendMessageRequest): Promise<SendTextResult> {
+    if (socket == null || socket.readyState !== WebSocket.OPEN) {
+      throw new Error('WebSocket is not connected.');
+    }
+
+    const operationID = nextOperationId('op-send');
+    const payload = buildSendMessageRequest(operationID, {
+      clientMsgID: input.localId,
+      recvID: input.recipientId,
+      content: input.content,
+      contentType: input.contentType,
+      sessionType: 1,
+      attachedInfo: input.attachedInfo,
+    });
+
+    return new Promise((resolve, reject) => {
+      pendingSends.set(operationID, { resolve, reject });
+      socket?.send(JSON.stringify(payload));
+    });
   }
 
   return {
@@ -94,10 +119,17 @@ export function createRealGatewayClient(
           }
 
           if (message.msgType === WS_MESSAGE_TYPES.recvNotify && activeSession != null) {
-            emit({
-              type: 'messageReceived',
-              message: mapInboundMessage(message.data as Record<string, unknown>, activeSession),
-            });
+            emit(mapGatewayEvent(message.data as Record<string, unknown>, activeSession));
+            return;
+          }
+
+          if (
+            message.msgType === WS_MESSAGE_TYPES.friendRequestNotify ||
+            message.msgType === WS_MESSAGE_TYPES.friendHandleNotify ||
+            message.msgType === WS_MESSAGE_TYPES.friendAddNotify ||
+            message.msgType === WS_MESSAGE_TYPES.friendDeleteNotify
+          ) {
+            emit({ type: 'friendStateChanged' });
             return;
           }
 
@@ -134,23 +166,17 @@ export function createRealGatewayClient(
       });
     },
     sendText(input: SendTextRequest): Promise<SendTextResult> {
-      if (socket == null || socket.readyState !== WebSocket.OPEN) {
-        throw new Error('WebSocket is not connected.');
-      }
-
-      const operationID = nextOperationId('op-send');
-      const payload = buildSendMessageRequest(operationID, {
-        clientMsgID: input.localId,
-        recvID: input.recipientId,
+      return sendMessageInternal({
+        conversationId: input.conversationId,
+        recipientId: input.recipientId,
+        localId: input.localId,
         content: input.text,
         contentType: 101,
-        sessionType: 1,
+        session: input.session,
       });
-
-      return new Promise((resolve, reject) => {
-        pendingSends.set(operationID, { resolve, reject });
-        socket?.send(JSON.stringify(payload));
-      });
+    },
+    sendMessage(input: SendMessageRequest): Promise<SendTextResult> {
+      return sendMessageInternal(input);
     },
     subscribe(listener) {
       listeners.add(listener);
@@ -190,12 +216,66 @@ function buildSendMessageRequest(
     content: string;
     contentType: number;
     sessionType: number;
+    attachedInfo?: string;
   },
 ): WsEnvelope<typeof payload> {
   return {
     msgType: WS_MESSAGE_TYPES.sendReq,
     operationID,
     data: payload,
+  };
+}
+
+function mapGatewayEvent(payload: Record<string, unknown>, session: AuthSession): GatewayEvent {
+  const ext = payload.ext as Record<string, unknown> | undefined;
+  const senderId = String(payload.sendID ?? payload.sendId ?? payload.senderId ?? ext?.senderId ?? '');
+  const recipientId = String(payload.recvID ?? payload.recvId ?? payload.receiverId ?? ext?.recvId ?? '');
+  const conversationId = String(
+    payload.conversationId ??
+      payload.conversationID ??
+      payload.recvID ??
+      payload.recvId ??
+      ext?.recvId ??
+      senderId,
+  );
+  const contentType = Number(payload.contentType ?? 101);
+
+  if (contentType === 4002) {
+    return {
+      type: 'typing',
+      conversationId,
+      senderId,
+    };
+  }
+
+  if (contentType === 2004) {
+    return {
+      type: 'read',
+      conversationId,
+      seq: Number(payload.content ?? payload.seq ?? 0),
+      senderId,
+      recipientId,
+      clientMsgId: String(
+        payload.clientMsgID ??
+        payload.clientMsgId ??
+        payload.serverMsgID ??
+        payload.serverMsgId ??
+        '',
+      ),
+    };
+  }
+
+  if (contentType === 2005) {
+    return {
+      type: 'revoke',
+      conversationId,
+      serverId: String(payload.content ?? payload.serverMsgID ?? payload.serverMsgId ?? ''),
+    };
+  }
+
+  return {
+    type: 'messageReceived',
+    message: mapInboundMessage(payload, session),
   };
 }
 
@@ -218,11 +298,23 @@ function mapInboundMessage(
   payload: Record<string, unknown>,
   session: AuthSession,
 ): MessageItem {
-  const senderId = String(payload.sendID ?? payload.senderId ?? '');
-  const conversationId = String(payload.recvID ?? payload.recvId ?? senderId);
+  const ext = payload.ext as Record<string, unknown> | undefined;
+  const senderId = String(payload.sendID ?? payload.sendId ?? payload.senderId ?? ext?.senderId ?? '');
+  const conversationId = String(
+    payload.conversationId ??
+      payload.conversationID ??
+      payload.recvID ??
+      payload.recvId ??
+      ext?.recvId ??
+      senderId,
+  );
   return {
-    localId: String(payload.clientMsgID ?? payload.serverMsgID ?? `msg_${Date.now()}`),
-    serverId: payload.serverMsgID == null ? undefined : String(payload.serverMsgID),
+    localId: String(payload.clientMsgID ?? payload.clientMsgId ?? payload.serverMsgID ?? payload.serverMsgId ?? `msg_${Date.now()}`),
+    serverId:
+      payload.serverMsgID == null && payload.serverMsgId == null
+        ? undefined
+        : String(payload.serverMsgID ?? payload.serverMsgId),
+    seq: payload.seq == null ? undefined : Number(payload.seq),
     conversationId,
     senderId,
     senderDisplay: senderId === session.profile.userId ? session.profile.displayName : senderId,

@@ -7,7 +7,9 @@ public class FriendRequestSummary implements Serializable {
     private String userId;
     private String displayName;
     private String avatarSeed;
+    private String direction;
     private String status;
+    private String requestMessage;
 
     public String getUserId() {
         return userId;
@@ -39,5 +41,21 @@ public class FriendRequestSummary implements Serializable {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getDirection() {
+        return direction;
+    }
+
+    public void setDirection(String direction) {
+        this.direction = direction;
+    }
+
+    public String getRequestMessage() {
+        return requestMessage;
+    }
+
+    public void setRequestMessage(String requestMessage) {
+        this.requestMessage = requestMessage;
     }
 }

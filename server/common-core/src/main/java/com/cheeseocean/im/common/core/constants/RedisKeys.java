@@ -35,6 +35,18 @@ public final class RedisKeys {
         return AUTH_PREFIX + ":user_friend_requests:" + userId;
     }
 
+    public static String userIncomingFriendRequests(String userId) {
+        return AUTH_PREFIX + ":user_incoming_friend_requests:" + userId;
+    }
+
+    public static String userOutgoingFriendRequests(String userId) {
+        return AUTH_PREFIX + ":user_outgoing_friend_requests:" + userId;
+    }
+
+    public static String friendRequest(String fromUserId, String toUserId) {
+        return AUTH_PREFIX + ":friend_request:" + fromUserId + ":" + toUserId;
+    }
+
     public static String onlineUser(String userId) {
         return "online:user:" + userId;
     }

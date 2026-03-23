@@ -86,7 +86,7 @@ describe('realChatService', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const service = createRealChatService({
-      authBaseUrl: 'http://localhost:18084',
+      socialBaseUrl: 'http://localhost:18085',
       imBaseUrl: 'http://localhost:18082',
     });
 
@@ -111,20 +111,29 @@ describe('realChatService', () => {
     ]);
   });
 
-  it('lists friends, lists requests, sends a request, accepts it, and starts a direct conversation through real endpoints', async () => {
+  it('lists friends, lists incoming and outgoing requests, sends, accepts, rejects, cancels, and starts a direct conversation through real endpoints', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
         jsonResponse([{ userId: 'u_design', displayName: 'Mina Park', avatarSeed: 'MP' }]),
       )
       .mockResolvedValueOnce(
-        jsonResponse([{ userId: 'u_editor', displayName: 'Rae Mercer', avatarSeed: 'RM', status: 'PENDING' }]),
+        jsonResponse([{ userId: 'u_editor', displayName: 'Rae Mercer', avatarSeed: 'RM', direction: 'incoming', status: 'pending', requestMessage: 'hey' }]),
       )
       .mockResolvedValueOnce(
-        jsonResponse({ userId: 'u_ops', displayName: 'Theo Vale', avatarSeed: 'TV', status: 'PENDING' }),
+        jsonResponse([{ userId: 'u_ops', displayName: 'Theo Vale', avatarSeed: 'TV', direction: 'outgoing', status: 'pending', requestMessage: 'ping' }]),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ userId: 'u_ops', displayName: 'Theo Vale', avatarSeed: 'TV', direction: 'outgoing', status: 'pending', requestMessage: 'hello' }),
       )
       .mockResolvedValueOnce(
         jsonResponse({ userId: 'u_editor', displayName: 'Rae Mercer', avatarSeed: 'RM' }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ userId: 'u_reject', displayName: 'June Hale', avatarSeed: 'JH', direction: 'incoming', status: 'rejected' }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ userId: 'u_ops', displayName: 'Theo Vale', avatarSeed: 'TV', direction: 'outgoing', status: 'cancelled' }),
       )
       .mockResolvedValueOnce(
         jsonResponse({
@@ -142,20 +151,26 @@ describe('realChatService', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const service = createRealChatService({
-      authBaseUrl: 'http://localhost:18084',
+      socialBaseUrl: 'http://localhost:18085',
       imBaseUrl: 'http://localhost:18082',
     });
 
     const friends = await service.listFriends(createSession());
-    const requests = await service.listIncomingFriendRequests(createSession());
-    const pending = await service.sendFriendRequest('u_ops', createSession());
+    const incoming = await service.listIncomingFriendRequests(createSession());
+    const outgoing = await service.listOutgoingFriendRequests(createSession());
+    const pending = await service.sendFriendRequest('u_ops', 'hello', createSession());
     const accepted = await service.acceptFriendRequest('u_editor', createSession());
+    const rejected = await service.rejectFriendRequest('u_reject', createSession());
+    const cancelled = await service.cancelFriendRequest('u_ops', createSession());
     const conversation = await service.startDirectConversation('u_editor', createSession());
 
     expect(friends[0]).toMatchObject({ userId: 'u_design' });
-    expect(requests[0]).toMatchObject({ userId: 'u_editor', status: 'PENDING' });
-    expect(pending).toMatchObject({ userId: 'u_ops', status: 'PENDING' });
+    expect(incoming[0]).toMatchObject({ userId: 'u_editor', direction: 'incoming', status: 'pending' });
+    expect(outgoing[0]).toMatchObject({ userId: 'u_ops', direction: 'outgoing', status: 'pending' });
+    expect(pending).toMatchObject({ userId: 'u_ops', status: 'pending', requestMessage: 'hello' });
     expect(accepted).toMatchObject({ userId: 'u_editor' });
+    expect(rejected).toMatchObject({ userId: 'u_reject', status: 'rejected' });
+    expect(cancelled).toMatchObject({ userId: 'u_ops', status: 'cancelled' });
     expect(conversation).toMatchObject({
       conversationId: 'single:u_editor:u_operator',
       peerUserId: 'u_editor',
@@ -181,7 +196,7 @@ describe('realChatService', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const service = createRealChatService({
-      authBaseUrl: 'http://localhost:18084',
+      socialBaseUrl: 'http://localhost:18085',
       imBaseUrl: 'http://localhost:18082',
     });
 
@@ -224,6 +239,45 @@ describe('realChatService', () => {
       text: 'Welcome to the relay desk.',
       direction: 'incoming',
     });
+  });
+
+  it('normalizes history responses into oldest-to-newest order', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse([
+        {
+          serverMsgId: 'msg_2',
+          clientMsgId: 'client_2',
+          conversationId: 'conv_1',
+          senderId: 'u_operator',
+          receiverId: 'u_design',
+          content: 'newer',
+          contentType: 1,
+          sequence: 11,
+          createdAt: '2026-03-19T11:05:00Z',
+        },
+        {
+          serverMsgId: 'msg_1',
+          clientMsgId: 'client_1',
+          conversationId: 'conv_1',
+          senderId: 'u_design',
+          receiverId: 'u_operator',
+          content: 'older',
+          contentType: 1,
+          sequence: 10,
+          createdAt: '2026-03-19T11:00:00Z',
+        },
+      ]),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const service = createRealChatService({
+      socialBaseUrl: 'http://localhost:18085',
+      imBaseUrl: 'http://localhost:18082',
+    });
+
+    const page = await service.getHistory('conv_1', null, createSession());
+
+    expect(page.items.map((item) => item.serverId)).toEqual(['msg_1', 'msg_2']);
   });
 });
 
@@ -312,7 +366,7 @@ describe('realGatewayClient', () => {
     });
   });
 
-  it('publishes inbound message, force-logout, and disconnect events', async () => {
+  it('publishes inbound message, friend refresh, force-logout, and disconnect events', async () => {
     const socket = createMockSocket();
     const client = createRealGatewayClient({
       socketFactory: () => socket.instance,
@@ -350,12 +404,26 @@ describe('realGatewayClient', () => {
         msgType: 2003,
         operationID: 'op-notify-1',
         data: {
+          conversationId: 'c1:u_design:u_operator',
           serverMsgID: 'msg_888',
           clientMsgID: 'client_888',
-          sendID: 'u_design',
-          recvID: 'u_operator',
           content: 'Incoming brief from design.',
           sendTime: 1710000000001,
+          ext: {
+            senderId: 'u_design',
+            recvId: 'u_operator',
+          },
+        },
+      }),
+    });
+    socket.emit('message', {
+      data: JSON.stringify({
+        msgType: 6001,
+        operationID: 'op-friend-1',
+        data: {
+          eventType: 'friend_request_created',
+          actorUserId: 'u_editor',
+          targetUserId: 'u_operator',
         },
       }),
     });
@@ -372,6 +440,7 @@ describe('realGatewayClient', () => {
       expect.objectContaining({
         type: 'messageReceived',
         message: expect.objectContaining({
+          conversationId: 'c1:u_design:u_operator',
           serverId: 'msg_888',
           senderId: 'u_design',
           text: 'Incoming brief from design.',
@@ -379,11 +448,138 @@ describe('realGatewayClient', () => {
         }),
       }),
       {
+        type: 'friendStateChanged',
+      },
+      {
         type: 'forceLogout',
         reason: 'logged out elsewhere',
       },
       {
         type: 'disconnected',
+      },
+    ]);
+  });
+
+  it('maps lower-camel dispatch payload fields from postoffice recv notifications', async () => {
+    const socket = createMockSocket();
+    const client = createRealGatewayClient({
+      socketFactory: () => socket.instance,
+    });
+    const received: unknown[] = [];
+
+    client.subscribe((event) => {
+      received.push(event);
+    });
+
+    const connectPromise = client.connect(
+      {
+        ticket: 'wst_123',
+        expireAt: 3000,
+        wsUrl: 'ws://localhost:5147/ws',
+      },
+      createSession(),
+    );
+
+    socket.emit('open');
+    socket.emit('message', {
+      data: JSON.stringify({ msgType: 1002, operationID: 'system', data: '连接成功' }),
+    });
+    socket.emit('message', {
+      data: JSON.stringify({
+        msgType: 1102,
+        operationID: 'op-auth-00000001',
+        data: { userID: 'u_operator', connId: 'conn_123' },
+      }),
+    });
+    await connectPromise;
+
+    socket.emit('message', {
+      data: JSON.stringify({
+        msgType: 2003,
+        operationID: 'msg_999',
+        data: {
+          conversationId: 'c1:u_design:u_operator',
+          serverMsgId: 'msg_999',
+          clientMsgId: 'local_999',
+          content: 'Lower camel payload.',
+          sendTime: 1710000000999,
+          ext: {
+            senderId: 'u_operator',
+            recvId: 'u_design',
+          },
+        },
+      }),
+    });
+
+    expect(received).toEqual([
+      expect.objectContaining({
+        type: 'messageReceived',
+        message: expect.objectContaining({
+          localId: 'local_999',
+          serverId: 'msg_999',
+          senderId: 'u_operator',
+          direction: 'outgoing',
+          text: 'Lower camel payload.',
+        }),
+      }),
+    ]);
+  });
+
+  it('maps read receipts directed to the current user even when senderId is absent', async () => {
+    const socket = createMockSocket();
+    const client = createRealGatewayClient({
+      socketFactory: () => socket.instance,
+    });
+    const received: unknown[] = [];
+
+    client.subscribe((event) => {
+      received.push(event);
+    });
+
+    const connectPromise = client.connect(
+      {
+        ticket: 'wst_123',
+        expireAt: 3000,
+        wsUrl: 'ws://localhost:5147/ws',
+      },
+      createSession(),
+    );
+
+    socket.emit('open');
+    socket.emit('message', {
+      data: JSON.stringify({ msgType: 1002, operationID: 'system', data: '连接成功' }),
+    });
+    socket.emit('message', {
+      data: JSON.stringify({
+        msgType: 1102,
+        operationID: 'op-auth-00000001',
+        data: { userID: 'u_operator', connId: 'conn_123' },
+      }),
+    });
+    await connectPromise;
+
+    socket.emit('message', {
+      data: JSON.stringify({
+        msgType: 2003,
+        operationID: 'op-read-1',
+        data: {
+          conversationId: 'c1:u_design:u_operator',
+          clientMsgId: 'read_123',
+          recvID: 'u_operator',
+          content: '18',
+          contentType: 2004,
+        },
+      }),
+    });
+
+    expect(received).toEqual([
+      {
+        type: 'read',
+        conversationId: 'c1:u_design:u_operator',
+        seq: 18,
+        senderId: '',
+        recipientId: 'u_operator',
+        clientMsgId: 'read_123',
       },
     ]);
   });

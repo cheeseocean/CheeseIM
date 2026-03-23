@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: cheese-im-social
+  data:
+    mongodb:
+      host: ${mongodb.host:localhost}
+      port: ${mongodb.port:27017}
+      database: ${mongodb.database:cheese_im}
+    redis:
+      database: 0
+
+server:
+  port: 18085
+
+app:
+  modules:
+    social:
+      enabled: true
+
+logging:
+  level:
+    com.cheeseocean.im.social: INFO

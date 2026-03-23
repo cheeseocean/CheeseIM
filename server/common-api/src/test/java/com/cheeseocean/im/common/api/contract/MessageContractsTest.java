@@ -8,6 +8,7 @@ import com.cheeseocean.im.common.api.dto.message.SendMessageReq;
 import com.cheeseocean.im.common.api.dto.message.SendMessageResp;
 import com.cheeseocean.im.common.api.dto.message.SequencedMessage;
 import com.cheeseocean.im.common.api.event.DeliveryEvent;
+import com.cheeseocean.im.common.api.event.FriendRelationEvent;
 import com.cheeseocean.im.common.api.event.HistoryEvent;
 import com.cheeseocean.im.common.api.event.IngressEvent;
 import com.cheeseocean.im.common.core.enums.MessagePreviewType;
@@ -136,5 +137,21 @@ class MessageContractsTest {
         assertEquals("系统通知", summary.getPreviewText());
         assertEquals(MessagePreviewType.SYSTEM, summary.getPreviewType());
         assertTrue(summary.isNotification());
+    }
+
+    @Test
+    void friendRelationEventCarriesRecipientActorAndEventType() {
+        FriendRelationEvent event = new FriendRelationEvent();
+        event.setRecipientUserId("u200");
+        event.setActorUserId("u100");
+        event.setPeerUserId("u300");
+        event.setEventType("friend_request_created");
+        event.setOccurredAt(123L);
+
+        assertEquals("u200", event.getRecipientUserId());
+        assertEquals("u100", event.getActorUserId());
+        assertEquals("u300", event.getPeerUserId());
+        assertEquals("friend_request_created", event.getEventType());
+        assertEquals(123L, event.getOccurredAt());
     }
 }

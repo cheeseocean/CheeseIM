@@ -18,7 +18,10 @@ class ConsolePrinterTest {
 
         String rendered = new ConsolePrinter().formatConversation(state, "userB");
 
-        assertTrue(rendered.contains("Conversation with userB"));
+        assertTrue(rendered.contains("CHEESEIM TERMINAL"));
+        assertTrue(rendered.contains("ACTIVE CHAT"));
+        assertTrue(rendered.contains("RECENTS"));
+        assertTrue(rendered.contains("userB"));
         assertTrue(rendered.contains("hello userB"));
         assertTrue(rendered.contains("hi userA"));
         assertTrue(rendered.contains("[read]"));
@@ -36,5 +39,6 @@ class ConsolePrinterTest {
         String rendered = new ConsolePrinter().formatConversation(state, "userB");
 
         assertTrue(rendered.contains("[recalled]"));
+        assertTrue(rendered.contains("INPUT"));
     }
 }
