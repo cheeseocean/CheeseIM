@@ -8,16 +8,12 @@ public final class ConversationIdUtil {
     }
 
     public static String buildConversationId(int sessionType, String senderId, String recvId, String groupId) {
-        if (sessionType == SessionType.SINGLE) {
-            return single(senderId, recvId);
-        }
-        if (sessionType == SessionType.GROUP) {
-            return group(groupId);
-        }
-        if (sessionType == SessionType.NOTIFICATION) {
-            return notification(recvId);
-        }
-        throw new IllegalArgumentException("unknown sessionType: " + sessionType);
+        SessionType type = SessionType.fromCode(sessionType);
+        return switch (type) {
+            case SINGLE -> single(senderId, recvId);
+            case GROUP -> group(groupId);
+            case NOTIFICATION -> notification(recvId);
+        };
     }
 
     public static String single(String userA, String userB) {

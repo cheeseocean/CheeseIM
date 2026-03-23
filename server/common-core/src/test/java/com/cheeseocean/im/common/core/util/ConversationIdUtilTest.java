@@ -15,8 +15,8 @@ class ConversationIdUtilTest {
 
     @Test
     void buildConversationIdSupportsGroupAndNotification() {
-        assertEquals("c2:g1", ConversationIdUtil.buildConversationId(SessionType.GROUP, "u1", null, "g1"));
-        assertEquals("c3:u9", ConversationIdUtil.buildConversationId(SessionType.NOTIFICATION, null, "u9", null));
+        assertEquals("c2:g1", ConversationIdUtil.buildConversationId(SessionType.GROUP.getCode(), "u1", null, "g1"));
+        assertEquals("c3:u9", ConversationIdUtil.buildConversationId(SessionType.NOTIFICATION.getCode(), null, "u9", null));
     }
 
     @Test

@@ -1,8 +1,9 @@
 package com.cheeseocean.im.push.service.impl;
 
 import com.cheeseocean.im.common.api.dto.message.Message;
-import com.cheeseocean.im.common.core.constants.MessageConstants;
 import com.cheeseocean.im.common.core.constants.MessageDisplayConstants;
+import com.cheeseocean.im.common.core.enums.ContentType;
+import com.cheeseocean.im.common.core.enums.SessionType;
 import com.cheeseocean.im.push.entity.OfflinePushConfig;
 import com.cheeseocean.im.push.entity.OfflinePushResult;
 import com.cheeseocean.im.push.entity.PushMessage;
@@ -300,11 +301,11 @@ public class OfflinePushServiceImpl implements OfflinePushService {
         if (isNotificationMessage(message)) {
             return MessageDisplayConstants.PUSH_TITLE_SYSTEM_NOTIFICATION;
         }
-        Integer sessionType = message == null ? null : message.getSessionType();
-        if (sessionType == null || sessionType == MessageConstants.SESSION_TYPE_SINGLE) {
+        SessionType sessionType = resolveSessionType(message == null ? null : message.getSessionType());
+        if (sessionType == SessionType.SINGLE) {
             // 单聊
             return message.getSenderNickname() != null ? message.getSenderNickname() : MessageDisplayConstants.PUSH_TITLE_NEW_MESSAGE;
-        } else if (sessionType == MessageConstants.SESSION_TYPE_GROUP) {
+        } else if (sessionType == SessionType.GROUP) {
             // 群聊
             return MessageDisplayConstants.PUSH_TITLE_GROUP_MESSAGE;
         } else {
@@ -322,14 +323,14 @@ public class OfflinePushServiceImpl implements OfflinePushService {
                 return MessageDisplayConstants.PUSH_CONTENT_NEW_SYSTEM_NOTIFICATION;
             }
             // 根据消息类型生成默认内容
-            Integer contentType = message.getContentType();
+            ContentType contentType = resolveContentType(message.getContentType());
             if (contentType != null) {
                 switch (contentType) {
-                    case MessageConstants.CONTENT_TYPE_IMAGE: return MessageDisplayConstants.PUSH_CONTENT_IMAGE;
-                    case MessageConstants.CONTENT_TYPE_VOICE: return MessageDisplayConstants.PUSH_CONTENT_VOICE;
-                    case MessageConstants.CONTENT_TYPE_VIDEO: return MessageDisplayConstants.PUSH_CONTENT_VIDEO;
-                    case MessageConstants.CONTENT_TYPE_FILE: return MessageDisplayConstants.PUSH_CONTENT_FILE;
-                    case MessageConstants.CONTENT_TYPE_LOCATION: return MessageDisplayConstants.PUSH_CONTENT_LOCATION;
+                    case IMAGE: return MessageDisplayConstants.PUSH_CONTENT_IMAGE;
+                    case VOICE: return MessageDisplayConstants.PUSH_CONTENT_VOICE;
+                    case VIDEO: return MessageDisplayConstants.PUSH_CONTENT_VIDEO;
+                    case FILE: return MessageDisplayConstants.PUSH_CONTENT_FILE;
+                    case LOCATION: return MessageDisplayConstants.PUSH_CONTENT_LOCATION;
                     default: return MessageDisplayConstants.PUSH_TITLE_NEW_MESSAGE;
                 }
             }
@@ -348,7 +349,7 @@ public class OfflinePushServiceImpl implements OfflinePushService {
         if (message == null) {
             return false;
         }
-        if (message.getSessionType() != null && message.getSessionType() == MessageConstants.SESSION_TYPE_NOTIFICATION) {
+        if (resolveSessionType(message.getSessionType()) == SessionType.NOTIFICATION) {
             return true;
         }
         return message.getOptions() != null && Boolean.TRUE.equals(message.getOptions().get("notification"));
@@ -373,16 +374,16 @@ public class OfflinePushServiceImpl implements OfflinePushService {
             pushMessage.setPlatformID(platformID);
 
             if (originalMessage != null) {
-                Integer sessionType = originalMessage.getSessionType();
+                SessionType sessionType = resolveSessionType(originalMessage.getSessionType());
                 pushMessage.setMessageID(originalMessage.getServerMsgID());
                 pushMessage.setSenderID(originalMessage.getSendID());
                 pushMessage.setSenderNickname(originalMessage.getSenderNickname());
                 pushMessage.setMessageType(originalMessage.getContentType());
-                pushMessage.setConversationType(sessionType);
+                pushMessage.setConversationType(sessionType.getCode());
 
-                if (sessionType != null && sessionType == MessageConstants.SESSION_TYPE_SINGLE) {
+                if (sessionType == SessionType.SINGLE) {
                     pushMessage.setConversationID("single_" + originalMessage.getSendID() + "_" + originalMessage.getRecvID());
-                } else if (sessionType != null && sessionType == MessageConstants.SESSION_TYPE_GROUP) {
+                } else if (sessionType == SessionType.GROUP) {
                     pushMessage.setConversationID("group_" + originalMessage.getGroupID());
                 }
 
@@ -403,6 +404,28 @@ public class OfflinePushServiceImpl implements OfflinePushService {
             return pushMessage;
         } catch (Exception e) {
             logger.error("创建平台推送消息失败: userID={}, platformID={}", userID, platformID, e);
+            return null;
+        }
+    }
+
+    private SessionType resolveSessionType(Integer sessionType) {
+        if (sessionType == null) {
+            return SessionType.SINGLE;
+        }
+        try {
+            return SessionType.fromCode(sessionType);
+        } catch (IllegalArgumentException ex) {
+            return SessionType.SINGLE;
+        }
+    }
+
+    private ContentType resolveContentType(Integer contentType) {
+        if (contentType == null) {
+            return null;
+        }
+        try {
+            return ContentType.fromCode(contentType);
+        } catch (IllegalArgumentException ex) {
             return null;
         }
     }
