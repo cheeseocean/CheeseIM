@@ -1,0 +1,19 @@
+package com.cheeseocean.im.common.core.enums;
+
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+class ContentTypeTest {
+
+    @Test
+    void fromCodeShouldResolveReadReceiptContentType() {
+        assertEquals(ContentType.READ_RECEIPT, ContentType.fromCode(ContentType.READ_RECEIPT.getCode()));
+    }
+
+    @Test
+    void fromCodeShouldRejectUnknownContentType() {
+        assertThrows(IllegalArgumentException.class, () -> ContentType.fromCode(999999));
+    }
+}

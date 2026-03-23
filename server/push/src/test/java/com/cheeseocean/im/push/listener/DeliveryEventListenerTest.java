@@ -9,8 +9,9 @@ import com.cheeseocean.im.common.api.event.DeliveryEvent;
 import com.cheeseocean.im.common.api.event.OfflinePushEvent;
 import com.cheeseocean.im.common.api.route.OnlineRouteQueryRpc;
 import com.cheeseocean.im.common.api.rpc.OnlineDispatchRpc;
-import com.cheeseocean.im.common.core.constants.MessageConstants;
 import com.cheeseocean.im.common.core.constants.TopicNames;
+import com.cheeseocean.im.common.core.enums.ContentType;
+import com.cheeseocean.im.common.core.enums.SessionType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -93,8 +94,8 @@ class DeliveryEventListenerTest {
         DeliveryEventListener listener = new DeliveryEventListener(new ObjectMapper(), routeQueryRpc, onlineDispatchRpc, kafkaTemplate);
         DeliveryEvent event = event(true);
         event.getMessage().getOptions().setNotification(true);
-        event.getMessage().setSessionType(MessageConstants.SESSION_TYPE_NOTIFICATION);
-        event.getMessage().setContentType(MessageConstants.CONTENT_TYPE_SYSTEM_NOTIFY);
+        event.getMessage().setSessionType(SessionType.NOTIFICATION.getCode());
+        event.getMessage().setContentType(ContentType.SYSTEM_NOTIFY.getCode());
 
         listener.handle(event);
 
@@ -102,8 +103,8 @@ class DeliveryEventListenerTest {
         verify(kafkaTemplate).send(eq(TopicNames.OFFLINE_PUSH), eq("userB"), captor.capture());
         OfflinePushEvent offlinePushEvent = captor.getValue();
         org.junit.jupiter.api.Assertions.assertEquals(true, offlinePushEvent.isNotification());
-        org.junit.jupiter.api.Assertions.assertEquals(MessageConstants.SESSION_TYPE_NOTIFICATION, offlinePushEvent.getSessionType());
-        org.junit.jupiter.api.Assertions.assertEquals(MessageConstants.CONTENT_TYPE_SYSTEM_NOTIFY, offlinePushEvent.getContentType());
+        org.junit.jupiter.api.Assertions.assertEquals(SessionType.NOTIFICATION.getCode(), offlinePushEvent.getSessionType());
+        org.junit.jupiter.api.Assertions.assertEquals(ContentType.SYSTEM_NOTIFY.getCode(), offlinePushEvent.getContentType());
         org.junit.jupiter.api.Assertions.assertEquals("userA", offlinePushEvent.getSenderId());
     }
 
@@ -119,8 +120,8 @@ class DeliveryEventListenerTest {
         message.setServerMsgId("server-1");
         message.setSenderId("userA");
         message.setRecvId("userB");
-        message.setSessionType(MessageConstants.SESSION_TYPE_SINGLE);
-        message.setContentType(MessageConstants.CONTENT_TYPE_TEXT);
+        message.setSessionType(SessionType.SINGLE.getCode());
+        message.setContentType(ContentType.TEXT.getCode());
         message.setContent("hello");
         message.setSendTime(System.currentTimeMillis());
         message.setOptions(options);

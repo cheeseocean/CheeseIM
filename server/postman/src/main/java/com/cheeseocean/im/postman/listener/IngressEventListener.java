@@ -4,8 +4,9 @@ import com.cheeseocean.im.common.api.dto.message.SequencedMessage;
 import com.cheeseocean.im.common.api.event.DeliveryEvent;
 import com.cheeseocean.im.common.api.event.HistoryEvent;
 import com.cheeseocean.im.common.api.event.IngressEvent;
-import com.cheeseocean.im.common.core.constants.MessageConstants;
 import com.cheeseocean.im.common.core.constants.TopicNames;
+import com.cheeseocean.im.common.core.enums.ContentType;
+import com.cheeseocean.im.common.core.enums.SessionType;
 import com.cheeseocean.im.postman.service.GroupFanoutPlanner;
 import com.cheeseocean.im.postman.service.GroupMembershipFacade;
 import com.cheeseocean.im.postman.service.MessagePolicyEngine;
@@ -61,6 +62,7 @@ public class IngressEventListener {
     }
 
     void handle(IngressEvent event) {
+        guardUnsupportedContent(event);
         long seq = conversationSeqService.nextSeq(event.getConversationId());
         SequencedMessage message = toSequencedMessage(event, seq);
         MessageRouteDecision decision = messagePolicyEngine.decide(event);
@@ -81,7 +83,7 @@ public class IngressEventListener {
             return;
         }
 
-        if (event.getSessionType() != null && event.getSessionType() == MessageConstants.SESSION_TYPE_GROUP) {
+        if (event.getSessionType() != null && event.getSessionType() == SessionType.GROUP.getCode()) {
             routeGroupIngress(message, targets);
             return;
         }
@@ -107,7 +109,7 @@ public class IngressEventListener {
     }
 
     private List<String> resolveTargets(SequencedMessage message, MessageRouteDecision decision) {
-        if (message.getSessionType() != null && message.getSessionType() == MessageConstants.SESSION_TYPE_GROUP) {
+        if (message.getSessionType() != null && message.getSessionType() == SessionType.GROUP.getCode()) {
             return groupMembershipFacade.loadTargets(message.getConversationId());
         }
         if (decision.senderSync() && message.getSenderId() != null) {
@@ -132,5 +134,18 @@ public class IngressEventListener {
         message.setOptions(event.getOptions());
         message.setExt(event.getExt());
         return message;
+    }
+
+    private void guardUnsupportedContent(IngressEvent event) {
+        if (event == null || event.getContentType() == null) {
+            return;
+        }
+        try {
+            if (ContentType.fromCode(event.getContentType()) == ContentType.READ_RECEIPT) {
+                throw new IllegalStateException("READ_RECEIPT must not reach ingress pipeline");
+            }
+        } catch (IllegalArgumentException ignored) {
+            // Preserve existing behavior for unknown content types.
+        }
     }
 }

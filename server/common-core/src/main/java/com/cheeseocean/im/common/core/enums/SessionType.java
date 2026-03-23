@@ -1,11 +1,26 @@
 package com.cheeseocean.im.common.core.enums;
 
-public final class SessionType {
+import java.util.Arrays;
 
-    private SessionType() {
+public enum SessionType {
+    SINGLE(1),
+    GROUP(2),
+    NOTIFICATION(3);
+
+    private final int code;
+
+    SessionType(int code) {
+        this.code = code;
     }
 
-    public static final int SINGLE = 1;
-    public static final int GROUP = 2;
-    public static final int NOTIFICATION = 3;
+    public int getCode() {
+        return code;
+    }
+
+    public static SessionType fromCode(int code) {
+        return Arrays.stream(values())
+                .filter(value -> value.code == code)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Unknown SessionType code: " + code));
+    }
 }

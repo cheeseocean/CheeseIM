@@ -2,9 +2,12 @@ package com.cheeseocean.im.postoffice.api;
 
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchMessageReq;
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchPayload;
+import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
+import com.cheeseocean.im.common.core.enums.CommandType;
 import com.cheeseocean.im.postoffice.connection.ConnectionManager;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.postoffice.protocol.CheeseMessage;
+import com.cheeseocean.im.postoffice.protocol.WSMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
@@ -23,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class OnlineDispatchRpcImplTest {
 
     @Test
-    void dispatchShouldFanoutToActiveUserConnectionsWhenTargetsAreOmitted() {
+    void dispatchShouldFanoutToActiveUserConnectionsWhenTargetsAreOmitted() throws Exception {
         ConnectionManager connectionManager = new ConnectionManager();
         ReflectionTestUtils.setField(connectionManager, "objectMapper", new ObjectMapper());
 
@@ -56,6 +59,9 @@ class OnlineDispatchRpcImplTest {
         TextWebSocketFrame outbound = activeChannel.readOutbound();
         assertNotNull(outbound);
         assertFalse(outbound.text().isBlank());
+        WSMessage wsMessage = new ObjectMapper().readValue(outbound.text(), WSMessage.class);
+        ServerEnvelope envelope = wsMessage.toServerEnvelope();
+        assertEquals(CommandType.CHAT_RECV, envelope.getCommand());
     }
 
     @Test
@@ -91,6 +97,8 @@ class OnlineDispatchRpcImplTest {
         Object outbound = activeChannel.readOutbound();
         assertNotNull(outbound);
         assertEquals(CheeseMessage.class, outbound.getClass());
+        ServerEnvelope envelope = ((CheeseMessage) outbound).toServerEnvelope();
+        assertEquals(CommandType.CHAT_RECV, envelope.getCommand());
     }
 
     @Test
@@ -152,6 +160,8 @@ class OnlineDispatchRpcImplTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> frame = objectMapper.readValue(outbound.text(), Map.class);
         assertEquals(6001, frame.get("msgType"));
+        WSMessage wsMessage = objectMapper.readValue(outbound.text(), WSMessage.class);
+        assertEquals(CommandType.CHAT_RECV, wsMessage.toServerEnvelope().getCommand());
     }
 
     private static DispatchPayload payload(String serverMsgId, String content) {

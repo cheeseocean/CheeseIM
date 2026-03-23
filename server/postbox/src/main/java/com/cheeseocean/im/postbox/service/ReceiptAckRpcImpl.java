@@ -2,6 +2,7 @@ package com.cheeseocean.im.postbox.service;
 
 import com.cheeseocean.im.common.api.dto.receipt.ReceiptAckReq;
 import com.cheeseocean.im.common.api.rpc.ReceiptAckRpc;
+import com.cheeseocean.im.common.core.enums.ReceiptType;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.postbox.history.MessageIdMappingDoc;
 import com.cheeseocean.im.postbox.history.MessageIdMappingRepository;
@@ -13,11 +14,14 @@ import java.util.Optional;
 @DubboService(interfaceClass = ReceiptAckRpc.class)
 public class ReceiptAckRpcImpl implements ReceiptAckRpc {
 
+    private final ConversationReceiptService conversationReceiptService;
     private final StringRedisTemplate redisTemplate;
     private final MessageIdMappingRepository mappingRepository;
 
-    public ReceiptAckRpcImpl(StringRedisTemplate redisTemplate,
+    public ReceiptAckRpcImpl(ConversationReceiptService conversationReceiptService,
+                             StringRedisTemplate redisTemplate,
                              MessageIdMappingRepository mappingRepository) {
+        this.conversationReceiptService = conversationReceiptService;
         this.redisTemplate = redisTemplate;
         this.mappingRepository = mappingRepository;
     }
@@ -27,22 +31,17 @@ public class ReceiptAckRpcImpl implements ReceiptAckRpc {
         if (req == null || req.getUserId() == null || req.getAckType() == null) {
             return;
         }
-        if ("READ".equals(req.getAckType())) {
+        if (req.getAckType() == ReceiptType.READ_CURSOR) {
             applyRead(req);
             return;
         }
-        if ("RECEIVED".equals(req.getAckType())) {
+        if (req.getAckType() == ReceiptType.RECEIVED || req.getAckType() == ReceiptType.DELIVERED) {
             applyReceived(req);
         }
     }
 
     private void applyRead(ReceiptAckReq req) {
-        if (req.getConversationId() == null || req.getSeq() == null) {
-            return;
-        }
-        redisTemplate.opsForValue().set(
-                RedisKeys.userReadSeq(req.getUserId(), req.getConversationId()),
-                String.valueOf(req.getSeq()));
+        conversationReceiptService.applyReadCursor(req.getUserId(), req.getConversationId(), req.getSeq());
     }
 
     private void applyReceived(ReceiptAckReq req) {

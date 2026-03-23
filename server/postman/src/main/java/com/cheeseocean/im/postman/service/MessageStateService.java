@@ -3,6 +3,7 @@ package com.cheeseocean.im.postman.service;
 import com.cheeseocean.im.common.api.dto.message.ConversationLastMessageSummary;
 import com.cheeseocean.im.common.api.dto.message.SequencedMessage;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
+import com.cheeseocean.im.common.core.enums.ContentType;
 import com.cheeseocean.im.common.core.util.MessagePreviewUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,6 +29,7 @@ public class MessageStateService {
         if (message == null || message.getConversationId() == null || message.getSeq() == null) {
             return;
         }
+        guardUnsupportedContent(message);
 
         MessageRouteDecision decision = new DefaultMessagePolicyEngine().decide(toIngressEvent(message));
         if (!decision.updateConversation() && !decision.updateUnread() && !decision.updateLastMessage()) {
@@ -104,5 +106,18 @@ public class MessageStateService {
         com.cheeseocean.im.common.api.event.IngressEvent event = new com.cheeseocean.im.common.api.event.IngressEvent();
         event.setOptions(message.getOptions());
         return event;
+    }
+
+    private void guardUnsupportedContent(SequencedMessage message) {
+        if (message.getContentType() == null) {
+            return;
+        }
+        try {
+            if (ContentType.fromCode(message.getContentType()) == ContentType.READ_RECEIPT) {
+                throw new IllegalStateException("READ_RECEIPT must not mutate message state");
+            }
+        } catch (IllegalArgumentException ignored) {
+            // Preserve existing behavior for unknown content types.
+        }
     }
 }

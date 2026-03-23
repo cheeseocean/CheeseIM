@@ -3,8 +3,9 @@ package com.cheeseocean.im.push.service;
 import com.cheeseocean.im.common.api.dto.push.OfflinePushReq;
 import com.cheeseocean.im.common.api.dto.push.PushResult;
 import com.cheeseocean.im.common.api.event.OfflinePushEvent;
-import com.cheeseocean.im.common.core.constants.MessageConstants;
 import com.cheeseocean.im.common.core.enums.DeliveryState;
+import com.cheeseocean.im.common.core.enums.ContentType;
+import com.cheeseocean.im.common.core.enums.SessionType;
 import com.cheeseocean.im.push.entity.OfflinePushResult;
 import com.cheeseocean.im.push.entity.PushAttempt;
 import com.cheeseocean.im.push.service.impl.MessagePushServiceImpl;
@@ -91,8 +92,8 @@ class MessagePushServiceImplTest {
         task.setSeq(17L);
         task.setUserId("userB");
         task.setSenderId("system");
-        task.setSessionType(MessageConstants.SESSION_TYPE_NOTIFICATION);
-        task.setContentType(MessageConstants.CONTENT_TYPE_SYSTEM_NOTIFY);
+        task.setSessionType(SessionType.NOTIFICATION.getCode());
+        task.setContentType(ContentType.SYSTEM_NOTIFY.getCode());
         task.setNotification(true);
         task.setContent("ping");
 

@@ -1,0 +1,162 @@
+package com.cheeseocean.im.postoffice.handler;
+
+import com.cheeseocean.im.common.api.dto.message.ChatSendRequest;
+import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
+import com.cheeseocean.im.common.core.auth.SessionPrincipal;
+import com.cheeseocean.im.common.core.enums.CommandType;
+import com.cheeseocean.im.common.core.enums.ConnectionState;
+import com.cheeseocean.im.postoffice.auth.ConnectionSessionGuard;
+import com.cheeseocean.im.postoffice.connection.ConnectionContext;
+import com.cheeseocean.im.postoffice.connection.UserConnection;
+import com.cheeseocean.im.postoffice.service.MessageSendReqMapper;
+import com.cheeseocean.im.common.api.dto.message.SendMessageReq;
+import com.cheeseocean.im.common.api.dto.message.SendMessageResp;
+import com.cheeseocean.im.common.api.rpc.MessageSendRpc;
+import com.cheeseocean.im.postoffice.auth.WsTicketAuthService;
+import com.cheeseocean.im.postoffice.connection.ConnectionBindService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+class MessageHandlerContractTest {
+
+    @Test
+    void authHandlerShouldConsumeClientEnvelopeBody() {
+        WsTicketAuthService authService = mock(WsTicketAuthService.class);
+        ConnectionBindService bindService = mock(ConnectionBindService.class);
+        when(authService.authenticate("ticket-1")).thenReturn(session("user-1"));
+        when(bindService.bindAuthenticated(any(UserConnection.class), any(SessionPrincipal.class))).thenReturn(true);
+
+        AuthMessageHandler handler = new AuthMessageHandler();
+        ReflectionTestUtils.setField(handler, "wsTicketAuthService", authService);
+        ReflectionTestUtils.setField(handler, "connectionBindService", bindService);
+        ReflectionTestUtils.setField(handler, "objectMapper", new ObjectMapper());
+
+        MessageHandler.HandleResult result = handler.handle(pendingConnection(), envelope(
+                CommandType.AUTH,
+                "op-auth-1",
+                Map.of("ticket", "ticket-1")
+        ));
+
+        assertTrue(result.isSuccess());
+        assertNotNull(result.getResponseMessage());
+        verify(authService).authenticate("ticket-1");
+        verify(bindService).bindAuthenticated(any(UserConnection.class), any(SessionPrincipal.class));
+    }
+
+    @Test
+    void heartbeatHandlerShouldConsumeClientEnvelope() {
+        ConnectionSessionGuard guard = mock(ConnectionSessionGuard.class);
+        doNothing().when(guard).ensureValid(any(UserConnection.class));
+
+        HeartbeatMessageHandler handler = new HeartbeatMessageHandler();
+        ReflectionTestUtils.setField(handler, "connectionSessionGuard", guard);
+
+        MessageHandler.HandleResult result = handler.handle(authenticatedConnection(), envelope(
+                CommandType.HEARTBEAT,
+                "op-heartbeat-1",
+                null
+        ));
+
+        assertTrue(result.isSuccess());
+        assertNotNull(result.getResponseMessage());
+    }
+
+    @Test
+    void chatHandlerShouldConsumeChatSendEnvelopeBody() {
+        MessageSendRpc messageSendRpc = mock(MessageSendRpc.class);
+        ConnectionSessionGuard guard = mock(ConnectionSessionGuard.class);
+        doNothing().when(guard).ensureValid(any(UserConnection.class));
+        when(messageSendRpc.sendMessage(any(SendMessageReq.class))).thenAnswer(invocation -> {
+            SendMessageResp resp = new SendMessageResp();
+            resp.setAccepted(true);
+            resp.setServerMsgId("server-1");
+            return resp;
+        });
+
+        ChatMessageHandler handler = new ChatMessageHandler();
+        ReflectionTestUtils.setField(handler, "messageSendRpc", messageSendRpc);
+        ReflectionTestUtils.setField(handler, "objectMapper", new ObjectMapper());
+        ReflectionTestUtils.setField(handler, "messageSendReqMapper", new MessageSendReqMapper());
+        ReflectionTestUtils.setField(handler, "connectionSessionGuard", guard);
+
+        MessageHandler.HandleResult result = handler.handle(authenticatedConnection(), envelope(
+                CommandType.CHAT_SEND,
+                "op-chat-1",
+                chatSendRequest()
+        ));
+
+        assertTrue(result.isSuccess());
+        assertNotNull(result.getResponseMessage());
+        ArgumentCaptor<SendMessageReq> reqCaptor = ArgumentCaptor.forClass(SendMessageReq.class);
+        verify(messageSendRpc).sendMessage(reqCaptor.capture());
+        assertEquals("op-chat-1", reqCaptor.getValue().getRequestId());
+        assertEquals("client-1", reqCaptor.getValue().getClientMsgId());
+        assertEquals("receiver-1", reqCaptor.getValue().getRecvId());
+    }
+
+    private static ClientEnvelope envelope(CommandType command, String requestId, Object body) {
+        ClientEnvelope envelope = new ClientEnvelope();
+        envelope.setCommand(command);
+        envelope.setRequestId(requestId);
+        envelope.setBody(body);
+        return envelope;
+    }
+
+    private static UserConnection pendingConnection() {
+        UserConnection connection = new UserConnection();
+        connection.setConnectionID("conn-1");
+        connection.setAuthenticated(false);
+        return connection;
+    }
+
+    private static UserConnection authenticatedConnection() {
+        UserConnection connection = new UserConnection();
+        connection.setConnectionID("conn-1");
+        connection.setUserID("user-1");
+        connection.setAuthenticated(true);
+
+        ConnectionContext context = new ConnectionContext();
+        context.setConnId("conn-1");
+        context.setUserId("user-1");
+        context.setSessionId("session-1");
+        context.setDeviceId("device-1");
+        context.setPlatformId(2);
+        context.setState(ConnectionState.AUTHENTICATED);
+        connection.setContext(context);
+        return connection;
+    }
+
+    private static SessionPrincipal session(String userId) {
+        SessionPrincipal session = new SessionPrincipal();
+        session.setUserId(userId);
+        session.setSessionId("session-1");
+        session.setDeviceId("device-1");
+        session.setPlatform("android");
+        return session;
+    }
+
+    private static ChatSendRequest chatSendRequest() {
+        ChatSendRequest request = new ChatSendRequest();
+        request.setSessionType(1);
+        request.setRecvId("receiver-1");
+        request.setClientMsgId("client-1");
+        request.setContentType(101);
+        request.setContent("hello");
+        request.setSendTime(1710000000000L);
+        return request;
+    }
+}

@@ -11,6 +11,6 @@ For the current architecture, session type affects:
 The authoritative behavior is the current code and tests, especially:
 
 - `postman/src/test/java/com/cheeseocean/im/postman/listener/IngressEventListenerTest.java`
-- `postman/src/test/java/com/cheeseocean/im/postman/listener/ReceiptEventListenerTest.java`
+- `postman/src/test/java/com/cheeseocean/im/postman/service/MessageStateServiceTest.java`
 - `push/src/test/java/com/cheeseocean/im/push/service/MessagePushServiceImplTest.java`
 - `push/src/test/java/com/cheeseocean/im/push/listener/DeliveryEventListenerTest.java`

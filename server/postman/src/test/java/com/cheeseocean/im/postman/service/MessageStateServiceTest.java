@@ -3,8 +3,8 @@ package com.cheeseocean.im.postman.service;
 import com.cheeseocean.im.common.api.dto.message.ConversationLastMessageSummary;
 import com.cheeseocean.im.common.api.dto.message.MessageOptions;
 import com.cheeseocean.im.common.api.dto.message.SequencedMessage;
-import com.cheeseocean.im.common.core.constants.MessageConstants;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
+import com.cheeseocean.im.common.core.enums.ContentType;
 import com.cheeseocean.im.common.core.enums.MessagePreviewType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -14,6 +14,7 @@ import org.springframework.data.redis.core.ValueOperations;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.ArgumentMatchers.eq;
@@ -44,7 +45,7 @@ class MessageStateServiceTest {
         assertEquals(9L, summary.getSeq());
         assertEquals("userA", summary.getSenderId());
         assertEquals("hello", summary.getContent());
-        assertEquals(MessageConstants.CONTENT_TYPE_SYSTEM_NOTIFY, summary.getContentType());
+        assertEquals(ContentType.SYSTEM_NOTIFY.getCode(), summary.getContentType());
         assertEquals("系统通知", summary.getPreviewText());
         assertEquals(MessagePreviewType.SYSTEM, summary.getPreviewType());
         assertTrue(summary.isNotification());
@@ -63,6 +64,19 @@ class MessageStateServiceTest {
         verify(valueOperations).increment(RedisKeys.userUnread("userB", "c1:userA:userB"));
     }
 
+    @Test
+    void applyShouldRejectReadReceiptMessages() {
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+
+        MessageStateService service = new MessageStateService(redisTemplate, new ObjectMapper());
+        SequencedMessage message = message();
+        message.setContentType(ContentType.READ_RECEIPT.getCode());
+
+        assertThrows(IllegalStateException.class, () -> service.apply(message, List.of("userB")));
+    }
+
     private SequencedMessage message() {
         MessageOptions options = new MessageOptions();
         options.setNeedConversation(true);
@@ -75,7 +89,7 @@ class MessageStateServiceTest {
         message.setSeq(9L);
         message.setSenderId("userA");
         message.setRecvId("userB");
-        message.setContentType(MessageConstants.CONTENT_TYPE_SYSTEM_NOTIFY);
+        message.setContentType(ContentType.SYSTEM_NOTIFY.getCode());
         message.setContent("hello");
         message.setSendTime(123L);
         message.setOptions(options);

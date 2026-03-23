@@ -5,7 +5,7 @@ import com.cheeseocean.im.common.api.dto.message.SendMessageReq;
 import com.cheeseocean.im.common.api.dto.message.SendMessageResp;
 import com.cheeseocean.im.common.api.event.IngressEvent;
 import com.cheeseocean.im.common.api.rpc.MessageSendRpc;
-import com.cheeseocean.im.common.core.constants.MessageConstants;
+import com.cheeseocean.im.common.core.enums.ContentType;
 import com.cheeseocean.im.common.core.enums.SessionType;
 import com.cheeseocean.im.common.core.util.ConversationIdUtil;
 import com.cheeseocean.im.common.core.util.IdGenerator;
@@ -54,10 +54,11 @@ public class MessageSendRpcImpl implements MessageSendRpc {
     }
 
     private static String resolveConversationId(SendMessageReq req) {
-        if (req.getSessionType() != null && req.getSessionType() == SessionType.GROUP) {
+        SessionType sessionType = resolveSessionType(req.getSessionType());
+        if (sessionType == SessionType.GROUP) {
             return ConversationIdUtil.group(req.getGroupId());
         }
-        if (req.getSessionType() != null && req.getSessionType() == SessionType.NOTIFICATION) {
+        if (sessionType == SessionType.NOTIFICATION) {
             return ConversationIdUtil.notification(req.getRecvId());
         }
         return ConversationIdUtil.single(req.getSenderId(), req.getRecvId());
@@ -65,7 +66,7 @@ public class MessageSendRpcImpl implements MessageSendRpc {
 
     private static MessageOptions fillDefaultOptions(SendMessageReq req) {
         MessageOptions options = req.getOptions() == null ? new MessageOptions() : req.getOptions();
-        int sessionType = req.getSessionType() == null ? SessionType.SINGLE : req.getSessionType();
+        SessionType sessionType = resolveSessionType(req.getSessionType());
         Integer contentType = req.getContentType();
 
         applyDefault(options::isNeedHistory, options::setNeedHistory, defaultNeedHistory(contentType));
@@ -79,6 +80,17 @@ public class MessageSendRpcImpl implements MessageSendRpc {
         return options;
     }
 
+    private static SessionType resolveSessionType(Integer sessionType) {
+        if (sessionType == null) {
+            return SessionType.SINGLE;
+        }
+        try {
+            return SessionType.fromCode(sessionType);
+        } catch (IllegalArgumentException ex) {
+            return SessionType.SINGLE;
+        }
+    }
+
     private static void applyDefault(java.util.function.Supplier<Boolean> getter,
                                      java.util.function.Consumer<Boolean> setter,
                                      boolean defaultValue) {
@@ -88,7 +100,7 @@ public class MessageSendRpcImpl implements MessageSendRpc {
     }
 
     private static boolean defaultNeedHistory(Integer contentType) {
-        if (isTyping(contentType) || isSilentNotification(contentType) || isReadReceipt(contentType)) {
+        if (isTyping(contentType) || isSilentNotification(contentType)) {
             return false;
         }
         return true;
@@ -101,8 +113,8 @@ public class MessageSendRpcImpl implements MessageSendRpc {
         return true;
     }
 
-    private static boolean defaultNeedUnreadCount(Integer contentType, int sessionType) {
-        if (isTyping(contentType) || isReadReceipt(contentType) || isRevokeNotify(contentType) || isSilentNotification(contentType)) {
+    private static boolean defaultNeedUnreadCount(Integer contentType, SessionType sessionType) {
+        if (isTyping(contentType) || isRevokeNotify(contentType) || isSilentNotification(contentType)) {
             return false;
         }
         return true;
@@ -113,14 +125,14 @@ public class MessageSendRpcImpl implements MessageSendRpc {
     }
 
     private static boolean defaultNeedOfflinePush(Integer contentType) {
-        if (isTyping(contentType) || isReadReceipt(contentType) || isRevokeNotify(contentType)
+        if (isTyping(contentType) || isRevokeNotify(contentType)
                 || isNotificationContent(contentType)) {
             return false;
         }
         return true;
     }
 
-    private static boolean defaultSenderSync(Integer contentType, int sessionType) {
+    private static boolean defaultSenderSync(Integer contentType, SessionType sessionType) {
         if (isRevokeNotify(contentType)) {
             return true;
         }
@@ -130,35 +142,42 @@ public class MessageSendRpcImpl implements MessageSendRpc {
         return sessionType == SessionType.SINGLE;
     }
 
-    private static boolean defaultNotification(Integer contentType, int sessionType) {
+    private static boolean defaultNotification(Integer contentType, SessionType sessionType) {
         return sessionType == SessionType.NOTIFICATION || isRevokeNotify(contentType) || isNotificationContent(contentType);
     }
 
     private static boolean defaultNeedLastMessage(Integer contentType) {
-        if (isTyping(contentType) || isReadReceipt(contentType) || isSilentNotification(contentType)) {
+        if (isTyping(contentType) || isSilentNotification(contentType)) {
             return false;
         }
         return true;
     }
 
-    private static boolean isReadReceipt(Integer contentType) {
-        return contentType != null && contentType == MessageConstants.CONTENT_TYPE_READ_RECEIPT;
-    }
-
     private static boolean isRevokeNotify(Integer contentType) {
-        return contentType != null && contentType == MessageConstants.CONTENT_TYPE_REVOKE_NOTIFY;
+        return isContentType(contentType, ContentType.REVOKE_NOTIFY);
     }
 
     private static boolean isTyping(Integer contentType) {
-        return contentType != null && contentType == MessageConstants.CONTENT_TYPE_TYPING;
+        return isContentType(contentType, ContentType.TYPING);
     }
 
     private static boolean isNotificationContent(Integer contentType) {
-        return contentType != null && (contentType == MessageConstants.CONTENT_TYPE_SYSTEM_NOTIFY
-                || contentType == MessageConstants.CONTENT_TYPE_FORCE_LOGOUT);
+        return isContentType(contentType, ContentType.SYSTEM_NOTIFY)
+                || isContentType(contentType, ContentType.FORCE_LOGOUT);
     }
 
     private static boolean isSilentNotification(Integer contentType) {
-        return contentType != null && contentType == MessageConstants.CONTENT_TYPE_FORCE_LOGOUT;
+        return isContentType(contentType, ContentType.FORCE_LOGOUT);
+    }
+
+    private static boolean isContentType(Integer contentType, ContentType expectedType) {
+        if (contentType == null) {
+            return false;
+        }
+        try {
+            return ContentType.fromCode(contentType) == expectedType;
+        } catch (IllegalArgumentException ex) {
+            return false;
+        }
     }
 }

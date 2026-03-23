@@ -1,9 +1,10 @@
 package com.cheeseocean.im.postoffice.handler;
 
+import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
+import com.cheeseocean.im.common.core.enums.CommandType;
 import com.cheeseocean.im.postoffice.auth.ConnectionSessionGuard;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.postoffice.protocol.WSMessage;
-import com.cheeseocean.im.postoffice.protocol.WSMessageType;
 import com.cheeseocean.im.postoffice.service.OnlineRouteService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,10 +29,10 @@ public class HeartbeatMessageHandler implements MessageHandler {
     private ConnectionSessionGuard connectionSessionGuard;
     
     @Override
-    public HandleResult handle(UserConnection connection, WSMessage message) {
+    public HandleResult handle(UserConnection connection, ClientEnvelope envelope) {
         try {
             if (!connection.isAuthenticated()) {
-                WSMessage errorResp = WSMessage.permissionError(message.getOperationID(), "连接未认证");
+                WSMessage errorResp = WSMessage.permissionError(envelope.getRequestId(), "连接未认证");
                 return HandleResult.failure("连接未认证", errorResp);
             }
 
@@ -45,7 +46,7 @@ public class HeartbeatMessageHandler implements MessageHandler {
                         connection.getLastActiveTime());
             }
             
-            String operationID = message.getOperationID();
+            String operationID = envelope.getRequestId();
             
             // 创建心跳响应
             WSMessage heartbeatResp = WSMessage.heartbeatResp(operationID);
@@ -57,19 +58,19 @@ public class HeartbeatMessageHandler implements MessageHandler {
             return HandleResult.success(heartbeatResp);
             
         } catch (IllegalStateException e) {
-            WSMessage errorResp = WSMessage.permissionError(message.getOperationID(), e.getMessage());
+            WSMessage errorResp = WSMessage.permissionError(envelope.getRequestId(), e.getMessage());
             return HandleResult.failureAndClose(e.getMessage(), errorResp);
         } catch (Exception e) {
             logger.error("Failed to handle heartbeat message: connectionID={}", 
                         connection.getConnectionID(), e);
             
-            WSMessage errorResp = WSMessage.internalError(message.getOperationID(), "心跳处理失败");
+            WSMessage errorResp = WSMessage.internalError(envelope.getRequestId(), "心跳处理失败");
             return HandleResult.failure("心跳处理失败", errorResp);
         }
     }
     
     @Override
-    public int getSupportedMessageType() {
-        return WSMessageType.WS_HEARTBEAT_REQ;
+    public CommandType getSupportedCommand() {
+        return CommandType.HEARTBEAT;
     }
 }

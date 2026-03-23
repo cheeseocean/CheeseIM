@@ -1,8 +1,9 @@
 package com.cheeseocean.im.push.util;
 
 import com.cheeseocean.im.common.api.dto.message.Message;
-import com.cheeseocean.im.common.core.constants.MessageConstants;
 import com.cheeseocean.im.common.core.constants.MessageDisplayConstants;
+import com.cheeseocean.im.common.core.enums.ContentType;
+import com.cheeseocean.im.common.core.enums.SessionType;
 import com.cheeseocean.im.push.entity.PushMessage;
 
 import java.util.HashMap;
@@ -40,10 +41,11 @@ public class PushMessageBuilder {
             builder.pushMessage.setSenderNickname(originalMessage.getSenderNickname());
 
             // 设置会话信息
-            if (originalMessage.getSessionType() == MessageConstants.SESSION_TYPE_SINGLE) {
+            SessionType sessionType = resolveSessionType(originalMessage.getSessionType());
+            if (sessionType == SessionType.SINGLE) {
                 // 单聊
                 builder.pushMessage.setConversationID("single_" + originalMessage.getSendID() + "_" + originalMessage.getRecvID());
-            } else if (originalMessage.getSessionType() == MessageConstants.SESSION_TYPE_GROUP) {
+            } else if (sessionType == SessionType.GROUP) {
                 // 群聊
                 builder.pushMessage.setConversationID("group_" + originalMessage.getGroupID());
             }
@@ -85,6 +87,17 @@ public class PushMessageBuilder {
             }
         }
         return builder;
+    }
+
+    private static SessionType resolveSessionType(Integer sessionType) {
+        if (sessionType == null) {
+            return SessionType.SINGLE;
+        }
+        try {
+            return SessionType.fromCode(sessionType);
+        } catch (IllegalArgumentException ex) {
+            return SessionType.SINGLE;
+        }
     }
     
     /**

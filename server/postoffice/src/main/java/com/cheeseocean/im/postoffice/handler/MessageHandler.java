@@ -1,5 +1,7 @@
 package com.cheeseocean.im.postoffice.handler;
 
+import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
+import com.cheeseocean.im.common.core.enums.CommandType;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.postoffice.protocol.WSMessage;
 
@@ -15,17 +17,17 @@ public interface MessageHandler {
      * 处理消息
      * 
      * @param connection 用户连接
-     * @param message WebSocket消息
+     * @param envelope 客户端统一消息包
      * @return 处理结果
      */
-    HandleResult handle(UserConnection connection, WSMessage message);
+    HandleResult handle(UserConnection connection, ClientEnvelope envelope);
     
     /**
-     * 获取支持的消息类型
+     * 获取支持的命令类型
      * 
-     * @return 消息类型
+     * @return 命令类型
      */
-    int getSupportedMessageType();
+    CommandType getSupportedCommand();
     
     /**
      * 处理结果类

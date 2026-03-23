@@ -1,6 +1,7 @@
 package com.cheeseocean.im.postbox.service;
 
 import com.cheeseocean.im.common.api.dto.receipt.ReceiptAckReq;
+import com.cheeseocean.im.common.core.enums.ReceiptType;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.postbox.history.MessageIdMappingDoc;
 import com.cheeseocean.im.postbox.history.MessageIdMappingRepository;
@@ -25,17 +26,21 @@ class ReceiptAckRpcImplTest {
         ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
-        ReceiptAckRpcImpl service = new ReceiptAckRpcImpl(redisTemplate, mock(MessageIdMappingRepository.class));
+        ConversationReceiptService conversationReceiptService = mock(ConversationReceiptService.class);
+        ReceiptAckRpcImpl service = new ReceiptAckRpcImpl(
+                conversationReceiptService,
+                redisTemplate,
+                mock(MessageIdMappingRepository.class));
 
         ReceiptAckReq req = new ReceiptAckReq();
-        req.setAckType("READ");
+        req.setAckType(ReceiptType.READ_CURSOR);
         req.setUserId("userB");
         req.setConversationId("single:userA:userB");
         req.setSeq(19L);
 
         service.apply(req);
 
-        verify(valueOperations).set(eq(RedisKeys.userReadSeq("userB", "single:userA:userB")), eq("19"));
+        verify(conversationReceiptService).applyReadCursor("userB", "single:userA:userB", 19L);
     }
 
     @Test
@@ -52,10 +57,13 @@ class ReceiptAckRpcImplTest {
         mapping.setSeq(11L);
         when(mappingRepository.findByServerMsgId("msg-1")).thenReturn(Optional.of(mapping));
 
-        ReceiptAckRpcImpl service = new ReceiptAckRpcImpl(redisTemplate, mappingRepository);
+        ReceiptAckRpcImpl service = new ReceiptAckRpcImpl(
+                mock(ConversationReceiptService.class),
+                redisTemplate,
+                mappingRepository);
 
         ReceiptAckReq req = new ReceiptAckReq();
-        req.setAckType("RECEIVED");
+        req.setAckType(ReceiptType.RECEIVED);
         req.setUserId("userB");
         req.setServerMsgId("msg-1");
 
@@ -74,10 +82,13 @@ class ReceiptAckRpcImplTest {
         MessageIdMappingRepository mappingRepository = mock(MessageIdMappingRepository.class);
         when(mappingRepository.findByServerMsgId("missing")).thenReturn(Optional.empty());
 
-        ReceiptAckRpcImpl service = new ReceiptAckRpcImpl(redisTemplate, mappingRepository);
+        ReceiptAckRpcImpl service = new ReceiptAckRpcImpl(
+                mock(ConversationReceiptService.class),
+                redisTemplate,
+                mappingRepository);
 
         ReceiptAckReq req = new ReceiptAckReq();
-        req.setAckType("RECEIVED");
+        req.setAckType(ReceiptType.RECEIVED);
         req.setUserId("userB");
         req.setServerMsgId("missing");
 

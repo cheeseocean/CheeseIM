@@ -1,12 +1,14 @@
 package com.cheeseocean.im.postoffice.server;
 
 import com.cheeseocean.im.common.core.util.IdGenerator;
+import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
 import com.cheeseocean.im.postoffice.connection.ConnectionManager;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.postoffice.handler.MessageHandler;
 import com.cheeseocean.im.postoffice.handler.MessageHandlerFactory;
 import com.cheeseocean.im.postoffice.protocol.CheeseMessage;
 import com.cheeseocean.im.postoffice.protocol.WSMessage;
+import com.cheeseocean.im.common.core.enums.CommandType;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -153,25 +155,25 @@ public class CheeseServerHandler extends SimpleChannelInboundHandler<CheeseMessa
      * 处理TCP消息
      */
     private void handleMessage(ChannelHandlerContext ctx, UserConnection connection, CheeseMessage message) {
+        ClientEnvelope envelope = null;
+        CommandType commandType = null;
         try {
-            byte messageType = message.getMsgType();
-            
-            // 将TCP消息转换为WebSocket消息以复用现有的处理器
-            WSMessage wsMessage = message.toWSMessage();
-            
+            envelope = message.toClientEnvelope();
+            commandType = envelope.getCommand();
+
             // 获取消息处理器
-            MessageHandler handler = messageHandlerFactory.getHandler(wsMessage.getMsgType());
+            MessageHandler handler = messageHandlerFactory.getHandler(commandType);
             if (handler == null) {
-                logger.warn("Unsupported message type: {} from {}", 
-                           messageType, ctx.channel().remoteAddress());
+                logger.warn("Unsupported command type: {} from {}",
+                        commandType, ctx.channel().remoteAddress());
                 
                 sendErrorResponse(ctx, message.getOperationID(), 
-                                "不支持的消息类型: " + messageType);
+                                "不支持的消息类型: " + commandType);
                 return;
             }
             
             // 处理消息
-            MessageHandler.HandleResult result = handler.handle(connection, wsMessage);
+            MessageHandler.HandleResult result = handler.handle(connection, envelope);
             
             // 发送响应消息
             if (result.getResponseMessage() != null) {
@@ -185,8 +187,10 @@ public class CheeseServerHandler extends SimpleChannelInboundHandler<CheeseMessa
             }
             
         } catch (Exception e) {
-            logger.error("Failed to handle TCP message: msgType={}, operationID={}", 
-                        message.getMsgType(), message.getOperationID(), e);
+            logger.error("Failed to handle TCP message: commandType={}, operationID={}",
+                    commandType,
+                    message != null ? message.getOperationID() : null,
+                    e);
             
             sendErrorResponse(ctx, message.getOperationID(), "消息处理失败: " + e.getMessage());
         }
