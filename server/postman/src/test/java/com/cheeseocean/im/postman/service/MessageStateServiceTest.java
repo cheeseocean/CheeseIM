@@ -14,6 +14,7 @@ import org.springframework.data.redis.core.ValueOperations;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.ArgumentMatchers.eq;
@@ -61,6 +62,19 @@ class MessageStateServiceTest {
         service.apply(message(), List.of("userB"));
 
         verify(valueOperations).increment(RedisKeys.userUnread("userB", "c1:userA:userB"));
+    }
+
+    @Test
+    void applyShouldRejectReadReceiptMessages() {
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+
+        MessageStateService service = new MessageStateService(redisTemplate, new ObjectMapper());
+        SequencedMessage message = message();
+        message.setContentType(ContentType.READ_RECEIPT.getCode());
+
+        assertThrows(IllegalStateException.class, () -> service.apply(message, List.of("userB")));
     }
 
     private SequencedMessage message() {

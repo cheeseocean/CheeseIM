@@ -8,7 +8,6 @@ public enum CommandType {
     HEARTBEAT(20),
     CHAT_SEND(30),
     CHAT_RECV(32),
-    READ_RECEIPT(33),
     CHAT_REVOKE(34),
     ERROR(90);
 

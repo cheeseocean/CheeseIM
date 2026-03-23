@@ -119,12 +119,12 @@ class MessageSendRpcImplTest {
         IngressEvent event = publishEventForContentType(SessionType.SINGLE.getCode(), ContentType.READ_RECEIPT.getCode());
 
         MessageOptions options = event.getOptions();
-        assertEquals(false, options.isNeedHistory());
+        assertEquals(true, options.isNeedHistory());
         assertEquals(true, options.isNeedConversation());
-        assertEquals(false, options.isNeedUnreadCount());
+        assertEquals(true, options.isNeedUnreadCount());
         assertEquals(true, options.isNeedOnlinePush());
-        assertEquals(false, options.isNeedOfflinePush());
-        assertEquals(false, options.isNeedLastMessage());
+        assertEquals(true, options.isNeedOfflinePush());
+        assertEquals(true, options.isNeedLastMessage());
     }
 
     @Test

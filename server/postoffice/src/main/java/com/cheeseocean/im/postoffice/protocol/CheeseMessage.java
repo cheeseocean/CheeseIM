@@ -1,10 +1,8 @@
 package com.cheeseocean.im.postoffice.protocol;
 
 import com.cheeseocean.im.common.api.dto.message.ChatSendRequest;
-import com.cheeseocean.im.common.api.dto.message.ReadReceiptPayload;
 import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
 import com.cheeseocean.im.common.core.enums.CommandType;
-import com.cheeseocean.im.common.core.enums.ReceiptType;
 import com.cheeseocean.im.common.core.util.ObjectMapperFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -205,8 +203,6 @@ public class CheeseMessage implements Serializable {
         switch (msgType) {
             case CheeseMessageType.TCP_SEND_MSG_REQ:
                 return CommandType.CHAT_SEND;
-            case CheeseMessageType.TCP_MSG_READ_RECEIPT:
-                return CommandType.READ_RECEIPT;
             case CheeseMessageType.TCP_REVOKE_MSG_REQ:
                 return CommandType.CHAT_REVOKE;
             case CheeseMessageType.TCP_AUTH_REQ:
@@ -228,12 +224,6 @@ public class CheeseMessage implements Serializable {
         switch (msgType) {
             case CheeseMessageType.TCP_SEND_MSG_REQ:
                 return readBody(ChatSendRequest.class);
-            case CheeseMessageType.TCP_MSG_READ_RECEIPT:
-                ReadReceiptPayload payload = readBody(ReadReceiptPayload.class);
-                if (payload != null && payload.getReceiptType() == null) {
-                    payload.setReceiptType(ReceiptType.READ_CURSOR);
-                }
-                return payload;
             default:
                 return data;
         }

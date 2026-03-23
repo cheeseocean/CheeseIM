@@ -18,14 +18,13 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import com.cheeseocean.im.common.core.enums.ConnectionState;
 
-import org.springframework.test.util.ReflectionTestUtils;
-
 import java.net.InetSocketAddress;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -88,19 +87,16 @@ class CheeseServerHandlerTest {
     }
 
     @Test
-    void channelReadShouldDispatchReceiptByCommandTypeAfterDecoding() throws Exception {
+    void channelReadShouldRejectLegacyReceiptByCommandTypeAfterDecoding() throws Exception {
         ConnectionManager connectionManager = mock(ConnectionManager.class);
         MessageHandlerFactory messageHandlerFactory = mock(MessageHandlerFactory.class);
-        MessageHandler handler = mock(MessageHandler.class);
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         Channel channel = mock(Channel.class);
 
         when(ctx.channel()).thenReturn(channel);
         when(channel.remoteAddress()).thenReturn(new InetSocketAddress("127.0.0.1", 5148));
         when(connectionManager.getConnectionByChannel(channel)).thenReturn(authenticatedConnection());
-        when(messageHandlerFactory.getHandler(CommandType.READ_RECEIPT)).thenReturn(handler);
-        when(handler.handle(any(UserConnection.class), any(ClientEnvelope.class)))
-                .thenReturn(MessageHandler.HandleResult.success());
+        when(messageHandlerFactory.getHandler(null)).thenReturn(null);
 
         CheeseServerHandler handlerUnderTest = new CheeseServerHandler();
         ReflectionTestUtils.setField(handlerUnderTest, "connectionManager", connectionManager);
@@ -113,8 +109,9 @@ class CheeseServerHandlerTest {
         );
         handlerUnderTest.channelRead0(ctx, message);
 
-        verify(messageHandlerFactory).getHandler(CommandType.READ_RECEIPT);
-        verify(handler).handle(any(UserConnection.class), any(ClientEnvelope.class));
+        verify(messageHandlerFactory).getHandler(null);
+        verify(messageHandlerFactory, never()).getHandler(CommandType.CHAT_SEND);
+        verify(ctx).writeAndFlush(any());
     }
 
     private static UserConnection authenticatedConnection() {

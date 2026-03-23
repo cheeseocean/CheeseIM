@@ -2,11 +2,16 @@ package com.cheeseocean.im.postoffice.handler;
 
 import com.cheeseocean.im.common.api.dto.message.ChatSendRequest;
 import com.cheeseocean.im.common.api.dto.message.Message;
+import com.cheeseocean.im.common.api.dto.message.ReadReceiptPayload;
 import com.cheeseocean.im.common.api.dto.message.SendMessageReq;
 import com.cheeseocean.im.common.api.dto.message.SendMessageResp;
+import com.cheeseocean.im.common.api.dto.receipt.ReceiptAckReq;
 import com.cheeseocean.im.common.api.rpc.MessageSendRpc;
+import com.cheeseocean.im.common.api.rpc.ReceiptAckRpc;
 import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
 import com.cheeseocean.im.common.core.enums.CommandType;
+import com.cheeseocean.im.common.core.enums.ContentType;
+import com.cheeseocean.im.common.core.enums.ReceiptType;
 import com.cheeseocean.im.postoffice.auth.ConnectionSessionGuard;
 import com.cheeseocean.im.postoffice.connection.ConnectionContext;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
@@ -36,6 +41,9 @@ public class ChatMessageHandler implements MessageHandler {
     
     @DubboReference(check = false)
     private MessageSendRpc messageSendRpc;
+
+    @DubboReference(check = false)
+    private ReceiptAckRpc receiptAckRpc;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -76,6 +84,19 @@ public class ChatMessageHandler implements MessageHandler {
             if (request == null) {
                 WSMessage errorResp = WSMessage.paramError(operationID, "消息数据格式错误");
                 return HandleResult.failure("消息数据格式错误", errorResp);
+            }
+
+            if (isReadReceipt(request)) {
+                ReadReceiptPayload payload = parseReadReceiptPayload(request.getContent());
+                validateReadReceipt(payload);
+                receiptAckRpc.apply(toReceiptAckReq(context, connection, payload));
+                connection.incrementSendMsg();
+                return HandleResult.success(WSMessage.sendMsgResp(
+                        operationID,
+                        null,
+                        request.getClientMsgId(),
+                        System.currentTimeMillis(),
+                        null));
             }
 
             Message msgData = toMessage(request, connection);
@@ -154,6 +175,57 @@ public class ChatMessageHandler implements MessageHandler {
         } catch (Exception e) {
             logger.error("Failed to parse chat request data: {}", data, e);
             return null;
+        }
+    }
+
+    private ReadReceiptPayload parseReadReceiptPayload(String content) {
+        try {
+            return objectMapper.readValue(content, ReadReceiptPayload.class);
+        } catch (Exception e) {
+            logger.error("Failed to parse read receipt payload: {}", content, e);
+            return null;
+        }
+    }
+
+    private ReceiptAckReq toReceiptAckReq(ConnectionContext context, UserConnection connection, ReadReceiptPayload payload) {
+        ReceiptAckReq req = new ReceiptAckReq();
+        req.setAckType(payload.getReceiptType());
+        req.setConversationId(payload.getConversationId());
+        req.setServerMsgId(payload.getServerMsgId());
+        req.setSeq(payload.getSeq());
+        req.setEventTime(payload.getReceiptTime());
+        req.setUserId(context.getUserId() != null ? context.getUserId() : connection.getUserID());
+        req.setDeviceId(context.getDeviceId() != null ? context.getDeviceId() : connection.getDeviceID());
+        return req;
+    }
+
+    private boolean isReadReceipt(ChatSendRequest request) {
+        if (request == null || request.getContentType() == null) {
+            return false;
+        }
+        try {
+            return ContentType.fromCode(request.getContentType()) == ContentType.READ_RECEIPT;
+        } catch (IllegalArgumentException ex) {
+            return false;
+        }
+    }
+
+    private void validateReadReceipt(ReadReceiptPayload payload) {
+        if (payload == null) {
+            throw new IllegalArgumentException("回执数据格式错误");
+        }
+        if (payload.getReceiptType() == null) {
+            throw new IllegalArgumentException("回执类型不能为空");
+        }
+        if (payload.getConversationId() == null || payload.getConversationId().isBlank()) {
+            throw new IllegalArgumentException("会话ID不能为空");
+        }
+        if (payload.getReceiptType() == ReceiptType.READ_CURSOR && payload.getSeq() == null) {
+            throw new IllegalArgumentException("已读游标不能为空");
+        }
+        if ((payload.getReceiptType() == ReceiptType.RECEIVED || payload.getReceiptType() == ReceiptType.DELIVERED)
+                && (payload.getServerMsgId() == null || payload.getServerMsgId().isBlank())) {
+            throw new IllegalArgumentException("消息ID不能为空");
         }
     }
 

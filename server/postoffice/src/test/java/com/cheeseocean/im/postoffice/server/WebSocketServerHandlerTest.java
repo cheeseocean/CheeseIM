@@ -3,7 +3,6 @@ package com.cheeseocean.im.postoffice.server;
 import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
 import com.cheeseocean.im.common.core.enums.CommandType;
 import com.cheeseocean.im.common.core.enums.ConnectionState;
-import com.cheeseocean.im.common.api.dto.message.ReadReceiptPayload;
 import com.cheeseocean.im.postoffice.connection.ConnectionContext;
 import com.cheeseocean.im.postoffice.connection.ConnectionManager;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
@@ -15,15 +14,13 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.net.InetSocketAddress;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -57,18 +54,16 @@ class WebSocketServerHandlerTest {
     }
 
     @Test
-    void channelReadShouldDispatchReceiptAndPreserveLegacyReceiptFields() throws Exception {
+    void channelReadShouldRejectLegacyReceiptCommandType() throws Exception {
         ConnectionManager connectionManager = mock(ConnectionManager.class);
         MessageHandlerFactory factory = mock(MessageHandlerFactory.class);
-        MessageHandler handler = mock(MessageHandler.class);
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         Channel channel = mock(Channel.class);
 
         when(ctx.channel()).thenReturn(channel);
         when(channel.remoteAddress()).thenReturn(new InetSocketAddress("127.0.0.1", 5148));
         when(connectionManager.getConnectionByChannel(channel)).thenReturn(authenticatedConnection());
-        when(factory.getHandler(CommandType.READ_RECEIPT)).thenReturn(handler);
-        when(handler.handle(any(UserConnection.class), any(ClientEnvelope.class))).thenReturn(MessageHandler.HandleResult.success());
+        when(factory.getHandler(null)).thenReturn(null);
 
         WebSocketServerHandler serverHandler = new WebSocketServerHandler();
         ReflectionTestUtils.setField(serverHandler, "connectionManager", connectionManager);
@@ -85,13 +80,9 @@ class WebSocketServerHandlerTest {
                 ));
         serverHandler.channelRead0(ctx, new TextWebSocketFrame(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(wsMessage)));
 
-        verify(factory).getHandler(CommandType.READ_RECEIPT);
-        ArgumentCaptor<ClientEnvelope> envelopeCaptor = ArgumentCaptor.forClass(ClientEnvelope.class);
-        verify(handler).handle(any(UserConnection.class), envelopeCaptor.capture());
-        ReadReceiptPayload payload = assertInstanceOf(ReadReceiptPayload.class, envelopeCaptor.getValue().getBody());
-        assertEquals("msg-77", payload.getServerMsgId());
-        assertEquals(1710000000003L, payload.getReceiptTime());
-        assertEquals("single:userA:userB", payload.getConversationId());
+        verify(factory).getHandler(null);
+        verify(factory, never()).getHandler(CommandType.CHAT_SEND);
+        verify(ctx).writeAndFlush(any());
     }
 
     private static UserConnection authenticatedConnection() {

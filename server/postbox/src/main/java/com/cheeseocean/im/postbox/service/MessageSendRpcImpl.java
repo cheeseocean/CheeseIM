@@ -100,7 +100,7 @@ public class MessageSendRpcImpl implements MessageSendRpc {
     }
 
     private static boolean defaultNeedHistory(Integer contentType) {
-        if (isTyping(contentType) || isSilentNotification(contentType) || isReadReceipt(contentType)) {
+        if (isTyping(contentType) || isSilentNotification(contentType)) {
             return false;
         }
         return true;
@@ -114,7 +114,7 @@ public class MessageSendRpcImpl implements MessageSendRpc {
     }
 
     private static boolean defaultNeedUnreadCount(Integer contentType, SessionType sessionType) {
-        if (isTyping(contentType) || isReadReceipt(contentType) || isRevokeNotify(contentType) || isSilentNotification(contentType)) {
+        if (isTyping(contentType) || isRevokeNotify(contentType) || isSilentNotification(contentType)) {
             return false;
         }
         return true;
@@ -125,7 +125,7 @@ public class MessageSendRpcImpl implements MessageSendRpc {
     }
 
     private static boolean defaultNeedOfflinePush(Integer contentType) {
-        if (isTyping(contentType) || isReadReceipt(contentType) || isRevokeNotify(contentType)
+        if (isTyping(contentType) || isRevokeNotify(contentType)
                 || isNotificationContent(contentType)) {
             return false;
         }
@@ -147,14 +147,10 @@ public class MessageSendRpcImpl implements MessageSendRpc {
     }
 
     private static boolean defaultNeedLastMessage(Integer contentType) {
-        if (isTyping(contentType) || isReadReceipt(contentType) || isSilentNotification(contentType)) {
+        if (isTyping(contentType) || isSilentNotification(contentType)) {
             return false;
         }
         return true;
-    }
-
-    private static boolean isReadReceipt(Integer contentType) {
-        return isContentType(contentType, ContentType.READ_RECEIPT);
     }
 
     private static boolean isRevokeNotify(Integer contentType) {

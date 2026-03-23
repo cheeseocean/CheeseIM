@@ -1,10 +1,8 @@
 package com.cheeseocean.im.postoffice.protocol;
 
 import com.cheeseocean.im.common.api.dto.message.ChatSendRequest;
-import com.cheeseocean.im.common.api.dto.message.ReadReceiptPayload;
 import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
 import com.cheeseocean.im.common.core.enums.CommandType;
-import com.cheeseocean.im.common.core.enums.ReceiptType;
 import com.cheeseocean.im.common.core.util.ObjectMapperFactory;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -200,8 +198,6 @@ public class WSMessage implements Serializable {
         switch (msgType) {
             case WSMessageType.WS_SEND_MSG_REQ:
                 return CommandType.CHAT_SEND;
-            case WSMessageType.WS_MSG_READ_NOTIFY:
-                return CommandType.READ_RECEIPT;
             case WSMessageType.WS_MSG_REVOKE_NOTIFY:
                 return CommandType.CHAT_REVOKE;
             case WSMessageType.WS_AUTH_REQ:
@@ -227,12 +223,6 @@ public class WSMessage implements Serializable {
         switch (msgType) {
             case WSMessageType.WS_SEND_MSG_REQ:
                 return readBody(ChatSendRequest.class);
-            case WSMessageType.WS_MSG_READ_NOTIFY:
-                ReadReceiptPayload payload = readBody(ReadReceiptPayload.class);
-                if (payload != null && payload.getReceiptType() == null) {
-                    payload.setReceiptType(ReceiptType.READ_CURSOR);
-                }
-                return payload;
             default:
                 return data;
         }

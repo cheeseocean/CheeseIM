@@ -1,12 +1,14 @@
 package com.cheeseocean.im.common.api.dto.receipt;
 
+import com.cheeseocean.im.common.core.enums.ReceiptType;
+
 import java.io.Serializable;
 
 public class ReceiptAckReq implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private String ackType;
+    private ReceiptType ackType;
     private String userId;
     private String conversationId;
     private String serverMsgId;
@@ -14,11 +16,11 @@ public class ReceiptAckReq implements Serializable {
     private Long seq;
     private Long eventTime;
 
-    public String getAckType() {
+    public ReceiptType getAckType() {
         return ackType;
     }
 
-    public void setAckType(String ackType) {
+    public void setAckType(ReceiptType ackType) {
         this.ackType = ackType;
     }
 

@@ -2,16 +2,15 @@ package com.cheeseocean.im.postoffice.protocol;
 
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchPayload;
 import com.cheeseocean.im.common.api.dto.message.ChatSendRequest;
-import com.cheeseocean.im.common.api.dto.message.ReadReceiptPayload;
 import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
 import com.cheeseocean.im.common.core.enums.CommandType;
-import com.cheeseocean.im.common.core.enums.ReceiptType;
 import com.cheeseocean.im.postoffice.client.ProtocolContractFixtures;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CheeseMessageTest {
@@ -81,7 +80,7 @@ class CheeseMessageTest {
     }
 
     @Test
-    void toClientEnvelopeShouldTranslateTcpReadReceiptToReadReceiptPayload() {
+    void toClientEnvelopeShouldNotSupportLegacyTcpReadReceipt() {
         CheeseMessage message = new CheeseMessage(
                 CheeseMessageType.TCP_MSG_READ_RECEIPT,
                 "op-read-2",
@@ -90,14 +89,9 @@ class CheeseMessageTest {
 
         ClientEnvelope envelope = message.toClientEnvelope();
 
-        assertEquals(CommandType.READ_RECEIPT, envelope.getCommand());
+        assertNull(envelope.getCommand());
         assertEquals("op-read-2", envelope.getRequestId());
-        ReadReceiptPayload body = assertInstanceOf(ReadReceiptPayload.class, envelope.getBody());
-        assertEquals(ReceiptType.DELIVERED, body.getReceiptType());
-        assertEquals("single:user-a:user-b", body.getConversationId());
-        assertEquals("msg-88", body.getServerMsgId());
-        assertEquals(1710000000001L, body.getReceiptTime());
-        assertEquals(19L, body.getSeq());
+        assertTrue(envelope.getBody() instanceof String);
     }
 
     @Test
@@ -121,7 +115,7 @@ class CheeseMessageTest {
     }
 
     @Test
-    void toClientEnvelopeShouldTranslateWsReadReceiptToReadReceiptPayload() {
+    void toClientEnvelopeShouldNotSupportLegacyWsReadReceipt() {
         WSMessage wsMessage = new WSMessage(
                 WSMessageType.WS_MSG_READ_NOTIFY,
                 "op-read-3",
@@ -136,14 +130,9 @@ class CheeseMessageTest {
 
         ClientEnvelope envelope = wsMessage.toClientEnvelope();
 
-        assertEquals(CommandType.READ_RECEIPT, envelope.getCommand());
+        assertNull(envelope.getCommand());
         assertEquals("op-read-3", envelope.getRequestId());
-        ReadReceiptPayload body = assertInstanceOf(ReadReceiptPayload.class, envelope.getBody());
-        assertEquals(ReceiptType.RECEIVED, body.getReceiptType());
-        assertEquals("single:user-a:user-b", body.getConversationId());
-        assertEquals("msg-99", body.getServerMsgId());
-        assertEquals(1710000000002L, body.getReceiptTime());
-        assertEquals(21L, body.getSeq());
+        assertTrue(envelope.getBody() instanceof java.util.Map);
     }
 
     @Test

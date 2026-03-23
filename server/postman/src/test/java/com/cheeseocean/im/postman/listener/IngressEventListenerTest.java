@@ -20,6 +20,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -164,6 +165,25 @@ class IngressEventListenerTest {
         verify(messageStateService).apply(any(SequencedMessage.class), eq(List.of("userB")));
     }
 
+    @Test
+    void readReceiptShouldNotReachIngressPipeline() {
+        KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
+        GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
+        ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
+        MessageStateService messageStateService = mock(MessageStateService.class);
+
+        IngressEventListener listener = new IngressEventListener(
+                new ObjectMapper(),
+                kafkaTemplate,
+                groupMembershipFacade,
+                new GroupFanoutPlanner(2),
+                conversationSeqService,
+                new DefaultMessagePolicyEngine(),
+                messageStateService);
+
+        assertThrows(IllegalStateException.class, () -> listener.handle(readReceiptIngressEvent()));
+    }
+
     private static IngressEvent singleIngressEvent() {
         IngressEvent event = new IngressEvent();
         MessageOptions options = new MessageOptions();
@@ -200,6 +220,22 @@ class IngressEventListenerTest {
         event.setSessionType(SessionType.GROUP.getCode());
         event.setContentType(ContentType.TEXT.getCode());
         event.setContent("assemble");
+        event.setOptions(options);
+        return event;
+    }
+
+    private static IngressEvent readReceiptIngressEvent() {
+        IngressEvent event = new IngressEvent();
+        MessageOptions options = new MessageOptions();
+        options.setNeedConversation(true);
+        event.setRequestId("req-read");
+        event.setClientMsgId("client-read");
+        event.setConversationId("c1:userA:userB");
+        event.setSenderId("userA");
+        event.setRecvId("userB");
+        event.setSessionType(SessionType.SINGLE.getCode());
+        event.setContentType(ContentType.READ_RECEIPT.getCode());
+        event.setContent("{\"receiptType\":\"READ_CURSOR\",\"seq\":19}");
         event.setOptions(options);
         return event;
     }

@@ -17,7 +17,7 @@
 - `ConversationSeqService`
 - `MessageIdempotencyService`
 - `DeliveryCompensationService`
-- `ReceiptEventListener`
+- `MessageStateService`
 
 ## Not In Scope
 

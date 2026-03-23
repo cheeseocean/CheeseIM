@@ -19,21 +19,18 @@ class MessageHandlerFactoryTest {
         MessageHandler authHandler = mock(MessageHandler.class);
         MessageHandler heartbeatHandler = mock(MessageHandler.class);
         MessageHandler chatHandler = mock(MessageHandler.class);
-        MessageHandler receiptHandler = mock(MessageHandler.class);
 
         when(authHandler.getSupportedCommand()).thenReturn(CommandType.AUTH);
         when(heartbeatHandler.getSupportedCommand()).thenReturn(CommandType.HEARTBEAT);
         when(chatHandler.getSupportedCommand()).thenReturn(CommandType.CHAT_SEND);
-        when(receiptHandler.getSupportedCommand()).thenReturn(CommandType.READ_RECEIPT);
 
         MessageHandlerFactory factory = new MessageHandlerFactory();
-        ReflectionTestUtils.setField(factory, "messageHandlers", List.of(authHandler, heartbeatHandler, chatHandler, receiptHandler));
+        ReflectionTestUtils.setField(factory, "messageHandlers", List.of(authHandler, heartbeatHandler, chatHandler));
         factory.init();
 
         assertSame(authHandler, factory.getHandler(CommandType.AUTH));
         assertSame(heartbeatHandler, factory.getHandler(CommandType.HEARTBEAT));
         assertSame(chatHandler, factory.getHandler(CommandType.CHAT_SEND));
-        assertSame(receiptHandler, factory.getHandler(CommandType.READ_RECEIPT));
         assertTrue(factory.isSupported(CommandType.AUTH));
         assertFalse(factory.isSupported(CommandType.CHAT_REVOKE));
     }
