@@ -1,5 +1,6 @@
 package com.cheeseocean.im.push.provider;
 
+import com.cheeseocean.im.common.core.enums.PlatformType;
 import com.cheeseocean.im.push.entity.PushMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -239,13 +240,13 @@ public class XiaomiPushProvider implements PushProvider {
     }
     
     @Override
-    public List<Integer> getSupportedPlatforms() {
-        return Arrays.asList(2); // 只支持Android
+    public List<PlatformType> getSupportedPlatforms() {
+        return Arrays.asList(PlatformType.ANDROID);
     }
     
     @Override
-    public boolean supportsPlatform(Integer platformID) {
-        return platformID != null && platformID == 2; // Android
+    public boolean supportsPlatform(PlatformType platformType) {
+        return platformType == PlatformType.ANDROID;
     }
     
     @Override

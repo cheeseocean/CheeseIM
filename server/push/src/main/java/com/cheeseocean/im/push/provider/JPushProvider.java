@@ -12,6 +12,7 @@ import cn.jpush.api.push.model.audience.Audience;
 import cn.jpush.api.push.model.notification.AndroidNotification;
 import cn.jpush.api.push.model.notification.IosNotification;
 import cn.jpush.api.push.model.notification.Notification;
+import com.cheeseocean.im.common.core.enums.PlatformType;
 import com.cheeseocean.im.push.entity.PushMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -155,7 +156,8 @@ public class JPushProvider implements PushProvider {
         PushPayload.Builder builder = PushPayload.newBuilder();
         
         // 设置平台
-        Platform platform = determinePlatform(pushMessage.getPlatformID());
+        PlatformType platformType = pushMessage.getPlatformType();
+        Platform platform = determinePlatform(platformType);
         builder.setPlatform(platform);
         
         // 设置目标设备
@@ -171,7 +173,7 @@ public class JPushProvider implements PushProvider {
         }
         
         // 根据平台设置特定通知
-        if (pushMessage.getPlatformID() == 1) {
+        if (platformType == PlatformType.IOS) {
             // iOS通知
             IosNotification.Builder iosBuilder = IosNotification.newBuilder();
             
@@ -206,7 +208,7 @@ public class JPushProvider implements PushProvider {
             
             notificationBuilder.addPlatformNotification(iosBuilder.build());
             
-        } else if (pushMessage.getPlatformID() == 2) {
+        } else if (platformType == PlatformType.ANDROID) {
             // Android通知
             AndroidNotification.Builder androidBuilder = AndroidNotification.newBuilder();
             
@@ -278,19 +280,15 @@ public class JPushProvider implements PushProvider {
     /**
      * 确定推送平台
      */
-    private Platform determinePlatform(Integer platformID) {
-        if (platformID == null) {
+    private Platform determinePlatform(PlatformType platformType) {
+        if (platformType == null || platformType == PlatformType.UNKNOWN) {
             return Platform.all();
         }
-        
-        switch (platformID) {
-            case 1:
-                return Platform.ios();
-            case 2:
-                return Platform.android();
-            default:
-                return Platform.all();
-        }
+        return switch (platformType) {
+            case IOS -> Platform.ios();
+            case ANDROID -> Platform.android();
+            default -> Platform.all();
+        };
     }
     
     @Override
@@ -299,13 +297,13 @@ public class JPushProvider implements PushProvider {
     }
     
     @Override
-    public List<Integer> getSupportedPlatforms() {
-        return Arrays.asList(1, 2); // 支持iOS和Android
+    public List<PlatformType> getSupportedPlatforms() {
+        return Arrays.asList(PlatformType.IOS, PlatformType.ANDROID);
     }
     
     @Override
-    public boolean supportsPlatform(Integer platformID) {
-        return platformID != null && (platformID == 1 || platformID == 2);
+    public boolean supportsPlatform(PlatformType platformType) {
+        return platformType == PlatformType.IOS || platformType == PlatformType.ANDROID;
     }
     
     @Override

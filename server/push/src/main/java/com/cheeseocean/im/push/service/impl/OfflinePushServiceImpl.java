@@ -128,9 +128,9 @@ public class OfflinePushServiceImpl implements OfflinePushService {
                         
                         for (PushMessage pushMessage : pushMessages) {
                             // 选择推送提供商
-                            PushProvider provider = selectPushProvider(pushMessage.getPlatformID());
+                            PushProvider provider = selectPushProvider(pushMessage.getPlatformType());
                             if (provider == null) {
-                                userErrorBuilder.append("平台").append(pushMessage.getPlatformID())
+                                userErrorBuilder.append("平台").append(pushMessage.getPlatformType().getDisplayName())
                                                .append("无可用推送提供商; ");
                                 continue;
                             }
@@ -280,14 +280,14 @@ public class OfflinePushServiceImpl implements OfflinePushService {
     /**
      * 选择推送提供商
      */
-    private PushProvider selectPushProvider(Integer platformID) {
+    private PushProvider selectPushProvider(PlatformType platformType) {
         if (pushProviders == null || pushProviders.isEmpty()) {
             return null;
         }
         
         // 优先选择支持指定平台且可用的提供商
         for (PushProvider provider : pushProviders) {
-            if (provider.supportsPlatform(platformID) && provider.isAvailable()) {
+            if (provider.supportsPlatform(platformType) && provider.isAvailable()) {
                 return provider;
             }
         }

@@ -1,5 +1,6 @@
 package com.cheeseocean.im.push.provider;
 
+import com.cheeseocean.im.common.core.enums.PlatformType;
 import com.cheeseocean.im.push.entity.PushMessage;
 import com.eatthepath.pushy.apns.ApnsClient;
 import com.eatthepath.pushy.apns.ApnsClientBuilder;
@@ -231,13 +232,13 @@ public class APNsPushProvider implements PushProvider {
     }
     
     @Override
-    public List<Integer> getSupportedPlatforms() {
-        return Arrays.asList(1); // 只支持iOS
+    public List<PlatformType> getSupportedPlatforms() {
+        return Arrays.asList(PlatformType.IOS);
     }
     
     @Override
-    public boolean supportsPlatform(Integer platformID) {
-        return platformID != null && platformID == 1; // iOS
+    public boolean supportsPlatform(PlatformType platformType) {
+        return platformType == PlatformType.IOS;
     }
     
     @Override

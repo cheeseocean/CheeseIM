@@ -1,5 +1,7 @@
 package com.cheeseocean.im.push.entity;
 
+import com.cheeseocean.im.common.core.enums.PlatformType;
+
 import java.io.Serializable;
 import java.util.Map;
 
@@ -154,9 +156,17 @@ public class PushMessage implements Serializable {
     public Integer getPlatformID() {
         return platformID;
     }
-    
+
     public void setPlatformID(Integer platformID) {
         this.platformID = platformID;
+    }
+
+    public PlatformType getPlatformType() {
+        return PlatformType.fromCode(platformID);
+    }
+
+    public void setPlatformType(PlatformType platformType) {
+        this.platformID = platformType == null ? null : platformType.getCode();
     }
     
     public String getTitle() {

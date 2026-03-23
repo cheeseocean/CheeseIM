@@ -1,5 +1,6 @@
 package com.cheeseocean.im.push.provider;
 
+import com.cheeseocean.im.common.core.enums.PlatformType;
 import com.cheeseocean.im.push.entity.PushMessage;
 
 import java.util.List;
@@ -31,17 +32,17 @@ public interface PushProvider {
     /**
      * 获取支持的平台列表
      *
-     * @return 支持的平台ID列表
+     * @return 支持的平台列表
      */
-    List<Integer> getSupportedPlatforms();
+    List<PlatformType> getSupportedPlatforms();
 
     /**
      * 检查是否支持指定平台
      *
-     * @param platformID 平台ID
+     * @param platformType 平台类型
      * @return 是否支持
      */
-    boolean supportsPlatform(Integer platformID);
+    boolean supportsPlatform(PlatformType platformType);
 
     /**
      * 检查推送服务是否可用
@@ -149,7 +150,7 @@ public interface PushProvider {
     class ProviderConfig {
         private String              providerName;
         private boolean             enabled;
-        private List<Integer>       supportedPlatforms;
+        private List<PlatformType>  supportedPlatforms;
         private Map<String, Object> properties;
         private long                lastUpdateTime;
 
@@ -180,11 +181,11 @@ public interface PushProvider {
             this.enabled = enabled;
         }
 
-        public List<Integer> getSupportedPlatforms() {
+        public List<PlatformType> getSupportedPlatforms() {
             return supportedPlatforms;
         }
 
-        public void setSupportedPlatforms(List<Integer> supportedPlatforms) {
+        public void setSupportedPlatforms(List<PlatformType> supportedPlatforms) {
             this.supportedPlatforms = supportedPlatforms;
         }
 

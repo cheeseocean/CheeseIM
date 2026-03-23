@@ -3,6 +3,7 @@ package com.cheeseocean.im.push.service.impl;
 import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.core.constants.MessageDisplayConstants;
 import com.cheeseocean.im.common.core.enums.ContentType;
+import com.cheeseocean.im.common.core.enums.PlatformType;
 import com.cheeseocean.im.common.core.enums.SessionType;
 import com.cheeseocean.im.push.entity.OfflinePushConfig;
 import com.cheeseocean.im.push.entity.OfflinePushResult;
@@ -92,7 +93,7 @@ class OfflinePushServiceImplTest {
         when(deviceTokenService.getUserDeviceTokens("user1")).thenReturn(deviceTokens);
 
         // Mock 推送提供商
-        when(pushProvider.supportsPlatform(1)).thenReturn(true);
+        when(pushProvider.supportsPlatform(PlatformType.IOS)).thenReturn(true);
         when(pushProvider.isAvailable()).thenReturn(true);
         when(pushProvider.getProviderName()).thenReturn("TestProvider");
         when(pushProvider.sendPush(any(PushMessage.class)))
@@ -125,7 +126,7 @@ class OfflinePushServiceImplTest {
         deviceTokens.put(1, "ios-token-1");
         when(deviceTokenService.getUserDeviceTokens("user1")).thenReturn(deviceTokens);
 
-        when(pushProvider.supportsPlatform(1)).thenReturn(true);
+        when(pushProvider.supportsPlatform(PlatformType.IOS)).thenReturn(true);
         when(pushProvider.isAvailable()).thenReturn(true);
         when(pushProvider.getProviderName()).thenReturn("TestProvider");
         when(pushProvider.sendPush(any(PushMessage.class)))
@@ -155,7 +156,7 @@ class OfflinePushServiceImplTest {
         deviceTokens.put(1, "ios-token-1");
         when(deviceTokenService.getUserDeviceTokens("user1")).thenReturn(deviceTokens);
 
-        when(pushProvider.supportsPlatform(1)).thenReturn(true);
+        when(pushProvider.supportsPlatform(PlatformType.IOS)).thenReturn(true);
         when(pushProvider.isAvailable()).thenReturn(true);
         when(pushProvider.getProviderName()).thenReturn("TestProvider");
         when(pushProvider.sendPush(any(PushMessage.class)))
@@ -190,7 +191,7 @@ class OfflinePushServiceImplTest {
         deviceTokens.put(1, "ios-token-1");
         when(deviceTokenService.getUserDeviceTokens("user1")).thenReturn(deviceTokens);
 
-        when(pushProvider.supportsPlatform(1)).thenReturn(true);
+        when(pushProvider.supportsPlatform(PlatformType.IOS)).thenReturn(true);
         when(pushProvider.isAvailable()).thenReturn(true);
         when(pushProvider.getProviderName()).thenReturn("TestProvider");
         when(pushProvider.sendPush(any(PushMessage.class)))
@@ -224,7 +225,7 @@ class OfflinePushServiceImplTest {
         deviceTokens.put(1, "ios-token-1");
         when(deviceTokenService.getUserDeviceTokens("user1")).thenReturn(deviceTokens);
 
-        when(pushProvider.supportsPlatform(1)).thenReturn(true);
+        when(pushProvider.supportsPlatform(PlatformType.IOS)).thenReturn(true);
         when(pushProvider.isAvailable()).thenReturn(true);
         when(pushProvider.getProviderName()).thenReturn("TestProvider");
         when(pushProvider.sendPush(any(PushMessage.class)))
@@ -258,7 +259,7 @@ class OfflinePushServiceImplTest {
         deviceTokens.put(1, "ios-token-1");
         when(deviceTokenService.getUserDeviceTokens("user1")).thenReturn(deviceTokens);
 
-        when(pushProvider.supportsPlatform(1)).thenReturn(true);
+        when(pushProvider.supportsPlatform(PlatformType.IOS)).thenReturn(true);
         when(pushProvider.isAvailable()).thenReturn(true);
         when(pushProvider.getProviderName()).thenReturn("TestProvider");
         when(pushProvider.sendPush(any(PushMessage.class)))

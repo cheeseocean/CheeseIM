@@ -1,6 +1,7 @@
 package com.cheeseocean.im.postoffice.auth;
 
 import com.cheeseocean.im.common.core.constants.MessageConstants;
+import com.cheeseocean.im.common.core.enums.PlatformType;
 import com.cheeseocean.im.postoffice.config.IMServerConfig;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
@@ -63,8 +64,9 @@ public class JwtAuthService implements AuthService {
             String userID = claims.getSubject();
             Integer platformID = claims.get("platformID", Integer.class);
             Date expiration = claims.getExpiration();
+            PlatformType platformType = PlatformType.fromCode(platformID);
             
-            if (userID == null || platformID == null) {
+            if (userID == null || platformType == PlatformType.UNKNOWN) {
                 return AuthResult.failure("Token格式无效");
             }
             
@@ -74,7 +76,7 @@ public class JwtAuthService implements AuthService {
             }
             
             // 检查Redis中的Token状态
-            String tokenKey = MessageConstants.REDIS_KEY_USER_TOKEN + userID + ":" + platformID;
+            String tokenKey = MessageConstants.REDIS_KEY_USER_TOKEN + userID + ":" + platformType.getCode();
             String storedToken = (String) redisTemplate.opsForValue().get(tokenKey);
             
             if (storedToken == null) {
@@ -88,8 +90,9 @@ public class JwtAuthService implements AuthService {
             // 更新Token的最后访问时间
             redisTemplate.expire(tokenKey, imServerConfig.getSecurity().getTokenExpiration(), TimeUnit.MILLISECONDS);
             
-            logger.debug("Token validation success: userID={}, platformID={}", userID, platformID);
-            return AuthResult.success(userID, platformID, expiration.getTime());
+            logger.debug("Token validation success: userID={}, platform={}, platformID={}",
+                    userID, platformType.getWireName(), platformType.getCode());
+            return AuthResult.success(userID, platformType.getCode(), expiration.getTime());
             
         } catch (ExpiredJwtException e) {
             logger.warn("Token expired: {}", e.getMessage());
@@ -120,23 +123,27 @@ public class JwtAuthService implements AuthService {
     @Override
     public String generateToken(String userID, Integer platformID) {
         try {
+            PlatformType platformType = PlatformType.fromCode(platformID);
+            if (platformType == PlatformType.UNKNOWN) {
+                throw new IllegalArgumentException("不支持的平台");
+            }
             Date now = new Date();
             Date expiration = new Date(now.getTime() + imServerConfig.getSecurity().getTokenExpiration());
             
             String token = Jwts.builder()
                     .setSubject(userID)
-                    .claim("platformID", platformID)
+                    .claim("platformID", platformType.getCode())
                     .setIssuedAt(now)
                     .setExpiration(expiration)
                     .signWith(getSecretKey(), SignatureAlgorithm.HS256)
                     .compact();
             
             // 将Token存储到Redis
-            String tokenKey = MessageConstants.REDIS_KEY_USER_TOKEN + userID + ":" + platformID;
+            String tokenKey = MessageConstants.REDIS_KEY_USER_TOKEN + userID + ":" + platformType.getCode();
             redisTemplate.opsForValue().set(tokenKey, token, imServerConfig.getSecurity().getTokenExpiration(), TimeUnit.MILLISECONDS);
             
-            logger.info("Token generated: userID={}, platformID={}, expiration={}", 
-                       userID, platformID, expiration);
+            logger.info("Token generated: userID={}, platform={}, platformID={}, expiration={}",
+                    userID, platformType.getWireName(), platformType.getCode(), expiration);
             
             return token;
             
