@@ -1,11 +1,11 @@
 package com.cheeseocean.im.postbox.service;
 
 import com.cheeseocean.im.common.api.dto.message.ConversationLastMessageSummary;
-import com.cheeseocean.im.common.core.constants.MessageConstants;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.common.core.auth.PermissionCheckResult;
 import com.cheeseocean.im.common.core.auth.SessionPrincipal;
 import com.cheeseocean.im.common.core.enums.ConversationKind;
+import com.cheeseocean.im.common.core.enums.ContentType;
 import com.cheeseocean.im.common.core.enums.MessagePreviewType;
 import com.cheeseocean.im.common.core.enums.SessionStatus;
 import com.cheeseocean.im.postbox.api.ConversationSummaryResponse;
@@ -197,7 +197,7 @@ class ConversationQueryServiceTest {
                         3L,
                         "system",
                         "Policy updated",
-                        MessageConstants.CONTENT_TYPE_SYSTEM_NOTIFY,
+                        ContentType.SYSTEM_NOTIFY.getCode(),
                         "系统通知",
                         MessagePreviewType.SYSTEM,
                         1742382600000L,
@@ -226,7 +226,7 @@ class ConversationQueryServiceTest {
         when(blockMessageQueryService.findRecentConversationMappings(50))
                 .thenReturn(List.of(mapping("c1:userA:userB", 9L, "s-9", "userA", 1742382600000L)));
         MessageSlot slot = message(9L, "s-9", "c1:userA:userB", "userA", "{\"raw\":true}");
-        slot.setContentType(MessageConstants.CONTENT_TYPE_REVOKE_NOTIFY);
+        slot.setContentType(ContentType.REVOKE_NOTIFY.getCode());
         when(blockMessageQueryService.findSlot("c1:userA:userB", 9L)).thenReturn(slot);
 
         ConversationQueryService service = new ConversationQueryService(blockMessageQueryService, redisTemplate, permissionService, new MessagePreviewResolver(), new ConversationPresentationResolver());
@@ -251,7 +251,7 @@ class ConversationQueryServiceTest {
         when(blockMessageQueryService.findRecentConversationMappings(50))
                 .thenReturn(List.of(mapping("c1:userA:userB", 9L, "s-9", "userA", 1742382600000L)));
         MessageSlot slot = message(9L, "s-9", "c1:userA:userB", "userA", "{\"read\":true}");
-        slot.setContentType(MessageConstants.CONTENT_TYPE_READ_RECEIPT);
+        slot.setContentType(ContentType.READ_RECEIPT.getCode());
         when(blockMessageQueryService.findSlot("c1:userA:userB", 9L)).thenReturn(slot);
 
         ConversationQueryService service = new ConversationQueryService(blockMessageQueryService, redisTemplate, permissionService, new MessagePreviewResolver(), new ConversationPresentationResolver());
@@ -279,7 +279,7 @@ class ConversationQueryServiceTest {
                         mapping("c3:userB", 8L, "s-8", "system", 1742382500000L)
                 ));
         MessageSlot displayNotification = message(9L, "s-9", "c3:userB", "system", "{\"notice\":true}");
-        displayNotification.setContentType(MessageConstants.CONTENT_TYPE_SYSTEM_NOTIFY);
+        displayNotification.setContentType(ContentType.SYSTEM_NOTIFY.getCode());
         displayNotification.getOptions().setNotification(true);
         when(blockMessageQueryService.findSlot("c3:userB", 9L)).thenReturn(displayNotification);
 

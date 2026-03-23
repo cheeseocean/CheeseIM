@@ -4,7 +4,7 @@ import com.cheeseocean.im.common.api.dto.message.MessageOptions;
 import com.cheeseocean.im.common.api.dto.message.SendMessageReq;
 import com.cheeseocean.im.common.api.dto.message.SendMessageResp;
 import com.cheeseocean.im.common.api.event.IngressEvent;
-import com.cheeseocean.im.common.core.constants.MessageConstants;
+import com.cheeseocean.im.common.core.enums.ContentType;
 import com.cheeseocean.im.common.core.enums.SessionType;
 import org.junit.jupiter.api.Test;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -28,10 +28,10 @@ class MessageSendRpcImplTest {
         SendMessageReq req = new SendMessageReq();
         req.setRequestId("req-1");
         req.setSenderId("u200");
-        req.setSessionType(MessageConstants.SESSION_TYPE_SINGLE);
+        req.setSessionType(SessionType.SINGLE.getCode());
         req.setRecvId("u100");
         req.setClientMsgId("cmsg-1");
-        req.setContentType(MessageConstants.CONTENT_TYPE_TEXT);
+        req.setContentType(ContentType.TEXT.getCode());
         req.setContent("hello");
         req.setSendTime(123L);
 
@@ -56,10 +56,10 @@ class MessageSendRpcImplTest {
         SendMessageReq req = new SendMessageReq();
         req.setRequestId("req-2");
         req.setSenderId("u100");
-        req.setSessionType(MessageConstants.SESSION_TYPE_GROUP);
+        req.setSessionType(SessionType.GROUP.getCode());
         req.setGroupId("g1");
         req.setClientMsgId("cmsg-2");
-        req.setContentType(MessageConstants.CONTENT_TYPE_TEXT);
+        req.setContentType(ContentType.TEXT.getCode());
         req.setContent("team");
 
         SendMessageResp resp = service.sendMessage(req);
@@ -80,10 +80,10 @@ class MessageSendRpcImplTest {
         SendMessageReq req = new SendMessageReq();
         req.setRequestId("req-3");
         req.setSenderId("u100");
-        req.setSessionType(MessageConstants.SESSION_TYPE_SINGLE);
+        req.setSessionType(SessionType.SINGLE.getCode());
         req.setRecvId("u200");
         req.setClientMsgId("cmsg-3");
-        req.setContentType(MessageConstants.CONTENT_TYPE_TEXT);
+        req.setContentType(ContentType.TEXT.getCode());
         req.setContent("hello");
         req.setOptions(options);
 
@@ -103,7 +103,7 @@ class MessageSendRpcImplTest {
 
     @Test
     void sendMessageShouldUseTypingDefaults() {
-        IngressEvent event = publishEventForContentType(SessionType.SINGLE, MessageConstants.CONTENT_TYPE_TYPING);
+        IngressEvent event = publishEventForContentType(SessionType.SINGLE.getCode(), ContentType.TYPING.getCode());
 
         MessageOptions options = event.getOptions();
         assertEquals(false, options.isNeedHistory());
@@ -116,7 +116,7 @@ class MessageSendRpcImplTest {
 
     @Test
     void sendMessageShouldUseReadReceiptDefaults() {
-        IngressEvent event = publishEventForContentType(SessionType.SINGLE, MessageConstants.CONTENT_TYPE_READ_RECEIPT);
+        IngressEvent event = publishEventForContentType(SessionType.SINGLE.getCode(), ContentType.READ_RECEIPT.getCode());
 
         MessageOptions options = event.getOptions();
         assertEquals(false, options.isNeedHistory());
@@ -129,7 +129,7 @@ class MessageSendRpcImplTest {
 
     @Test
     void sendMessageShouldUseRevokeDefaults() {
-        IngressEvent event = publishEventForContentType(SessionType.SINGLE, MessageConstants.CONTENT_TYPE_REVOKE_NOTIFY);
+        IngressEvent event = publishEventForContentType(SessionType.SINGLE.getCode(), ContentType.REVOKE_NOTIFY.getCode());
 
         MessageOptions options = event.getOptions();
         assertEquals(true, options.isNeedHistory());
@@ -144,7 +144,7 @@ class MessageSendRpcImplTest {
 
     @Test
     void sendMessageShouldUseNotificationDefaultsForSystemNotify() {
-        IngressEvent event = publishEventForContentType(SessionType.NOTIFICATION, MessageConstants.CONTENT_TYPE_SYSTEM_NOTIFY);
+        IngressEvent event = publishEventForContentType(SessionType.NOTIFICATION.getCode(), ContentType.SYSTEM_NOTIFY.getCode());
 
         MessageOptions options = event.getOptions();
         assertEquals(true, options.isNeedHistory());
@@ -159,7 +159,7 @@ class MessageSendRpcImplTest {
 
     @Test
     void sendMessageShouldUseSilentNotificationDefaultsForForceLogout() {
-        IngressEvent event = publishEventForContentType(SessionType.NOTIFICATION, MessageConstants.CONTENT_TYPE_FORCE_LOGOUT);
+        IngressEvent event = publishEventForContentType(SessionType.NOTIFICATION.getCode(), ContentType.FORCE_LOGOUT.getCode());
 
         MessageOptions options = event.getOptions();
         assertEquals(false, options.isNeedHistory());
@@ -188,7 +188,7 @@ class MessageSendRpcImplTest {
 
         var eventCaptor = forClass(IngressEvent.class);
         service.sendMessage(req);
-        verify(kafkaTemplate).send(eq("ingress"), eq(sessionType == SessionType.NOTIFICATION ? "c3:u200" : "c1:u100:u200"), eventCaptor.capture());
+        verify(kafkaTemplate).send(eq("ingress"), eq(sessionType == SessionType.NOTIFICATION.getCode() ? "c3:u200" : "c1:u100:u200"), eventCaptor.capture());
         return eventCaptor.getValue();
     }
 }
