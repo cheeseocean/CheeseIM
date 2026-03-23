@@ -1,5 +1,10 @@
 package com.cheeseocean.im.postoffice.protocol;
 
+import com.cheeseocean.im.common.api.dto.message.ChatSendRequest;
+import com.cheeseocean.im.common.api.dto.message.ReadReceiptPayload;
+import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
+import com.cheeseocean.im.common.core.enums.CommandType;
+import com.cheeseocean.im.common.core.enums.ReceiptType;
 import com.cheeseocean.im.common.core.util.ObjectMapperFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -186,6 +191,59 @@ public class CheeseMessage implements Serializable {
         }
         
         return wsMessage;
+    }
+
+    public ClientEnvelope toClientEnvelope() {
+        ClientEnvelope envelope = new ClientEnvelope();
+        envelope.setCommand(resolveCommandType());
+        envelope.setRequestId(operationID);
+        envelope.setBody(resolveClientBody());
+        return envelope;
+    }
+
+    private CommandType resolveCommandType() {
+        switch (msgType) {
+            case CheeseMessageType.TCP_SEND_MSG_REQ:
+            case CheeseMessageType.TCP_MSG_READ_RECEIPT:
+                return CommandType.CHAT_SEND;
+            case CheeseMessageType.TCP_REVOKE_MSG_REQ:
+                return CommandType.CHAT_REVOKE;
+            case CheeseMessageType.TCP_AUTH_REQ:
+                return CommandType.AUTH;
+            case CheeseMessageType.TCP_HEARTBEAT_REQ:
+                return CommandType.HEARTBEAT;
+            case CheeseMessageType.TCP_CONNECT_REQ:
+                return CommandType.CONNECT;
+            default:
+                return null;
+        }
+    }
+
+    private Object resolveClientBody() {
+        if (data == null || data.isEmpty()) {
+            return null;
+        }
+
+        switch (msgType) {
+            case CheeseMessageType.TCP_SEND_MSG_REQ:
+                return readBody(ChatSendRequest.class);
+            case CheeseMessageType.TCP_MSG_READ_RECEIPT:
+                ReadReceiptPayload payload = readBody(ReadReceiptPayload.class);
+                if (payload != null && payload.getReceiptType() == null) {
+                    payload.setReceiptType(ReceiptType.READ_CURSOR);
+                }
+                return payload;
+            default:
+                return data;
+        }
+    }
+
+    private <T> T readBody(Class<T> bodyType) {
+        try {
+            return OBJECT_MAPPER.readValue(data, bodyType);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Failed to decode TCP body as " + bodyType.getSimpleName(), e);
+        }
     }
     
     /**

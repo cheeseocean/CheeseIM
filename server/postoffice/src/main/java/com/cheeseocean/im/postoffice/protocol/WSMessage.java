@@ -1,6 +1,14 @@
 package com.cheeseocean.im.postoffice.protocol;
 
+import com.cheeseocean.im.common.api.dto.message.ChatSendRequest;
+import com.cheeseocean.im.common.api.dto.message.ReadReceiptPayload;
+import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
+import com.cheeseocean.im.common.core.enums.CommandType;
+import com.cheeseocean.im.common.core.enums.ReceiptType;
+import com.cheeseocean.im.common.core.util.ObjectMapperFactory;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
@@ -11,6 +19,7 @@ import java.util.Map;
 public class WSMessage implements Serializable {
     
     private static final long serialVersionUID = 1L;
+    private static final ObjectMapper OBJECT_MAPPER = ObjectMapperFactory.createDefaultMapper();
     
     /**
      * 消息类型
@@ -174,6 +183,69 @@ public class WSMessage implements Serializable {
     public static WSMessage errorResp(String operationID, int errorCode, String errorMsg) {
         return new WSMessage(WSMessageType.WS_ERROR_RESP, operationID, 
                            Map.of("errCode", errorCode, "errMsg", errorMsg));
+    }
+
+    public ClientEnvelope toClientEnvelope() {
+        ClientEnvelope envelope = new ClientEnvelope();
+        envelope.setCommand(resolveCommandType());
+        envelope.setRequestId(operationID);
+        envelope.setBody(resolveClientBody());
+        return envelope;
+    }
+
+    private CommandType resolveCommandType() {
+        if (msgType == null) {
+            return null;
+        }
+        switch (msgType) {
+            case WSMessageType.WS_SEND_MSG_REQ:
+            case WSMessageType.WS_MSG_READ_NOTIFY:
+                return CommandType.CHAT_SEND;
+            case WSMessageType.WS_MSG_REVOKE_NOTIFY:
+                return CommandType.CHAT_REVOKE;
+            case WSMessageType.WS_AUTH_REQ:
+                return CommandType.AUTH;
+            case WSMessageType.WS_HEARTBEAT_REQ:
+                return CommandType.HEARTBEAT;
+            case WSMessageType.WS_CONNECT_REQ:
+                return CommandType.CONNECT;
+            default:
+                return null;
+        }
+    }
+
+    private Object resolveClientBody() {
+        if (data == null) {
+            return null;
+        }
+
+        if (msgType == null) {
+            return data;
+        }
+
+        switch (msgType) {
+            case WSMessageType.WS_SEND_MSG_REQ:
+                return readBody(ChatSendRequest.class);
+            case WSMessageType.WS_MSG_READ_NOTIFY:
+                ReadReceiptPayload payload = readBody(ReadReceiptPayload.class);
+                if (payload != null && payload.getReceiptType() == null) {
+                    payload.setReceiptType(ReceiptType.READ_CURSOR);
+                }
+                return payload;
+            default:
+                return data;
+        }
+    }
+
+    private <T> T readBody(Class<T> bodyType) {
+        try {
+            if (data instanceof String) {
+                return OBJECT_MAPPER.readValue((String) data, bodyType);
+            }
+            return OBJECT_MAPPER.readValue(OBJECT_MAPPER.writeValueAsString(data), bodyType);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Failed to decode WS body as " + bodyType.getSimpleName(), e);
+        }
     }
     
     /**

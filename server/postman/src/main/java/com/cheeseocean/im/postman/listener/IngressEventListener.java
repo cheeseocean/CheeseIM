@@ -6,6 +6,7 @@ import com.cheeseocean.im.common.api.event.HistoryEvent;
 import com.cheeseocean.im.common.api.event.IngressEvent;
 import com.cheeseocean.im.common.core.constants.MessageConstants;
 import com.cheeseocean.im.common.core.constants.TopicNames;
+import com.cheeseocean.im.common.core.enums.SessionType;
 import com.cheeseocean.im.postman.service.GroupFanoutPlanner;
 import com.cheeseocean.im.postman.service.GroupMembershipFacade;
 import com.cheeseocean.im.postman.service.MessagePolicyEngine;
@@ -81,7 +82,7 @@ public class IngressEventListener {
             return;
         }
 
-        if (event.getSessionType() != null && event.getSessionType() == MessageConstants.SESSION_TYPE_GROUP) {
+        if (event.getSessionType() != null && event.getSessionType() == SessionType.GROUP.getCode()) {
             routeGroupIngress(message, targets);
             return;
         }
@@ -107,7 +108,7 @@ public class IngressEventListener {
     }
 
     private List<String> resolveTargets(SequencedMessage message, MessageRouteDecision decision) {
-        if (message.getSessionType() != null && message.getSessionType() == MessageConstants.SESSION_TYPE_GROUP) {
+        if (message.getSessionType() != null && message.getSessionType() == SessionType.GROUP.getCode()) {
             return groupMembershipFacade.loadTargets(message.getConversationId());
         }
         if (decision.senderSync() && message.getSenderId() != null) {

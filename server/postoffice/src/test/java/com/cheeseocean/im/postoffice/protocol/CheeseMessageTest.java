@@ -1,9 +1,17 @@
 package com.cheeseocean.im.postoffice.protocol;
 
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchPayload;
+import com.cheeseocean.im.common.api.dto.message.ChatSendRequest;
+import com.cheeseocean.im.common.api.dto.message.ReadReceiptPayload;
+import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
+import com.cheeseocean.im.common.core.enums.CommandType;
+import com.cheeseocean.im.common.core.enums.ReceiptType;
+import com.cheeseocean.im.postoffice.client.ProtocolContractFixtures;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CheeseMessageTest {
@@ -46,6 +54,90 @@ class CheeseMessageTest {
         WSMessage wsMessage = message.toWSMessage();
 
         assertEquals(WSMessageType.WS_MSG_READ_NOTIFY, wsMessage.getMsgType());
+    }
+
+    @Test
+    void toClientEnvelopeShouldTranslateTcpSendMessageToChatSendRequest() throws Exception {
+        CheeseMessage message = new CheeseMessage(
+                CheeseMessageType.TCP_SEND_MSG_REQ,
+                "op-chat-1",
+                ProtocolContractFixtures.tcpSendRequestJson()
+        );
+
+        ClientEnvelope envelope = message.toClientEnvelope();
+
+        assertEquals(CommandType.CHAT_SEND, envelope.getCommand());
+        assertEquals("op-chat-1", envelope.getRequestId());
+        ChatSendRequest body = assertInstanceOf(ChatSendRequest.class, envelope.getBody());
+        assertEquals(ProtocolContractFixtures.PEER_USER_ID, body.getRecvId());
+        assertEquals(ProtocolContractFixtures.CLIENT_MSG_ID, body.getClientMsgId());
+        assertEquals(101, body.getContentType());
+
+        String serialized = new ObjectMapper().writeValueAsString(body);
+        assertTrue(serialized.contains("\"clientMsgID\":\"" + ProtocolContractFixtures.CLIENT_MSG_ID + "\""));
+        assertTrue(serialized.contains("\"recvID\":\"" + ProtocolContractFixtures.PEER_USER_ID + "\""));
+        assertTrue(serialized.contains("\"content\":\"Hello World!\""));
+        assertTrue(serialized.contains("\"sessionType\":1"));
+    }
+
+    @Test
+    void toClientEnvelopeShouldTranslateTcpReadReceiptToReadReceiptPayload() {
+        CheeseMessage message = new CheeseMessage(
+                CheeseMessageType.TCP_MSG_READ_RECEIPT,
+                "op-read-2",
+                "{\"receiptType\":\"READ_CURSOR\",\"conversationId\":\"single:user-a:user-b\",\"seq\":19}"
+        );
+
+        ClientEnvelope envelope = message.toClientEnvelope();
+
+        assertEquals(CommandType.CHAT_SEND, envelope.getCommand());
+        assertEquals("op-read-2", envelope.getRequestId());
+        ReadReceiptPayload body = assertInstanceOf(ReadReceiptPayload.class, envelope.getBody());
+        assertEquals(ReceiptType.READ_CURSOR, body.getReceiptType());
+        assertEquals("single:user-a:user-b", body.getConversationId());
+        assertEquals(19L, body.getSeq());
+    }
+
+    @Test
+    void toClientEnvelopeShouldTranslateWsSendMessageToChatSendRequest() throws Exception {
+        WSMessage wsMessage = ProtocolContractFixtures.wsSendRequest();
+
+        ClientEnvelope envelope = wsMessage.toClientEnvelope();
+
+        assertEquals(CommandType.CHAT_SEND, envelope.getCommand());
+        assertEquals(ProtocolContractFixtures.SEND_OPERATION_ID, envelope.getRequestId());
+        ChatSendRequest body = assertInstanceOf(ChatSendRequest.class, envelope.getBody());
+        assertEquals(ProtocolContractFixtures.PEER_USER_ID, body.getRecvId());
+        assertEquals(ProtocolContractFixtures.CLIENT_MSG_ID, body.getClientMsgId());
+        assertEquals(101, body.getContentType());
+
+        String serialized = new ObjectMapper().writeValueAsString(body);
+        assertTrue(serialized.contains("\"clientMsgID\":\"" + ProtocolContractFixtures.CLIENT_MSG_ID + "\""));
+        assertTrue(serialized.contains("\"recvID\":\"" + ProtocolContractFixtures.PEER_USER_ID + "\""));
+        assertTrue(serialized.contains("\"content\":\"Hello World!\""));
+        assertTrue(serialized.contains("\"sessionType\":1"));
+    }
+
+    @Test
+    void toClientEnvelopeShouldTranslateWsReadReceiptToReadReceiptPayload() {
+        WSMessage wsMessage = new WSMessage(
+                WSMessageType.WS_MSG_READ_NOTIFY,
+                "op-read-3",
+                java.util.Map.of(
+                        "receiptType", "READ_CURSOR",
+                        "conversationId", "single:user-a:user-b",
+                        "seq", 21L
+                )
+        );
+
+        ClientEnvelope envelope = wsMessage.toClientEnvelope();
+
+        assertEquals(CommandType.CHAT_SEND, envelope.getCommand());
+        assertEquals("op-read-3", envelope.getRequestId());
+        ReadReceiptPayload body = assertInstanceOf(ReadReceiptPayload.class, envelope.getBody());
+        assertEquals(ReceiptType.READ_CURSOR, body.getReceiptType());
+        assertEquals("single:user-a:user-b", body.getConversationId());
+        assertEquals(21L, body.getSeq());
     }
 
     @Test
