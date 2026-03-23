@@ -1,5 +1,6 @@
 package com.cheeseocean.im.push.service.impl;
 
+import com.cheeseocean.im.common.core.enums.PlatformType;
 import com.cheeseocean.im.push.service.PushStatisticsService;
 import org.springframework.stereotype.Service;
 
@@ -79,14 +80,7 @@ public class InMemoryPushStatisticsService implements PushStatisticsService {
     }
 
     private String platformName(Integer platformId) {
-        return switch (platformId == null ? 0 : platformId) {
-            case 1 -> "iOS";
-            case 2 -> "Android";
-            case 3 -> "Web";
-            case 4 -> "Windows";
-            case 5 -> "Mac";
-            default -> "Unknown";
-        };
+        return PlatformType.fromCode(platformId).getDisplayName();
     }
 
     private static final class ProviderStatsBucket {

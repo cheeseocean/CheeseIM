@@ -2,6 +2,7 @@ package com.cheeseocean.im.postoffice.connection;
 
 import com.cheeseocean.im.common.core.auth.SessionPrincipal;
 import com.cheeseocean.im.common.core.enums.ConnectionState;
+import com.cheeseocean.im.common.core.enums.PlatformType;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -46,18 +47,7 @@ public class ConnectionBindService {
     }
 
     private Integer resolvePlatformId(String platform) {
-        if (platform == null || platform.isBlank()) {
-            return null;
-        }
-        return switch (platform.toLowerCase()) {
-            case "ios" -> 1;
-            case "android" -> 2;
-            case "windows" -> 3;
-            case "osx", "mac", "macos" -> 4;
-            case "web" -> 5;
-            case "miniweb" -> 6;
-            case "linux" -> 7;
-            default -> null;
-        };
+        PlatformType platformType = PlatformType.fromName(platform);
+        return platformType == PlatformType.UNKNOWN ? null : platformType.getCode();
     }
 }

@@ -2,6 +2,7 @@ package com.cheeseocean.im.authcenter.auth;
 
 import com.cheeseocean.im.authcenter.config.AuthCenterConfig;
 import com.cheeseocean.im.common.core.auth.SessionPrincipal;
+import com.cheeseocean.im.common.core.enums.PlatformType;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
@@ -53,27 +54,7 @@ public class JwtTokenIssuer {
     }
 
     private int platformId(String platform) {
-        if (platform == null) {
-            return 0;
-        }
-        switch (platform.toLowerCase()) {
-            case "ios":
-                return 1;
-            case "android":
-                return 2;
-            case "windows":
-                return 3;
-            case "osx":
-                return 4;
-            case "web":
-                return 5;
-            case "miniweb":
-                return 6;
-            case "linux":
-                return 7;
-            default:
-                return 0;
-        }
+        return PlatformType.fromName(platform).getCode();
     }
 
     public static class TokenPair {

@@ -1,6 +1,7 @@
 package com.cheeseocean.im.push.service.impl;
 
 import com.cheeseocean.im.common.api.dto.message.Message;
+import com.cheeseocean.im.common.core.enums.PlatformType;
 import com.cheeseocean.im.common.core.constants.MessageDisplayConstants;
 import com.cheeseocean.im.common.core.enums.ContentType;
 import com.cheeseocean.im.common.core.enums.SessionType;
@@ -431,21 +432,14 @@ public class OfflinePushServiceImpl implements OfflinePushService {
     }
 
     private void configurePlatformSpecificProperties(PushMessage pushMessage, Integer platformID) {
-        if (platformID == null) {
-            return;
-        }
-
-        switch (platformID) {
-            case 1:
+        switch (PlatformType.fromCode(platformID)) {
+            case IOS:
                 pushMessage.setSound("default");
                 pushMessage.setBadge(1);
                 pushMessage.setCategory("MESSAGE");
                 break;
-            case 2:
+            case ANDROID:
                 pushMessage.setSound("default");
-                pushMessage.setPriority(2);
-                break;
-            case 3:
                 pushMessage.setPriority(2);
                 break;
             default:

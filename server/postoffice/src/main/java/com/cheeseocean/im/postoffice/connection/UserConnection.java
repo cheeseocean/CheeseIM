@@ -1,5 +1,6 @@
 package com.cheeseocean.im.postoffice.connection;
 
+import com.cheeseocean.im.common.core.enums.PlatformType;
 import io.netty.channel.Channel;
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicLong;
@@ -213,19 +214,7 @@ public class UserConnection implements Serializable {
      * 获取平台名称
      */
     public String getPlatformName() {
-        if (platformID == null) {
-            return "Unknown";
-        }
-        switch (platformID) {
-            case 1: return "iOS";
-            case 2: return "Android";
-            case 3: return "Windows";
-            case 4: return "OSX";
-            case 5: return "WEB";
-            case 6: return "MiniWeb";
-            case 7: return "Linux";
-            default: return "Unknown";
-        }
+        return PlatformType.fromCode(platformID).getDisplayName();
     }
     
     /**

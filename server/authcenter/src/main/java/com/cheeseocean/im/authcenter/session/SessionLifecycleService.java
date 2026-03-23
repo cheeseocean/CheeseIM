@@ -11,6 +11,7 @@ import com.cheeseocean.im.authcenter.repository.SessionRepository;
 import com.cheeseocean.im.authcenter.repository.UserSecurityRepository;
 import com.cheeseocean.im.common.api.session.SessionRevocationService;
 import com.cheeseocean.im.common.core.auth.SessionPrincipal;
+import com.cheeseocean.im.common.core.enums.PlatformType;
 import com.cheeseocean.im.common.core.enums.SessionStatus;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.stereotype.Service;
@@ -56,7 +57,7 @@ public class SessionLifecycleService {
         principal.setUserId(request.getUserId());
         principal.setPlatformId(request.getPlatformId());
         principal.setDeviceId(request.getDeviceId());
-        principal.setPlatform(platformName(request.getPlatformId()));
+        principal.setPlatform(PlatformType.fromCode(request.getPlatformId()).getWireName());
         principal.setAccessToken("login-bootstrap");
 
         SessionPrincipal session = sessionTicketService.buildSession(principal, request.getDeviceId(),
@@ -110,29 +111,5 @@ public class SessionLifecycleService {
 
     public void kickoffAll(String userId) {
         sessionRevocationService.revokeUserSessions(userId, "kickoff all");
-    }
-
-    private String platformName(Integer platformId) {
-        if (platformId == null) {
-            return "unknown";
-        }
-        switch (platformId) {
-            case 1:
-                return "ios";
-            case 2:
-                return "android";
-            case 3:
-                return "windows";
-            case 4:
-                return "osx";
-            case 5:
-                return "web";
-            case 6:
-                return "miniweb";
-            case 7:
-                return "linux";
-            default:
-                return "unknown";
-        }
     }
 }

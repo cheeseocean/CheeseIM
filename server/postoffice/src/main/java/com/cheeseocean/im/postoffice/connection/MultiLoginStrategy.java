@@ -1,5 +1,7 @@
 package com.cheeseocean.im.postoffice.connection;
 
+import com.cheeseocean.im.common.core.enums.PlatformType;
+
 import java.util.List;
 
 /**
@@ -114,31 +116,21 @@ public enum MultiLoginStrategy {
     }
     
     private boolean isPCPlatform(Integer platformID) {
-        return platformID != null && (platformID == 3 || platformID == 4 || platformID == 7);
+        return PlatformType.fromCode(platformID).isPc();
     }
     
     private PlatformClass getPlatformClass(Integer platformID) {
-        if (platformID == null) {
-            return PlatformClass.UNKNOWN;
+        PlatformType platformType = PlatformType.fromCode(platformID);
+        if (platformType.isMobile()) {
+            return PlatformClass.MOBILE;
         }
-        
-        switch (platformID) {
-            case 1:
-            case 2:
-                return PlatformClass.MOBILE;
-                
-            case 3:
-            case 4:
-            case 7:
-                return PlatformClass.PC;
-                
-            case 5:
-            case 6:
-                return PlatformClass.WEB;
-                
-            default:
-                return PlatformClass.UNKNOWN;
+        if (platformType.isPc()) {
+            return PlatformClass.PC;
         }
+        if (platformType.isWeb()) {
+            return PlatformClass.WEB;
+        }
+        return PlatformClass.UNKNOWN;
     }
     
     private enum PlatformClass {

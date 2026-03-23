@@ -1,7 +1,7 @@
 package com.cheeseocean.im.authcenter.auth;
 
 import com.cheeseocean.im.authcenter.config.AuthCenterConfig;
-import com.cheeseocean.im.common.core.constants.MessageConstants;
+import com.cheeseocean.im.common.core.enums.PlatformType;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
@@ -48,8 +48,9 @@ public class AccessTokenService {
             principal.setUserId(userId);
             principal.setPlatformId(platformId);
             principal.setExpireAt(expiration == null ? null : expiration.getTime());
-            principal.setDeviceId(platformName(platformId) + "-" + platformId);
-            principal.setPlatform(platformName(platformId));
+            PlatformType platformType = PlatformType.fromCode(platformId);
+            principal.setDeviceId(platformType.getWireName() + "-" + platformId);
+            principal.setPlatform(platformType.getWireName());
             return principal;
         } catch (ExpiredJwtException e) {
             throw new IllegalStateException("access token expired");
@@ -69,27 +70,4 @@ public class AccessTokenService {
         return secretKey;
     }
 
-    private String platformName(Integer platformId) {
-        if (platformId == null) {
-            return "unknown";
-        }
-        switch (platformId) {
-            case MessageConstants.PLATFORM_IOS:
-                return "ios";
-            case MessageConstants.PLATFORM_ANDROID:
-                return "android";
-            case MessageConstants.PLATFORM_WINDOWS:
-                return "windows";
-            case MessageConstants.PLATFORM_OSX:
-                return "osx";
-            case MessageConstants.PLATFORM_WEB:
-                return "web";
-            case MessageConstants.PLATFORM_MINI_WEB:
-                return "miniweb";
-            case MessageConstants.PLATFORM_LINUX:
-                return "linux";
-            default:
-                return "unknown";
-        }
-    }
 }
