@@ -1,0 +1,9 @@
+  ${AnsiColor.BRIGHT_RED}███████╗██╗  ██╗███████╗███████╗███████╗███████╗██╗███╗   ███╗
+  ${AnsiColor.BRIGHT_RED}██╔════╝██║  ██║██╔════╝██╔════╝██╔════╝██╔════╝██║████╗ ████║
+  ${AnsiColor.BRIGHT_YELLOW}██║     ███████║█████╗  █████╗  ███████╗█████╗  ██║██╔████╔██║
+  ${AnsiColor.BRIGHT_GREEN}██║     ██╔══██║██╔══╝  ██╔══╝  ╚════██║██╔══╝  ██║██║╚██╔╝██║
+  ${AnsiColor.BRIGHT_CYAN}╚██████╗██║  ██║███████╗███████╗███████║███████╗██║██║ ╚═╝ ██║
+  ${AnsiColor.BRIGHT_BLUE} ╚═════╝╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝╚══════╝╚═╝╚═╝     ╚═╝
+${AnsiColor.DEFAULT}
+  CheeseIM: The Ultimate Messaging Platform
+  Spring Boot Version: ${spring-boot.version}
