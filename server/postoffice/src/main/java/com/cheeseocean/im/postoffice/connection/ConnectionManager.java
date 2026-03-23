@@ -350,7 +350,7 @@ public class ConnectionManager {
         try {
             // 发送强制下线通知
             WSMessage forceLogoutMsg = WSMessage.forceLogoutNotify("system", reason);
-            sendMessageToConnection(connection, forceLogoutMsg);
+            sendTransportMessage(connection, forceLogoutMsg);
             
             // 关闭连接
             if (connection.getChannel() != null && connection.getChannel().isActive()) {
@@ -371,7 +371,14 @@ public class ConnectionManager {
     /**
      * 向连接发送消息
      */
-    public boolean sendMessageToConnection(UserConnection connection, WSMessage message) {
+    public boolean sendMessageToConnection(UserConnection connection, ServerEnvelope envelope) {
+        if (envelope == null) {
+            return false;
+        }
+        return sendTransportMessage(connection, WSMessage.fromServerEnvelope(envelope));
+    }
+
+    private boolean sendTransportMessage(UserConnection connection, WSMessage message) {
         try {
             if (connection == null || connection.getChannel() == null || !connection.getChannel().isActive()) {
                 return false;
@@ -393,23 +400,16 @@ public class ConnectionManager {
             return false;
         }
     }
-
-    public boolean sendEnvelopeToConnection(UserConnection connection, ServerEnvelope envelope) {
-        if (envelope == null) {
-            return false;
-        }
-        return sendMessageToConnection(connection, WSMessage.fromServerEnvelope(envelope));
-    }
     
     /**
      * 向用户的所有连接发送消息
      */
-    public int sendMessageToUser(String userID, WSMessage message) {
+    public int sendMessageToUser(String userID, ServerEnvelope envelope) {
         List<UserConnection> connections = getUserConnections(userID);
         int successCount = 0;
         
         for (UserConnection connection : connections) {
-            if (sendMessageToConnection(connection, message)) {
+            if (sendMessageToConnection(connection, envelope)) {
                 successCount++;
             }
         }
@@ -420,11 +420,11 @@ public class ConnectionManager {
     /**
      * 广播消息给所有在线用户
      */
-    public int broadcastMessage(WSMessage message) {
+    public int broadcastMessage(ServerEnvelope envelope) {
         int successCount = 0;
         
         for (UserConnection connection : connectionMap.values()) {
-            if (sendMessageToConnection(connection, message)) {
+            if (sendMessageToConnection(connection, envelope)) {
                 successCount++;
             }
         }

@@ -73,7 +73,7 @@ public class OnlineDispatchRpcImpl implements OnlineDispatchRpc {
             return new DispatchResult(connectionId, true, "DUPLICATE", "delivery already recorded");
         }
         ServerEnvelope envelope = ServerEnvelope.chatRecv(payload.getServerMsgId(), payload);
-        boolean success = connectionManager.sendEnvelopeToConnection(
+        boolean success = connectionManager.sendMessageToConnection(
                 connection,
                 envelope);
         if (success) {
