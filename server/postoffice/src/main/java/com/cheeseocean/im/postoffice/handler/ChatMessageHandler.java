@@ -1,22 +1,26 @@
 package com.cheeseocean.im.postoffice.handler;
 
+import com.cheeseocean.im.common.api.dto.message.ChatSendRequest;
 import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.dto.message.SendMessageReq;
 import com.cheeseocean.im.common.api.dto.message.SendMessageResp;
 import com.cheeseocean.im.common.api.rpc.MessageSendRpc;
+import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
+import com.cheeseocean.im.common.core.enums.CommandType;
 import com.cheeseocean.im.postoffice.auth.ConnectionSessionGuard;
 import com.cheeseocean.im.postoffice.connection.ConnectionContext;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.postoffice.protocol.WSMessage;
-import com.cheeseocean.im.postoffice.protocol.WSMessageType;
 import com.cheeseocean.im.postoffice.service.MessageSendReqMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -43,9 +47,9 @@ public class ChatMessageHandler implements MessageHandler {
     private ConnectionSessionGuard connectionSessionGuard;
     
     @Override
-    public HandleResult handle(UserConnection connection, WSMessage message) {
+    public HandleResult handle(UserConnection connection, ClientEnvelope envelope) {
         try {
-            String operationID = message.getOperationID();
+            String operationID = envelope.getRequestId();
             
             // 检查用户是否已认证
             if (!connection.isAuthenticated()) {
@@ -62,17 +66,19 @@ public class ChatMessageHandler implements MessageHandler {
             connectionSessionGuard.ensureValid(connection);
             
             // 检查消息数据
-            if (message.getData() == null) {
+            if (envelope.getBody() == null) {
                 WSMessage errorResp = WSMessage.paramError(operationID, "消息数据不能为空");
                 return HandleResult.failure("消息数据不能为空", errorResp);
             }
             
             // 解析消息数据
-            Message msgData = parseMessageData(message.getData());
-            if (msgData == null) {
+            ChatSendRequest request = parseChatSendRequest(envelope.getBody());
+            if (request == null) {
                 WSMessage errorResp = WSMessage.paramError(operationID, "消息数据格式错误");
                 return HandleResult.failure("消息数据格式错误", errorResp);
             }
+
+            Message msgData = toMessage(request, connection);
             
             // 验证消息参数
             String validationError = validateMessage(msgData, connection);
@@ -115,43 +121,65 @@ public class ChatMessageHandler implements MessageHandler {
             return HandleResult.success(sendMsgRespMsg);
             
         } catch (IllegalStateException e) {
-            WSMessage errorResp = WSMessage.permissionError(message.getOperationID(), e.getMessage());
+            WSMessage errorResp = WSMessage.permissionError(envelope.getRequestId(), e.getMessage());
             return HandleResult.failureAndClose(e.getMessage(), errorResp);
         } catch (Exception e) {
             logger.error("Failed to handle chat message: userID={}, connectionID={}", 
                         connection.getUserID(), connection.getConnectionID(), e);
             
-            WSMessage errorResp = WSMessage.internalError(message.getOperationID(), "消息处理失败");
+            WSMessage errorResp = WSMessage.internalError(envelope.getRequestId(), "消息处理失败");
             return HandleResult.failure("消息处理失败", errorResp);
         }
     }
     
     @Override
-    public int getSupportedMessageType() {
-        return WSMessageType.WS_SEND_MSG_REQ;
+    public CommandType getSupportedCommand() {
+        return CommandType.CHAT_SEND;
     }
     
     /**
-     * 解析消息数据
+     * 解析聊天请求数据
      */
-    private Message parseMessageData(Object data) {
+    private ChatSendRequest parseChatSendRequest(Object data) {
         try {
-            if (data instanceof Message) {
-                return (Message) data;
+            if (data instanceof ChatSendRequest) {
+                return (ChatSendRequest) data;
             } else if (data instanceof Map) {
-                String jsonStr = objectMapper.writeValueAsString(data);
-                return objectMapper.readValue(jsonStr, Message.class);
+                return objectMapper.convertValue(data, ChatSendRequest.class);
             } else if (data instanceof String) {
-                return objectMapper.readValue((String) data, Message.class);
+                return objectMapper.readValue((String) data, ChatSendRequest.class);
             } else {
-                // 尝试转换为Message对象
-                String jsonStr = objectMapper.writeValueAsString(data);
-                return objectMapper.readValue(jsonStr, Message.class);
+                return objectMapper.convertValue(data, ChatSendRequest.class);
             }
         } catch (Exception e) {
-            logger.error("Failed to parse message data: {}", data, e);
+            logger.error("Failed to parse chat request data: {}", data, e);
             return null;
         }
+    }
+
+    private Message toMessage(ChatSendRequest request, UserConnection connection) {
+        Message message = new Message();
+        message.setClientMsgID(request.getClientMsgId());
+        message.setRecvID(request.getRecvId());
+        message.setGroupID(request.getGroupId());
+        message.setContent(request.getContent());
+        message.setContentType(request.getContentType());
+        message.setSessionType(request.getSessionType());
+        message.setSendTime(request.getSendTime());
+        if (request.getOptions() != null) {
+            message.setOptions(objectMapper.convertValue(request.getOptions(), new TypeReference<Map<String, Boolean>>() {}));
+        }
+        if (request.getExt() != null && !request.getExt().isEmpty()) {
+            message.setAttachedInfo(request.getExt().get("attachedInfo"));
+        }
+        ConnectionContext context = connection.getContext();
+        if (context != null && context.getPlatformId() != null) {
+            message.setPlatformID(context.getPlatformId());
+        } else {
+            message.setPlatformID(connection.getPlatformID());
+        }
+        message.setSendID(context != null && context.getUserId() != null ? context.getUserId() : connection.getUserID());
+        return message;
     }
     
     /**

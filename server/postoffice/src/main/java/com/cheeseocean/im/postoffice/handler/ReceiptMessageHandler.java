@@ -1,11 +1,11 @@
 package com.cheeseocean.im.postoffice.handler;
 
 import com.cheeseocean.im.common.api.event.ReceiptEvent;
+import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
 import com.cheeseocean.im.postoffice.auth.ConnectionSessionGuard;
 import com.cheeseocean.im.postoffice.connection.ConnectionContext;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.postoffice.protocol.WSMessage;
-import com.cheeseocean.im.postoffice.protocol.WSMessageType;
 import com.cheeseocean.im.postoffice.service.GatewayReceiptPublisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -30,29 +30,29 @@ public class ReceiptMessageHandler implements MessageHandler {
     private ConnectionSessionGuard connectionSessionGuard;
 
     @Override
-    public HandleResult handle(UserConnection connection, WSMessage message) {
+    public HandleResult handle(UserConnection connection, ClientEnvelope envelope) {
         try {
             if (!connection.isAuthenticated()) {
-                WSMessage errorResp = WSMessage.permissionError(message.getOperationID(), "用户未认证，无法上报回执");
+                WSMessage errorResp = WSMessage.permissionError(envelope.getRequestId(), "用户未认证，无法上报回执");
                 return HandleResult.failure("用户未认证", errorResp);
             }
 
             ConnectionContext context = connection.getContext();
             if (context == null || !context.isAuthenticated()) {
-                WSMessage errorResp = WSMessage.permissionError(message.getOperationID(), "连接上下文无效");
+                WSMessage errorResp = WSMessage.permissionError(envelope.getRequestId(), "连接上下文无效");
                 return HandleResult.failure("连接上下文无效", errorResp);
             }
 
             connectionSessionGuard.ensureValid(connection);
 
-            if (message.getData() == null) {
-                WSMessage errorResp = WSMessage.paramError(message.getOperationID(), "回执数据不能为空");
+            if (envelope.getBody() == null) {
+                WSMessage errorResp = WSMessage.paramError(envelope.getRequestId(), "回执数据不能为空");
                 return HandleResult.failure("回执数据不能为空", errorResp);
             }
 
-            ReceiptPayload payload = parsePayload(message.getData());
+            ReceiptPayload payload = parsePayload(envelope.getBody());
             if (payload == null) {
-                WSMessage errorResp = WSMessage.paramError(message.getOperationID(), "回执数据格式错误");
+                WSMessage errorResp = WSMessage.paramError(envelope.getRequestId(), "回执数据格式错误");
                 return HandleResult.failure("回执数据格式错误", errorResp);
             }
 
@@ -61,27 +61,27 @@ public class ReceiptMessageHandler implements MessageHandler {
             connection.incrementRecvMsg();
 
             return HandleResult.success(new WSMessage(
-                    WSMessageType.WS_MSG_READ_NOTIFY,
-                    message.getOperationID(),
+                    com.cheeseocean.im.postoffice.protocol.WSMessageType.WS_MSG_READ_NOTIFY,
+                    envelope.getRequestId(),
                     Map.of("status", "ACCEPTED", "receiptType", event.getReceiptType())
             ));
         } catch (IllegalArgumentException e) {
-            WSMessage errorResp = WSMessage.paramError(message.getOperationID(), e.getMessage());
+            WSMessage errorResp = WSMessage.paramError(envelope.getRequestId(), e.getMessage());
             return HandleResult.failure(e.getMessage(), errorResp);
         } catch (IllegalStateException e) {
-            WSMessage errorResp = WSMessage.permissionError(message.getOperationID(), e.getMessage());
+            WSMessage errorResp = WSMessage.permissionError(envelope.getRequestId(), e.getMessage());
             return HandleResult.failureAndClose(e.getMessage(), errorResp);
         } catch (Exception e) {
             logger.error("Failed to handle receipt message: userID={}, connectionID={}",
                     connection.getUserID(), connection.getConnectionID(), e);
-            WSMessage errorResp = WSMessage.internalError(message.getOperationID(), "回执处理失败");
+            WSMessage errorResp = WSMessage.internalError(envelope.getRequestId(), "回执处理失败");
             return HandleResult.failure("回执处理失败", errorResp);
         }
     }
 
     @Override
-    public int getSupportedMessageType() {
-        return WSMessageType.WS_MSG_READ_NOTIFY;
+    public com.cheeseocean.im.common.core.enums.CommandType getSupportedCommand() {
+        return com.cheeseocean.im.common.core.enums.CommandType.READ_RECEIPT;
     }
 
     private ReceiptPayload parsePayload(Object data) {

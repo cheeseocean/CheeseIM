@@ -1,12 +1,12 @@
 package com.cheeseocean.im.postoffice.handler;
 
 import com.cheeseocean.im.common.api.event.ReceiptEvent;
+import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
 import com.cheeseocean.im.common.core.enums.ConnectionState;
+import com.cheeseocean.im.common.core.enums.CommandType;
 import com.cheeseocean.im.postoffice.auth.ConnectionSessionGuard;
 import com.cheeseocean.im.postoffice.connection.ConnectionContext;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
-import com.cheeseocean.im.postoffice.protocol.WSMessage;
-import com.cheeseocean.im.postoffice.protocol.WSMessageType;
 import com.cheeseocean.im.postoffice.service.GatewayReceiptPublisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -35,7 +35,7 @@ class ReceiptMessageHandlerTest {
         ReflectionTestUtils.setField(handler, "gatewayReceiptPublisher", receiptPublisher);
         ReflectionTestUtils.setField(handler, "connectionSessionGuard", sessionGuard);
 
-        MessageHandler.HandleResult result = handler.handle(authenticatedConnection(), deliveredMessage());
+        MessageHandler.HandleResult result = handler.handle(authenticatedConnection(), deliveredEnvelope());
 
         ArgumentCaptor<ReceiptEvent> eventCaptor = ArgumentCaptor.forClass(ReceiptEvent.class);
         verify(receiptPublisher).publish(eventCaptor.capture());
@@ -61,7 +61,7 @@ class ReceiptMessageHandlerTest {
         ReflectionTestUtils.setField(handler, "gatewayReceiptPublisher", receiptPublisher);
         ReflectionTestUtils.setField(handler, "connectionSessionGuard", sessionGuard);
 
-        handler.handle(authenticatedConnection(), readCursorMessage());
+        handler.handle(authenticatedConnection(), readCursorEnvelope());
 
         ArgumentCaptor<ReceiptEvent> eventCaptor = ArgumentCaptor.forClass(ReceiptEvent.class);
         verify(receiptPublisher).publish(eventCaptor.capture());
@@ -88,28 +88,28 @@ class ReceiptMessageHandlerTest {
         return connection;
     }
 
-    private static WSMessage deliveredMessage() {
-        return new WSMessage(
-                WSMessageType.WS_MSG_READ_NOTIFY,
-                "op-delivered",
-                Map.of(
-                        "receiptType", "DELIVERED",
-                        "conversationId", "single:userA:userB",
-                        "serverMsgId", "msg-1",
-                        "seq", 11L
-                )
-        );
+    private static ClientEnvelope deliveredEnvelope() {
+        ClientEnvelope envelope = new ClientEnvelope();
+        envelope.setCommand(CommandType.READ_RECEIPT);
+        envelope.setRequestId("op-delivered");
+        envelope.setBody(Map.of(
+                "receiptType", "DELIVERED",
+                "conversationId", "single:userA:userB",
+                "serverMsgId", "msg-1",
+                "seq", 11L
+        ));
+        return envelope;
     }
 
-    private static WSMessage readCursorMessage() {
-        return new WSMessage(
-                WSMessageType.WS_MSG_READ_NOTIFY,
-                "op-read",
-                Map.of(
-                        "receiptType", "READ_CURSOR",
-                        "conversationId", "single:userA:userB",
-                        "seq", 19L
-                )
-        );
+    private static ClientEnvelope readCursorEnvelope() {
+        ClientEnvelope envelope = new ClientEnvelope();
+        envelope.setCommand(CommandType.READ_RECEIPT);
+        envelope.setRequestId("op-read");
+        envelope.setBody(Map.of(
+                "receiptType", "READ_CURSOR",
+                "conversationId", "single:userA:userB",
+                "seq", 19L
+        ));
+        return envelope;
     }
 }

@@ -85,16 +85,18 @@ class CheeseMessageTest {
         CheeseMessage message = new CheeseMessage(
                 CheeseMessageType.TCP_MSG_READ_RECEIPT,
                 "op-read-2",
-                "{\"receiptType\":\"READ_CURSOR\",\"conversationId\":\"single:user-a:user-b\",\"seq\":19}"
+                "{\"receiptType\":\"DELIVERED\",\"conversationId\":\"single:user-a:user-b\",\"serverMsgId\":\"msg-88\",\"receiptTime\":1710000000001,\"seq\":19}"
         );
 
         ClientEnvelope envelope = message.toClientEnvelope();
 
-        assertEquals(CommandType.CHAT_SEND, envelope.getCommand());
+        assertEquals(CommandType.READ_RECEIPT, envelope.getCommand());
         assertEquals("op-read-2", envelope.getRequestId());
         ReadReceiptPayload body = assertInstanceOf(ReadReceiptPayload.class, envelope.getBody());
-        assertEquals(ReceiptType.READ_CURSOR, body.getReceiptType());
+        assertEquals(ReceiptType.DELIVERED, body.getReceiptType());
         assertEquals("single:user-a:user-b", body.getConversationId());
+        assertEquals("msg-88", body.getServerMsgId());
+        assertEquals(1710000000001L, body.getReceiptTime());
         assertEquals(19L, body.getSeq());
     }
 
@@ -124,19 +126,23 @@ class CheeseMessageTest {
                 WSMessageType.WS_MSG_READ_NOTIFY,
                 "op-read-3",
                 java.util.Map.of(
-                        "receiptType", "READ_CURSOR",
+                        "receiptType", "RECEIVED",
                         "conversationId", "single:user-a:user-b",
+                        "serverMsgId", "msg-99",
+                        "receiptTime", 1710000000002L,
                         "seq", 21L
                 )
         );
 
         ClientEnvelope envelope = wsMessage.toClientEnvelope();
 
-        assertEquals(CommandType.CHAT_SEND, envelope.getCommand());
+        assertEquals(CommandType.READ_RECEIPT, envelope.getCommand());
         assertEquals("op-read-3", envelope.getRequestId());
         ReadReceiptPayload body = assertInstanceOf(ReadReceiptPayload.class, envelope.getBody());
-        assertEquals(ReceiptType.READ_CURSOR, body.getReceiptType());
+        assertEquals(ReceiptType.RECEIVED, body.getReceiptType());
         assertEquals("single:user-a:user-b", body.getConversationId());
+        assertEquals("msg-99", body.getServerMsgId());
+        assertEquals(1710000000002L, body.getReceiptTime());
         assertEquals(21L, body.getSeq());
     }
 

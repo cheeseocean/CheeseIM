@@ -199,8 +199,9 @@ public class WSMessage implements Serializable {
         }
         switch (msgType) {
             case WSMessageType.WS_SEND_MSG_REQ:
-            case WSMessageType.WS_MSG_READ_NOTIFY:
                 return CommandType.CHAT_SEND;
+            case WSMessageType.WS_MSG_READ_NOTIFY:
+                return CommandType.READ_RECEIPT;
             case WSMessageType.WS_MSG_REVOKE_NOTIFY:
                 return CommandType.CHAT_REVOKE;
             case WSMessageType.WS_AUTH_REQ:

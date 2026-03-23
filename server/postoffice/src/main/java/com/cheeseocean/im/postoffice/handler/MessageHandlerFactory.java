@@ -1,15 +1,16 @@
 package com.cheeseocean.im.postoffice.handler;
 
-import com.cheeseocean.im.postoffice.protocol.WSMessageType;
+import com.cheeseocean.im.common.core.enums.CommandType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
-import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 消息处理器工厂
@@ -25,10 +26,7 @@ public class MessageHandlerFactory {
     @Autowired
     private List<MessageHandler> messageHandlers;
     
-    /**
-     * 消息类型 -> 处理器映射
-     */
-    private final Map<Integer, MessageHandler> handlerMap = new HashMap<>();
+    private final Map<CommandType, MessageHandler> handlerMap = new EnumMap<>(CommandType.class);
     
     /**
      * 初始化处理器映射
@@ -36,12 +34,16 @@ public class MessageHandlerFactory {
     @PostConstruct
     public void init() {
         for (MessageHandler handler : messageHandlers) {
-            int messageType = handler.getSupportedMessageType();
-            handlerMap.put(messageType, handler);
-            
-            logger.info("Registered message handler: {} -> {}", 
-                       WSMessageType.getMessageTypeDesc(messageType), 
-                       handler.getClass().getSimpleName());
+            CommandType commandType = handler.getSupportedCommand();
+            if (commandType == null) {
+                logger.debug("Skipping message handler without command binding: {}", handler.getClass().getSimpleName());
+                continue;
+            }
+            handlerMap.put(commandType, handler);
+
+            logger.info("Registered command handler: {} -> {}",
+                    commandType,
+                    handler.getClass().getSimpleName());
         }
         
         logger.info("MessageHandlerFactory initialized with {} handlers", handlerMap.size());
@@ -50,29 +52,29 @@ public class MessageHandlerFactory {
     /**
      * 获取消息处理器
      * 
-     * @param messageType 消息类型
+     * @param commandType 命令类型
      * @return 消息处理器，如果不存在则返回null
      */
-    public MessageHandler getHandler(int messageType) {
-        return handlerMap.get(messageType);
+    public MessageHandler getHandler(CommandType commandType) {
+        return handlerMap.get(commandType);
     }
     
     /**
-     * 检查是否支持指定的消息类型
+     * 检查是否支持指定的命令类型
      * 
-     * @param messageType 消息类型
+     * @param commandType 命令类型
      * @return 是否支持
      */
-    public boolean isSupported(int messageType) {
-        return handlerMap.containsKey(messageType);
+    public boolean isSupported(CommandType commandType) {
+        return handlerMap.containsKey(commandType);
     }
     
     /**
-     * 获取所有支持的消息类型
+     * 获取所有支持的命令类型
      * 
-     * @return 支持的消息类型集合
+     * @return 支持的命令类型集合
      */
-    public java.util.Set<Integer> getSupportedMessageTypes() {
+    public Set<CommandType> getSupportedCommands() {
         return handlerMap.keySet();
     }
     

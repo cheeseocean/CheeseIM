@@ -204,8 +204,9 @@ public class CheeseMessage implements Serializable {
     private CommandType resolveCommandType() {
         switch (msgType) {
             case CheeseMessageType.TCP_SEND_MSG_REQ:
-            case CheeseMessageType.TCP_MSG_READ_RECEIPT:
                 return CommandType.CHAT_SEND;
+            case CheeseMessageType.TCP_MSG_READ_RECEIPT:
+                return CommandType.READ_RECEIPT;
             case CheeseMessageType.TCP_REVOKE_MSG_REQ:
                 return CommandType.CHAT_REVOKE;
             case CheeseMessageType.TCP_AUTH_REQ:

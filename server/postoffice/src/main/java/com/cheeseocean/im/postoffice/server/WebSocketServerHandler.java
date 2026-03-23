@@ -1,6 +1,8 @@
 package com.cheeseocean.im.postoffice.server;
 
 import com.cheeseocean.im.common.core.util.IdGenerator;
+import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
+import com.cheeseocean.im.common.core.enums.CommandType;
 import com.cheeseocean.im.common.core.enums.ConnectionState;
 import com.cheeseocean.im.postoffice.connection.ConnectionManager;
 import com.cheeseocean.im.postoffice.connection.ConnectionContext;
@@ -186,22 +188,25 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<TextWebS
      * 处理WebSocket消息
      */
     private void handleMessage(ChannelHandlerContext ctx, UserConnection connection, WSMessage message) {
+        ClientEnvelope envelope = null;
+        CommandType commandType = null;
         try {
-            int messageType = message.getMsgType();
-            
+            envelope = message.toClientEnvelope();
+            commandType = envelope.getCommand();
+
             // 获取消息处理器
-            MessageHandler handler = messageHandlerFactory.getHandler(messageType);
+            MessageHandler handler = messageHandlerFactory.getHandler(commandType);
             if (handler == null) {
-                logger.warn("Unsupported message type: {} from {}", 
-                           messageType, ctx.channel().remoteAddress());
+                logger.warn("Unsupported command type: {} from {}",
+                        commandType, ctx.channel().remoteAddress());
                 
                 sendErrorResponse(ctx, message.getOperationID(), 
-                                "不支持的消息类型: " + messageType);
+                                "不支持的消息类型: " + commandType);
                 return;
             }
             
             // 处理消息
-            MessageHandler.HandleResult result = handler.handle(connection, message);
+            MessageHandler.HandleResult result = handler.handle(connection, envelope);
             
             // 发送响应消息
             if (result.getResponseMessage() != null) {
@@ -210,8 +215,8 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<TextWebS
             
             // 如果处理失败，记录日志
             if (!result.isSuccess()) {
-                logger.warn("Message handling failed: messageType={}, error={}, from={}", 
-                           messageType, result.getErrorMessage(), ctx.channel().remoteAddress());
+                logger.warn("Message handling failed: commandType={}, error={}, from={}",
+                        commandType, result.getErrorMessage(), ctx.channel().remoteAddress());
             }
             
             // 如果需要关闭连接
@@ -222,8 +227,8 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<TextWebS
             }
             
         } catch (Exception e) {
-            logger.error("Failed to handle message: messageType={}, from={}", 
-                        message.getMsgType(), ctx.channel().remoteAddress(), e);
+            logger.error("Failed to handle message: commandType={}, from={}",
+                    commandType, ctx.channel().remoteAddress(), e);
             
             sendErrorResponse(ctx, message.getOperationID(), "消息处理异常");
         }
