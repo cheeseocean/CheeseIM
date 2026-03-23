@@ -374,20 +374,21 @@ public class ConnectionManager {
         if (envelope == null) {
             return false;
         }
-        return sendTransportMessage(connection, WSMessage.fromServerEnvelope(envelope));
+        return sendTransportMessage(connection, envelope);
     }
 
-    private boolean sendTransportMessage(UserConnection connection, WSMessage message) {
+    private boolean sendTransportMessage(UserConnection connection, ServerEnvelope envelope) {
         try {
             if (connection == null || connection.getChannel() == null || !connection.getChannel().isActive()) {
                 return false;
             }
 
             if ("TCP".equalsIgnoreCase(connection.getProtocol())) {
-                CheeseMessage tcpMessage = CheeseMessage.fromWSMessage(message);
+                CheeseMessage tcpMessage = CheeseMessage.fromServerEnvelope(envelope);
                 connection.getChannel().writeAndFlush(tcpMessage);
             } else {
-                String messageJson = objectMapper.writeValueAsString(message);
+                WSMessage wsMessage = WSMessage.fromServerEnvelope(envelope);
+                String messageJson = objectMapper.writeValueAsString(wsMessage);
                 connection.getChannel().writeAndFlush(new TextWebSocketFrame(messageJson));
             }
             connection.incrementSendMsg();
