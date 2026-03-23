@@ -58,6 +58,7 @@ CheeseIM Postoffice 网关现在支持双协议模式：
 - `TCP_SEND_MSG_REQ (30)`: 发送消息请求
 - `TCP_SEND_MSG_RESP (31)`: 发送消息响应
 - `TCP_RECV_MSG_NOTIFY (32)`: 接收消息通知
+- `TCP_MSG_READ_RECEIPT (33)`: 历史已读回执请求，现已废弃，不再作为服务端主链路入口
 
 ### 错误相关
 - `TCP_ERROR_RESP (90)`: 通用错误响应
@@ -135,6 +136,40 @@ Server -> Client: TCP_SEND_MSG_RESP
 - **TCP 发送消息响应**：`{"serverMsgID":"msg-456","clientMsgID":"client-123","sendTime":1710000000000}`
 - **WebSocket 发送消息请求**：`{"clientMsgID":"client-123","recvID":"receiver123","content":"Hello World!","contentType":101,"sessionType":1}`
 - **WebSocket 发送消息响应**：`{"serverMsgID":"msg-456","clientMsgID":"client-123","sendTime":1710000000000}`
+
+### 4.1 已读回执
+
+现行已读回执统一走发送消息入口：
+
+- WebSocket: `WS_SEND_MSG_REQ (2001)`
+- TCP: `TCP_SEND_MSG_REQ (30)`
+- `contentType = 2004`，即 `READ_RECEIPT`
+- `content` 为 JSON 字符串，表达 `READ_CURSOR`
+
+请求载荷示例：
+
+```json
+{
+  "clientMsgID": "read-123",
+  "recvID": "receiver123",
+  "contentType": 2004,
+  "sessionType": 1,
+  "content": "{\"receiptType\":\"READ_CURSOR\",\"conversationId\":\"c1:receiver123:user123\",\"seq\":19}"
+}
+```
+
+处理语义：
+
+- 服务端直接更新 `userReadSeq`
+- 不分配新的消息 `seq`
+- 不写历史
+- 不更新会话 lastMessage
+- 不走普通消息投递链
+
+兼容性说明：
+
+- 历史的 `WS_MSG_READ_NOTIFY (2004)` / `TCP_MSG_READ_RECEIPT (33)` 已不再作为业务入口
+- 客户端如果继续发送旧入口，请视为协议不兼容并尽快切换到 `SEND_MSG_REQ + contentType=2004`
 
 ### 5. 接收消息通知
 ```
