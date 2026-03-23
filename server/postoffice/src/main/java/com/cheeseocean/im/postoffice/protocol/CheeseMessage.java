@@ -1,7 +1,9 @@
 package com.cheeseocean.im.postoffice.protocol;
 
+import com.cheeseocean.im.common.api.dto.dispatch.DispatchPayload;
 import com.cheeseocean.im.common.api.dto.message.ChatSendRequest;
 import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
+import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.common.core.enums.CommandType;
 import com.cheeseocean.im.common.core.util.ObjectMapperFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -199,6 +201,10 @@ public class CheeseMessage implements Serializable {
         return envelope;
     }
 
+    public ServerEnvelope toServerEnvelope() {
+        return toWSMessage().toServerEnvelope();
+    }
+
     private CommandType resolveCommandType() {
         switch (msgType) {
             case CheeseMessageType.TCP_SEND_MSG_REQ:
@@ -276,6 +282,11 @@ public class CheeseMessage implements Serializable {
         }
 
         return cheeseMessage;
+    }
+
+    public static CheeseMessage fromServerEnvelope(ServerEnvelope envelope) {
+        WSMessage wsMessage = WSMessage.fromServerEnvelope(envelope);
+        return wsMessage == null ? null : fromWSMessage(wsMessage);
     }
     
     // ============ 静态工厂方法 ============

@@ -1,8 +1,9 @@
 package com.cheeseocean.im.push.service.impl;
 
 import com.cheeseocean.im.common.api.dto.message.Message;
-import com.cheeseocean.im.common.core.constants.MessageConstants;
 import com.cheeseocean.im.common.core.constants.MessageDisplayConstants;
+import com.cheeseocean.im.common.core.enums.ContentType;
+import com.cheeseocean.im.common.core.enums.SessionType;
 import com.cheeseocean.im.push.entity.OfflinePushConfig;
 import com.cheeseocean.im.push.entity.OfflinePushResult;
 import com.cheeseocean.im.push.entity.PushMessage;
@@ -69,8 +70,8 @@ class OfflinePushServiceImplTest {
         testMessage.setSendID("sender-123");
         testMessage.setRecvID("receiver-123");
         testMessage.setContent("Test message content");
-        testMessage.setContentType(MessageConstants.CONTENT_TYPE_TEXT);
-        testMessage.setSessionType(MessageConstants.SESSION_TYPE_SINGLE);
+        testMessage.setContentType(ContentType.TEXT.getCode());
+        testMessage.setSessionType(SessionType.SINGLE.getCode());
         testMessage.setSenderNickname("Test Sender");
 
         // 设置目标用户
@@ -170,8 +171,8 @@ class OfflinePushServiceImplTest {
         notificationMessage.setSendID("system");
         notificationMessage.setRecvID("user1");
         notificationMessage.setContent("Your policy was updated");
-        notificationMessage.setContentType(MessageConstants.CONTENT_TYPE_SYSTEM_NOTIFY);
-        notificationMessage.setSessionType(MessageConstants.SESSION_TYPE_NOTIFICATION);
+        notificationMessage.setContentType(ContentType.SYSTEM_NOTIFY.getCode());
+        notificationMessage.setSessionType(SessionType.NOTIFICATION.getCode());
         notificationMessage.setOptions(Map.of("notification", true));
 
         OfflinePushResult result = offlinePushService.pushMessageToUsers(notificationMessage, List.of("user1"));
@@ -205,8 +206,8 @@ class OfflinePushServiceImplTest {
         notificationMessage.setSendID("system");
         notificationMessage.setRecvID("user1");
         notificationMessage.setContent("   ");
-        notificationMessage.setContentType(MessageConstants.CONTENT_TYPE_FORCE_LOGOUT);
-        notificationMessage.setSessionType(MessageConstants.SESSION_TYPE_NOTIFICATION);
+        notificationMessage.setContentType(ContentType.FORCE_LOGOUT.getCode());
+        notificationMessage.setSessionType(SessionType.NOTIFICATION.getCode());
         notificationMessage.setOptions(Map.of("notification", true));
 
         OfflinePushResult result = offlinePushService.pushMessageToUsers(notificationMessage, List.of("user1"));
@@ -239,8 +240,8 @@ class OfflinePushServiceImplTest {
         imageMessage.setSendID("userA");
         imageMessage.setRecvID("user1");
         imageMessage.setContent("");
-        imageMessage.setContentType(MessageConstants.CONTENT_TYPE_IMAGE);
-        imageMessage.setSessionType(MessageConstants.SESSION_TYPE_GROUP);
+        imageMessage.setContentType(ContentType.IMAGE.getCode());
+        imageMessage.setSessionType(SessionType.GROUP.getCode());
         imageMessage.setSenderNickname(null);
 
         OfflinePushResult result = offlinePushService.pushMessageToUsers(imageMessage, List.of("user1"));
@@ -273,7 +274,7 @@ class OfflinePushServiceImplTest {
         messageWithoutSessionType.setSendID("userA");
         messageWithoutSessionType.setRecvID("user1");
         messageWithoutSessionType.setContent("hello");
-        messageWithoutSessionType.setContentType(MessageConstants.CONTENT_TYPE_TEXT);
+        messageWithoutSessionType.setContentType(ContentType.TEXT.getCode());
         messageWithoutSessionType.setSenderNickname("userA");
 
         OfflinePushResult result = offlinePushService.pushMessageToUsers(messageWithoutSessionType, List.of("user1"));

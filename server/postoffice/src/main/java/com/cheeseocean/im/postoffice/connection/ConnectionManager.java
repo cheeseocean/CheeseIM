@@ -1,6 +1,7 @@
 package com.cheeseocean.im.postoffice.connection;
 
 import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
+import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.postoffice.protocol.CheeseMessage;
 import com.cheeseocean.im.postoffice.service.OnlineRouteService;
 import com.cheeseocean.im.postoffice.protocol.WSMessage;
@@ -391,6 +392,13 @@ public class ConnectionManager {
             logger.error("Failed to send message to connection: {}", connection.getConnectionID(), e);
             return false;
         }
+    }
+
+    public boolean sendEnvelopeToConnection(UserConnection connection, ServerEnvelope envelope) {
+        if (envelope == null) {
+            return false;
+        }
+        return sendMessageToConnection(connection, WSMessage.fromServerEnvelope(envelope));
     }
     
     /**
