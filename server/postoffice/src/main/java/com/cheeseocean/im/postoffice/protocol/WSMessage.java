@@ -257,6 +257,8 @@ public class WSMessage implements Serializable {
                 return CommandType.CHAT_RECV;
             case WSMessageType.WS_MSG_REVOKE_NOTIFY:
                 return CommandType.CHAT_REVOKE;
+            case WSMessageType.WS_FORCE_LOGOUT_NOTIFY:
+                return CommandType.FORCE_LOGOUT;
             case WSMessageType.WS_ERROR_RESP:
                 return CommandType.ERROR;
             default:
@@ -291,6 +293,8 @@ public class WSMessage implements Serializable {
                 return resolveChatRecvMsgType(envelope.getBody());
             case CHAT_REVOKE:
                 return WSMessageType.WS_MSG_REVOKE_NOTIFY;
+            case FORCE_LOGOUT:
+                return WSMessageType.WS_FORCE_LOGOUT_NOTIFY;
             case ERROR:
                 return WSMessageType.WS_ERROR_RESP;
             default:

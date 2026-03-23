@@ -9,6 +9,7 @@ public enum CommandType {
     CHAT_SEND(30),
     CHAT_RECV(32),
     CHAT_REVOKE(34),
+    FORCE_LOGOUT(35),
     ERROR(90);
 
     private final int code;

@@ -44,4 +44,14 @@ public class ServerEnvelope implements Serializable {
         envelope.setBody(payload);
         return envelope;
     }
+
+    public static ServerEnvelope forceLogout(String requestId, String reason) {
+        ServerEnvelope envelope = new ServerEnvelope();
+        envelope.setCommand(CommandType.FORCE_LOGOUT);
+        envelope.setRequestId(requestId);
+        envelope.setBody(java.util.Map.of(
+                "reason", reason,
+                "message", "您的账号在其他设备登录，已被强制下线"));
+        return envelope;
+    }
 }

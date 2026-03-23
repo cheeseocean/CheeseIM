@@ -3,6 +3,7 @@ package com.cheeseocean.im.postoffice.protocol;
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchPayload;
 import com.cheeseocean.im.common.api.dto.message.ChatSendRequest;
 import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
+import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.common.core.enums.CommandType;
 import com.cheeseocean.im.postoffice.client.ProtocolContractFixtures;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -172,5 +173,19 @@ class CheeseMessageTest {
 
         assertEquals(CheeseMessageType.TCP_REVOKE_MSG_NOTIFY, cheeseMessage.getMsgType());
         assertTrue(cheeseMessage.getData().contains("\"targetServerMsgId\":\"msg-1\""));
+    }
+
+    @Test
+    void fromServerEnvelopeShouldTranslateForceLogoutToTransportSpecificFrames() {
+        ServerEnvelope envelope = ServerEnvelope.forceLogout("system", "duplicate login");
+
+        WSMessage wsMessage = WSMessage.fromServerEnvelope(envelope);
+        CheeseMessage cheeseMessage = CheeseMessage.fromServerEnvelope(envelope);
+
+        assertEquals(CommandType.FORCE_LOGOUT, wsMessage.toServerEnvelope().getCommand());
+        assertEquals(WSMessageType.WS_FORCE_LOGOUT_NOTIFY, wsMessage.getMsgType());
+        assertEquals(CheeseMessageType.TCP_FORCE_LOGOUT_NOTIFY, cheeseMessage.getMsgType());
+        assertEquals(CommandType.FORCE_LOGOUT, cheeseMessage.toServerEnvelope().getCommand());
+        assertTrue(cheeseMessage.getData().contains("\"reason\":\"duplicate login\""));
     }
 }

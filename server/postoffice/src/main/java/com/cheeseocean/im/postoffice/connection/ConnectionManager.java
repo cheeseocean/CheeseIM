@@ -349,8 +349,7 @@ public class ConnectionManager {
     public void kickConnection(UserConnection connection, String reason) {
         try {
             // 发送强制下线通知
-            WSMessage forceLogoutMsg = WSMessage.forceLogoutNotify("system", reason);
-            sendTransportMessage(connection, forceLogoutMsg);
+            sendMessageToConnection(connection, ServerEnvelope.forceLogout("system", reason));
             
             // 关闭连接
             if (connection.getChannel() != null && connection.getChannel().isActive()) {
