@@ -2,6 +2,7 @@ package com.cheeseocean.im.postoffice.server;
 
 import com.cheeseocean.im.common.core.util.IdGenerator;
 import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
+import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.common.core.enums.CommandType;
 import com.cheeseocean.im.common.core.enums.ConnectionState;
 import com.cheeseocean.im.postoffice.connection.ConnectionManager;
@@ -10,7 +11,7 @@ import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.postoffice.handler.MessageHandler;
 import com.cheeseocean.im.postoffice.handler.MessageHandlerFactory;
 import com.cheeseocean.im.postoffice.protocol.WSMessage;
-import com.cheeseocean.im.postoffice.protocol.WSMessageType;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -25,6 +26,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.net.InetSocketAddress;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * WebSocket服务器处理器
@@ -65,27 +68,23 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<TextWebS
             String messageText = frame.text();
             logger.debug("Received message from {}: {}", ctx.channel().remoteAddress(), messageText);
             
-            // 解析WebSocket消息
-            WSMessage message = parseMessage(messageText);
-            if (message == null) {
+            ClientEnvelope envelope = parseMessage(messageText);
+            if (envelope == null) {
                 sendErrorResponse(ctx, "system", "消息格式错误");
                 return;
             }
             
-            // 获取用户连接
             UserConnection connection = connectionManager.getConnectionByChannel(ctx.channel());
             if (connection == null) {
                 logger.warn("Connection not found for channel: {}", ctx.channel().remoteAddress());
-                sendErrorResponse(ctx, message.getOperationID(), "连接不存在");
+                sendErrorResponse(ctx, envelope.getRequestId(), "连接不存在");
                 return;
             }
             
-            // 更新连接活跃时间
             connection.updateLastActiveTime();
             connection.incrementRecvMsg();
             
-            // 处理消息
-            handleMessage(ctx, connection, message);
+            handleMessage(ctx, connection, envelope);
             
         } catch (Exception e) {
             logger.error("Failed to process message from {}", ctx.channel().remoteAddress(), e);
@@ -157,11 +156,7 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<TextWebS
             }
 
             logger.info("WebSocket handshake complete: connectionID={}, clientIP={}, userAgent={}",
-                       connectionID, clientIP, connection.getUserAgent());
-
-            // 发送连接成功响应
-            WSMessage connectSuccessMsg = WSMessage.connectSuccess("system");
-            sendMessage(ctx, connectSuccessMsg);
+                    connectionID, clientIP, connection.getUserAgent());
 
         } catch (Exception e) {
             logger.error("Failed to handle handshake complete", e);
@@ -187,39 +182,41 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<TextWebS
     /**
      * 处理WebSocket消息
      */
-    private void handleMessage(ChannelHandlerContext ctx, UserConnection connection, WSMessage message) {
-        ClientEnvelope envelope = null;
-        CommandType commandType = null;
+    private void handleMessage(ChannelHandlerContext ctx, UserConnection connection, ClientEnvelope envelope) {
+        CommandType commandType = envelope.getCommand();
         try {
-            envelope = message.toClientEnvelope();
-            commandType = envelope.getCommand();
+            if (commandType == CommandType.CONNECT) {
+                sendMessage(ctx, buildConnectSuccessEnvelope(envelope.getRequestId(), connection));
+                return;
+            }
 
-            // 获取消息处理器
             MessageHandler handler = messageHandlerFactory.getHandler(commandType);
             if (handler == null) {
                 logger.warn("Unsupported command type: {} from {}",
                         commandType, ctx.channel().remoteAddress());
                 
-                sendErrorResponse(ctx, message.getOperationID(), 
-                                "不支持的消息类型: " + commandType);
+                sendErrorResponse(ctx, envelope.getRequestId(),
+                        "不支持的消息类型: " + commandType);
                 return;
             }
             
-            // 处理消息
             MessageHandler.HandleResult result = handler.handle(connection, envelope);
             
-            // 发送响应消息
             if (result.getResponseMessage() != null) {
-                sendMessage(ctx, result.getResponseMessage());
+                ServerEnvelope responseEnvelope = result.getResponseMessage().toServerEnvelope();
+                if (responseEnvelope == null || responseEnvelope.getCommand() == null) {
+                    logger.warn("Unable to translate handler response to envelope: {}", result.getResponseMessage());
+                    sendErrorResponse(ctx, envelope.getRequestId(), "响应编码失败");
+                    return;
+                }
+                sendMessage(ctx, responseEnvelope);
             }
             
-            // 如果处理失败，记录日志
             if (!result.isSuccess()) {
                 logger.warn("Message handling failed: commandType={}, error={}, from={}",
                         commandType, result.getErrorMessage(), ctx.channel().remoteAddress());
             }
             
-            // 如果需要关闭连接
             if (result.isShouldClose()) {
                 logger.info("Closing connection due to handling result: {}", 
                            ctx.channel().remoteAddress());
@@ -230,16 +227,29 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<TextWebS
             logger.error("Failed to handle message: commandType={}, from={}",
                     commandType, ctx.channel().remoteAddress(), e);
             
-            sendErrorResponse(ctx, message.getOperationID(), "消息处理异常");
+            sendErrorResponse(ctx, envelope.getRequestId(), "消息处理异常");
         }
     }
     
     /**
      * 解析WebSocket消息
      */
-    private WSMessage parseMessage(String messageText) {
+    private ClientEnvelope parseMessage(String messageText) {
         try {
-            return objectMapper.readValue(messageText, WSMessage.class);
+            Map<String, Object> raw = objectMapper.readValue(
+                    messageText,
+                    new TypeReference<Map<String, Object>>() {}
+            );
+            CommandType command = parseCommand(raw.get("command"));
+            if (command == null) {
+                return null;
+            }
+
+            ClientEnvelope envelope = new ClientEnvelope();
+            envelope.setCommand(command);
+            envelope.setRequestId(raw.get("requestId") == null ? "system" : String.valueOf(raw.get("requestId")));
+            envelope.setBody(raw.get("body"));
+            return envelope;
         } catch (Exception e) {
             logger.error("Failed to parse message: {}", messageText, e);
             return null;
@@ -249,9 +259,9 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<TextWebS
     /**
      * 发送消息到客户端
      */
-    private void sendMessage(ChannelHandlerContext ctx, WSMessage message) {
+    private void sendMessage(ChannelHandlerContext ctx, ServerEnvelope envelope) {
         try {
-            String messageJson = objectMapper.writeValueAsString(message);
+            String messageJson = objectMapper.writeValueAsString(serializeEnvelope(envelope));
             ctx.writeAndFlush(new TextWebSocketFrame(messageJson));
             
             logger.debug("Sent message to {}: {}", ctx.channel().remoteAddress(), messageJson);
@@ -265,8 +275,11 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<TextWebS
      * 发送错误响应
      */
     private void sendErrorResponse(ChannelHandlerContext ctx, String operationID, String errorMessage) {
-        WSMessage errorResp = WSMessage.errorResp(operationID, 500, errorMessage);
-        sendMessage(ctx, errorResp);
+        ServerEnvelope envelope = new ServerEnvelope();
+        envelope.setCommand(CommandType.ERROR);
+        envelope.setRequestId(operationID == null || operationID.isBlank() ? "system" : operationID);
+        envelope.setBody(Map.of("code", 500, "message", errorMessage));
+        sendMessage(ctx, envelope);
     }
     
     /**
@@ -280,5 +293,50 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<TextWebS
             logger.warn("Failed to get client IP", e);
             return "unknown";
         }
+    }
+
+    private CommandType parseCommand(Object rawCommand) {
+        if (rawCommand instanceof Number) {
+            try {
+                return CommandType.fromCode(((Number) rawCommand).intValue());
+            } catch (IllegalArgumentException ex) {
+                return null;
+            }
+        }
+        if (rawCommand instanceof String) {
+            String commandValue = ((String) rawCommand).trim();
+            if (commandValue.isEmpty()) {
+                return null;
+            }
+            try {
+                return CommandType.fromCode(Integer.parseInt(commandValue));
+            } catch (NumberFormatException ignored) {
+                try {
+                    return CommandType.valueOf(commandValue);
+                } catch (IllegalArgumentException ex) {
+                    return null;
+                }
+            }
+        }
+        return null;
+    }
+
+    private ServerEnvelope buildConnectSuccessEnvelope(String requestId, UserConnection connection) {
+        ServerEnvelope envelope = new ServerEnvelope();
+        envelope.setCommand(CommandType.CONNECT);
+        envelope.setRequestId(requestId == null || requestId.isBlank() ? "system" : requestId);
+        envelope.setBody(Map.of(
+                "connId", connection.getConnectionID(),
+                "message", "连接成功"
+        ));
+        return envelope;
+    }
+
+    private Map<String, Object> serializeEnvelope(ServerEnvelope envelope) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("command", envelope.getCommand() == null ? null : envelope.getCommand().getCode());
+        payload.put("requestId", envelope.getRequestId());
+        payload.put("body", envelope.getBody());
+        return payload;
     }
 }

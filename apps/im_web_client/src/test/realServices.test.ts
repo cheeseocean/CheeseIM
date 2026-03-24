@@ -1,8 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { buildWsTicketAuthRequest, createRealGatewayClient } from '../services/realGatewayClient';
 import { createRealAuthService } from '../services/realAuthService';
 import { createRealChatService } from '../services/realChatService';
+import { createRealGatewayClient } from '../services/realGatewayClient';
+import {
+  buildAuthRequest,
+  buildConnectRequest,
+  commandTypes,
+} from '../transport/envelope';
 
 describe('realAuthService', () => {
   afterEach(() => {
@@ -282,11 +287,11 @@ describe('realChatService', () => {
 });
 
 describe('realGatewayClient', () => {
-  it('builds ws auth payloads with ticket-based auth', () => {
-    expect(buildWsTicketAuthRequest('op-auth-1', 'wst_123')).toEqual({
-      msgType: 1101,
-      operationID: 'op-auth-1',
-      data: {
+  it('builds envelope auth payloads with ticket-based auth', () => {
+    expect(buildAuthRequest('op-auth-1', { ticket: 'wst_123' })).toEqual({
+      command: commandTypes.auth,
+      requestId: 'op-auth-1',
+      body: {
         ticket: 'wst_123',
       },
     });
@@ -308,20 +313,26 @@ describe('realGatewayClient', () => {
     );
 
     socket.emit('open');
-    expect(JSON.parse(socket.sent[0] as string)).toMatchObject({ msgType: 1001 });
-
-    socket.emit('message', {
-      data: JSON.stringify({ msgType: 1002, operationID: 'system', data: '连接成功' }),
-    });
-    expect(JSON.parse(socket.sent[1] as string)).toEqual(
-      buildWsTicketAuthRequest('op-auth-00000001', 'wst_123'),
+    expect(JSON.parse(socket.sent[0] as string)).toEqual(
+      buildConnectRequest('op-connect-00000001'),
     );
 
     socket.emit('message', {
       data: JSON.stringify({
-        msgType: 1102,
-        operationID: 'op-auth-00000001',
-        data: { userID: 'u_operator', connId: 'conn_123' },
+        command: commandTypes.connect,
+        requestId: 'op-connect-00000001',
+        body: {},
+      }),
+    });
+    expect(JSON.parse(socket.sent[1] as string)).toEqual(
+      buildAuthRequest('op-auth-00000002', { ticket: 'wst_123' }),
+    );
+
+    socket.emit('message', {
+      data: JSON.stringify({
+        command: commandTypes.auth,
+        requestId: 'op-auth-00000002',
+        body: { userID: 'u_operator', connId: 'conn_123' },
       }),
     });
 
@@ -340,19 +351,22 @@ describe('realGatewayClient', () => {
 
     const sendOperation = JSON.parse(socket.sent[2] as string);
     expect(sendOperation).toMatchObject({
-      msgType: 2001,
-      data: {
+      command: commandTypes.chatSend,
+      requestId: 'op-send-00000003',
+      body: {
         clientMsgID: 'local_1',
         recvID: 'u_design',
         content: 'Need the final mockups before noon.',
+        contentType: 101,
+        sessionType: 1,
       },
     });
 
     socket.emit('message', {
       data: JSON.stringify({
-        msgType: 2002,
-        operationID: sendOperation.operationID,
-        data: {
+        command: commandTypes.chatSend,
+        requestId: 'op-send-00000003',
+        body: {
           serverMsgID: 'msg_123',
           clientMsgID: 'local_1',
           sendTime: 1710000000000,
@@ -364,6 +378,135 @@ describe('realGatewayClient', () => {
       serverId: 'msg_123',
       sentAt: 1710000000000,
     });
+  });
+
+  it('preserves the server connId from the connect response through auth success', async () => {
+    const socket = createMockSocket();
+    const client = createRealGatewayClient({
+      socketFactory: () => socket.instance,
+    });
+
+    const connectPromise = client.connect(
+      {
+        ticket: 'wst_123',
+        expireAt: 3000,
+        wsUrl: 'ws://localhost:5147/ws',
+      },
+      createSession(),
+    );
+
+    socket.emit('open');
+    socket.emit('message', {
+      data: JSON.stringify({
+        command: commandTypes.connect,
+        requestId: 'op-connect-00000001',
+        body: { connId: 'conn_from_connect' },
+      }),
+    });
+    expect(JSON.parse(socket.sent[1] as string)).toEqual(
+      buildAuthRequest('op-auth-00000002', { ticket: 'wst_123' }),
+    );
+
+    socket.emit('message', {
+      data: JSON.stringify({
+        command: commandTypes.auth,
+        requestId: 'op-auth-00000002',
+        body: { userID: 'u_operator' },
+      }),
+    });
+
+    await expect(connectPromise).resolves.toEqual(
+      expect.objectContaining({
+        connId: 'conn_from_connect',
+        lifecycle: 'connected',
+      }),
+    );
+  });
+
+  it('rejects pending send acknowledgements when the server returns an error command', async () => {
+    const socket = createMockSocket();
+    const client = createRealGatewayClient({
+      socketFactory: () => socket.instance,
+    });
+
+    const connectPromise = client.connect(
+      {
+        ticket: 'wst_123',
+        expireAt: 3000,
+        wsUrl: 'ws://localhost:5147/ws',
+      },
+      createSession(),
+    );
+
+    socket.emit('open');
+    socket.emit('message', {
+      data: JSON.stringify({
+        command: commandTypes.connect,
+        requestId: 'op-connect-00000001',
+        body: {},
+      }),
+    });
+    socket.emit('message', {
+      data: JSON.stringify({
+        command: commandTypes.auth,
+        requestId: 'op-auth-00000002',
+        body: { userID: 'u_operator', connId: 'conn_123' },
+      }),
+    });
+
+    await expect(connectPromise).resolves.toMatchObject({
+      connId: 'conn_123',
+      lifecycle: 'connected',
+    });
+
+    const sendPromise = client.sendText({
+      conversationId: 'conv_design_ops',
+      recipientId: 'u_design',
+      text: 'Need the final mockups before noon.',
+      localId: 'local_1',
+      session: createSession(),
+    });
+
+    socket.emit('message', {
+      data: JSON.stringify({
+        command: commandTypes.error,
+        requestId: 'op-send-00000003',
+        body: 'permission denied',
+      }),
+    });
+
+    await expect(sendPromise).rejects.toThrow('permission denied');
+  });
+
+  it('rejects the connect promise when the server returns an error for the connect request', async () => {
+    const socket = createMockSocket();
+    const client = createRealGatewayClient({
+      socketFactory: () => socket.instance,
+    });
+
+    const connectPromise = client.connect(
+      {
+        ticket: 'wst_123',
+        expireAt: 3000,
+        wsUrl: 'ws://localhost:5147/ws',
+      },
+      createSession(),
+    );
+
+    socket.emit('open');
+    expect(JSON.parse(socket.sent[0] as string)).toEqual(
+      buildConnectRequest('op-connect-00000001'),
+    );
+
+    socket.emit('message', {
+      data: JSON.stringify({
+        command: commandTypes.error,
+        requestId: 'op-connect-00000001',
+        body: 'connect rejected',
+      }),
+    });
+
+    await expect(connectPromise).rejects.toThrow('connect rejected');
   });
 
   it('publishes inbound message, friend refresh, force-logout, and disconnect events', async () => {
@@ -388,22 +531,26 @@ describe('realGatewayClient', () => {
 
     socket.emit('open');
     socket.emit('message', {
-      data: JSON.stringify({ msgType: 1002, operationID: 'system', data: '连接成功' }),
+      data: JSON.stringify({
+        command: commandTypes.connect,
+        requestId: 'op-connect-00000001',
+        body: {},
+      }),
     });
     socket.emit('message', {
       data: JSON.stringify({
-        msgType: 1102,
-        operationID: 'op-auth-00000001',
-        data: { userID: 'u_operator', connId: 'conn_123' },
+        command: commandTypes.auth,
+        requestId: 'op-auth-00000002',
+        body: { userID: 'u_operator', connId: 'conn_123' },
       }),
     });
     await connectPromise;
 
     socket.emit('message', {
       data: JSON.stringify({
-        msgType: 2003,
-        operationID: 'op-notify-1',
-        data: {
+        command: commandTypes.chatRecv,
+        requestId: 'op-notify-1',
+        body: {
           conversationId: 'c1:u_design:u_operator',
           serverMsgID: 'msg_888',
           clientMsgID: 'client_888',
@@ -418,20 +565,23 @@ describe('realGatewayClient', () => {
     });
     socket.emit('message', {
       data: JSON.stringify({
-        msgType: 6001,
-        operationID: 'op-friend-1',
-        data: {
-          eventType: 'friend_request_created',
-          actorUserId: 'u_editor',
-          targetUserId: 'u_operator',
+        command: commandTypes.chatRecv,
+        requestId: 'op-friend-1',
+        body: {
+          conversationId: 'friend:u_operator:u_editor',
+          ext: {
+            notificationType: 'friend_request_accepted',
+            senderId: 'u_editor',
+            recvId: 'u_operator',
+          },
         },
       }),
     });
     socket.emit('message', {
       data: JSON.stringify({
-        msgType: 7002,
-        operationID: 'system',
-        data: { reason: 'logged out elsewhere' },
+        command: commandTypes.forceLogout,
+        requestId: 'system',
+        body: { reason: 'logged out elsewhere' },
       }),
     });
     socket.emit('close');
@@ -482,22 +632,26 @@ describe('realGatewayClient', () => {
 
     socket.emit('open');
     socket.emit('message', {
-      data: JSON.stringify({ msgType: 1002, operationID: 'system', data: '连接成功' }),
+      data: JSON.stringify({
+        command: commandTypes.connect,
+        requestId: 'op-connect-00000001',
+        body: {},
+      }),
     });
     socket.emit('message', {
       data: JSON.stringify({
-        msgType: 1102,
-        operationID: 'op-auth-00000001',
-        data: { userID: 'u_operator', connId: 'conn_123' },
+        command: commandTypes.auth,
+        requestId: 'op-auth-00000002',
+        body: { userID: 'u_operator', connId: 'conn_123' },
       }),
     });
     await connectPromise;
 
     socket.emit('message', {
       data: JSON.stringify({
-        msgType: 2003,
-        operationID: 'msg_999',
-        data: {
+        command: commandTypes.chatRecv,
+        requestId: 'msg_999',
+        body: {
           conversationId: 'c1:u_design:u_operator',
           serverMsgId: 'msg_999',
           clientMsgId: 'local_999',
@@ -547,22 +701,26 @@ describe('realGatewayClient', () => {
 
     socket.emit('open');
     socket.emit('message', {
-      data: JSON.stringify({ msgType: 1002, operationID: 'system', data: '连接成功' }),
+      data: JSON.stringify({
+        command: commandTypes.connect,
+        requestId: 'op-connect-00000001',
+        body: {},
+      }),
     });
     socket.emit('message', {
       data: JSON.stringify({
-        msgType: 1102,
-        operationID: 'op-auth-00000001',
-        data: { userID: 'u_operator', connId: 'conn_123' },
+        command: commandTypes.auth,
+        requestId: 'op-auth-00000002',
+        body: { userID: 'u_operator', connId: 'conn_123' },
       }),
     });
     await connectPromise;
 
     socket.emit('message', {
       data: JSON.stringify({
-        msgType: 2003,
-        operationID: 'op-read-1',
-        data: {
+        command: commandTypes.chatRecv,
+        requestId: 'op-read-1',
+        body: {
           conversationId: 'c1:u_design:u_operator',
           clientMsgId: 'read_123',
           recvID: 'u_operator',

@@ -11,8 +11,11 @@ import com.cheeseocean.im.common.api.route.OnlineRouteQueryRpc;
 import com.cheeseocean.im.common.api.rpc.OnlineDispatchRpc;
 import com.cheeseocean.im.common.core.constants.TopicNames;
 import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
+import com.cheeseocean.im.common.core.queue.annotation.QueueListener;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
@@ -21,8 +24,8 @@ import java.util.List;
 
 @Component
 public class DeliveryEventListener {
-
-    private final ObjectMapper objectMapper;
+    private static final Logger       log = LoggerFactory.getLogger(DeliveryEventListener.class);
+    private final    ObjectMapper objectMapper;
     private final OnlineRouteQueryRpc onlineRouteQueryRpc;
     private final OnlineDispatchRpc onlineDispatchRpc;
     private final KafkaTemplate<String, Object> kafkaTemplate;
@@ -37,12 +40,12 @@ public class DeliveryEventListener {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    @KafkaListener(topics = TopicNames.DELIVERY, groupId = "push-delivery")
-    public void onMessage(String payload) {
+    @QueueListener(topic = TopicNames.DELIVERY, group = "push-delivery")
+    public void onMessage(DeliveryEvent event) {
         try {
-            handle(objectMapper.readValue(payload, DeliveryEvent.class));
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("Failed to parse delivery event payload", e);
+            handle(event);
+        } catch (Exception e) {
+            log.error("Failed to handle ingress event: {}", event, e);
         }
     }
 

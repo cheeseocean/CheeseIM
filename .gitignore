@@ -3,6 +3,7 @@
 /.worktrees/
 /.gradle/
 /build/
+/data
 server/.gradle/
 server/build/
 server/.idea/

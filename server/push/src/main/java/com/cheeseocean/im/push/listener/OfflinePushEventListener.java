@@ -3,10 +3,10 @@ package com.cheeseocean.im.push.listener;
 import com.cheeseocean.im.common.api.event.OfflinePushEvent;
 import com.cheeseocean.im.common.api.route.OnlineRouteQueryRpc;
 import com.cheeseocean.im.common.core.constants.TopicNames;
+import com.cheeseocean.im.common.core.queue.annotation.QueueListener;
 import com.cheeseocean.im.push.service.impl.MessagePushServiceImpl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -24,7 +24,7 @@ public class OfflinePushEventListener {
         this.onlineRouteQueryRpc = onlineRouteQueryRpc;
     }
 
-    @KafkaListener(topics = TopicNames.OFFLINE_PUSH, groupId = "push-offline")
+    @QueueListener(topic = TopicNames.OFFLINE_PUSH, group = "push-offline")
     public void onMessage(String payload) {
         try {
             handle(objectMapper.readValue(payload, OfflinePushEvent.class));

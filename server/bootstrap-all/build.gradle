@@ -1,3 +1,6 @@
+tasks.named('bootRun') {
+    jvmArgs += chronicleJvmArgs
+}
 dependencies {
     implementation project(':common-core')
     implementation project(':common-api')

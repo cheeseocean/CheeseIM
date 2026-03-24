@@ -36,5 +36,3 @@ cheeseim:
 logging:
   level:
     com.cheeseocean.im.postoffice: INFO
-    io.netty: WARN
-    org.springframework.kafka: WARN

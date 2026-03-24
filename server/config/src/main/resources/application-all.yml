@@ -1,6 +1,4 @@
 spring:
-  application:
-    name: cheese-im-all-in-one
   config:
     import:
       - classpath:common.yml
@@ -10,7 +8,8 @@ spring:
       - classpath:module-postman.yml
       - classpath:module-postbox.yml
       - classpath:module-push.yml
-
+  application:
+    name: cheese-im-all-in-one
 server:
   port: 18079
 

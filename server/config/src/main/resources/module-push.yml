@@ -85,11 +85,6 @@ info:
     description: Online and Offline Push Service
     version: 1.0.0
     author: CheeseIM Team
-
 logging:
   level:
     com.cheeseocean.im.push: INFO
-    org.springframework.kafka: WARN
-    org.apache.kafka: WARN
-    org.apache.dubbo: WARN
-    redis.clients.jedis: WARN

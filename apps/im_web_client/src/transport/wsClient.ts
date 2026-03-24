@@ -2,12 +2,13 @@ import type { AuthSession } from '../domain/types';
 import {
   buildAuthRequest,
   buildConnectRequest,
+  buildHeartbeatRequest,
   buildSendMessageRequest,
+  commandTypes,
   type SendMessagePayload,
-  type WSMessage,
-  wsMessageTypes,
-} from './wsMessage';
-import { classifySendMessageError } from './sendMessageError';
+  type ServerEnvelope,
+} from './envelope';
+import { classifySendMessageError, SendMessageError } from './sendMessageError';
 
 interface WsClientCallbacks {
   onConnecting?(): void;
@@ -26,7 +27,7 @@ interface WsClientOptions {
 
 export interface WsClient {
   connect(session: AuthSession): void;
-  sendMessage(operationID: string, payload: SendMessagePayload): Promise<void>;
+  sendMessage(requestId: string, payload: SendMessagePayload): Promise<void>;
   disconnect(): void;
 }
 
@@ -46,6 +47,7 @@ export function createWsClient(
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let reconnectAttempt = 0;
   let operationCounter = 0;
+  let pendingAuthRequestId: string | null = null;
   const pendingRequests = new Map<string, PendingRequest>();
   const heartbeatIntervalMs = options.heartbeatIntervalMs ?? 30_000;
   const reconnectDelaysMs = options.reconnectDelaysMs ?? [
@@ -68,11 +70,51 @@ export function createWsClient(
     }
   }
 
+  function startHeartbeat(): void {
+    stopHeartbeat();
+    heartbeatTimer = setInterval(() => {
+      socket?.send(JSON.stringify(buildHeartbeatRequest(nextOperationId('op-heartbeat'))));
+    }, heartbeatIntervalMs);
+  }
+
   function rejectPendingRequests(message: string): void {
     pendingRequests.forEach((request) => {
-      request.reject(classifySendMessageError(message));
+      request.reject(new SendMessageError('connectionLost', message));
     });
     pendingRequests.clear();
+  }
+
+  function extractBodyMessage(body: unknown, fallback: string): string {
+    if (typeof body === 'string' && body.trim() !== '') {
+      return body;
+    }
+    if (body != null && typeof body === 'object') {
+      const record = body as Record<string, unknown>;
+      if (typeof record.message === 'string' && record.message.trim() !== '') {
+        return record.message;
+      }
+      if (typeof record.reason === 'string' && record.reason.trim() !== '') {
+        return record.reason;
+      }
+    }
+    return fallback;
+  }
+
+  function isAuthSuccessBody(body: unknown): body is Record<string, unknown> {
+    return (
+      body != null &&
+      typeof body === 'object' &&
+      ('connId' in body || 'userID' in body || 'userId' in body)
+    );
+  }
+
+  function handleAuthFailure(message: ServerEnvelope<unknown>): void {
+    const reason = extractBodyMessage(message.body, 'Authentication rejected.');
+    rejectPendingRequests(reason);
+    pendingAuthRequestId = null;
+    activeSession = null;
+    stopHeartbeat();
+    callbacks.onAuthRejected?.(reason);
   }
 
   function scheduleReconnect(): void {
@@ -90,20 +132,30 @@ export function createWsClient(
 
   function connectInternal(session: AuthSession): void {
     activeSession = session;
+    pendingAuthRequestId = null;
     socket = socketFactory(session.wsUrl);
     callbacks.onConnecting?.();
     socket.addEventListener('open', () => {
       socket?.send(JSON.stringify(buildConnectRequest(nextOperationId('op-connect'))));
     });
     socket.addEventListener('message', (event) => {
-      const message = JSON.parse(String(event.data)) as WSMessage<
-        Record<string, unknown> | string
-      >;
-      switch (message.msgType) {
-        case wsMessageTypes.connectSuccess:
+      let message: ServerEnvelope<Record<string, unknown> | string>;
+      try {
+        message = JSON.parse(String(event.data)) as ServerEnvelope<
+          Record<string, unknown> | string
+        >;
+      } catch {
+        return;
+      }
+      switch (message.command) {
+        case commandTypes.connect:
+          if (pendingAuthRequestId != null || heartbeatTimer != null || activeSession == null) {
+            return;
+          }
+          pendingAuthRequestId = nextOperationId('op-auth');
           socket?.send(
             JSON.stringify(
-              buildAuthRequest(nextOperationId('op-auth'), {
+              buildAuthRequest(pendingAuthRequestId, {
                 token: session.token,
                 userID: session.userID,
                 platformID: session.platformID,
@@ -111,56 +163,54 @@ export function createWsClient(
             ),
           );
           return;
-        case wsMessageTypes.authSuccess:
+        case commandTypes.auth:
+          if (pendingAuthRequestId == null || message.requestId !== pendingAuthRequestId) {
+            return;
+          }
+          if (!isAuthSuccessBody(message.body)) {
+            handleAuthFailure(message);
+            return;
+          }
+          pendingAuthRequestId = null;
           reconnectAttempt = 0;
-          stopHeartbeat();
-          heartbeatTimer = setInterval(() => {
-            socket?.send(
-              JSON.stringify({
-                msgType: wsMessageTypes.heartbeatReq,
-                operationID: nextOperationId('op-heartbeat'),
-                data: 'ping',
-              }),
-            );
-          }, heartbeatIntervalMs);
+          startHeartbeat();
           callbacks.onReady?.();
           return;
-        case wsMessageTypes.authFailed:
-          rejectPendingRequests(String(message.data));
+        case commandTypes.forceLogout: {
+          const reason = extractBodyMessage(message.body, 'Force logout');
+          rejectPendingRequests(reason);
           activeSession = null;
           stopHeartbeat();
-          callbacks.onAuthRejected?.(String(message.data));
+          pendingAuthRequestId = null;
+          callbacks.onForceLogout?.(reason);
           return;
-        case wsMessageTypes.forceLogoutNotify:
-          rejectPendingRequests(
-            typeof message.data === 'string'
-              ? message.data
-              : String((message.data as Record<string, unknown>).reason ?? 'Force logout'),
-          );
-          activeSession = null;
-          stopHeartbeat();
-          callbacks.onForceLogout?.(
-            typeof message.data === 'string'
-                ? message.data
-                : String((message.data as Record<string, unknown>).reason ?? 'Force logout'),
-          );
+        }
+        case commandTypes.chatSend: {
+          const pending = pendingRequests.get(message.requestId);
+          pending?.resolve();
+          pendingRequests.delete(message.requestId);
+          callbacks.onSendAck?.(message.body as Record<string, unknown>);
           return;
-        case wsMessageTypes.sendMsgResp:
-          pendingRequests.get(message.operationID)?.resolve();
-          pendingRequests.delete(message.operationID);
-          callbacks.onSendAck?.(message.data as Record<string, unknown>);
+        }
+        case commandTypes.chatRecv:
+          callbacks.onInboundMessage?.(message.body as Record<string, unknown>);
           return;
-        case wsMessageTypes.recvMsgNotify:
-          callbacks.onInboundMessage?.(message.data as Record<string, unknown>);
-          return;
-        case wsMessageTypes.errorResp:
-        case wsMessageTypes.paramError:
-        case wsMessageTypes.permissionError:
-        case wsMessageTypes.internalError: {
-          pendingRequests
-            .get(message.operationID)
-            ?.reject(classifySendMessageError(String(message.data), message.msgType));
-          pendingRequests.delete(message.operationID);
+        case commandTypes.error: {
+          const pending = pendingRequests.get(message.requestId);
+          if (pending != null) {
+            pending.reject(
+              classifySendMessageError(
+                extractBodyMessage(message.body, 'gateway error'),
+                message.command,
+              ),
+            );
+            pendingRequests.delete(message.requestId);
+            return;
+          }
+          if (pendingAuthRequestId === message.requestId) {
+            handleAuthFailure(message);
+            return;
+          }
           return;
         }
       }
@@ -181,16 +231,13 @@ export function createWsClient(
       }
       connectInternal(session);
     },
-    async sendMessage(operationID, payload) {
+    async sendMessage(requestId, payload) {
       if (socket == null) {
         throw new Error('WebSocket is not connected.');
       }
-      const message: WSMessage<SendMessagePayload> = buildSendMessageRequest(
-        operationID,
-        payload,
-      );
+      const message = buildSendMessageRequest(requestId, payload);
       const pending = new Promise<void>((resolve, reject) => {
-        pendingRequests.set(operationID, { resolve, reject });
+        pendingRequests.set(requestId, { resolve, reject });
       });
       socket.send(JSON.stringify(message));
       return pending;

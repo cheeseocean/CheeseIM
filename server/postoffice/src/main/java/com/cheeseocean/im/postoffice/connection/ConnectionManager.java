@@ -4,8 +4,6 @@ import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.postoffice.protocol.CheeseMessage;
 import com.cheeseocean.im.postoffice.service.OnlineRouteService;
-import com.cheeseocean.im.postoffice.protocol.WSMessage;
-import com.cheeseocean.im.postoffice.protocol.WSMessageType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.channel.Channel;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
@@ -387,8 +385,7 @@ public class ConnectionManager {
                 CheeseMessage tcpMessage = CheeseMessage.fromServerEnvelope(envelope);
                 connection.getChannel().writeAndFlush(tcpMessage);
             } else {
-                WSMessage wsMessage = WSMessage.fromServerEnvelope(envelope);
-                String messageJson = objectMapper.writeValueAsString(wsMessage);
+                String messageJson = objectMapper.writeValueAsString(serializeEnvelope(envelope));
                 connection.getChannel().writeAndFlush(new TextWebSocketFrame(messageJson));
             }
             connection.incrementSendMsg();
@@ -399,6 +396,14 @@ public class ConnectionManager {
             logger.error("Failed to send message to connection: {}", connection.getConnectionID(), e);
             return false;
         }
+    }
+
+    private Map<String, Object> serializeEnvelope(ServerEnvelope envelope) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("command", envelope.getCommand() == null ? null : envelope.getCommand().getCode());
+        payload.put("requestId", envelope.getRequestId());
+        payload.put("body", envelope.getBody());
+        return payload;
     }
     
     /**

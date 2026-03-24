@@ -1,3 +1,5 @@
+import { commandTypes } from './envelope';
+
 export type SendMessageErrorKind =
   | 'permissionDenied'
   | 'invalidRequest'
@@ -17,15 +19,10 @@ export class SendMessageError extends Error {
 
 export function classifySendMessageError(
   message: string,
-  msgType?: number,
+  command?: number,
 ): SendMessageError {
-  switch (msgType) {
-    case 9002:
-      return new SendMessageError('invalidRequest', message);
-    case 9003:
-      return new SendMessageError('permissionDenied', message);
-    case 9004:
-      return new SendMessageError('serverUnavailable', message);
+  if (command !== commandTypes.error) {
+    return new SendMessageError('unknown', message);
   }
 
   const raw = message.trim().toLowerCase();

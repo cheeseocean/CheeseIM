@@ -250,6 +250,14 @@ public class WSMessage implements Serializable {
             return null;
         }
         switch (msgType) {
+            case WSMessageType.WS_CONNECT_SUCCESS:
+                return CommandType.CONNECT;
+            case WSMessageType.WS_AUTH_SUCCESS:
+                return CommandType.AUTH;
+            case WSMessageType.WS_HEARTBEAT_RESP:
+                return CommandType.HEARTBEAT;
+            case WSMessageType.WS_SEND_MSG_RESP:
+                return CommandType.CHAT_SEND;
             case WSMessageType.WS_RECV_MSG_NOTIFY:
             case WSMessageType.WS_FRIEND_REQUEST_NOTIFY:
             case WSMessageType.WS_FRIEND_ADD_NOTIFY:
@@ -259,7 +267,12 @@ public class WSMessage implements Serializable {
                 return CommandType.CHAT_REVOKE;
             case WSMessageType.WS_FORCE_LOGOUT_NOTIFY:
                 return CommandType.FORCE_LOGOUT;
+            case WSMessageType.WS_CONNECT_FAILED:
+            case WSMessageType.WS_AUTH_FAILED:
             case WSMessageType.WS_ERROR_RESP:
+            case WSMessageType.WS_PARAM_ERROR:
+            case WSMessageType.WS_PERMISSION_ERROR:
+            case WSMessageType.WS_INTERNAL_ERROR:
                 return CommandType.ERROR;
             default:
                 return null;
@@ -279,9 +292,42 @@ public class WSMessage implements Serializable {
             case WSMessageType.WS_FRIEND_ADD_NOTIFY:
             case WSMessageType.WS_FRIEND_REQUEST_HANDLE_NOTIFY:
                 return readBody(DispatchPayload.class);
+            case WSMessageType.WS_CONNECT_FAILED:
+            case WSMessageType.WS_AUTH_FAILED:
+            case WSMessageType.WS_ERROR_RESP:
+            case WSMessageType.WS_PARAM_ERROR:
+            case WSMessageType.WS_PERMISSION_ERROR:
+            case WSMessageType.WS_INTERNAL_ERROR:
+                return normalizeErrorBody();
             default:
                 return data;
         }
+    }
+
+    private Object normalizeErrorBody() {
+        if (data == null) {
+            return null;
+        }
+        if (data instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> raw = (Map<String, Object>) data;
+            Object errMsg = raw.get("errMsg");
+            Object errCode = raw.get("errCode");
+            if (errMsg != null || errCode != null) {
+                Map<String, Object> normalized = new HashMap<>();
+                if (errCode != null) {
+                    normalized.put("code", errCode);
+                }
+                if (errMsg != null) {
+                    normalized.put("message", errMsg);
+                }
+                return normalized;
+            }
+        }
+        if (data instanceof String) {
+            return Map.of("message", data);
+        }
+        return data;
     }
 
     private static int resolveServerMsgType(ServerEnvelope envelope) {

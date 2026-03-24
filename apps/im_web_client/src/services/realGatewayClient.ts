@@ -1,25 +1,18 @@
-import type { GatewayClient, GatewayEvent, SendMessageRequest, SendTextRequest, SendTextResult } from './contracts';
+import type {
+  GatewayClient,
+  GatewayEvent,
+  SendMessageRequest,
+  SendTextRequest,
+  SendTextResult,
+} from './contracts';
 import type { AuthSession, GatewayConnection, MessageItem, WsTicket } from '../domain/types';
-
-const WS_MESSAGE_TYPES = {
-  connectReq: 1001,
-  connectSuccess: 1002,
-  authReq: 1101,
-  authSuccess: 1102,
-  authFailed: 1103,
-  sendReq: 2001,
-  sendResp: 2002,
-  recvNotify: 2003,
-  friendRequestNotify: 6001,
-  friendHandleNotify: 6002,
-  friendAddNotify: 6003,
-  friendDeleteNotify: 6004,
-  forceLogout: 7002,
-  errorResp: 9001,
-  paramError: 9002,
-  permissionError: 9003,
-  internalError: 9004,
-} as const;
+import {
+  buildAuthRequest,
+  buildConnectRequest,
+  buildSendMessageRequest,
+  commandTypes,
+  type ServerEnvelope,
+} from '../transport/envelope';
 
 interface RealGatewayClientOptions {
   socketFactory?: (url: string) => WebSocket;
@@ -30,11 +23,17 @@ interface PendingSend {
   reject(error: Error): void;
 }
 
-interface WsEnvelope<T = unknown> {
-  msgType: number;
-  operationID: string;
-  data: T;
+interface PendingConnect {
+  resolve(connection: GatewayConnection): void;
+  reject(error: Error): void;
 }
+
+const FRIEND_STATE_EVENT_TYPES = new Set([
+  'friend_request_created',
+  'friend_request_accepted',
+  'friend_request_rejected',
+  'friend_request_cancelled',
+]);
 
 export function createRealGatewayClient(
   options: RealGatewayClientOptions = {},
@@ -42,7 +41,12 @@ export function createRealGatewayClient(
   const socketFactory = options.socketFactory ?? ((url: string) => new WebSocket(url));
   let socket: WebSocket | null = null;
   let activeSession: AuthSession | null = null;
+  let currentTicket: WsTicket | null = null;
   let operationCounter = 0;
+  let pendingConnectRequestId: string | null = null;
+  let pendingConnectConnId: string | null = null;
+  let pendingAuthRequestId: string | null = null;
+  let pendingConnect: PendingConnect | null = null;
   const pendingSends = new Map<string, PendingSend>();
   const listeners = new Set<(event: GatewayEvent) => void>();
 
@@ -55,13 +59,166 @@ export function createRealGatewayClient(
     listeners.forEach((listener) => listener(event));
   }
 
+  function rejectPendingSends(message: string): void {
+    pendingSends.forEach((pending) => {
+      pending.reject(new Error(message));
+    });
+    pendingSends.clear();
+  }
+
+  function handleAuthSuccess(message: ServerEnvelope<Record<string, unknown> | string>): void {
+    if (
+      pendingConnect == null ||
+      pendingAuthRequestId == null ||
+      message.requestId !== pendingAuthRequestId
+    ) {
+      return;
+    }
+    if (!isAuthSuccessBody(message.body)) {
+      pendingConnect.reject(new Error(stringMessage(message.body, 'ticket rejected')));
+      pendingConnect = null;
+      pendingAuthRequestId = null;
+      return;
+    }
+
+    const connection = {
+      connId: String(message.body.connId ?? pendingConnectConnId ?? nextOperationId('conn')),
+      lifecycle: 'connected',
+      transportLabel: 'PostOffice WebSocket',
+    } satisfies GatewayConnection;
+
+    pendingConnectConnId = null;
+    pendingAuthRequestId = null;
+    pendingConnectRequestId = null;
+    pendingConnect.resolve(connection);
+    pendingConnect = null;
+  }
+
+  function handleAuthError(message: ServerEnvelope<Record<string, unknown> | string>): void {
+    if (pendingConnect == null || message.requestId !== pendingAuthRequestId) {
+      return;
+    }
+    const reason = stringMessage(message.body, 'ticket rejected');
+    pendingConnect.reject(new Error(reason));
+    pendingConnect = null;
+    pendingConnectConnId = null;
+    pendingConnectRequestId = null;
+    pendingAuthRequestId = null;
+  }
+
+  function handleChatSend(message: ServerEnvelope<Record<string, unknown> | string>): void {
+    const pending = pendingSends.get(message.requestId);
+    if (pending == null) {
+      return;
+    }
+
+    const payload = typeof message.body === 'object' && message.body != null ? (message.body as Record<string, unknown>) : {};
+    pending.resolve({
+      serverId: String(payload.serverMsgID ?? payload.serverId ?? ''),
+      sentAt: Number(payload.sendTime ?? Date.now()),
+    });
+    pendingSends.delete(message.requestId);
+  }
+
+  function handleChatRecv(message: ServerEnvelope<Record<string, unknown> | string>): void {
+    if (activeSession == null || typeof message.body !== 'object' || message.body == null) {
+      return;
+    }
+
+    const payload = message.body as Record<string, unknown>;
+    if (isFriendStateChangePayload(payload)) {
+      emit({ type: 'friendStateChanged' });
+      return;
+    }
+
+    emit(mapGatewayEvent(payload, activeSession));
+  }
+
+  function handleForceLogout(message: ServerEnvelope<Record<string, unknown> | string>): void {
+    const reason = stringMessage(message.body, 'Force logout');
+    rejectPendingSends(reason);
+    if (pendingConnect != null) {
+      pendingConnect.reject(new Error(reason));
+      pendingConnect = null;
+      pendingAuthRequestId = null;
+    }
+    activeSession = null;
+    emit({
+      type: 'forceLogout',
+      reason,
+    });
+  }
+
+  function handleError(message: ServerEnvelope<Record<string, unknown> | string>): void {
+    if (pendingConnect != null && message.requestId === pendingConnectRequestId) {
+      const reason = stringMessage(message.body, 'connect rejected');
+      pendingConnect.reject(new Error(reason));
+      pendingConnect = null;
+      pendingConnectRequestId = null;
+      pendingAuthRequestId = null;
+      activeSession = null;
+      currentTicket = null;
+      return;
+    }
+
+    const pending = pendingSends.get(message.requestId);
+    if (pending != null) {
+      pending.reject(new Error(stringMessage(message.body, 'gateway error')));
+      pendingSends.delete(message.requestId);
+      return;
+    }
+
+    if (message.requestId === pendingAuthRequestId && pendingConnect != null) {
+      handleAuthError(message);
+    }
+  }
+
+  function handleMessage(message: ServerEnvelope<Record<string, unknown> | string>): void {
+    switch (message.command) {
+      case commandTypes.connect:
+        if (
+          pendingConnect == null ||
+          pendingConnectRequestId == null ||
+          message.requestId !== pendingConnectRequestId ||
+          pendingAuthRequestId != null
+        ) {
+          return;
+        }
+        pendingConnectConnId = extractConnId(message.body);
+        pendingAuthRequestId = nextOperationId('op-auth');
+        socket?.send(
+          JSON.stringify(
+            buildAuthRequest(pendingAuthRequestId, {
+              ticket: currentTicket?.ticket ?? '',
+            }),
+          ),
+        );
+        return;
+      case commandTypes.auth:
+        handleAuthSuccess(message);
+        return;
+      case commandTypes.chatSend:
+        handleChatSend(message);
+        return;
+      case commandTypes.chatRecv:
+        handleChatRecv(message);
+        return;
+      case commandTypes.forceLogout:
+        handleForceLogout(message);
+        return;
+      case commandTypes.error:
+        handleError(message);
+        return;
+    }
+  }
+
   function sendMessageInternal(input: SendMessageRequest): Promise<SendTextResult> {
     if (socket == null || socket.readyState !== WebSocket.OPEN) {
       throw new Error('WebSocket is not connected.');
     }
 
-    const operationID = nextOperationId('op-send');
-    const payload = buildSendMessageRequest(operationID, {
+    const requestId = nextOperationId('op-send');
+    const payload = buildSendMessageRequest(requestId, {
       clientMsgID: input.localId,
       recvID: input.recipientId,
       content: input.content,
@@ -71,97 +228,59 @@ export function createRealGatewayClient(
     });
 
     return new Promise((resolve, reject) => {
-      pendingSends.set(operationID, { resolve, reject });
+      pendingSends.set(requestId, { resolve, reject });
       socket?.send(JSON.stringify(payload));
     });
   }
 
   return {
-    connect(ticket: WsTicket, _session: AuthSession): Promise<GatewayConnection> {
+    connect(ticket: WsTicket, session: AuthSession): Promise<GatewayConnection> {
+      currentTicket = ticket;
+      activeSession = session;
+      pendingConnectRequestId = nextOperationId('op-connect');
+      pendingConnectConnId = null;
+      pendingAuthRequestId = null;
+
       return new Promise((resolve, reject) => {
-        activeSession = _session;
+        pendingConnect = { resolve, reject };
         socket = socketFactory(ticket.wsUrl);
 
         socket.addEventListener('open', () => {
-          socket?.send(JSON.stringify(buildConnectRequest('system')));
+          socket?.send(JSON.stringify(buildConnectRequest(pendingConnectRequestId!)));
         });
 
         socket.addEventListener('message', (event) => {
-          const message = JSON.parse(String(event.data)) as WsEnvelope<Record<string, unknown> | string>;
-
-          if (message.msgType === WS_MESSAGE_TYPES.connectSuccess) {
-            socket?.send(JSON.stringify(buildWsTicketAuthRequest(nextOperationId('op-auth'), ticket.ticket)));
+          let message: ServerEnvelope<Record<string, unknown> | string>;
+          try {
+            message = JSON.parse(String(event.data)) as ServerEnvelope<Record<string, unknown> | string>;
+          } catch {
             return;
           }
-
-          if (message.msgType === WS_MESSAGE_TYPES.authSuccess) {
-            resolve({
-              connId: String((message.data as Record<string, unknown>)?.connId ?? nextOperationId('conn')),
-              lifecycle: 'connected',
-              transportLabel: 'PostOffice WebSocket',
-            });
-            return;
-          }
-
-          if (message.msgType === WS_MESSAGE_TYPES.authFailed) {
-            reject(new Error(stringMessage(message.data, 'ticket rejected')));
-            return;
-          }
-
-          if (message.msgType === WS_MESSAGE_TYPES.sendResp) {
-            const payload = message.data as Record<string, unknown>;
-            pendingSends.get(message.operationID)?.resolve({
-              serverId: String(payload.serverMsgID ?? payload.serverId ?? ''),
-              sentAt: Number(payload.sendTime ?? Date.now()),
-            });
-            pendingSends.delete(message.operationID);
-            return;
-          }
-
-          if (message.msgType === WS_MESSAGE_TYPES.recvNotify && activeSession != null) {
-            emit(mapGatewayEvent(message.data as Record<string, unknown>, activeSession));
-            return;
-          }
-
-          if (
-            message.msgType === WS_MESSAGE_TYPES.friendRequestNotify ||
-            message.msgType === WS_MESSAGE_TYPES.friendHandleNotify ||
-            message.msgType === WS_MESSAGE_TYPES.friendAddNotify ||
-            message.msgType === WS_MESSAGE_TYPES.friendDeleteNotify
-          ) {
-            emit({ type: 'friendStateChanged' });
-            return;
-          }
-
-          if (message.msgType === WS_MESSAGE_TYPES.forceLogout) {
-            emit({
-              type: 'forceLogout',
-              reason: stringMessage(message.data, 'Force logout'),
-            });
-            return;
-          }
-
-          if (
-            message.msgType === WS_MESSAGE_TYPES.errorResp ||
-            message.msgType === WS_MESSAGE_TYPES.paramError ||
-            message.msgType === WS_MESSAGE_TYPES.permissionError ||
-            message.msgType === WS_MESSAGE_TYPES.internalError
-          ) {
-            pendingSends.get(message.operationID)?.reject(new Error(stringMessage(message.data, 'gateway error')));
-            pendingSends.delete(message.operationID);
-          }
+          handleMessage(message);
         });
 
         socket.addEventListener('close', () => {
-          pendingSends.forEach((pending) => {
-            pending.reject(new Error('WebSocket connection closed.'));
-          });
-          pendingSends.clear();
+          rejectPendingSends('WebSocket connection closed.');
+          if (pendingConnect != null) {
+            pendingConnect.reject(new Error('WebSocket connection closed.'));
+            pendingConnect = null;
+          }
+          pendingConnectConnId = null;
+          pendingConnectRequestId = null;
+          pendingAuthRequestId = null;
+          activeSession = null;
+          currentTicket = null;
           emit({ type: 'disconnected' });
         });
 
         socket.addEventListener('error', () => {
-          reject(new Error('WebSocket connection failed.'));
+          if (pendingConnect != null) {
+            pendingConnect.reject(new Error('WebSocket connection failed.'));
+            pendingConnect = null;
+            pendingAuthRequestId = null;
+          }
+          pendingConnectConnId = null;
+          pendingConnectRequestId = null;
         });
       });
     },
@@ -187,43 +306,31 @@ export function createRealGatewayClient(
   };
 }
 
-export function buildConnectRequest(operationID: string): WsEnvelope<Record<string, never>> {
-  return {
-    msgType: WS_MESSAGE_TYPES.connectReq,
-    operationID,
-    data: {},
-  };
+function isAuthSuccessBody(body: unknown): body is Record<string, unknown> {
+  return (
+    body != null &&
+    typeof body === 'object' &&
+    ('connId' in body || 'userID' in body || 'userId' in body)
+  );
 }
 
-export function buildWsTicketAuthRequest(
-  operationID: string,
-  ticket: string,
-): WsEnvelope<{ ticket: string }> {
-  return {
-    msgType: WS_MESSAGE_TYPES.authReq,
-    operationID,
-    data: {
-      ticket,
-    },
-  };
+function extractConnId(body: unknown): string | null {
+  if (body != null && typeof body === 'object' && 'connId' in body) {
+    const connId = (body as { connId?: unknown }).connId;
+    if (connId != null && String(connId).trim() !== '') {
+      return String(connId);
+    }
+  }
+  return null;
 }
 
-function buildSendMessageRequest(
-  operationID: string,
-  payload: {
-    clientMsgID: string;
-    recvID: string;
-    content: string;
-    contentType: number;
-    sessionType: number;
-    attachedInfo?: string;
-  },
-): WsEnvelope<typeof payload> {
-  return {
-    msgType: WS_MESSAGE_TYPES.sendReq,
-    operationID,
-    data: payload,
-  };
+function isFriendStateChangePayload(payload: Record<string, unknown>): boolean {
+  const ext =
+    payload.ext != null && typeof payload.ext === 'object'
+      ? (payload.ext as Record<string, unknown>)
+      : undefined;
+  const notificationType = ext?.notificationType;
+  return typeof notificationType === 'string' && FRIEND_STATE_EVENT_TYPES.has(notificationType);
 }
 
 function mapGatewayEvent(payload: Record<string, unknown>, session: AuthSession): GatewayEvent {
@@ -257,10 +364,10 @@ function mapGatewayEvent(payload: Record<string, unknown>, session: AuthSession)
       recipientId,
       clientMsgId: String(
         payload.clientMsgID ??
-        payload.clientMsgId ??
-        payload.serverMsgID ??
-        payload.serverMsgId ??
-        '',
+          payload.clientMsgId ??
+          payload.serverMsgID ??
+          payload.serverMsgId ??
+          '',
       ),
     };
   }
@@ -309,7 +416,13 @@ function mapInboundMessage(
       senderId,
   );
   return {
-    localId: String(payload.clientMsgID ?? payload.clientMsgId ?? payload.serverMsgID ?? payload.serverMsgId ?? `msg_${Date.now()}`),
+    localId: String(
+      payload.clientMsgID ??
+        payload.clientMsgId ??
+        payload.serverMsgID ??
+        payload.serverMsgId ??
+        `msg_${Date.now()}`,
+    ),
     serverId:
       payload.serverMsgID == null && payload.serverMsgId == null
         ? undefined

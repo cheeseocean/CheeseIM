@@ -27,18 +27,6 @@ cheeseim:
       token-secret: ${postbox.attachment.token-secret:CheeseIMPostboxAttachmentSecret!2026}
       token-ttl-seconds: ${postbox.attachment.token-ttl-seconds:300}
       public-base-url: ${postbox.attachment.public-base-url:}
-  postman:
-    transfer:
-      batch-size: 100
-      retry-times: 3
-      timeout-ms: 5000
-    statistics:
-      enabled: true
-      cache-expire-hours: 24
-      realtime-window-seconds: 60
-    online-user:
-      cache-expire-minutes: 10
-      check-interval-seconds: 30
 
 management:
   endpoints:
@@ -63,6 +51,3 @@ info:
 logging:
   level:
     com.cheeseocean.im.postbox: INFO
-    org.springframework.kafka: WARN
-    org.apache.kafka: WARN
-    redis.clients.jedis: WARN

@@ -3,8 +3,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildAuthRequest,
   buildConnectRequest,
+  buildHeartbeatRequest,
   buildSendMessageRequest,
-} from '../transport/wsMessage';
+  commandTypes,
+} from '../transport/envelope';
 import { createSessionStore } from '../state/sessionStore';
 import { createWsClient } from '../transport/wsClient';
 
@@ -12,26 +14,32 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('wsMessage', () => {
-  it('serializes connect requests in postoffice WSMessage shape', () => {
+describe('envelope', () => {
+  it('serializes connect requests in command/requestId/body shape', () => {
     const payload = buildConnectRequest('op-connect-1');
 
-    expect(payload.msgType).toBe(1001);
-    expect(payload.operationID).toBe('op-connect-1');
+    expect(payload).toEqual({
+      command: 1,
+      requestId: 'op-connect-1',
+      body: {},
+    });
   });
 
-  it('serializes auth requests in postoffice WSMessage shape', () => {
+  it('serializes auth requests in command/requestId/body shape', () => {
     const payload = buildAuthRequest('op-auth-1', {
-      token: 'jwt',
-      userID: 'u1',
-      platformID: 5,
+      ticket: 'wst_123',
     });
 
-    expect(payload.msgType).toBe(1101);
-    expect(payload.data.userID).toBe('u1');
+    expect(payload).toEqual({
+      command: 10,
+      requestId: 'op-auth-1',
+      body: {
+        ticket: 'wst_123',
+      },
+    });
   });
 
-  it('serializes send requests in postoffice WSMessage shape', () => {
+  it('serializes send requests in command/requestId/body shape', () => {
     const payload = buildSendMessageRequest('op-send-1', {
       clientMsgID: 'client-1',
       recvID: 'u2',
@@ -40,9 +48,27 @@ describe('wsMessage', () => {
       sessionType: 1,
     });
 
-    expect(payload.msgType).toBe(2001);
-    expect(payload.data.clientMsgID).toBe('client-1');
-    expect(payload.data.recvID).toBe('u2');
+    expect(payload).toEqual({
+      command: 30,
+      requestId: 'op-send-1',
+      body: {
+        clientMsgID: 'client-1',
+        recvID: 'u2',
+        content: 'hello',
+        contentType: 1,
+        sessionType: 1,
+      },
+    });
+  });
+
+  it('serializes heartbeat requests in command/requestId/body shape', () => {
+    const payload = buildHeartbeatRequest('op-heartbeat-1');
+
+    expect(payload).toEqual({
+      command: commandTypes.heartbeat,
+      requestId: 'op-heartbeat-1',
+      body: {},
+    });
   });
 });
 
@@ -134,20 +160,164 @@ describe('wsClient', () => {
 
     listeners.get('open')?.();
     listeners.get('message')?.({
-      data: JSON.stringify({ msgType: 1002, operationID: 'system', data: '连接成功' }),
+      data: JSON.stringify({
+        command: commandTypes.connect,
+        requestId: 'system',
+        body: { status: 'connected' },
+      }),
     });
     listeners.get('message')?.({
       data: JSON.stringify({
-        msgType: 1102,
-        operationID: 'op-auth-1',
-        data: { userID: 'u1', message: '认证成功' },
+        command: commandTypes.auth,
+        requestId: 'op-auth-000002',
+        body: { connId: 'conn-1', userID: 'u1' },
       }),
     });
 
     expect(sent).toHaveLength(2);
-    expect(JSON.parse(sent[0]).msgType).toBe(1001);
-    expect(JSON.parse(sent[1]).msgType).toBe(1101);
+    expect(JSON.parse(sent[0])).toMatchObject({
+      command: commandTypes.connect,
+      requestId: 'op-connect-000001',
+      body: {},
+    });
+    expect(JSON.parse(sent[1])).toMatchObject({
+      command: commandTypes.auth,
+      requestId: 'op-auth-000002',
+      body: {
+        token: 'jwt',
+        userID: 'u1',
+        platformID: 5,
+      },
+    });
     expect(onReady).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores duplicate connect commands while auth is pending', () => {
+    const sent: string[] = [];
+    const listeners = new Map<string, (event?: { data?: string }) => void>();
+    const socket = {
+      send(payload: string) {
+        sent.push(payload);
+      },
+      close: vi.fn(),
+      addEventListener(type: string, listener: (event?: { data?: string }) => void) {
+        listeners.set(type, listener);
+      },
+    } as unknown as WebSocket;
+    const client = createWsClient(() => socket);
+
+    client.connect({
+      wsUrl: 'ws://localhost:5147/ws',
+      userID: 'u1',
+      platformID: 5,
+      token: 'jwt',
+    });
+
+    listeners.get('open')?.();
+    listeners.get('message')?.({
+      data: JSON.stringify({
+        command: commandTypes.connect,
+        requestId: 'system',
+        body: { status: 'connected' },
+      }),
+    });
+    listeners.get('message')?.({
+      data: JSON.stringify({
+        command: commandTypes.connect,
+        requestId: 'system',
+        body: { status: 'connected' },
+      }),
+    });
+    listeners.get('message')?.({
+      data: JSON.stringify({
+        command: commandTypes.auth,
+        requestId: 'op-auth-000002',
+        body: { connId: 'conn-1', userID: 'u1' },
+      }),
+    });
+
+    expect(
+      sent.filter((payload) => JSON.parse(payload).command === commandTypes.auth),
+    ).toHaveLength(1);
+  });
+
+  it('ignores auth success until the pending auth request id matches', () => {
+    const sent: string[] = [];
+    const listeners = new Map<string, (event?: { data?: string }) => void>();
+    const onReady = vi.fn();
+    const socket = {
+      send(payload: string) {
+        sent.push(payload);
+      },
+      close: vi.fn(),
+      addEventListener(type: string, listener: (event?: { data?: string }) => void) {
+        listeners.set(type, listener);
+      },
+    } as unknown as WebSocket;
+    const client = createWsClient(() => socket, { onReady }, { heartbeatIntervalMs: 10 });
+
+    client.connect({
+      wsUrl: 'ws://localhost:5147/ws',
+      userID: 'u1',
+      platformID: 5,
+      token: 'jwt',
+    });
+
+    listeners.get('open')?.();
+    listeners.get('message')?.({
+      data: JSON.stringify({
+        command: commandTypes.connect,
+        requestId: 'system',
+        body: { status: 'connected' },
+      }),
+    });
+    listeners.get('message')?.({
+      data: JSON.stringify({
+        command: commandTypes.auth,
+        requestId: 'op-auth-999999',
+        body: { connId: 'conn-1', userID: 'u1' },
+      }),
+    });
+
+    expect(onReady).not.toHaveBeenCalled();
+
+    listeners.get('message')?.({
+      data: JSON.stringify({
+        command: commandTypes.auth,
+        requestId: 'op-auth-000002',
+        body: { connId: 'conn-1', userID: 'u1' },
+      }),
+    });
+
+    expect(onReady).toHaveBeenCalledTimes(1);
+    expect(
+      sent.filter((payload) => JSON.parse(payload).command === commandTypes.heartbeat),
+    ).toHaveLength(0);
+  });
+
+  it('swallows malformed websocket messages without throwing', () => {
+    const listeners = new Map<string, (event?: { data?: string }) => void>();
+    const socket = {
+      send: vi.fn(),
+      close: vi.fn(),
+      addEventListener(type: string, listener: (event?: { data?: string }) => void) {
+        listeners.set(type, listener);
+      },
+    } as unknown as WebSocket;
+    const client = createWsClient(() => socket);
+
+    client.connect({
+      wsUrl: 'ws://localhost:5147/ws',
+      userID: 'u1',
+      platformID: 5,
+      token: 'jwt',
+    });
+
+    expect(() => {
+      listeners.get('message')?.({
+        data: '{not-json',
+      });
+    }).not.toThrow();
   });
 
   it('sends heartbeat requests on an interval after auth success', () => {
@@ -179,23 +349,28 @@ describe('wsClient', () => {
 
     listeners.get('open')?.();
     listeners.get('message')?.({
-      data: JSON.stringify({ msgType: 1002, operationID: 'system', data: '连接成功' }),
+      data: JSON.stringify({
+        command: commandTypes.connect,
+        requestId: 'system',
+        body: { status: 'connected' },
+      }),
     });
     listeners.get('message')?.({
       data: JSON.stringify({
-        msgType: 1102,
-        operationID: 'op-auth-1',
-        data: { userID: 'u1', message: '认证成功' },
+        command: commandTypes.auth,
+        requestId: 'op-auth-000002',
+        body: { connId: 'conn-1', userID: 'u1' },
       }),
     });
 
     vi.advanceTimersByTime(25);
 
     const heartbeatMessages = sent
-      .map((payload) => JSON.parse(payload) as { msgType: number })
-      .filter((message) => message.msgType === 1201);
+      .map((payload) => JSON.parse(payload) as { command: number })
+      .filter((message) => message.command === commandTypes.heartbeat);
 
     expect(heartbeatMessages.length).toBeGreaterThanOrEqual(2);
+    expect(heartbeatMessages.every((message) => message.command === commandTypes.heartbeat)).toBe(true);
   });
 
   it('reconnects with the previous session after socket close', () => {
@@ -262,13 +437,60 @@ describe('wsClient', () => {
 
     listeners.get('message')?.({
       data: JSON.stringify({
-        msgType: 7002,
-        operationID: 'system',
-        data: { reason: 'logged out elsewhere' },
+        command: commandTypes.forceLogout,
+        requestId: 'system',
+        body: { reason: 'logged out elsewhere' },
       }),
     });
 
     expect(onForceLogout).toHaveBeenCalledWith('logged out elsewhere');
+  });
+
+  it('rejects pending sendMessage when auth fails', async () => {
+    const listeners = new Map<string, (event?: { data?: string }) => void>();
+    const socket = {
+      send: vi.fn(),
+      close: vi.fn(),
+      addEventListener(type: string, listener: (event?: { data?: string }) => void) {
+        listeners.set(type, listener);
+      },
+    } as unknown as WebSocket;
+    const client = createWsClient(() => socket);
+
+    client.connect({
+      wsUrl: 'ws://localhost:5147/ws',
+      userID: 'u1',
+      platformID: 5,
+      token: 'jwt',
+    });
+
+    const sendPromise = client.sendMessage('op-send-000001', {
+      clientMsgID: 'client-1',
+      recvID: 'u2',
+      content: 'hello',
+      contentType: 1,
+      sessionType: 1,
+    });
+
+    listeners.get('open')?.();
+    listeners.get('message')?.({
+      data: JSON.stringify({
+        command: commandTypes.connect,
+        requestId: 'system',
+        body: { status: 'connected' },
+      }),
+    });
+    listeners.get('message')?.({
+      data: JSON.stringify({
+        command: commandTypes.error,
+        requestId: 'op-auth-000002',
+        body: 'auth rejected',
+      }),
+    });
+
+    await expect(sendPromise).rejects.toMatchObject({
+      message: 'auth rejected',
+    });
   });
 
   it('resolves sendMessage when send acknowledgement arrives for the same operation', async () => {
@@ -299,9 +521,9 @@ describe('wsClient', () => {
 
     listeners.get('message')?.({
       data: JSON.stringify({
-        msgType: 2002,
-        operationID: 'op-send-000001',
-        data: {
+        command: commandTypes.chatSend,
+        requestId: 'op-send-000001',
+        body: {
           clientMsgID: 'client-1',
           serverMsgID: 'server-1',
           sendTime: 1710000000000,
@@ -340,9 +562,9 @@ describe('wsClient', () => {
 
     listeners.get('message')?.({
       data: JSON.stringify({
-        msgType: 9003,
-        operationID: 'op-send-000001',
-        data: 'permission denied',
+        command: commandTypes.error,
+        requestId: 'op-send-000001',
+        body: 'permission denied',
       }),
     });
 

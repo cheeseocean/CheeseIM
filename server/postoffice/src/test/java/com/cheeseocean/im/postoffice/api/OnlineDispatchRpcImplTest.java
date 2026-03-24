@@ -7,7 +7,7 @@ import com.cheeseocean.im.common.core.enums.CommandType;
 import com.cheeseocean.im.postoffice.connection.ConnectionManager;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.postoffice.protocol.CheeseMessage;
-import com.cheeseocean.im.postoffice.protocol.WSMessage;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
@@ -59,9 +59,12 @@ class OnlineDispatchRpcImplTest {
         TextWebSocketFrame outbound = activeChannel.readOutbound();
         assertNotNull(outbound);
         assertFalse(outbound.text().isBlank());
-        WSMessage wsMessage = new ObjectMapper().readValue(outbound.text(), WSMessage.class);
-        ServerEnvelope envelope = wsMessage.toServerEnvelope();
-        assertEquals(CommandType.CHAT_RECV, envelope.getCommand());
+        Map<String, Object> envelope = new ObjectMapper().readValue(
+                outbound.text(),
+                new TypeReference<Map<String, Object>>() {}
+        );
+        assertEquals(CommandType.CHAT_RECV.getCode(), envelope.get("command"));
+        assertEquals("srv-1", envelope.get("requestId"));
     }
 
     @Test
@@ -159,9 +162,10 @@ class OnlineDispatchRpcImplTest {
         assertNotNull(outbound);
         @SuppressWarnings("unchecked")
         Map<String, Object> frame = objectMapper.readValue(outbound.text(), Map.class);
-        assertEquals(6001, frame.get("msgType"));
-        WSMessage wsMessage = objectMapper.readValue(outbound.text(), WSMessage.class);
-        assertEquals(CommandType.CHAT_RECV, wsMessage.toServerEnvelope().getCommand());
+        assertEquals(CommandType.CHAT_RECV.getCode(), frame.get("command"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = (Map<String, Object>) frame.get("body");
+        assertEquals("friend_request_created", ((Map<?, ?>) body.get("ext")).get("notificationType"));
     }
 
     private static DispatchPayload payload(String serverMsgId, String content) {

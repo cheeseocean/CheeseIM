@@ -6,8 +6,11 @@ import com.cheeseocean.im.common.api.event.FriendRelationEvent;
 import com.cheeseocean.im.common.api.route.OnlineRouteQueryRpc;
 import com.cheeseocean.im.common.api.rpc.OnlineDispatchRpc;
 import com.cheeseocean.im.common.core.constants.TopicNames;
+import com.cheeseocean.im.common.core.queue.annotation.QueueListener;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -15,8 +18,8 @@ import java.util.List;
 
 @Component
 public class FriendRelationEventListener {
-
-    private final ObjectMapper objectMapper;
+    private static final Logger       log = LoggerFactory.getLogger(FriendRelationEventListener.class);
+    private final    ObjectMapper objectMapper;
     private final OnlineRouteQueryRpc onlineRouteQueryRpc;
     private final OnlineDispatchRpc onlineDispatchRpc;
 
@@ -28,12 +31,12 @@ public class FriendRelationEventListener {
         this.onlineDispatchRpc = onlineDispatchRpc;
     }
 
-    @KafkaListener(topics = TopicNames.FRIEND_RELATION, groupId = "push-friend-relation")
-    public void onMessage(String payload) {
+    @QueueListener(topic = TopicNames.FRIEND_RELATION, group = "push-friend-relation")
+    public void onMessage(FriendRelationEvent event) {
         try {
-            handle(objectMapper.readValue(payload, FriendRelationEvent.class));
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("Failed to parse friend relation event payload", e);
+            handle(event);
+        } catch (Exception e) {
+            log.error("Failed to handle ingress event: {}", event, e);
         }
     }
 

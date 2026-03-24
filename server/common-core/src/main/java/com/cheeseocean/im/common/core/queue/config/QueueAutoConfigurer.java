@@ -18,7 +18,7 @@ public class QueueAutoConfigurer {
 
     @Bean
     @ConditionalOnMissingBean
-    public QueueListenerBeanPostProcessor queueListenerBeanPostProcessor() {
+    public static QueueListenerBeanPostProcessor queueListenerBeanPostProcessor() {
         return new QueueListenerBeanPostProcessor();
     }
 
