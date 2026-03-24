@@ -3,14 +3,12 @@ package com.cheeseocean.im.postman.service;
 import com.cheeseocean.im.common.api.dto.message.DeliveryTask;
 import com.cheeseocean.im.common.core.constants.TopicNames;
 import com.cheeseocean.im.common.core.enums.DeliveryState;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.cheeseocean.im.common.core.queue.QueueAdapter;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
-import org.springframework.kafka.core.KafkaTemplate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -19,10 +17,9 @@ class DeliveryCompensationServiceTest {
 
     @Test
     void timedOutOnlineDeliveryShouldScheduleCompensation() {
-        KafkaTemplate<String, String> kafkaTemplate = mock(KafkaTemplate.class);
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
         DeliveryCompensationService service = new DeliveryCompensationService(
-                kafkaTemplate,
-                new ObjectMapper(),
+                queueAdapter,
                 new SimpleMeterRegistry(),
                 3,
                 10L);
@@ -35,16 +32,15 @@ class DeliveryCompensationServiceTest {
         assertEquals(1, scheduled.getRetryCount());
         assertEquals(DeliveryState.FAILED_RECOVERABLE, scheduled.getState());
         assertNotNull(scheduled.getNextRetryAt());
-        verify(kafkaTemplate).send(eq(TopicNames.RETRY), eq("s-1"), contains("\"retryCount\":1"));
+        verify(queueAdapter).send(eq(TopicNames.RETRY), eq("s-1"), eq(scheduled));
     }
 
     @Test
     void exhaustedRetriesShouldPublishDeadLetterEvent() {
-        KafkaTemplate<String, String> kafkaTemplate = mock(KafkaTemplate.class);
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
         SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
         DeliveryCompensationService service = new DeliveryCompensationService(
-                kafkaTemplate,
-                new ObjectMapper(),
+                queueAdapter,
                 meterRegistry,
                 2,
                 10L);
@@ -56,7 +52,7 @@ class DeliveryCompensationServiceTest {
         DeliveryTask deadLettered = service.handleTimeout(task);
 
         assertEquals(DeliveryState.FAILED_FINAL, deadLettered.getState());
-        verify(kafkaTemplate).send(eq(TopicNames.DLQ), eq("s-2"), contains("\"serverMsgId\":\"s-2\""));
+        verify(queueAdapter).send(eq(TopicNames.DLQ), eq("s-2"), eq(deadLettered));
         assertEquals(1.0d, meterRegistry.get("im.delivery.state").tag("state", "FAILED_FINAL").counter().count());
     }
 }

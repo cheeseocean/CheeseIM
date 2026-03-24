@@ -1,31 +1,30 @@
 package com.cheeseocean.im.authcenter.repository;
 
-import org.springframework.data.redis.core.RedisTemplate;
+import com.cheeseocean.im.common.core.cache.MultiLevelCacheService;
 import org.springframework.stereotype.Repository;
 
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 
 @Repository
 public class RefreshTokenRepository {
 
     private static final String REFRESH_TOKEN_PREFIX = "cheese_im:refresh_token:";
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final MultiLevelCacheService cacheService;
 
-    public RefreshTokenRepository(RedisTemplate<String, Object> redisTemplate) {
-        this.redisTemplate = redisTemplate;
+    public RefreshTokenRepository(MultiLevelCacheService cacheService) {
+        this.cacheService = cacheService;
     }
 
     public void save(String refreshToken, String sessionId, long ttlMs) {
-        redisTemplate.opsForValue().set(REFRESH_TOKEN_PREFIX + refreshToken, sessionId, ttlMs, TimeUnit.MILLISECONDS);
+        cacheService.put(REFRESH_TOKEN_PREFIX + refreshToken, sessionId, Duration.ofMillis(ttlMs));
     }
 
     public String getSessionId(String refreshToken) {
-        Object value = redisTemplate.opsForValue().get(REFRESH_TOKEN_PREFIX + refreshToken);
-        return value == null ? null : String.valueOf(value);
+        return cacheService.getOrLoad(REFRESH_TOKEN_PREFIX + refreshToken, String.class, Duration.ofHours(24), () -> null);
     }
 
     public void delete(String refreshToken) {
-        redisTemplate.delete(REFRESH_TOKEN_PREFIX + refreshToken);
+        cacheService.evict(REFRESH_TOKEN_PREFIX + refreshToken);
     }
 }

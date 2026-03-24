@@ -2,13 +2,11 @@ package com.cheeseocean.im.postbox.service;
 
 import com.cheeseocean.im.common.api.friend.FriendRelationService;
 import com.cheeseocean.im.common.core.auth.SessionPrincipal;
-import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.common.core.enums.ConversationKind;
 import com.cheeseocean.im.common.core.enums.SessionStatus;
+import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
 import com.cheeseocean.im.postbox.history.MessageSlot;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -20,12 +18,9 @@ class DirectConversationServiceTest {
     @Test
     void startConversationShouldUseRedisAndBlockHistoryState() {
         BlockMessageQueryService blockMessageQueryService = mock(BlockMessageQueryService.class);
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-        @SuppressWarnings("unchecked")
-        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(RedisKeys.convMaxSeq("c1:userA:userB"))).thenReturn("8");
-        when(valueOperations.get(RedisKeys.userUnread("userA", "c1:userA:userB"))).thenReturn("2");
+        ConversationStateStore conversationStateStore = mock(ConversationStateStore.class);
+        when(conversationStateStore.getConversationMaxSeq("c1:userA:userB")).thenReturn(8L);
+        when(conversationStateStore.getUnread("userA", "c1:userA:userB")).thenReturn(2);
 
         MessageSlot slot = new MessageSlot();
         slot.setSeq(8L);
@@ -33,7 +28,7 @@ class DirectConversationServiceTest {
         slot.setSendTime(123L);
         when(blockMessageQueryService.findSlot("c1:userA:userB", 8L)).thenReturn(slot);
 
-        DirectConversationService service = new DirectConversationService(blockMessageQueryService, redisTemplate, new ConversationPresentationResolver());
+        DirectConversationService service = new DirectConversationService(blockMessageQueryService, conversationStateStore, new ConversationPresentationResolver());
         FriendRelationService friendRelationService = mock(FriendRelationService.class);
         when(friendRelationService.areAcceptedFriends("userA", "userB")).thenReturn(true);
         ReflectionTestUtils.setField(service, "friendRelationService", friendRelationService);

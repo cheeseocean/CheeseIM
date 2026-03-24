@@ -1,18 +1,16 @@
 package com.cheeseocean.im.postman.service;
 
 import com.cheeseocean.im.common.api.dto.message.DeliveryResult;
+import com.cheeseocean.im.common.core.cache.MultiLevelCacheService;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 
+import java.time.Duration;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -22,13 +20,11 @@ class MessageIdempotencyServiceTest {
 
     @Test
     void duplicateClientMsgIdShouldReturnExistingServerMsgId() {
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(RedisKeys.postmanIdem("c1:userA:userB", "c-1")))
+        MultiLevelCacheService cacheService = mock(MultiLevelCacheService.class);
+        when(cacheService.getOrLoad(eq(RedisKeys.postmanIdem("c1:userA:userB", "c-1")), eq(String.class), eq(Duration.ofHours(24)), any()))
                 .thenReturn("s-1|ACCEPTED|1001|INIT");
 
-        MessageIdempotencyService service = new MessageIdempotencyService(redisTemplate);
+        MessageIdempotencyService service = new MessageIdempotencyService(cacheService);
 
         Optional<DeliveryResult> existing = service.findExisting("userA", "c1:userA:userB", "c-1");
 
@@ -40,16 +36,14 @@ class MessageIdempotencyServiceTest {
 
     @Test
     void rememberShouldStoreExistingOutcomeWithTtl() {
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        MultiLevelCacheService cacheService = mock(MultiLevelCacheService.class);
 
-        MessageIdempotencyService service = new MessageIdempotencyService(redisTemplate);
+        MessageIdempotencyService service = new MessageIdempotencyService(cacheService);
         DeliveryResult result = DeliveryResult.onlineSuccess("s-1");
 
         service.remember("userA", "c1:userA:userB", "c-1", result);
 
-        verify(valueOperations).set(eq(RedisKeys.postmanIdem("c1:userA:userB", "c-1")),
-                eq("s-1|ONLINE_CONFIRMED||ONLINE_CONFIRMED"), anyLong(), eq(TimeUnit.HOURS));
+        verify(cacheService).put(eq(RedisKeys.postmanIdem("c1:userA:userB", "c-1")),
+                eq("s-1|ONLINE_CONFIRMED||ONLINE_CONFIRMED"), eq(Duration.ofHours(24)));
     }
 }

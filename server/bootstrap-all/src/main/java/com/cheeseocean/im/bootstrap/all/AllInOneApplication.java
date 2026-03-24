@@ -12,7 +12,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
-import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.util.Map;
@@ -46,7 +45,6 @@ import java.util.Map;
         "com.cheeseocean.im.postbox",
         "com.cheeseocean.im.push"
 })
-@EnableKafka
 @EnableScheduling
 @EnableMongoRepositories(basePackages = {
         "com.cheeseocean.im.postbox",
@@ -56,7 +54,10 @@ public class AllInOneApplication {
 
     public static void main(String[] args) {
         SpringApplication application = new SpringApplication(AllInOneApplication.class);
-        application.setDefaultProperties(Map.of("spring.config.name", "application-all"));
+        application.setDefaultProperties(Map.of(
+                "spring.config.name", "application-all",
+                "app.queue.type", "chronicle"
+        ));
         application.run(args);
     }
 }

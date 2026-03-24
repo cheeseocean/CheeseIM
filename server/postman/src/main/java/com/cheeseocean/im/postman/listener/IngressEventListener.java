@@ -13,12 +13,12 @@ import com.cheeseocean.im.postman.service.MessagePolicyEngine;
 import com.cheeseocean.im.postman.service.MessageRouteDecision;
 import com.cheeseocean.im.postman.service.MessageStateService;
 import com.cheeseocean.im.postman.service.ConversationSeqService;
+import com.cheeseocean.im.common.core.queue.QueueAdapter;
+import com.cheeseocean.im.common.core.queue.annotation.QueueListener;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -29,7 +29,7 @@ public class IngressEventListener {
     private static final Logger log = LoggerFactory.getLogger(IngressEventListener.class);
 
     private final ObjectMapper objectMapper;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final QueueAdapter queueAdapter;
     private final GroupMembershipFacade groupMembershipFacade;
     private final GroupFanoutPlanner groupFanoutPlanner;
     private final ConversationSeqService conversationSeqService;
@@ -37,14 +37,14 @@ public class IngressEventListener {
     private final MessageStateService messageStateService;
 
     public IngressEventListener(ObjectMapper objectMapper,
-                                KafkaTemplate<String, Object> kafkaTemplate,
+                                QueueAdapter queueAdapter,
                                 GroupMembershipFacade groupMembershipFacade,
                                 GroupFanoutPlanner groupFanoutPlanner,
                                 ConversationSeqService conversationSeqService,
                                 MessagePolicyEngine messagePolicyEngine,
                                 MessageStateService messageStateService) {
         this.objectMapper = objectMapper.copy().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        this.kafkaTemplate = kafkaTemplate;
+        this.queueAdapter = queueAdapter;
         this.groupMembershipFacade = groupMembershipFacade;
         this.groupFanoutPlanner = groupFanoutPlanner;
         this.conversationSeqService = conversationSeqService;
@@ -52,12 +52,12 @@ public class IngressEventListener {
         this.messageStateService = messageStateService;
     }
 
-    @KafkaListener(topics = TopicNames.INGRESS, groupId = "postman-ingress")
-    public void onMessage(String payload) {
+    @QueueListener(topic = TopicNames.INGRESS, group = "postman-ingress", concurrency = 1)
+    public void onMessage(IngressEvent event) {
         try {
-            handle(objectMapper.readValue(payload, IngressEvent.class));
+            handle(event);
         } catch (Exception e) {
-            log.error("Failed to parse ingress payload: {}", payload, e);
+            log.error("Failed to handle ingress event: {}", event, e);
         }
     }
 
@@ -73,7 +73,7 @@ public class IngressEventListener {
             historyEvent.setBeginSeq(seq);
             historyEvent.setEndSeq(seq);
             historyEvent.setMessages(List.of(message));
-            kafkaTemplate.send(TopicNames.HISTORY, event.getConversationId(), historyEvent);
+            queueAdapter.send(TopicNames.HISTORY, event.getConversationId(), historyEvent);
         }
 
         List<String> targets = resolveTargets(message, decision);
@@ -87,7 +87,7 @@ public class IngressEventListener {
             routeGroupIngress(message, targets);
             return;
         }
-        kafkaTemplate.send(TopicNames.DELIVERY, event.getConversationId(), singleDelivery(message, targets));
+        queueAdapter.send(TopicNames.DELIVERY, event.getConversationId(), singleDelivery(message, targets));
     }
 
     private void routeGroupIngress(SequencedMessage message, List<String> targets) {
@@ -96,7 +96,7 @@ public class IngressEventListener {
             deliveryEvent.setConversationId(message.getConversationId());
             deliveryEvent.setMessage(message);
             deliveryEvent.setTargetUserIds(batch);
-            kafkaTemplate.send(TopicNames.DELIVERY, message.getConversationId(), deliveryEvent);
+            queueAdapter.send(TopicNames.DELIVERY, message.getConversationId(), deliveryEvent);
         }
     }
 

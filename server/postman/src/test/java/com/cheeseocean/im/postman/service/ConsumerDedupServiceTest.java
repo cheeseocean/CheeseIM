@@ -1,9 +1,8 @@
 package com.cheeseocean.im.postman.service;
 
 import com.cheeseocean.im.common.core.constants.RedisKeys;
+import com.cheeseocean.im.common.core.store.idempotency.IdempotencyStore;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 
 import java.time.Duration;
 
@@ -17,15 +16,13 @@ class ConsumerDedupServiceTest {
 
     @Test
     void shouldStoreConsumerDedupMarkerUnderCoreRedisKey() {
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.setIfAbsent(eq(RedisKeys.consumerDedup("postman-receipt", "evt-1")), eq("1"), eq(Duration.ofHours(24))))
+        IdempotencyStore idempotencyStore = mock(IdempotencyStore.class);
+        when(idempotencyStore.putIfAbsent(eq(RedisKeys.consumerDedup("postman-receipt", "evt-1")), eq(Duration.ofHours(24))))
                 .thenReturn(true);
 
-        ConsumerDedupService service = new ConsumerDedupService(redisTemplate);
+        ConsumerDedupService service = new ConsumerDedupService(idempotencyStore);
 
         assertTrue(service.markIfAbsent("postman-receipt", "evt-1"));
-        verify(valueOperations).setIfAbsent(eq(RedisKeys.consumerDedup("postman-receipt", "evt-1")), eq("1"), eq(Duration.ofHours(24)));
+        verify(idempotencyStore).putIfAbsent(eq(RedisKeys.consumerDedup("postman-receipt", "evt-1")), eq(Duration.ofHours(24)));
     }
 }

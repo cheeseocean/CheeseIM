@@ -2,28 +2,27 @@ package com.cheeseocean.im.authcenter.session;
 
 import com.cheeseocean.im.authcenter.auth.AccessTokenPrincipal;
 import com.cheeseocean.im.authcenter.auth.AccessTokenService;
+import com.cheeseocean.im.authcenter.repository.SessionRepository;
 import com.cheeseocean.im.authcenter.repository.UserSecurityRepository;
 import com.cheeseocean.im.common.api.session.SessionQueryService;
 import com.cheeseocean.im.common.core.auth.SessionPrincipal;
-import com.cheeseocean.im.common.core.constants.RedisKeys;
 import org.apache.dubbo.config.annotation.DubboService;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
 @DubboService
 public class SessionQueryServiceImpl implements SessionQueryService {
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final SessionRepository sessionRepository;
     private final AccessTokenService accessTokenService;
     private final SessionTicketService sessionTicketService;
     private final UserSecurityRepository userSecurityRepository;
 
-    public SessionQueryServiceImpl(RedisTemplate<String, Object> redisTemplate,
+    public SessionQueryServiceImpl(SessionRepository sessionRepository,
                                    AccessTokenService accessTokenService,
                                    SessionTicketService sessionTicketService,
                                    UserSecurityRepository userSecurityRepository) {
-        this.redisTemplate = redisTemplate;
+        this.sessionRepository = sessionRepository;
         this.accessTokenService = accessTokenService;
         this.sessionTicketService = sessionTicketService;
         this.userSecurityRepository = userSecurityRepository;
@@ -41,7 +40,7 @@ public class SessionQueryServiceImpl implements SessionQueryService {
 
     @Override
     public SessionPrincipal getBySessionId(String sessionId) {
-        return (SessionPrincipal) redisTemplate.opsForValue().get(RedisKeys.userSession(sessionId));
+        return sessionRepository.findBySessionId(sessionId);
     }
 
     @Override

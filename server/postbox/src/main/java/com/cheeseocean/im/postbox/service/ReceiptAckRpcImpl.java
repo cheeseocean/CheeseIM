@@ -3,11 +3,10 @@ package com.cheeseocean.im.postbox.service;
 import com.cheeseocean.im.common.api.dto.receipt.ReceiptAckReq;
 import com.cheeseocean.im.common.api.rpc.ReceiptAckRpc;
 import com.cheeseocean.im.common.core.enums.ReceiptType;
-import com.cheeseocean.im.common.core.constants.RedisKeys;
+import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
 import com.cheeseocean.im.postbox.history.MessageIdMappingDoc;
 import com.cheeseocean.im.postbox.history.MessageIdMappingRepository;
 import org.apache.dubbo.config.annotation.DubboService;
-import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.util.Optional;
 
@@ -15,14 +14,14 @@ import java.util.Optional;
 public class ReceiptAckRpcImpl implements ReceiptAckRpc {
 
     private final ConversationReceiptService conversationReceiptService;
-    private final StringRedisTemplate redisTemplate;
+    private final ConversationStateStore conversationStateStore;
     private final MessageIdMappingRepository mappingRepository;
 
     public ReceiptAckRpcImpl(ConversationReceiptService conversationReceiptService,
-                             StringRedisTemplate redisTemplate,
+                             ConversationStateStore conversationStateStore,
                              MessageIdMappingRepository mappingRepository) {
         this.conversationReceiptService = conversationReceiptService;
-        this.redisTemplate = redisTemplate;
+        this.conversationStateStore = conversationStateStore;
         this.mappingRepository = mappingRepository;
     }
 
@@ -49,9 +48,7 @@ public class ReceiptAckRpcImpl implements ReceiptAckRpc {
         if (resolved == null) {
             return;
         }
-        redisTemplate.opsForValue().set(
-                RedisKeys.userMaxSeq(req.getUserId(), resolved.conversationId()),
-                String.valueOf(resolved.seq()));
+        conversationStateStore.setUserMaxSeq(req.getUserId(), resolved.conversationId(), resolved.seq());
     }
 
     private ResolvedReceipt resolve(ReceiptAckReq req) {

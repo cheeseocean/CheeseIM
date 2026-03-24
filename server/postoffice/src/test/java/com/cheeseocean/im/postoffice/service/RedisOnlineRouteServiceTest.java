@@ -1,16 +1,15 @@
 package com.cheeseocean.im.postoffice.service;
 
 import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
+import com.cheeseocean.im.common.core.cache.MultiLevelCacheService;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.redis.core.HashOperations;
-import org.springframework.data.redis.core.RedisTemplate;
 
+import java.time.Duration;
+import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -22,12 +21,11 @@ class RedisOnlineRouteServiceTest {
 
     @Test
     void registerShouldStoreUserDeviceAndGatewayNode() {
-        RedisTemplate<String, Object> redisTemplate = mock(RedisTemplate.class);
-        @SuppressWarnings("unchecked")
-        HashOperations<String, Object, Object> hashOperations = mock(HashOperations.class);
-        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        MultiLevelCacheService cacheService = mock(MultiLevelCacheService.class);
+        when(cacheService.getOrLoad(eq(RedisKeys.onlineUser("u1")), eq(List.class), eq(Duration.ofMinutes(30)), any()))
+                .thenReturn(List.of());
 
-        RedisOnlineRouteService service = new RedisOnlineRouteService(redisTemplate);
+        RedisOnlineRouteService service = new RedisOnlineRouteService(cacheService);
 
         RouteSnapshot snapshot = new RouteSnapshot();
         snapshot.setUserId("u1");
@@ -38,23 +36,22 @@ class RedisOnlineRouteServiceTest {
 
         service.register(snapshot);
 
-        verify(hashOperations).putAll(eq(RedisKeys.onlineUser("u1")), any(Map.class));
-        verify(redisTemplate).expire(RedisKeys.onlineUser("u1"), 30, TimeUnit.MINUTES);
+        verify(cacheService).put(eq(RedisKeys.onlineUser("u1")), any(List.class), eq(Duration.ofMinutes(30)));
     }
 
     @Test
     void findByUserShouldRestoreStoredSnapshot() {
-        RedisTemplate<String, Object> redisTemplate = mock(RedisTemplate.class);
-        @SuppressWarnings("unchecked")
-        HashOperations<String, Object, Object> hashOperations = mock(HashOperations.class);
-        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
-        when(hashOperations.entries(RedisKeys.onlineUser("u1"))).thenReturn(Map.of(
-                "ios-1.gatewayNode", "gateway-a",
-                "ios-1.connectedAt", 100L,
-                "ios-1.heartbeatAt", 200L
-        ));
+        MultiLevelCacheService cacheService = mock(MultiLevelCacheService.class);
+        RouteSnapshot stored = new RouteSnapshot();
+        stored.setUserId("u1");
+        stored.setDeviceId("ios-1");
+        stored.setGatewayNode("gateway-a");
+        stored.setConnectedAt(100L);
+        stored.setHeartbeatAt(200L);
+        when(cacheService.getOrLoad(eq(RedisKeys.onlineUser("u1")), eq(List.class), eq(Duration.ofMinutes(30)), any()))
+                .thenReturn(List.of(stored));
 
-        RedisOnlineRouteService service = new RedisOnlineRouteService(redisTemplate);
+        RedisOnlineRouteService service = new RedisOnlineRouteService(cacheService);
 
         RouteSnapshot snapshot = service.findByUser("u1").get(0);
 
@@ -68,16 +65,18 @@ class RedisOnlineRouteServiceTest {
 
     @Test
     void unregisterShouldDeleteStoredDeviceFields() {
-        RedisTemplate<String, Object> redisTemplate = mock(RedisTemplate.class);
-        @SuppressWarnings("unchecked")
-        HashOperations<String, Object, Object> hashOperations = mock(HashOperations.class);
-        when(redisTemplate.opsForHash()).thenReturn(hashOperations);
+        MultiLevelCacheService cacheService = mock(MultiLevelCacheService.class);
+        RouteSnapshot stored = new RouteSnapshot();
+        stored.setUserId("u1");
+        stored.setDeviceId("ios-1");
+        stored.setGatewayNode("gateway-a");
+        when(cacheService.getOrLoad(eq(RedisKeys.onlineUser("u1")), eq(List.class), eq(Duration.ofMinutes(30)), any()))
+                .thenReturn(List.of(stored));
 
-        RedisOnlineRouteService service = new RedisOnlineRouteService(redisTemplate);
+        RedisOnlineRouteService service = new RedisOnlineRouteService(cacheService);
 
         service.unregister("u1", "ios-1");
 
-        verify(hashOperations).delete(RedisKeys.onlineUser("u1"),
-                "ios-1.gatewayNode", "ios-1.connectedAt", "ios-1.heartbeatAt");
+        verify(cacheService).put(eq(RedisKeys.onlineUser("u1")), eq(List.of()), eq(Duration.ofMinutes(30)));
     }
 }

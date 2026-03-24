@@ -1,27 +1,32 @@
 package com.cheeseocean.im.postman.service;
 
 import com.cheeseocean.im.common.api.dto.message.DeliveryResult;
+import com.cheeseocean.im.common.core.cache.MultiLevelCacheService;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.common.core.enums.DeliveryState;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
 @Service
 public class MessageIdempotencyService {
 
-    private static final long TTL_HOURS = 24;
+    private static final Duration TTL = Duration.ofHours(24);
 
-    private final StringRedisTemplate redisTemplate;
+    private final MultiLevelCacheService cacheService;
 
-    public MessageIdempotencyService(StringRedisTemplate redisTemplate) {
-        this.redisTemplate = redisTemplate;
+    public MessageIdempotencyService(MultiLevelCacheService cacheService) {
+        this.cacheService = cacheService;
     }
 
     public Optional<DeliveryResult> findExisting(String senderId, String conversationId, String clientMsgId) {
-        String raw = redisTemplate.opsForValue().get(RedisKeys.postmanIdem(conversationId, clientMsgId));
+        String raw = cacheService.getOrLoad(
+                RedisKeys.postmanIdem(conversationId, clientMsgId),
+                String.class,
+                TTL,
+                () -> null
+        );
         if (raw == null || raw.isBlank()) {
             return Optional.empty();
         }
@@ -53,11 +58,6 @@ public class MessageIdempotencyService {
         String conversationSeq = result.getConversationSeq() == null ? "" : String.valueOf(result.getConversationSeq());
         String state = result.getState() == null ? "" : result.getState().name();
         String value = String.join("|", result.getServerMsgId(), status, conversationSeq, state);
-        redisTemplate.opsForValue().set(
-                RedisKeys.postmanIdem(conversationId, clientMsgId),
-                value,
-                TTL_HOURS,
-                TimeUnit.HOURS
-        );
+        cacheService.put(RedisKeys.postmanIdem(conversationId, clientMsgId), value, TTL);
     }
 }

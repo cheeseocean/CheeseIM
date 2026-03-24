@@ -3,37 +3,32 @@ package com.cheeseocean.im.postman.service;
 import com.cheeseocean.im.common.api.dto.message.DeliveryTask;
 import com.cheeseocean.im.common.core.constants.TopicNames;
 import com.cheeseocean.im.common.core.enums.DeliveryState;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.cheeseocean.im.common.core.queue.QueueAdapter;
+import com.cheeseocean.im.common.core.queue.annotation.QueueProducer;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
 @Service
+@QueueProducer
 public class DeliveryCompensationService {
 
     private static final Logger log = LoggerFactory.getLogger(DeliveryCompensationService.class);
 
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
+    private final QueueAdapter queueAdapter;
     private final MeterRegistry meterRegistry;
     private final int maxRetries;
     private final long retryDelaySeconds;
 
-    public DeliveryCompensationService(@Qualifier("stringKafkaTemplate") KafkaTemplate<String, String> kafkaTemplate,
-                                       ObjectMapper objectMapper,
+    public DeliveryCompensationService(QueueAdapter queueAdapter,
                                        MeterRegistry meterRegistry,
                                        @Value("${cheeseim.delivery.compensation.max-retries:3}") int maxRetries,
                                        @Value("${cheeseim.delivery.compensation.retry-delay-seconds:10}") long retryDelaySeconds) {
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper.copy().registerModule(new JavaTimeModule());
+        this.queueAdapter = queueAdapter;
         this.meterRegistry = meterRegistry;
         this.maxRetries = maxRetries;
         this.retryDelaySeconds = retryDelaySeconds;
@@ -70,11 +65,7 @@ public class DeliveryCompensationService {
     }
 
     private void publish(String topic, DeliveryTask task) {
-        try {
-            kafkaTemplate.send(topic, task.getServerMsgId(), objectMapper.writeValueAsString(task));
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("Failed to serialize delivery task", e);
-        }
+        queueAdapter.send(topic, task.getServerMsgId(), task);
     }
 
     private void emitStateChange(DeliveryTask task) {

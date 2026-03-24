@@ -3,13 +3,12 @@ package com.cheeseocean.im.postbox.service;
 import com.cheeseocean.im.common.api.friend.FriendRelationService;
 import com.cheeseocean.im.common.core.auth.SessionPrincipal;
 import com.cheeseocean.im.common.core.constants.MessageDisplayConstants;
+import com.cheeseocean.im.common.core.enums.ConversationKind;
+import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
 import com.cheeseocean.im.common.core.util.ConversationIdUtil;
 import com.cheeseocean.im.postbox.api.ConversationSummaryResponse;
-import com.cheeseocean.im.common.core.constants.RedisKeys;
-import com.cheeseocean.im.common.core.enums.ConversationKind;
 import com.cheeseocean.im.postbox.history.MessageSlot;
 import org.apache.dubbo.config.annotation.DubboReference;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -18,17 +17,17 @@ import java.util.List;
 public class DirectConversationService {
 
     private final BlockMessageQueryService blockMessageQueryService;
-    private final StringRedisTemplate redisTemplate;
+    private final ConversationStateStore conversationStateStore;
     private final ConversationPresentationResolver conversationPresentationResolver;
 
     @DubboReference(check = false)
     private FriendRelationService friendRelationService;
 
     public DirectConversationService(BlockMessageQueryService blockMessageQueryService,
-                                     StringRedisTemplate redisTemplate,
+                                     ConversationStateStore conversationStateStore,
                                      ConversationPresentationResolver conversationPresentationResolver) {
         this.blockMessageQueryService = blockMessageQueryService;
-        this.redisTemplate = redisTemplate;
+        this.conversationStateStore = conversationStateStore;
         this.conversationPresentationResolver = conversationPresentationResolver;
     }
 
@@ -73,26 +72,10 @@ public class DirectConversationService {
     }
 
     private int loadUnreadCount(String userId, String conversationId) {
-        String raw = redisTemplate.opsForValue().get(RedisKeys.userUnread(userId, conversationId));
-        if (raw == null || raw.isBlank()) {
-            return 0;
-        }
-        try {
-            return Integer.parseInt(raw);
-        } catch (NumberFormatException e) {
-            return 0;
-        }
+        return conversationStateStore.getUnread(userId, conversationId);
     }
 
     private Long loadLatestSeq(String conversationId) {
-        String raw = redisTemplate.opsForValue().get(RedisKeys.convMaxSeq(conversationId));
-        if (raw == null || raw.isBlank()) {
-            return null;
-        }
-        try {
-            return Long.parseLong(raw);
-        } catch (NumberFormatException e) {
-            return null;
-        }
+        return conversationStateStore.getConversationMaxSeq(conversationId);
     }
 }

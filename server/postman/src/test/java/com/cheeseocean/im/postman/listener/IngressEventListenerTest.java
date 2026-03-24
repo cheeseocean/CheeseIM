@@ -8,6 +8,7 @@ import com.cheeseocean.im.common.api.event.IngressEvent;
 import com.cheeseocean.im.common.core.constants.TopicNames;
 import com.cheeseocean.im.common.core.enums.ContentType;
 import com.cheeseocean.im.common.core.enums.SessionType;
+import com.cheeseocean.im.common.core.queue.QueueAdapter;
 import com.cheeseocean.im.postman.service.ConversationSeqService;
 import com.cheeseocean.im.postman.service.DefaultMessagePolicyEngine;
 import com.cheeseocean.im.postman.service.GroupFanoutPlanner;
@@ -15,7 +16,6 @@ import com.cheeseocean.im.postman.service.GroupMembershipFacade;
 import com.cheeseocean.im.postman.service.MessageStateService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
-import org.springframework.kafka.core.KafkaTemplate;
 
 import java.util.List;
 
@@ -33,14 +33,14 @@ class IngressEventListenerTest {
 
     @Test
     void ingressListenerShouldPublishHistoryAndDeliveryForSingleChat() {
-        KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
         MessageStateService messageStateService = mock(MessageStateService.class);
         when(conversationSeqService.nextSeq("c1:userA:userB")).thenReturn(1001L);
         IngressEventListener listener = new IngressEventListener(
                 new ObjectMapper(),
-                kafkaTemplate,
+                queueAdapter,
                 groupMembershipFacade,
                 new GroupFanoutPlanner(2),
                 conversationSeqService,
@@ -51,8 +51,8 @@ class IngressEventListenerTest {
 
         var historyCaptor = forClass(HistoryEvent.class);
         var deliveryCaptor = forClass(DeliveryEvent.class);
-        verify(kafkaTemplate).send(eq(TopicNames.HISTORY), eq("c1:userA:userB"), historyCaptor.capture());
-        verify(kafkaTemplate).send(eq(TopicNames.DELIVERY), eq("c1:userA:userB"), deliveryCaptor.capture());
+        verify(queueAdapter).send(eq(TopicNames.HISTORY), eq("c1:userA:userB"), historyCaptor.capture());
+        verify(queueAdapter).send(eq(TopicNames.DELIVERY), eq("c1:userA:userB"), deliveryCaptor.capture());
 
         SequencedMessage message = historyCaptor.getValue().getMessages().get(0);
         assertEquals(1001L, message.getSeq());
@@ -61,7 +61,7 @@ class IngressEventListenerTest {
 
     @Test
     void ingressListenerShouldSplitGroupMembersIntoBatchesAndPublishDelivery() {
-        KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
         MessageStateService messageStateService = mock(MessageStateService.class);
@@ -70,7 +70,7 @@ class IngressEventListenerTest {
 
         IngressEventListener listener = new IngressEventListener(
                 new ObjectMapper(),
-                kafkaTemplate,
+                queueAdapter,
                 groupMembershipFacade,
                 new GroupFanoutPlanner(2),
                 conversationSeqService,
@@ -80,14 +80,14 @@ class IngressEventListenerTest {
         listener.handle(groupIngressEvent());
 
         verify(groupMembershipFacade).loadTargets("c2:crew");
-        verify(kafkaTemplate).send(eq(TopicNames.HISTORY), eq("c2:crew"), any(HistoryEvent.class));
-        verify(kafkaTemplate, times(2))
+        verify(queueAdapter).send(eq(TopicNames.HISTORY), eq("c2:crew"), any(HistoryEvent.class));
+        verify(queueAdapter, times(2))
                 .send(eq(TopicNames.DELIVERY), eq("c2:crew"), any(DeliveryEvent.class));
     }
 
     @Test
     void ingressListenerShouldSkipDeliveryWhenOnlinePushIsDisabled() {
-        KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
         MessageStateService messageStateService = mock(MessageStateService.class);
@@ -95,7 +95,7 @@ class IngressEventListenerTest {
 
         IngressEventListener listener = new IngressEventListener(
                 new ObjectMapper(),
-                kafkaTemplate,
+                queueAdapter,
                 groupMembershipFacade,
                 new GroupFanoutPlanner(2),
                 conversationSeqService,
@@ -107,13 +107,13 @@ class IngressEventListenerTest {
 
         listener.handle(event);
 
-        verify(kafkaTemplate).send(eq(TopicNames.HISTORY), eq("c1:userA:userB"), any(HistoryEvent.class));
-        verify(kafkaTemplate, times(0)).send(eq(TopicNames.DELIVERY), eq("c1:userA:userB"), any(DeliveryEvent.class));
+        verify(queueAdapter).send(eq(TopicNames.HISTORY), eq("c1:userA:userB"), any(HistoryEvent.class));
+        verify(queueAdapter, times(0)).send(eq(TopicNames.DELIVERY), eq("c1:userA:userB"), any(DeliveryEvent.class));
     }
 
     @Test
     void ingressListenerShouldAddSenderToDeliveryTargetsWhenSenderSyncEnabled() {
-        KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
         MessageStateService messageStateService = mock(MessageStateService.class);
@@ -121,7 +121,7 @@ class IngressEventListenerTest {
 
         IngressEventListener listener = new IngressEventListener(
                 new ObjectMapper(),
-                kafkaTemplate,
+                queueAdapter,
                 groupMembershipFacade,
                 new GroupFanoutPlanner(2),
                 conversationSeqService,
@@ -134,13 +134,13 @@ class IngressEventListenerTest {
         var deliveryCaptor = forClass(DeliveryEvent.class);
         listener.handle(event);
 
-        verify(kafkaTemplate).send(eq(TopicNames.DELIVERY), eq("c1:userA:userB"), deliveryCaptor.capture());
+        verify(queueAdapter).send(eq(TopicNames.DELIVERY), eq("c1:userA:userB"), deliveryCaptor.capture());
         assertEquals(List.of("userB", "userA"), deliveryCaptor.getValue().getTargetUserIds());
     }
 
     @Test
     void ingressListenerShouldApplyMessageStatePolicy() {
-        KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
         MessageStateService messageStateService = mock(MessageStateService.class);
@@ -148,7 +148,7 @@ class IngressEventListenerTest {
 
         IngressEventListener listener = new IngressEventListener(
                 new ObjectMapper(),
-                kafkaTemplate,
+                queueAdapter,
                 groupMembershipFacade,
                 new GroupFanoutPlanner(2),
                 conversationSeqService,
@@ -167,14 +167,14 @@ class IngressEventListenerTest {
 
     @Test
     void readReceiptShouldNotReachIngressPipeline() {
-        KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
         MessageStateService messageStateService = mock(MessageStateService.class);
 
         IngressEventListener listener = new IngressEventListener(
                 new ObjectMapper(),
-                kafkaTemplate,
+                queueAdapter,
                 groupMembershipFacade,
                 new GroupFanoutPlanner(2),
                 conversationSeqService,

@@ -6,8 +6,8 @@ import com.cheeseocean.im.common.api.dto.message.SendMessageResp;
 import com.cheeseocean.im.common.api.event.IngressEvent;
 import com.cheeseocean.im.common.core.enums.ContentType;
 import com.cheeseocean.im.common.core.enums.SessionType;
+import com.cheeseocean.im.common.core.queue.QueueAdapter;
 import org.junit.jupiter.api.Test;
-import org.springframework.kafka.core.KafkaTemplate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -21,8 +21,8 @@ class MessageSendRpcImplTest {
 
     @Test
     void sendMessagePublishesIngressEventWithConversationIdAndServerMsgId() {
-        KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
-        IngressEventPublisher publisher = new IngressEventPublisher(kafkaTemplate);
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
+        IngressEventPublisher publisher = new IngressEventPublisher(queueAdapter);
         MessageSendRpcImpl service = new MessageSendRpcImpl(publisher);
 
         SendMessageReq req = new SendMessageReq();
@@ -38,7 +38,7 @@ class MessageSendRpcImplTest {
         SendMessageResp resp = service.sendMessage(req);
 
         var eventCaptor = forClass(IngressEvent.class);
-        verify(kafkaTemplate).send(eq("ingress"), eq("c1:u100:u200"), eventCaptor.capture());
+        verify(queueAdapter).send(eq("ingress"), eq("c1:u100:u200"), eventCaptor.capture());
 
         IngressEvent event = eventCaptor.getValue();
         assertEquals("c1:u100:u200", resp.getConversationId());
@@ -49,8 +49,8 @@ class MessageSendRpcImplTest {
 
     @Test
     void sendMessageFillsDefaultOptionsWhenMissing() {
-        KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
-        IngressEventPublisher publisher = new IngressEventPublisher(kafkaTemplate);
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
+        IngressEventPublisher publisher = new IngressEventPublisher(queueAdapter);
         MessageSendRpcImpl service = new MessageSendRpcImpl(publisher);
 
         SendMessageReq req = new SendMessageReq();
@@ -65,13 +65,13 @@ class MessageSendRpcImplTest {
         SendMessageResp resp = service.sendMessage(req);
 
         assertTrue(resp.isAccepted());
-        verify(kafkaTemplate).send(eq("ingress"), eq("c2:g1"), org.mockito.ArgumentMatchers.any(IngressEvent.class));
+        verify(queueAdapter).send(eq("ingress"), eq("c2:g1"), org.mockito.ArgumentMatchers.any(IngressEvent.class));
     }
 
     @Test
     void sendMessageFillsMissingOptionFieldsWithDefaults() {
-        KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
-        IngressEventPublisher publisher = new IngressEventPublisher(kafkaTemplate);
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
+        IngressEventPublisher publisher = new IngressEventPublisher(queueAdapter);
         MessageSendRpcImpl service = new MessageSendRpcImpl(publisher);
 
         MessageOptions options = new MessageOptions();
@@ -90,7 +90,7 @@ class MessageSendRpcImplTest {
         var eventCaptor = forClass(IngressEvent.class);
         service.sendMessage(req);
 
-        verify(kafkaTemplate).send(eq("ingress"), eq("c1:u100:u200"), eventCaptor.capture());
+        verify(queueAdapter).send(eq("ingress"), eq("c1:u100:u200"), eventCaptor.capture());
         MessageOptions actual = eventCaptor.getValue().getOptions();
         assertTrue(!actual.isNeedHistory());
         assertTrue(actual.isNeedConversation());
@@ -173,8 +173,8 @@ class MessageSendRpcImplTest {
     }
 
     private IngressEvent publishEventForContentType(int sessionType, int contentType) {
-        KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
-        IngressEventPublisher publisher = new IngressEventPublisher(kafkaTemplate);
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
+        IngressEventPublisher publisher = new IngressEventPublisher(queueAdapter);
         MessageSendRpcImpl service = new MessageSendRpcImpl(publisher);
 
         SendMessageReq req = new SendMessageReq();
@@ -188,7 +188,7 @@ class MessageSendRpcImplTest {
 
         var eventCaptor = forClass(IngressEvent.class);
         service.sendMessage(req);
-        verify(kafkaTemplate).send(eq("ingress"), eq(sessionType == SessionType.NOTIFICATION.getCode() ? "c3:u200" : "c1:u100:u200"), eventCaptor.capture());
+        verify(queueAdapter).send(eq("ingress"), eq(sessionType == SessionType.NOTIFICATION.getCode() ? "c3:u200" : "c1:u100:u200"), eventCaptor.capture());
         return eventCaptor.getValue();
     }
 }

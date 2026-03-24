@@ -2,12 +2,11 @@ package com.cheeseocean.im.postman.service;
 
 import com.cheeseocean.im.common.api.dto.message.ConversationLastMessageSummary;
 import com.cheeseocean.im.common.api.dto.message.SequencedMessage;
-import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.common.core.enums.ContentType;
+import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
 import com.cheeseocean.im.common.core.util.MessagePreviewUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashSet;
@@ -17,11 +16,11 @@ import java.util.Set;
 @Service
 public class MessageStateService {
 
-    private final StringRedisTemplate redisTemplate;
+    private final ConversationStateStore conversationStateStore;
     private final ObjectMapper objectMapper;
 
-    public MessageStateService(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
-        this.redisTemplate = redisTemplate;
+    public MessageStateService(ConversationStateStore conversationStateStore, ObjectMapper objectMapper) {
+        this.conversationStateStore = conversationStateStore;
         this.objectMapper = objectMapper;
     }
 
@@ -36,36 +35,32 @@ public class MessageStateService {
             return;
         }
 
-        redisTemplate.opsForValue().setIfAbsent(
-                RedisKeys.convMinSeq(message.getConversationId()),
-                String.valueOf(message.getSeq()));
+        conversationStateStore.setConversationMinSeqIfAbsent(message.getConversationId(), message.getSeq());
+        conversationStateStore.setConversationMaxSeq(message.getConversationId(), message.getSeq());
 
         Set<String> participants = normalizeTargets(message.getSenderId(), targetUserIds);
         if (decision.updateConversation()) {
             for (String userId : participants) {
-                redisTemplate.opsForValue().set(
-                        RedisKeys.userMaxSeq(userId, message.getConversationId()),
-                        String.valueOf(message.getSeq()));
+                conversationStateStore.setUserMaxSeq(userId, message.getConversationId(), message.getSeq());
             }
             if (message.getSenderId() != null) {
-                redisTemplate.opsForValue().set(
-                        RedisKeys.userReadSeq(message.getSenderId(), message.getConversationId()),
-                        String.valueOf(message.getSeq()));
+                conversationStateStore.setUserReadSeq(message.getSenderId(), message.getConversationId(), message.getSeq());
             }
         }
 
         if (decision.updateUnread()) {
             for (String userId : participants) {
                 if (!userId.equals(message.getSenderId())) {
-                    redisTemplate.opsForValue().increment(RedisKeys.userUnread(userId, message.getConversationId()));
+                    conversationStateStore.incrementUnread(userId, message.getConversationId());
                 }
             }
         }
 
         if (decision.updateLastMessage()) {
-            redisTemplate.opsForValue().set(
-                    RedisKeys.convLastMsg(message.getConversationId()),
-                    serializeSummary(message, decision.notification()));
+            conversationStateStore.setLastMessageSummary(
+                    message.getConversationId(),
+                    serializeSummary(message, decision.notification())
+            );
         }
     }
 

@@ -1,19 +1,18 @@
 package com.cheeseocean.im.postbox.service;
 
 import com.cheeseocean.im.common.api.dto.message.ConversationLastMessageSummary;
-import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.common.core.auth.PermissionCheckRequest;
 import com.cheeseocean.im.common.core.auth.PermissionCheckResult;
 import com.cheeseocean.im.common.core.auth.SessionPrincipal;
 import com.cheeseocean.im.common.core.enums.ConversationAction;
 import com.cheeseocean.im.common.core.enums.ConversationKind;
+import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
 import com.cheeseocean.im.common.core.util.ConversationIdUtil;
 import com.cheeseocean.im.postbox.api.ConversationSummaryResponse;
 import com.cheeseocean.im.postbox.history.MessageIdMappingDoc;
 import com.cheeseocean.im.postbox.history.MessageSlot;
 import com.cheeseocean.im.postbox.permission.ConversationPermissionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -36,18 +35,18 @@ public class ConversationQueryService {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final BlockMessageQueryService blockMessageQueryService;
-    private final StringRedisTemplate redisTemplate;
+    private final ConversationStateStore conversationStateStore;
     private final ConversationPermissionService conversationPermissionService;
     private final MessagePreviewResolver messagePreviewResolver;
     private final ConversationPresentationResolver conversationPresentationResolver;
 
     public ConversationQueryService(BlockMessageQueryService blockMessageQueryService,
-                                    StringRedisTemplate redisTemplate,
+                                    ConversationStateStore conversationStateStore,
                                     ConversationPermissionService conversationPermissionService,
                                     MessagePreviewResolver messagePreviewResolver,
                                     ConversationPresentationResolver conversationPresentationResolver) {
         this.blockMessageQueryService = blockMessageQueryService;
-        this.redisTemplate = redisTemplate;
+        this.conversationStateStore = conversationStateStore;
         this.conversationPermissionService = conversationPermissionService;
         this.messagePreviewResolver = messagePreviewResolver;
         this.conversationPresentationResolver = conversationPresentationResolver;
@@ -128,7 +127,7 @@ public class ConversationQueryService {
     }
 
     private ConversationLastMessageSummary loadLastMessageSummary(String conversationId) {
-        String raw = redisTemplate.opsForValue().get(RedisKeys.convLastMsg(conversationId));
+        String raw = conversationStateStore.getLastMessageSummary(conversationId);
         if (!StringUtils.hasText(raw)) {
             return null;
         }
@@ -149,15 +148,7 @@ public class ConversationQueryService {
     }
 
     private int loadUnreadCount(String userId, String conversationId) {
-        String raw = redisTemplate.opsForValue().get(RedisKeys.userUnread(userId, conversationId));
-        if (raw == null || raw.isBlank()) {
-            return 0;
-        }
-        try {
-            return Integer.parseInt(raw);
-        } catch (NumberFormatException e) {
-            return 0;
-        }
+        return conversationStateStore.getUnread(userId, conversationId);
     }
 
     private boolean mayBelongToUser(String userId, String conversationId) {

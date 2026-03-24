@@ -2,16 +2,13 @@ package com.cheeseocean.im.postbox.service;
 
 import com.cheeseocean.im.common.api.dto.receipt.ReceiptAckReq;
 import com.cheeseocean.im.common.core.enums.ReceiptType;
-import com.cheeseocean.im.common.core.constants.RedisKeys;
+import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
 import com.cheeseocean.im.postbox.history.MessageIdMappingDoc;
 import com.cheeseocean.im.postbox.history.MessageIdMappingRepository;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 
 import java.util.Optional;
 
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -21,15 +18,11 @@ class ReceiptAckRpcImplTest {
 
     @Test
     void applyShouldAdvanceReadSeqForReadCursorReceipt() {
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-        @SuppressWarnings("unchecked")
-        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-
         ConversationReceiptService conversationReceiptService = mock(ConversationReceiptService.class);
+        ConversationStateStore conversationStateStore = mock(ConversationStateStore.class);
         ReceiptAckRpcImpl service = new ReceiptAckRpcImpl(
                 conversationReceiptService,
-                redisTemplate,
+                conversationStateStore,
                 mock(MessageIdMappingRepository.class));
 
         ReceiptAckReq req = new ReceiptAckReq();
@@ -45,11 +38,7 @@ class ReceiptAckRpcImplTest {
 
     @Test
     void applyShouldResolveSeqFromMappingForDeliveredReceipt() {
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-        @SuppressWarnings("unchecked")
-        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-
+        ConversationStateStore conversationStateStore = mock(ConversationStateStore.class);
         MessageIdMappingRepository mappingRepository = mock(MessageIdMappingRepository.class);
         MessageIdMappingDoc mapping = new MessageIdMappingDoc();
         mapping.setServerMsgId("msg-1");
@@ -59,7 +48,7 @@ class ReceiptAckRpcImplTest {
 
         ReceiptAckRpcImpl service = new ReceiptAckRpcImpl(
                 mock(ConversationReceiptService.class),
-                redisTemplate,
+                conversationStateStore,
                 mappingRepository);
 
         ReceiptAckReq req = new ReceiptAckReq();
@@ -69,22 +58,18 @@ class ReceiptAckRpcImplTest {
 
         service.apply(req);
 
-        verify(valueOperations).set(eq(RedisKeys.userMaxSeq("userB", "single:userA:userB")), eq("11"));
+        verify(conversationStateStore).setUserMaxSeq("userB", "single:userA:userB", 11L);
     }
 
     @Test
     void applyShouldIgnoreDeliveredReceiptWhenMappingIsMissing() {
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-        @SuppressWarnings("unchecked")
-        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-
+        ConversationStateStore conversationStateStore = mock(ConversationStateStore.class);
         MessageIdMappingRepository mappingRepository = mock(MessageIdMappingRepository.class);
         when(mappingRepository.findByServerMsgId("missing")).thenReturn(Optional.empty());
 
         ReceiptAckRpcImpl service = new ReceiptAckRpcImpl(
                 mock(ConversationReceiptService.class),
-                redisTemplate,
+                conversationStateStore,
                 mappingRepository);
 
         ReceiptAckReq req = new ReceiptAckReq();
@@ -94,6 +79,6 @@ class ReceiptAckRpcImplTest {
 
         service.apply(req);
 
-        verify(valueOperations, never()).set(eq(RedisKeys.userMaxSeq("userB", "single:userA:userB")), eq("11"));
+        verify(conversationStateStore, never()).setUserMaxSeq("userB", "single:userA:userB", 11L);
     }
 }

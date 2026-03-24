@@ -15,6 +15,14 @@ server:
   port: 18079
 
 app:
+  queue:
+    type: chronicle
+    data-dir: data/queue
+  cache:
+    data-dir: data/cache
+  state:
+    data-dir: data/state
+    sequence-range-size: 100
   runtime:
     mode: all-in-one
   modules:

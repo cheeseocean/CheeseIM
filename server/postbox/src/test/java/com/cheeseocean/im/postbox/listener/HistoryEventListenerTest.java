@@ -21,7 +21,7 @@ class HistoryEventListenerTest {
         BlockHistoryPersistenceService persistenceService = mock(BlockHistoryPersistenceService.class);
         HistoryEventListener listener = new HistoryEventListener(new ObjectMapper(), persistenceService);
 
-        listener.onMessage(new ObjectMapper().writeValueAsString(event()));
+        listener.onMessage(event());
 
         verify(persistenceService).persist(org.mockito.ArgumentMatchers.any(HistoryEvent.class));
     }

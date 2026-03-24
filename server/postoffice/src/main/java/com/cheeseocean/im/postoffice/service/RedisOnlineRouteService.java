@@ -1,94 +1,85 @@
 package com.cheeseocean.im.postoffice.service;
 
 import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
+import com.cheeseocean.im.common.core.cache.MultiLevelCacheService;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
-import org.springframework.data.redis.core.HashOperations;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 
 @Service
 public class RedisOnlineRouteService implements OnlineRouteService {
 
-    private static final long ROUTE_TTL_MINUTES = 30;
+    private static final Duration ROUTE_TTL = Duration.ofMinutes(30);
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final MultiLevelCacheService cacheService;
 
-    public RedisOnlineRouteService(RedisTemplate<String, Object> redisTemplate) {
-        this.redisTemplate = redisTemplate;
+    public RedisOnlineRouteService(MultiLevelCacheService cacheService) {
+        this.cacheService = cacheService;
     }
 
     @Override
     public void register(RouteSnapshot snapshot) {
         String key = RedisKeys.onlineUser(snapshot.getUserId());
-        redisTemplate.opsForHash().putAll(key, Map.of(
-                field(snapshot.getDeviceId(), "gatewayNode"), snapshot.getGatewayNode(),
-                field(snapshot.getDeviceId(), "connectedAt"), snapshot.getConnectedAt(),
-                field(snapshot.getDeviceId(), "heartbeatAt"), snapshot.getHeartbeatAt()
-        ));
-        redisTemplate.expire(key, ROUTE_TTL_MINUTES, TimeUnit.MINUTES);
+        List<RouteSnapshot> snapshots = new ArrayList<>(findByUser(snapshot.getUserId()));
+        snapshots.removeIf(existing -> sameDevice(existing, snapshot.getDeviceId()));
+        snapshots.add(copyOf(snapshot));
+        sortByDevice(snapshots);
+        cacheService.put(key, snapshots, ROUTE_TTL);
     }
 
     @Override
     public void refresh(String userId, String deviceId, long heartbeatAt) {
         String key = RedisKeys.onlineUser(userId);
-        redisTemplate.opsForHash().put(key, field(deviceId, "heartbeatAt"), heartbeatAt);
-        redisTemplate.expire(key, ROUTE_TTL_MINUTES, TimeUnit.MINUTES);
+        List<RouteSnapshot> snapshots = new ArrayList<>(findByUser(userId));
+        for (RouteSnapshot snapshot : snapshots) {
+            if (sameDevice(snapshot, deviceId)) {
+                snapshot.setHeartbeatAt(heartbeatAt);
+            }
+        }
+        cacheService.put(key, snapshots, ROUTE_TTL);
     }
 
     @Override
     public void unregister(String userId, String deviceId) {
-        redisTemplate.opsForHash().delete(RedisKeys.onlineUser(userId),
-                field(deviceId, "gatewayNode"),
-                field(deviceId, "connectedAt"),
-                field(deviceId, "heartbeatAt"));
+        String key = RedisKeys.onlineUser(userId);
+        List<RouteSnapshot> snapshots = new ArrayList<>(findByUser(userId));
+        snapshots.removeIf(snapshot -> sameDevice(snapshot, deviceId));
+        cacheService.put(key, snapshots, ROUTE_TTL);
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public List<RouteSnapshot> findByUser(String userId) {
-        HashOperations<String, Object, Object> hashOperations = redisTemplate.opsForHash();
-        Map<Object, Object> entries = hashOperations.entries(RedisKeys.onlineUser(userId));
-        Map<String, RouteSnapshot> snapshots = new LinkedHashMap<>();
-        for (Map.Entry<Object, Object> entry : entries.entrySet()) {
-            String field = String.valueOf(entry.getKey());
-            String[] parts = field.split("\\.", 2);
-            if (parts.length != 2) {
-                continue;
+        List<?> stored = cacheService.getOrLoad(RedisKeys.onlineUser(userId), List.class, ROUTE_TTL, List::of);
+        List<RouteSnapshot> snapshots = new ArrayList<>();
+        for (Object item : stored) {
+            if (item instanceof RouteSnapshot routeSnapshot) {
+                snapshots.add(copyOf(routeSnapshot));
             }
-            RouteSnapshot snapshot = snapshots.computeIfAbsent(parts[0], deviceId -> {
-                RouteSnapshot item = new RouteSnapshot();
-                item.setUserId(userId);
-                item.setDeviceId(deviceId);
-                return item;
-            });
-            apply(snapshot, parts[1], entry.getValue());
         }
-        return new ArrayList<>(snapshots.values());
+        sortByDevice(snapshots);
+        return snapshots;
     }
 
-    private static String field(String deviceId, String suffix) {
-        return deviceId + "." + suffix;
+    private static boolean sameDevice(RouteSnapshot snapshot, String deviceId) {
+        return snapshot != null && snapshot.getDeviceId() != null && snapshot.getDeviceId().equals(deviceId);
     }
 
-    private static void apply(RouteSnapshot snapshot, String property, Object value) {
-        if ("gatewayNode".equals(property)) {
-            snapshot.setGatewayNode(String.valueOf(value));
-        } else if ("connectedAt".equals(property)) {
-            snapshot.setConnectedAt(asLong(value));
-        } else if ("heartbeatAt".equals(property)) {
-            snapshot.setHeartbeatAt(asLong(value));
-        }
+    private static RouteSnapshot copyOf(RouteSnapshot source) {
+        RouteSnapshot snapshot = new RouteSnapshot();
+        snapshot.setUserId(source.getUserId());
+        snapshot.setDeviceId(source.getDeviceId());
+        snapshot.setGatewayNode(source.getGatewayNode());
+        snapshot.setConnectedAt(source.getConnectedAt());
+        snapshot.setHeartbeatAt(source.getHeartbeatAt());
+        return snapshot;
     }
 
-    private static Long asLong(Object value) {
-        if (value instanceof Number number) {
-            return number.longValue();
-        }
-        return value == null ? null : Long.parseLong(String.valueOf(value));
+    private static void sortByDevice(List<RouteSnapshot> snapshots) {
+        snapshots.sort(Comparator.comparing(RouteSnapshot::getDeviceId, Comparator.nullsLast(String::compareTo)));
     }
 }

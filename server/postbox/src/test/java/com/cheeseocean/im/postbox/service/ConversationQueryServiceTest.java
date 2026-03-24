@@ -1,21 +1,19 @@
 package com.cheeseocean.im.postbox.service;
 
 import com.cheeseocean.im.common.api.dto.message.ConversationLastMessageSummary;
-import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.common.core.auth.PermissionCheckResult;
 import com.cheeseocean.im.common.core.auth.SessionPrincipal;
 import com.cheeseocean.im.common.core.enums.ConversationKind;
 import com.cheeseocean.im.common.core.enums.ContentType;
 import com.cheeseocean.im.common.core.enums.MessagePreviewType;
 import com.cheeseocean.im.common.core.enums.SessionStatus;
+import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
 import com.cheeseocean.im.postbox.api.ConversationSummaryResponse;
 import com.cheeseocean.im.postbox.history.MessageIdMappingDoc;
 import com.cheeseocean.im.postbox.history.MessageSlot;
 import com.cheeseocean.im.postbox.permission.ConversationPermissionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 
 import java.util.List;
 
@@ -33,10 +31,7 @@ class ConversationQueryServiceTest {
     @Test
     void listConversationsShouldAggregateLatestMessageAndUnreadCounts() {
         BlockMessageQueryService blockMessageQueryService = mock(BlockMessageQueryService.class);
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-        @SuppressWarnings("unchecked")
-        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        ConversationStateStore conversationStateStore = mock(ConversationStateStore.class);
         ConversationPermissionService permissionService = mock(ConversationPermissionService.class);
         when(permissionService.check(any())).thenReturn(PermissionCheckResult.allow());
 
@@ -50,10 +45,10 @@ class ConversationQueryServiceTest {
                 .thenReturn(message(8L, "s-2", "c1:userA:userB", "userA", "Need the final mockups."));
         when(blockMessageQueryService.findSlot("c2:crew", 6L))
                 .thenReturn(message(6L, "g-2", "c2:crew", "userC", "Stand-up moved to 11:30."));
-        when(valueOperations.get(RedisKeys.userUnread("userB", "c1:userA:userB"))).thenReturn("1");
-        when(valueOperations.get(RedisKeys.userUnread("userB", "c2:crew"))).thenReturn("1");
+        when(conversationStateStore.getUnread("userB", "c1:userA:userB")).thenReturn(1);
+        when(conversationStateStore.getUnread("userB", "c2:crew")).thenReturn(1);
 
-        ConversationQueryService service = new ConversationQueryService(blockMessageQueryService, redisTemplate, permissionService, new MessagePreviewResolver(), new ConversationPresentationResolver());
+        ConversationQueryService service = new ConversationQueryService(blockMessageQueryService, conversationStateStore, permissionService, new MessagePreviewResolver(), new ConversationPresentationResolver());
 
         List<ConversationSummaryResponse> conversations = service.listConversations(session("userB"), 20);
 
@@ -74,10 +69,7 @@ class ConversationQueryServiceTest {
     @Test
     void listConversationsShouldSkipDeniedConversationsAndRespectLimit() {
         BlockMessageQueryService blockMessageQueryService = mock(BlockMessageQueryService.class);
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-        @SuppressWarnings("unchecked")
-        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        ConversationStateStore conversationStateStore = mock(ConversationStateStore.class);
         ConversationPermissionService permissionService = mock(ConversationPermissionService.class);
 
         when(blockMessageQueryService.findRecentConversationMappings(50))
@@ -91,7 +83,7 @@ class ConversationQueryServiceTest {
         when(blockMessageQueryService.findSlot("c1:userA:userB", 8L))
                 .thenReturn(message(8L, "s-2", "c1:userA:userB", "userA", "Hello"));
 
-        ConversationQueryService service = new ConversationQueryService(blockMessageQueryService, redisTemplate, permissionService, new MessagePreviewResolver(), new ConversationPresentationResolver());
+        ConversationQueryService service = new ConversationQueryService(blockMessageQueryService, conversationStateStore, permissionService, new MessagePreviewResolver(), new ConversationPresentationResolver());
 
         List<ConversationSummaryResponse> conversations = service.listConversations(session("userB"), 1);
 
@@ -102,10 +94,7 @@ class ConversationQueryServiceTest {
     @Test
     void listConversationsShouldPreferConversationLastMessageSummary() {
         BlockMessageQueryService blockMessageQueryService = mock(BlockMessageQueryService.class);
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-        @SuppressWarnings("unchecked")
-        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        ConversationStateStore conversationStateStore = mock(ConversationStateStore.class);
         ConversationPermissionService permissionService = mock(ConversationPermissionService.class);
         when(permissionService.check(any())).thenReturn(PermissionCheckResult.allow());
 
@@ -113,10 +102,10 @@ class ConversationQueryServiceTest {
                 .thenReturn(List.of(mapping("c1:userA:userB", 8L, "s-2", "userA", 1742382300000L)));
         when(blockMessageQueryService.findSlot("c1:userA:userB", 8L))
                 .thenReturn(message(8L, "s-2", "c1:userA:userB", "userA", "history preview"));
-        when(valueOperations.get(RedisKeys.convLastMsg("c1:userA:userB")))
+        when(conversationStateStore.getLastMessageSummary("c1:userA:userB"))
                 .thenReturn(summaryJson(7L, "userA", "summary preview", null, null, null, 1742382200000L, false));
 
-        ConversationQueryService service = new ConversationQueryService(blockMessageQueryService, redisTemplate, permissionService, new MessagePreviewResolver(), new ConversationPresentationResolver());
+        ConversationQueryService service = new ConversationQueryService(blockMessageQueryService, conversationStateStore, permissionService, new MessagePreviewResolver(), new ConversationPresentationResolver());
 
         List<ConversationSummaryResponse> conversations = service.listConversations(session("userB"), 1);
 
@@ -129,10 +118,7 @@ class ConversationQueryServiceTest {
     @Test
     void listConversationsShouldHidePreviewWhenMessageDisablesLastMessage() {
         BlockMessageQueryService blockMessageQueryService = mock(BlockMessageQueryService.class);
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-        @SuppressWarnings("unchecked")
-        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        ConversationStateStore conversationStateStore = mock(ConversationStateStore.class);
         ConversationPermissionService permissionService = mock(ConversationPermissionService.class);
         when(permissionService.check(any())).thenReturn(PermissionCheckResult.allow());
 
@@ -141,9 +127,9 @@ class ConversationQueryServiceTest {
         MessageSlot slot = message(8L, "s-2", "c1:userA:userB", "userA", "typing...");
         slot.getOptions().setNeedLastMessage(false);
         when(blockMessageQueryService.findSlot("c1:userA:userB", 8L)).thenReturn(slot);
-        when(valueOperations.get(RedisKeys.convLastMsg("c1:userA:userB"))).thenReturn(null);
+        when(conversationStateStore.getLastMessageSummary("c1:userA:userB")).thenReturn(null);
 
-        ConversationQueryService service = new ConversationQueryService(blockMessageQueryService, redisTemplate, permissionService, new MessagePreviewResolver(), new ConversationPresentationResolver());
+        ConversationQueryService service = new ConversationQueryService(blockMessageQueryService, conversationStateStore, permissionService, new MessagePreviewResolver(), new ConversationPresentationResolver());
 
         List<ConversationSummaryResponse> conversations = service.listConversations(session("userB"), 1);
 
@@ -155,10 +141,7 @@ class ConversationQueryServiceTest {
     @Test
     void listConversationsShouldRecognizeNotificationConversationKind() {
         BlockMessageQueryService blockMessageQueryService = mock(BlockMessageQueryService.class);
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-        @SuppressWarnings("unchecked")
-        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        ConversationStateStore conversationStateStore = mock(ConversationStateStore.class);
         ConversationPermissionService permissionService = mock(ConversationPermissionService.class);
         when(permissionService.check(any())).thenReturn(PermissionCheckResult.allow());
 
@@ -167,7 +150,7 @@ class ConversationQueryServiceTest {
         when(blockMessageQueryService.findSlot("c3:userB", 3L))
                 .thenReturn(message(3L, "n-1", "c3:userB", "system", "Policy updated"));
 
-        ConversationQueryService service = new ConversationQueryService(blockMessageQueryService, redisTemplate, permissionService, new MessagePreviewResolver(), new ConversationPresentationResolver());
+        ConversationQueryService service = new ConversationQueryService(blockMessageQueryService, conversationStateStore, permissionService, new MessagePreviewResolver(), new ConversationPresentationResolver());
 
         List<ConversationSummaryResponse> conversations = service.listConversations(session("userB"), 1);
 
@@ -181,10 +164,7 @@ class ConversationQueryServiceTest {
     @Test
     void listConversationsShouldExposeNotificationFlagFromSummary() {
         BlockMessageQueryService blockMessageQueryService = mock(BlockMessageQueryService.class);
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-        @SuppressWarnings("unchecked")
-        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        ConversationStateStore conversationStateStore = mock(ConversationStateStore.class);
         ConversationPermissionService permissionService = mock(ConversationPermissionService.class);
         when(permissionService.check(any())).thenReturn(PermissionCheckResult.allow());
 
@@ -192,7 +172,7 @@ class ConversationQueryServiceTest {
                 .thenReturn(List.of(mapping("c3:userB", 3L, "n-1", "system", 1742382600000L)));
         when(blockMessageQueryService.findSlot("c3:userB", 3L))
                 .thenReturn(message(3L, "n-1", "c3:userB", "system", "Policy updated"));
-        when(valueOperations.get(RedisKeys.convLastMsg("c3:userB")))
+        when(conversationStateStore.getLastMessageSummary("c3:userB"))
                 .thenReturn(summaryJson(
                         3L,
                         "system",
@@ -203,7 +183,7 @@ class ConversationQueryServiceTest {
                         1742382600000L,
                         true));
 
-        ConversationQueryService service = new ConversationQueryService(blockMessageQueryService, redisTemplate, permissionService, new MessagePreviewResolver(), new ConversationPresentationResolver());
+        ConversationQueryService service = new ConversationQueryService(blockMessageQueryService, conversationStateStore, permissionService, new MessagePreviewResolver(), new ConversationPresentationResolver());
 
         List<ConversationSummaryResponse> conversations = service.listConversations(session("userB"), 1);
 
@@ -216,10 +196,7 @@ class ConversationQueryServiceTest {
     @Test
     void listConversationsShouldRenderReadablePreviewForRevokeMessage() {
         BlockMessageQueryService blockMessageQueryService = mock(BlockMessageQueryService.class);
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-        @SuppressWarnings("unchecked")
-        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        ConversationStateStore conversationStateStore = mock(ConversationStateStore.class);
         ConversationPermissionService permissionService = mock(ConversationPermissionService.class);
         when(permissionService.check(any())).thenReturn(PermissionCheckResult.allow());
 
@@ -229,7 +206,7 @@ class ConversationQueryServiceTest {
         slot.setContentType(ContentType.REVOKE_NOTIFY.getCode());
         when(blockMessageQueryService.findSlot("c1:userA:userB", 9L)).thenReturn(slot);
 
-        ConversationQueryService service = new ConversationQueryService(blockMessageQueryService, redisTemplate, permissionService, new MessagePreviewResolver(), new ConversationPresentationResolver());
+        ConversationQueryService service = new ConversationQueryService(blockMessageQueryService, conversationStateStore, permissionService, new MessagePreviewResolver(), new ConversationPresentationResolver());
 
         List<ConversationSummaryResponse> conversations = service.listConversations(session("userB"), 1);
 
@@ -241,10 +218,7 @@ class ConversationQueryServiceTest {
     @Test
     void listConversationsShouldRenderReadablePreviewForReadReceipt() {
         BlockMessageQueryService blockMessageQueryService = mock(BlockMessageQueryService.class);
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-        @SuppressWarnings("unchecked")
-        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        ConversationStateStore conversationStateStore = mock(ConversationStateStore.class);
         ConversationPermissionService permissionService = mock(ConversationPermissionService.class);
         when(permissionService.check(any())).thenReturn(PermissionCheckResult.allow());
 
@@ -254,7 +228,7 @@ class ConversationQueryServiceTest {
         slot.setContentType(ContentType.READ_RECEIPT.getCode());
         when(blockMessageQueryService.findSlot("c1:userA:userB", 9L)).thenReturn(slot);
 
-        ConversationQueryService service = new ConversationQueryService(blockMessageQueryService, redisTemplate, permissionService, new MessagePreviewResolver(), new ConversationPresentationResolver());
+        ConversationQueryService service = new ConversationQueryService(blockMessageQueryService, conversationStateStore, permissionService, new MessagePreviewResolver(), new ConversationPresentationResolver());
 
         List<ConversationSummaryResponse> conversations = service.listConversations(session("userB"), 1);
 
@@ -266,10 +240,7 @@ class ConversationQueryServiceTest {
     @Test
     void listConversationsShouldRenderReadablePreviewForNotificationMessages() {
         BlockMessageQueryService blockMessageQueryService = mock(BlockMessageQueryService.class);
-        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
-        @SuppressWarnings("unchecked")
-        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        ConversationStateStore conversationStateStore = mock(ConversationStateStore.class);
         ConversationPermissionService permissionService = mock(ConversationPermissionService.class);
         when(permissionService.check(any())).thenReturn(PermissionCheckResult.allow());
 
@@ -283,7 +254,7 @@ class ConversationQueryServiceTest {
         displayNotification.getOptions().setNotification(true);
         when(blockMessageQueryService.findSlot("c3:userB", 9L)).thenReturn(displayNotification);
 
-        ConversationQueryService service = new ConversationQueryService(blockMessageQueryService, redisTemplate, permissionService, new MessagePreviewResolver(), new ConversationPresentationResolver());
+        ConversationQueryService service = new ConversationQueryService(blockMessageQueryService, conversationStateStore, permissionService, new MessagePreviewResolver(), new ConversationPresentationResolver());
 
         List<ConversationSummaryResponse> conversations = service.listConversations(session("userB"), 1);
 
