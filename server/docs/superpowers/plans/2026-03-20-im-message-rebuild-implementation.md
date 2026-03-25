@@ -146,7 +146,7 @@ void deliverShouldReturnAcceptedResultWithServerMsgIdAndSeq() {
 
 - [ ] **Step 2: Run the test to verify the current shared contract is insufficient**
 
-Run: `./gradlew :postman:test --tests "com.cheeseocean.im.postman.service.MessageDeliveryServiceImplTest"`
+Run: `./gradlew :postman:test --tests "com.cheeseocean.im.postmaster.service.MessageDeliveryServiceImplTest"`
 Expected: FAIL because `DeliveryResult` has no accepted `seq` field and `deliver()` still models synchronous delivery outcomes.
 
 - [ ] **Step 3: Extend shared DTOs and topic constants with the minimum fields needed for event flow**
@@ -192,7 +192,7 @@ public class IngressEvent implements Serializable {
 
 - [ ] **Step 5: Run targeted module tests**
 
-Run: `./gradlew :common:compileJava :postman:test --tests "com.cheeseocean.im.postman.service.MessageDeliveryServiceImplTest"`
+Run: `./gradlew :common:compileJava :postman:test --tests "com.cheeseocean.im.postmaster.service.MessageDeliveryServiceImplTest"`
 Expected: PASS for compile and updated test expectations.
 
 - [ ] **Step 6: Commit**
@@ -233,7 +233,7 @@ void deliverShouldAllocateConversationSeqAndPublishIngressEvent() {
 
 - [ ] **Step 2: Run the postman tests to capture current synchronous coupling**
 
-Run: `./gradlew :postman:test --tests "com.cheeseocean.im.postman.service.MessageDeliveryServiceImplTest"`
+Run: `./gradlew :postman:test --tests "com.cheeseocean.im.postmaster.service.MessageDeliveryServiceImplTest"`
 Expected: FAIL because `deliverFresh()` still persists, pushes online, and schedules offline handling synchronously.
 
 - [ ] **Step 3: Introduce `ConversationSeqService` backed by Redis**
@@ -290,7 +290,7 @@ WSMessage.sendMsgResp(operationId,
 
 - [ ] **Step 7: Run focused tests and compile**
 
-Run: `./gradlew :postman:test --tests "com.cheeseocean.im.postman.service.*" :postman:compileJava`
+Run: `./gradlew :postman:test --tests "com.cheeseocean.im.postmaster.service.*" :postman:compileJava`
 Expected: PASS
 
 - [ ] **Step 8: Commit**
@@ -331,7 +331,7 @@ void ingressListenerShouldSplitGroupMembersIntoBatches() {
 
 - [ ] **Step 2: Run the listener tests to verify the new ingress consumer does not exist yet**
 
-Run: `./gradlew :postman:test --tests "com.cheeseocean.im.postman.listener.IngressEventListenerTest"`
+Run: `./gradlew :postman:test --tests "com.cheeseocean.im.postmaster.listener.IngressEventListenerTest"`
 Expected: FAIL because the listener and membership facade are missing.
 
 - [ ] **Step 3: Add a shared Dubbo query contract for group membership and keep `postman` behind a local facade**
@@ -357,7 +357,7 @@ if (event.isGroupDelivery()) {
 
 - [ ] **Step 5: Run the listener tests and postman test suite**
 
-Run: `./gradlew :postman:test --tests "com.cheeseocean.im.postman.listener.*" :postman:test --tests "com.cheeseocean.im.postman.service.*"`
+Run: `./gradlew :postman:test --tests "com.cheeseocean.im.postmaster.listener.*" :postman:test --tests "com.cheeseocean.im.postmaster.service.*"`
 Expected: PASS
 
 - [ ] **Step 6: Commit**
@@ -466,7 +466,7 @@ void deliveryListenerShouldCallGatewayPushServiceAndQueueOfflinePushWhenNoRoutes
 
 - [ ] **Step 2: Run delivery-listener tests to show the listener path does not exist**
 
-Run: `./gradlew :postman:test --tests "com.cheeseocean.im.postman.listener.DeliveryTaskListenerTest"`
+Run: `./gradlew :postman:test --tests "com.cheeseocean.im.postmaster.listener.DeliveryTaskListenerTest"`
 Expected: FAIL because online delivery is still embedded in `deliverFresh()`.
 
 - [ ] **Step 3: Implement `DeliveryTaskListener` in `postman` and keep `GatewayPushServiceImpl` as the only long-connection writer**
@@ -489,7 +489,7 @@ if (deliveryDedupService.alreadyPushed(message.getServerMsgId(), receiverId, rou
 
 - [ ] **Step 5: Run targeted postman and postoffice tests**
 
-Run: `./gradlew :postman:test --tests "com.cheeseocean.im.postman.listener.DeliveryTaskListenerTest" :postoffice:test --tests "com.cheeseocean.im.postoffice.service.GatewayPushServiceImplTest"`
+Run: `./gradlew :postman:test --tests "com.cheeseocean.im.postmaster.listener.DeliveryTaskListenerTest" :postoffice:test --tests "com.cheeseocean.im.postoffice.service.GatewayPushServiceImplTest"`
 Expected: PASS
 
 - [ ] **Step 6: Commit**
@@ -527,7 +527,7 @@ void receiptListenerShouldAdvanceConversationReadCursorMonotonically() {
 
 - [ ] **Step 2: Run receipt tests to verify the current code only supports per-message ack**
 
-Run: `./gradlew :postman:test --tests "com.cheeseocean.im.postman.listener.ReceiptEventListenerTest" :postoffice:test --tests "com.cheeseocean.im.postoffice.handler.ReceiptMessageHandlerTest"`
+Run: `./gradlew :postman:test --tests "com.cheeseocean.im.postmaster.listener.ReceiptEventListenerTest" :postoffice:test --tests "com.cheeseocean.im.postoffice.handler.ReceiptMessageHandlerTest"`
 Expected: FAIL because there is no receipt event path and no conversation read cursor persistence.
 
 - [ ] **Step 3: Add `ReceiptMessageHandler` in `postoffice` that translates client receipt payloads into `ReceiptEvent`**
@@ -568,7 +568,7 @@ return DeliveryResult.acceptedAck(ack.getServerMsgId());
 
 - [ ] **Step 7: Run receipt and query tests**
 
-Run: `./gradlew :postoffice:test --tests "com.cheeseocean.im.postoffice.handler.ReceiptMessageHandlerTest" :postman:test --tests "com.cheeseocean.im.postman.listener.ReceiptEventListenerTest" :postbox:test --tests "com.cheeseocean.im.postbox.service.ConversationQueryServiceTest"`
+Run: `./gradlew :postoffice:test --tests "com.cheeseocean.im.postoffice.handler.ReceiptMessageHandlerTest" :postman:test --tests "com.cheeseocean.im.postmaster.listener.ReceiptEventListenerTest" :postbox:test --tests "com.cheeseocean.im.postbox.service.ConversationQueryServiceTest"`
 Expected: PASS
 
 - [ ] **Step 8: Commit**
@@ -602,7 +602,7 @@ void offlinePushListenerShouldSkipVendorPushWhenUserCameBackOnline() {
 
 - [ ] **Step 2: Run push tests to confirm topic-driven offline execution does not exist yet**
 
-Run: `./gradlew :push:test --tests "com.cheeseocean.im.push.listener.OfflinePushTaskListenerTest"`
+Run: `./gradlew :push:test --tests "com.cheeseocean.im.postman.listener.OfflinePushTaskListenerTest"`
 Expected: FAIL because offline push is still directly triggered by `postman`.
 
 - [ ] **Step 3: Split retry orchestration from push execution**

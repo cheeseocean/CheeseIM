@@ -1,20 +1,90 @@
 spring:
   application:
-    name: cheese-im-postman
+    name: cheese-im-push
   data:
     redis:
-      database: 1
+      database: 0
   kafka:
     consumer:
-      group-id: postman-delivery-group
+      group-id: push-group
+      max-poll-records: 100
+      fetch-min-size: 1
+      fetch-max-wait: 500ms
+    listener:
+      concurrency: 3
+      ack-mode: manual_immediate
 
 server:
-  port: 18081
+  port: 18083
 
-cheeseim:
-  postman:
+cheese:
+  im:
+    push:
+      apns:
+        enabled: ${push.apns.enabled:false}
+        key-path: ${push.apns.key-path:}
+        key-id: ${push.apns.key-id:}
+        team-id: ${push.apns.team-id:}
+        bundle-id: ${push.apns.bundle-id:}
+        production: ${push.apns.production:true}
+      jpush:
+        enabled: ${push.jpush.enabled:false}
+        app-key: ${push.jpush.app-key:}
+        master-secret: ${push.jpush.master-secret:}
+        production: ${push.jpush.production:true}
+        time-to-live: 86400
+      fcm:
+        enabled: ${push.fcm.enabled:false}
+        service-account-key: ${push.fcm.service-account-key:}
+        project-id: ${push.fcm.project-id:}
+      huawei:
+        enabled: ${push.huawei.enabled:false}
+        app-id: ${push.huawei.app-id:}
+        app-secret: ${push.huawei.app-secret:}
+      xiaomi:
+        enabled: ${push.xiaomi.enabled:false}
+        app-secret: ${push.xiaomi.app-secret:}
+        package-name: ${push.xiaomi.package-name:}
+      statistics:
+        enabled: true
+        cache-expire-hours: 24
+        realtime-window-seconds: 60
+      device-token:
+        cache-expire-days: 30
+        cleanup-interval-hours: 6
+      offline-push:
+        enabled: true
+        max-retry-count: 3
+        retry-delay-seconds: 1
+        max-daily-push-count: 100
+      scheduled-tasks:
+        enabled: true
+        device-token-cleanup-interval-hours: 6
+        statistics-log-interval-minutes: 30
+        health-check-interval-minutes: 5
+      config:
+        cache-expire-days: 7
+        default-group-chat-read-type: READ_ALL
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+info:
+  app:
+    name: CheeseIM Push Service
+    description: Online and Offline Push Service
+    version: 1.0.0
+    author: CheeseIM Team
 logging:
   level:
-    com.cheeseocean.im.postman: INFO
-    org.springframework.data.mongodb: WARN
+    com.cheeseocean.im.push: INFO

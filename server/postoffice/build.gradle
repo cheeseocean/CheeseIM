@@ -36,6 +36,6 @@ dependencies {
     testImplementation 'org.springframework.kafka:spring-kafka'
     testImplementation project(':postman')
     testImplementation project(':postbox')
-    testImplementation project(':push')
+    testImplementation project(':postmaster')
     testRuntimeOnly 'ch.qos.logback:logback-core:1.5.25'
 }

@@ -50,11 +50,11 @@ dependencyResolutionManagement {
 rootProject.name = 'CheeseIMServer'
 
 include 'postoffice'
+include 'postmaster'
 include 'postman'
 include 'postbox'
 include 'common-core'
 include 'common-api'
-include 'push'
 include 'authcenter'
 include 'social'
 include 'config'

@@ -86,19 +86,6 @@ public class ChatMessageHandler implements MessageHandler {
                 return HandleResult.failure("消息数据格式错误", errorResp);
             }
 
-            if (isReadReceipt(request)) {
-                ReadReceiptPayload payload = parseReadReceiptPayload(request.getContent());
-                validateReadReceipt(payload);
-                receiptAckRpc.apply(toReceiptAckReq(context, connection, payload));
-                connection.incrementSendMsg();
-                return HandleResult.success(WSMessage.sendMsgResp(
-                        operationID,
-                        null,
-                        request.getClientMsgId(),
-                        System.currentTimeMillis(),
-                        null));
-            }
-
             Message msgData = toMessage(request, connection);
             
             // 验证消息参数

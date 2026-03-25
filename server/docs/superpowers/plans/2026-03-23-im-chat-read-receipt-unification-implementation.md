@@ -451,7 +451,7 @@ void readReceiptShouldNotPublishHistoryOrDeliveryEvents() {
 
 - [ ] **Step 2: Run the postman tests**
 
-Run: `./gradlew :postman:test --tests "com.cheeseocean.im.postman.listener.IngressEventListenerTest" --tests "com.cheeseocean.im.postman.service.MessageStateServiceTest"`
+Run: `./gradlew :postman:test --tests "com.cheeseocean.im.postmaster.listener.IngressEventListenerTest" --tests "com.cheeseocean.im.postmaster.service.MessageStateServiceTest"`
 Expected: FAIL until receipt content cannot enter the normal ingress path.
 
 - [ ] **Step 3: Add explicit guards so receipt payloads cannot mutate message-pipeline state**
@@ -464,7 +464,7 @@ if (message.getContentType() == ContentType.READ_RECEIPT.getCode()) {
 
 - [ ] **Step 4: Run the targeted postman tests**
 
-Run: `./gradlew :postman:test --tests "com.cheeseocean.im.postman.listener.IngressEventListenerTest" --tests "com.cheeseocean.im.postman.service.MessageStateServiceTest"`
+Run: `./gradlew :postman:test --tests "com.cheeseocean.im.postmaster.listener.IngressEventListenerTest" --tests "com.cheeseocean.im.postmaster.service.MessageStateServiceTest"`
 Expected: PASS with guardrails against accidental receipt regression.
 
 - [ ] **Step 5: Commit**
@@ -495,7 +495,7 @@ void topicNamesShouldNotExposeReceiptTopic() {
 
 - [ ] **Step 2: Run the affected tests**
 
-Run: `./gradlew :postoffice:test --tests "com.cheeseocean.im.postoffice.handler.ChatMessageHandlerTest" :postman:test --tests "com.cheeseocean.im.postman.listener.ReceiptEventListenerTest"`
+Run: `./gradlew :postoffice:test --tests "com.cheeseocean.im.postoffice.handler.ChatMessageHandlerTest" :postman:test --tests "com.cheeseocean.im.postmaster.listener.ReceiptEventListenerTest"`
 Expected: FAIL because the old receipt classes and tests still exist.
 
 - [ ] **Step 3: Delete the dedicated receipt path and remove topic references**
@@ -516,7 +516,7 @@ assertThrows(UnsupportedOperationException.class, () -> legacyDecoder.decodeOldR
 
 - [ ] **Step 5: Run the targeted tests**
 
-Run: `./gradlew :postoffice:test --tests "com.cheeseocean.im.postoffice.handler.ChatMessageHandlerTest" :postman:test --tests "com.cheeseocean.im.postman.listener.IngressEventListenerTest" :postbox:test --tests "com.cheeseocean.im.postbox.service.ConversationReceiptServiceTest"`
+Run: `./gradlew :postoffice:test --tests "com.cheeseocean.im.postoffice.handler.ChatMessageHandlerTest" :postman:test --tests "com.cheeseocean.im.postmaster.listener.IngressEventListenerTest" :postbox:test --tests "com.cheeseocean.im.postbox.service.ConversationReceiptServiceTest"`
 Expected: PASS with no receipt-topic dependencies remaining.
 
 - [ ] **Step 6: Commit**
@@ -560,7 +560,7 @@ connectionManager.sendMessageToConnection(connection, transportEncoder.encode(en
 
 - [ ] **Step 4: Run the targeted postoffice and push tests**
 
-Run: `./gradlew :postoffice:test --tests "com.cheeseocean.im.postoffice.api.OnlineDispatchRpcImplTest" :push:test --tests "com.cheeseocean.im.push.listener.DeliveryEventListenerTest"`
+Run: `./gradlew :postoffice:test --tests "com.cheeseocean.im.postoffice.api.OnlineDispatchRpcImplTest" :push:test --tests "com.cheeseocean.im.postman.listener.DeliveryEventListenerTest"`
 Expected: PASS with outbound delivery still working through the unified envelope boundary.
 
 - [ ] **Step 5: Commit**
@@ -591,7 +591,7 @@ void chatReadReceiptShouldUpdateReadSeqWithoutCreatingHistoryMessage() {
 
 - [ ] **Step 2: Run the smoke and regression suite**
 
-Run: `./gradlew :postoffice:test --tests "com.cheeseocean.im.postoffice.ImFlowSmokeTest" :postman:test --tests "com.cheeseocean.im.postman.listener.IngressEventListenerTest" :postbox:test --tests "com.cheeseocean.im.postbox.service.ConversationQueryServiceTest" --tests "com.cheeseocean.im.postbox.service.HistoryQueryServiceTest"`
+Run: `./gradlew :postoffice:test --tests "com.cheeseocean.im.postoffice.ImFlowSmokeTest" :postman:test --tests "com.cheeseocean.im.postmaster.listener.IngressEventListenerTest" :postbox:test --tests "com.cheeseocean.im.postbox.service.ConversationQueryServiceTest" --tests "com.cheeseocean.im.postbox.service.HistoryQueryServiceTest"`
 Expected: FAIL until the new path is fully wired and old receipt persistence side effects are gone.
 
 - [ ] **Step 3: Fill any remaining gaps in transport mapping, enum serialization, or read-state application**

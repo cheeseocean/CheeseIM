@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: cheese-im-postman
+  data:
+    redis:
+      database: 1
+  kafka:
+    consumer:
+      group-id: postman-delivery-group
+
+server:
+  port: 18081
+
+cheeseim:
+  postman:
+
+logging:
+  level:
+    com.cheeseocean.im.postman: INFO
+    org.springframework.data.mongodb: WARN

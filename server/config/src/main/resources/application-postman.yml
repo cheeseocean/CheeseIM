@@ -2,21 +2,20 @@ spring:
   config:
     import:
       - classpath:common.yml
-      - classpath:module-postman.yml
+      - classpath:module-push.yml
 
 app:
   runtime:
     mode: standalone
 
 cheeseim:
-  delivery:
-    compensation:
-      listener:
-        enabled: true
+  push:
+    scheduled-tasks:
+      enabled: true
 
 dubbo:
   application:
-    name: cheese-im-postman
+    name: cheese-im-push
   registry:
     address: nacos://${nacos.server-addr:localhost:8848}
     register: true
@@ -27,7 +26,7 @@ dubbo:
     address: nacos://${nacos.server-addr:localhost:8848}
   protocol:
     name: dubbo
-    port: 20881
+    port: 20883
     injvm: false
   consumer:
     injvm: false

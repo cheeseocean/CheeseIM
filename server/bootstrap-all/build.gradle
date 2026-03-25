@@ -10,7 +10,7 @@ dependencies {
     implementation project(':postoffice')
     implementation project(':postman')
     implementation project(':postbox')
-    implementation project(':push')
+    implementation project(':postmaster')
 
     implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'org.springframework.boot:spring-boot-starter-web'

@@ -3,8 +3,8 @@ package com.cheeseocean.im.bootstrap.all;
 import com.cheeseocean.im.authcenter.AuthCenter;
 import com.cheeseocean.im.postbox.Postbox;
 import com.cheeseocean.im.postman.Postman;
+import com.cheeseocean.im.postmaster.PostMaster;
 import com.cheeseocean.im.postoffice.PostOffice;
-import com.cheeseocean.im.push.Push;
 import com.cheeseocean.im.social.Social;
 import org.apache.dubbo.config.spring.context.annotation.EnableDubbo;
 import org.springframework.boot.SpringApplication;
@@ -23,15 +23,15 @@ import java.util.Map;
                 "com.cheeseocean.im.authcenter",
                 "com.cheeseocean.im.social",
                 "com.cheeseocean.im.postoffice",
-                "com.cheeseocean.im.postman",
+                "com.cheeseocean.im.postmaster",
                 "com.cheeseocean.im.postbox",
-                "com.cheeseocean.im.push"
+                "com.cheeseocean.im.postman"
         },
         excludeFilters = {
                 @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = PostOffice.class),
-                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = Postman.class),
+                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = PostMaster.class),
                 @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = Postbox.class),
-                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = Push.class),
+                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = Postman.class),
                 @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = AuthCenter.class),
                 @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = Social.class),
         }

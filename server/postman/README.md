@@ -1,38 +1,35 @@
-# Postman
+# Push
 
-`postman` is the orchestration core of the rebuilt IM architecture.
+`push` is the delivery-execution and offline-push boundary for the rebuilt IM architecture.
 
 ## Responsibility
 
-- consume normalized ingress events from `postbox`
-- enforce idempotency and allocate stable conversation `seq`
-- orchestrate history fanout to `postbox`
-- orchestrate delivery fanout to `push`
-- converge ack, read, and recall state
-- schedule compensation and dead-letter handling for incomplete delivery
-
-## Core Types
-
-- `IngressEventListener`
-- `ConversationSeqService`
-- `MessageIdempotencyService`
-- `DeliveryCompensationService`
-- `MessageStateService`
+- consume `DeliveryEvent` and execute online dispatch through shared RPC seams
+- decide whether a delivery result still needs vendor push
+- deduplicate push attempts by message identity
+- cancel stale push attempts after reconnect or receipt convergence
+- execute vendor push through provider-specific adapters
 
 ## Not In Scope
 
-The module does not carry query-side or storage-side ownership:
+The module does not own:
 
-- history-query APIs
-- Mongo persistence models
-- history persistence models
+- online push routing
+- transport-envelope translation for gateway protocols
 
-History truth lives in `postbox`, online dispatch lives in `postoffice`, and delivery execution lives in `push`.
+Online delivery belongs to `postoffice`. Delivery truth and compensation belong to `postman`.
+
+## Core Types
+
+- `DeliveryEventListener`
+- `OfflinePushEventListener`
+- `MessagePushServiceImpl`
+- `PushDecisionService`
+- `PushAttempt`
+- `PushStatisticsService`
 
 ## Verification
 
 ```bash
-./gradlew :postman:test
+./gradlew :push:test
 ```
-
-Key regressions are concentrated in `postman/src/test/java/com/cheeseocean/im/postman/service`.
