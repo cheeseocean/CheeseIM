@@ -4,7 +4,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.nio.file.Path;
 
-@ConfigurationProperties(prefix = "app.state")
+@ConfigurationProperties(prefix = "cheeseim.state")
 public class StateStoreProperties {
 
     private String dataDir = "data/state";

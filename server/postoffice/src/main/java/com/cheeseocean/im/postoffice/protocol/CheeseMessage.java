@@ -32,7 +32,7 @@ import java.nio.charset.StandardCharsets;
  * Timestamp: (8 bytes) - 时间戳
  * Data: (Length bytes) - 消息数据，JSON格式
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 public class CheeseMessage implements Serializable {
     

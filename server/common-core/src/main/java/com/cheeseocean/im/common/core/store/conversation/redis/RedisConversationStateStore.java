@@ -45,6 +45,12 @@ public class RedisConversationStateStore implements ConversationStateStore {
     }
 
     @Override
+    public void incrementUnreadBy(String userId, String conversationId, int delta) {
+        if (delta <= 0) return;
+        redisTemplate.opsForValue().increment(RedisKeys.userUnread(userId, conversationId), delta);
+    }
+
+    @Override
     public int getUnread(String userId, String conversationId) {
         Long value = parseLong(redisTemplate.opsForValue().get(RedisKeys.userUnread(userId, conversationId)));
         return value == null ? 0 : value.intValue();

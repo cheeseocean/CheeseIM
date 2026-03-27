@@ -9,7 +9,7 @@ import com.cheeseocean.im.postoffice.protocol.WSMessage;
  * 消息处理器接口
  * 定义各种消息类型的处理方法
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 public interface MessageHandler {
     

@@ -4,7 +4,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.nio.file.Path;
 
-@ConfigurationProperties(prefix = "app.cache")
+@ConfigurationProperties(prefix = "cheeseim.cache")
 public class CacheProperties {
 
     private String dataDir = "data/cache";

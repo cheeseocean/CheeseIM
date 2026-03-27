@@ -8,7 +8,7 @@ import java.util.Map;
 /**
  * 推送消息类
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 public class PushMessage implements Serializable {
     

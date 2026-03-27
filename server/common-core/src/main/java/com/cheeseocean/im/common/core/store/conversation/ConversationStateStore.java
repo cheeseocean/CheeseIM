@@ -14,6 +14,13 @@ public interface ConversationStateStore {
 
     void incrementUnread(String userId, String conversationId);
 
+    /** Atomically add {@code delta} to the unread counter in one operation. */
+    default void incrementUnreadBy(String userId, String conversationId, int delta) {
+        for (int i = 0; i < delta; i++) {
+            incrementUnread(userId, conversationId);
+        }
+    }
+
     int getUnread(String userId, String conversationId);
 
     void setLastMessageSummary(String conversationId, String summary);

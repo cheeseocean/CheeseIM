@@ -4,7 +4,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.nio.file.Path;
 
-@ConfigurationProperties(prefix = "app.queue")
+@ConfigurationProperties(prefix = "cheeseim.queue")
 public class QueueProperties {
 
     private String type = "chronicle";

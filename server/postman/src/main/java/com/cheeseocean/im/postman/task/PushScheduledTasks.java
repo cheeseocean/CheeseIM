@@ -2,8 +2,8 @@ package com.cheeseocean.im.postman.task;
 
 import com.cheeseocean.im.postman.service.impl.DeviceTokenServiceImpl;
 import com.cheeseocean.im.postman.service.PushStatisticsService;
+import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
 )
 public class PushScheduledTasks {
     
-    private static final Logger logger = LoggerFactory.getLogger(PushScheduledTasks.class);
+    private static final Logger logger = CommonLoggers.POSTMAN;
     
     @Autowired
     private DeviceTokenServiceImpl deviceTokenService;

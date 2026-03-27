@@ -11,8 +11,8 @@ import com.eatthepath.pushy.apns.auth.ApnsSigningKey;
 import com.eatthepath.pushy.apns.util.ApnsPayloadBuilder;
 import com.eatthepath.pushy.apns.util.SimpleApnsPayloadBuilder;
 import com.eatthepath.pushy.apns.util.SimpleApnsPushNotification;
+import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -30,12 +30,12 @@ import java.util.concurrent.ExecutionException;
  * APNs推送服务实现
  * 基于Apple Push Notification service实现iOS推送
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 @Service
 public class APNsPushProvider implements PushProvider {
     
-    private static final Logger logger = LoggerFactory.getLogger(APNsPushProvider.class);
+    private static final Logger logger = CommonLoggers.POSTMAN;
     
     @Value("${cheeseim.push.apns.enabled:false}")
     private boolean enabled;

@@ -4,7 +4,7 @@ package com.cheeseocean.im.postoffice.protocol;
  * TCP协议消息类型定义
  * 与WebSocket消息类型保持一致，但使用byte类型以节省空间
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 public class CheeseMessageType {
     

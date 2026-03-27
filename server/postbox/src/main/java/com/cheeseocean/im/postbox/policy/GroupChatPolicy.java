@@ -1,12 +1,12 @@
 package com.cheeseocean.im.postbox.policy;
 
-import com.cheeseocean.im.postbox.service.GroupMemberService;
+import com.cheeseocean.im.common.api.group.GroupMembershipQueryService;
 import org.springframework.stereotype.Component;
 
 @Component
 public class GroupChatPolicy {
 
-    private final GroupMemberService groupMemberService;
+    private final GroupMembershipQueryService groupMemberService;
 
     public GroupChatPolicy(GroupMemberService groupMemberService) {
         this.groupMemberService = groupMemberService;

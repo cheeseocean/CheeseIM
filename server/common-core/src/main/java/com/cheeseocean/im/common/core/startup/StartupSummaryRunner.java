@@ -36,7 +36,7 @@ public class StartupSummaryRunner implements ApplicationListener<ApplicationRead
         items.add(new StartupSummaryItem("Application", resolveApplicationName()));
         items.add(new StartupSummaryItem("Profile", resolveProfiles()));
 
-        String mode = environment.getProperty("app.runtime.mode");
+        String mode = environment.getProperty("cheeseim.runtime.mode");
         if (StringUtils.hasText(mode)) {
             items.add(new StartupSummaryItem("Mode", mode));
         }

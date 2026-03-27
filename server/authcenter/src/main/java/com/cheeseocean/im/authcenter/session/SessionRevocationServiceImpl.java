@@ -1,6 +1,6 @@
 package com.cheeseocean.im.authcenter.session;
 
-import com.cheeseocean.im.common.api.connection.KickoffCommandDubboService;
+import com.cheeseocean.im.common.api.connection.KickoffCommandService;
 import com.cheeseocean.im.common.api.session.SessionRevocationService;
 import com.cheeseocean.im.authcenter.repository.SessionRepository;
 import com.cheeseocean.im.common.core.auth.KickoffCommand;
@@ -17,7 +17,7 @@ public class SessionRevocationServiceImpl implements SessionRevocationService {
     private final SessionRepository sessionRepository;
 
     @DubboReference(check = false)
-    private KickoffCommandDubboService kickoffCommandDubboService;
+    private KickoffCommandService kickoffCommandService;
 
     public SessionRevocationServiceImpl(SessionRepository sessionRepository) {
         this.sessionRepository = sessionRepository;
@@ -35,7 +35,7 @@ public class SessionRevocationServiceImpl implements SessionRevocationService {
         KickoffCommand command = new KickoffCommand();
         command.setSessionId(sessionId);
         command.setReason(reason);
-        kickoffCommandDubboService.kickoffBySession(command);
+        kickoffCommandService.kickoffBySession(command);
     }
 
     @Override

@@ -7,7 +7,7 @@ import java.time.format.DateTimeFormatter;
 /**
  * 用户离线推送配置类
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 public class OfflinePushConfig implements Serializable {
     

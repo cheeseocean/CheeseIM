@@ -6,8 +6,8 @@ import com.cheeseocean.im.postoffice.auth.ConnectionSessionGuard;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.postoffice.protocol.WSMessage;
 import com.cheeseocean.im.postoffice.service.OnlineRouteService;
+import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -15,12 +15,12 @@ import org.springframework.stereotype.Component;
  * 心跳消息处理器
  * 处理客户端心跳请求，维持连接活跃状态
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 @Component
 public class HeartbeatMessageHandler implements MessageHandler {
     
-    private static final Logger logger = LoggerFactory.getLogger(HeartbeatMessageHandler.class);
+    private static final Logger logger = CommonLoggers.POSTOFFICE;
 
     @Autowired(required = false)
     private OnlineRouteService onlineRouteService;

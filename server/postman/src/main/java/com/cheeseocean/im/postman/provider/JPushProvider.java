@@ -14,8 +14,8 @@ import cn.jpush.api.push.model.notification.IosNotification;
 import cn.jpush.api.push.model.notification.Notification;
 import com.cheeseocean.im.common.core.enums.PlatformType;
 import com.cheeseocean.im.postman.entity.PushMessage;
+import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -29,12 +29,12 @@ import java.util.Map;
  * 极光推送服务实现
  * 基于JPush SDK实现多平台推送
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 @Service
 public class JPushProvider implements PushProvider {
     
-    private static final Logger logger = LoggerFactory.getLogger(JPushProvider.class);
+    private static final Logger logger = CommonLoggers.POSTMAN;
     
     @Value("${cheeseim.push.jpush.enabled:false}")
     private boolean enabled;

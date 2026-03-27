@@ -43,13 +43,5 @@ dubbo:
     timeout: 5000
     retries: 2
 
-logging:
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-  level:
-    org.springframework.kafka: WARN
-    io.netty: WARN
-    org.apache.kafka: WARN
-    org.apache.dubbo: WARN
-    redis.clients.jedis: WARN
+# Logging is configured centrally in logback-spring.xml (config module).
+# Pattern, file appenders, and noise suppression are all handled there.

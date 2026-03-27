@@ -14,7 +14,7 @@ public class Social {
 
     public static void main(String[] args) {
         SpringApplication application = new SpringApplication(Social.class);
-        application.setDefaultProperties(Map.of("spring.config.name", "application-social"));
+        application.setDefaultProperties(Map.of("spring.config.name", "cheeseim-social"));
         application.run(args);
     }
 }

@@ -7,8 +7,8 @@ import com.cheeseocean.im.postoffice.service.OnlineRouteService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.channel.Channel;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 @Component
 public class ConnectionManager {
     
-    private static final Logger logger = LoggerFactory.getLogger(ConnectionManager.class);
+    private static final Logger logger = CommonLoggers.POSTOFFICE;
     
     @Autowired
     private ObjectMapper objectMapper;

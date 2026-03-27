@@ -26,7 +26,7 @@ class QueueAutoConfigurerTest {
     @Test
     void shouldCreateKafkaAdapterWhenQueueTypeIsKafka() {
         new ApplicationContextRunner()
-                .withPropertyValues("app.queue.type=kafka", "spring.kafka.bootstrap-servers=localhost:9092")
+                .withPropertyValues("cheeseim.queue.type=kafka", "spring.kafka.bootstrap-servers=localhost:9092")
                 .withUserConfiguration(CommonJacksonConfig.class, CommonKafkaStringConfig.class, QueueAutoConfigurer.class, KafkaProperties.class)
                 .run(context -> {
                     assertThat(context).hasSingleBean(QueueAdapter.class);

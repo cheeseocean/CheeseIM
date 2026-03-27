@@ -9,7 +9,10 @@ import com.cheeseocean.im.common.core.constants.TopicNames;
 import com.cheeseocean.im.common.core.enums.ContentType;
 import com.cheeseocean.im.common.core.enums.SessionType;
 import com.cheeseocean.im.common.core.queue.QueueAdapter;
+import com.cheeseocean.im.common.core.store.sequence.SequenceRange;
+import com.cheeseocean.im.common.api.conversation.ConversationSyncCommand;
 import com.cheeseocean.im.postmaster.service.ConversationSeqService;
+import com.cheeseocean.im.postmaster.service.ConversationSyncFacade;
 import com.cheeseocean.im.postmaster.service.DefaultMessagePolicyEngine;
 import com.cheeseocean.im.postmaster.service.GroupFanoutPlanner;
 import com.cheeseocean.im.postmaster.service.GroupMembershipFacade;
@@ -20,9 +23,9 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -31,32 +34,62 @@ import static org.mockito.Mockito.when;
 
 class IngressEventListenerTest {
 
+    private static ConversationSeqService.SeqBatch seqBatch(long start, long end) {
+        return new ConversationSeqService.SeqBatch(new SequenceRange(start, end));
+    }
+
     @Test
     void ingressListenerShouldPublishHistoryAndDeliveryForSingleChat() {
         QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
         MessageStateService messageStateService = mock(MessageStateService.class);
-        when(conversationSeqService.nextSeq("c1:userA:userB")).thenReturn(1001L);
-        IngressEventListener listener = new IngressEventListener(
-                new ObjectMapper(),
-                queueAdapter,
-                groupMembershipFacade,
-                new GroupFanoutPlanner(2),
-                conversationSeqService,
-                new DefaultMessagePolicyEngine(),
-                messageStateService);
+        when(conversationSeqService.allocateBatch("c1:userA:userB", 1))
+                .thenReturn(seqBatch(1001L, 1001L));
 
-        listener.handle(singleIngressEvent());
+        IngressEventListener listener = listener(queueAdapter, groupMembershipFacade,
+                conversationSeqService, messageStateService);
 
-        var historyCaptor = forClass(HistoryEvent.class);
+        listener.handle(List.of(singleIngressEvent()));
+
+        var historyCaptor  = forClass(HistoryEvent.class);
         var deliveryCaptor = forClass(DeliveryEvent.class);
-        verify(queueAdapter).send(eq(TopicNames.HISTORY), eq("c1:userA:userB"), historyCaptor.capture());
+        verify(queueAdapter).send(eq(TopicNames.HISTORY),  eq("c1:userA:userB"), historyCaptor.capture());
         verify(queueAdapter).send(eq(TopicNames.DELIVERY), eq("c1:userA:userB"), deliveryCaptor.capture());
 
-        SequencedMessage message = historyCaptor.getValue().getMessages().get(0);
+        HistoryEvent history = historyCaptor.getValue();
+        assertEquals(1001L, history.getBeginSeq());
+        assertEquals(1001L, history.getEndSeq());
+        assertEquals(1000L, history.getLastMaxSeq());
+
+        SequencedMessage message = history.getMessages().get(0);
         assertEquals(1001L, message.getSeq());
         assertEquals("userB", deliveryCaptor.getValue().getTargetUserIds().get(0));
+    }
+
+    @Test
+    void ingressListenerShouldBatchAllocateSeqsForMultipleEvents() {
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
+        GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
+        ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
+        MessageStateService messageStateService = mock(MessageStateService.class);
+        when(conversationSeqService.allocateBatch("c1:userA:userB", 2))
+                .thenReturn(seqBatch(10L, 11L));
+
+        IngressEventListener listener = listener(queueAdapter, groupMembershipFacade,
+                conversationSeqService, messageStateService);
+
+        listener.handle(List.of(singleIngressEvent(), singleIngressEvent()));
+
+        var historyCaptor = forClass(HistoryEvent.class);
+        verify(queueAdapter).send(eq(TopicNames.HISTORY), eq("c1:userA:userB"), historyCaptor.capture());
+        HistoryEvent history = historyCaptor.getValue();
+        assertEquals(10L, history.getBeginSeq());
+        assertEquals(11L, history.getEndSeq());
+        assertEquals(9L,  history.getLastMaxSeq());
+        assertEquals(2, history.getMessages().size());
+        assertEquals(10L, history.getMessages().get(0).getSeq());
+        assertEquals(11L, history.getMessages().get(1).getSeq());
     }
 
     @Test
@@ -66,21 +99,16 @@ class IngressEventListenerTest {
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
         MessageStateService messageStateService = mock(MessageStateService.class);
         when(groupMembershipFacade.loadTargets("c2:crew")).thenReturn(List.of("u1", "u2", "u3"));
-        when(conversationSeqService.nextSeq("c2:crew")).thenReturn(2002L);
+        when(conversationSeqService.allocateBatch("c2:crew", 1))
+                .thenReturn(seqBatch(2002L, 2002L));
 
-        IngressEventListener listener = new IngressEventListener(
-                new ObjectMapper(),
-                queueAdapter,
-                groupMembershipFacade,
-                new GroupFanoutPlanner(2),
-                conversationSeqService,
-                new DefaultMessagePolicyEngine(),
-                messageStateService);
+        IngressEventListener listener = listener(queueAdapter, groupMembershipFacade,
+                conversationSeqService, messageStateService);
 
-        listener.handle(groupIngressEvent());
+        listener.handle(List.of(groupIngressEvent()));
 
         verify(groupMembershipFacade).loadTargets("c2:crew");
-        verify(queueAdapter).send(eq(TopicNames.HISTORY), eq("c2:crew"), any(HistoryEvent.class));
+        verify(queueAdapter).send(eq(TopicNames.HISTORY),  eq("c2:crew"), any(HistoryEvent.class));
         verify(queueAdapter, times(2))
                 .send(eq(TopicNames.DELIVERY), eq("c2:crew"), any(DeliveryEvent.class));
     }
@@ -91,24 +119,20 @@ class IngressEventListenerTest {
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
         MessageStateService messageStateService = mock(MessageStateService.class);
-        when(conversationSeqService.nextSeq("c1:userA:userB")).thenReturn(1001L);
+        when(conversationSeqService.allocateBatch("c1:userA:userB", 1))
+                .thenReturn(seqBatch(1001L, 1001L));
 
-        IngressEventListener listener = new IngressEventListener(
-                new ObjectMapper(),
-                queueAdapter,
-                groupMembershipFacade,
-                new GroupFanoutPlanner(2),
-                conversationSeqService,
-                new DefaultMessagePolicyEngine(),
-                messageStateService);
+        IngressEventListener listener = listener(queueAdapter, groupMembershipFacade,
+                conversationSeqService, messageStateService);
 
         IngressEvent event = singleIngressEvent();
         event.getOptions().setNeedOnlinePush(false);
 
-        listener.handle(event);
+        listener.handle(List.of(event));
 
         verify(queueAdapter).send(eq(TopicNames.HISTORY), eq("c1:userA:userB"), any(HistoryEvent.class));
-        verify(queueAdapter, times(0)).send(eq(TopicNames.DELIVERY), eq("c1:userA:userB"), any(DeliveryEvent.class));
+        verify(queueAdapter, times(0))
+                .send(eq(TopicNames.DELIVERY), eq("c1:userA:userB"), any(DeliveryEvent.class));
     }
 
     @Test
@@ -117,22 +141,17 @@ class IngressEventListenerTest {
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
         MessageStateService messageStateService = mock(MessageStateService.class);
-        when(conversationSeqService.nextSeq("c1:userA:userB")).thenReturn(1002L);
+        when(conversationSeqService.allocateBatch("c1:userA:userB", 1))
+                .thenReturn(seqBatch(1002L, 1002L));
 
-        IngressEventListener listener = new IngressEventListener(
-                new ObjectMapper(),
-                queueAdapter,
-                groupMembershipFacade,
-                new GroupFanoutPlanner(2),
-                conversationSeqService,
-                new DefaultMessagePolicyEngine(),
-                messageStateService);
+        IngressEventListener listener = listener(queueAdapter, groupMembershipFacade,
+                conversationSeqService, messageStateService);
 
         IngressEvent event = singleIngressEvent();
         event.getOptions().setSenderSync(true);
 
         var deliveryCaptor = forClass(DeliveryEvent.class);
-        listener.handle(event);
+        listener.handle(List.of(event));
 
         verify(queueAdapter).send(eq(TopicNames.DELIVERY), eq("c1:userA:userB"), deliveryCaptor.capture());
         assertEquals(List.of("userB", "userA"), deliveryCaptor.getValue().getTargetUserIds());
@@ -144,33 +163,89 @@ class IngressEventListenerTest {
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
         MessageStateService messageStateService = mock(MessageStateService.class);
-        when(conversationSeqService.nextSeq("c1:userA:userB")).thenReturn(1003L);
+        when(conversationSeqService.allocateBatch("c1:userA:userB", 1))
+                .thenReturn(seqBatch(1003L, 1003L));
 
-        IngressEventListener listener = new IngressEventListener(
-                new ObjectMapper(),
-                queueAdapter,
-                groupMembershipFacade,
-                new GroupFanoutPlanner(2),
-                conversationSeqService,
-                new DefaultMessagePolicyEngine(),
-                messageStateService);
+        IngressEventListener listener = listener(queueAdapter, groupMembershipFacade,
+                conversationSeqService, messageStateService);
 
         IngressEvent event = singleIngressEvent();
         event.getOptions().setNeedConversation(true);
         event.getOptions().setNeedUnreadCount(true);
         event.getOptions().setNeedLastMessage(true);
 
-        listener.handle(event);
+        listener.handle(List.of(event));
 
-        verify(messageStateService).apply(any(SequencedMessage.class), eq(List.of("userB")));
+        // Storage messages now go through applyBatch, not apply
+        verify(messageStateService).applyBatch(any());
     }
 
     @Test
-    void readReceiptShouldNotReachIngressPipeline() {
+    void readReceiptShouldTriggerPreProcessAsASideEffect() {
+        // 对应 Go 的 doSetReadSeq：READ_RECEIPT 消息先触发已读 seq 缓存写入（旁路副作用），
+        // 然后继续参与后续完整管道（categorize → seq → history → 投递）。
+        // 本用例中 needHistory=false、needOnlinePush=false，因此该消息落入 notStorageCtx，
+        // 不触发 seq 分配、不产生 history/delivery 事件——这是策略决定的结果，
+        // 而非因为 READ_RECEIPT 被提前过滤掉。
         QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
         MessageStateService messageStateService = mock(MessageStateService.class);
+
+        IngressEventListener listener = listener(queueAdapter, groupMembershipFacade,
+                conversationSeqService, messageStateService);
+
+        listener.handle(List.of(readReceiptIngressEvent()));
+
+        // 旁路副作用：processReadReceipts 应被调用一次
+        var receiptCaptor = forClass(List.class);
+        verify(messageStateService).processReadReceipts(receiptCaptor.capture());
+        assertEquals(1, receiptCaptor.getValue().size());
+
+        // 该事件 needHistory=false → storageCtx 为空 → 无 seq 分配、无 history、无 delivery
+        verify(conversationSeqService, times(0)).allocateBatch(any(), eq(1));
+        verify(queueAdapter, times(0)).send(eq(TopicNames.HISTORY),  any(), any());
+        verify(queueAdapter, times(0)).send(eq(TopicNames.DELIVERY), any(), any());
+    }
+
+    @Test
+    void readReceiptWithNeedHistoryShouldGoThroughFullPipeline() {
+        // 当 READ_RECEIPT 携带 needHistory=true 时，消息会分配 seq、写入 history、投递，
+        // 与普通消息完全一致（doSetReadSeq 只是旁路副作用，不影响主管道）。
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
+        GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
+        ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
+        MessageStateService messageStateService = mock(MessageStateService.class);
+        when(conversationSeqService.allocateBatch("c1:userA:userB", 1))
+                .thenReturn(seqBatch(50L, 50L));
+
+        IngressEventListener listener = listener(queueAdapter, groupMembershipFacade,
+                conversationSeqService, messageStateService);
+
+        IngressEvent event = readReceiptIngressEvent();
+        event.getOptions().setNeedHistory(true);
+        event.getOptions().setNeedOnlinePush(true);
+
+        listener.handle(List.of(event));
+
+        // 旁路副作用仍触发
+        verify(messageStateService).processReadReceipts(any());
+        // seq 分配、history 发布、delivery 投递均应正常执行
+        verify(conversationSeqService).allocateBatch("c1:userA:userB", 1);
+        verify(queueAdapter).send(eq(TopicNames.HISTORY),  eq("c1:userA:userB"), any(HistoryEvent.class));
+        verify(queueAdapter).send(eq(TopicNames.DELIVERY), eq("c1:userA:userB"), any(DeliveryEvent.class));
+    }
+
+    @Test
+    void firstMessageShouldTriggerNewConversationSync() {
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
+        GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
+        ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
+        MessageStateService messageStateService = mock(MessageStateService.class);
+        ConversationSyncFacade conversationSyncService = mock(ConversationSyncFacade.class);
+        // seq starts at 1 → isNewConversation == true
+        when(conversationSeqService.allocateBatch("c1:userA:userB", 1))
+                .thenReturn(seqBatch(1L, 1L));
 
         IngressEventListener listener = new IngressEventListener(
                 new ObjectMapper(),
@@ -179,9 +254,108 @@ class IngressEventListenerTest {
                 new GroupFanoutPlanner(2),
                 conversationSeqService,
                 new DefaultMessagePolicyEngine(),
-                messageStateService);
+                messageStateService,
+                conversationSyncService);
 
-        assertThrows(IllegalStateException.class, () -> listener.handle(readReceiptIngressEvent()));
+        listener.handle(List.of(singleIngressEvent()));
+
+        var cmdCaptor = forClass(ConversationSyncCommand.class);
+        verify(conversationSyncService).sync(cmdCaptor.capture());
+        var cmd = cmdCaptor.getValue();
+        assertEquals(true,  cmd.newConversation());
+        assertEquals(1L,    cmd.latestMessage().getSeq());
+        assertEquals(1,     cmd.senderIds().size());
+        assertEquals("userA", cmd.senderIds().get(0));
+        // participants must include both sender and receiver
+        assertEquals(true, cmd.allParticipants().contains("userA"));
+        assertEquals(true, cmd.allParticipants().contains("userB"));
+    }
+
+    @Test
+    void subsequentBatchShouldSyncWithCorrectUnreadDelta() {
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
+        GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
+        ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
+        MessageStateService messageStateService = mock(MessageStateService.class);
+        ConversationSyncFacade conversationSyncService = mock(ConversationSyncFacade.class);
+        // seq starts at 5 → not a new conversation
+        when(conversationSeqService.allocateBatch("c1:userA:userB", 2))
+                .thenReturn(seqBatch(5L, 6L));
+
+        IngressEventListener listener = new IngressEventListener(
+                new ObjectMapper(),
+                queueAdapter,
+                groupMembershipFacade,
+                new GroupFanoutPlanner(2),
+                conversationSeqService,
+                new DefaultMessagePolicyEngine(),
+                messageStateService,
+                conversationSyncService);
+
+        listener.handle(List.of(singleIngressEvent(), singleIngressEvent()));
+
+        var cmdCaptor = forClass(ConversationSyncCommand.class);
+        verify(conversationSyncService).sync(cmdCaptor.capture());
+        var cmd = cmdCaptor.getValue();
+        assertEquals(false, cmd.newConversation());
+        assertEquals(6L, cmd.latestMessage().getSeq());
+        // both messages sent by userA → senderIds = ["userA","userA"]
+        assertEquals(2, cmd.senderIds().size());
+    }
+
+    @Test
+    void 通知消息不应触发会话状态同步() {
+        // 通知消息（isNotification=true）对应 Go 的 handleNotification 路径：
+        // 使用通知会话计数器（"n:" 前缀 conversationId）分配独立 seq，发布 history 事件持久化，
+        // 发送 delivery 推送，但不影响聊天会话状态（不调用 createIfNew / sync / applyBatch）
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
+        GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
+        ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
+        MessageStateService messageStateService = mock(MessageStateService.class);
+        ConversationSyncFacade conversationSyncService = mock(ConversationSyncFacade.class);
+        // buildNotificationConversationId(NOTIFICATION, recvId="userB", groupId=null) → "c3:userB"
+        when(conversationSeqService.allocateBatch("c3:userB", 1))
+                .thenReturn(seqBatch(1L, 1L));
+
+        IngressEventListener listener = new IngressEventListener(
+                new ObjectMapper(),
+                queueAdapter,
+                groupMembershipFacade,
+                new GroupFanoutPlanner(2),
+                conversationSeqService,
+                new DefaultMessagePolicyEngine(),
+                messageStateService,
+                conversationSyncService);
+
+        listener.handle(List.of(notificationIngressEvent()));
+
+        // 使用通知会话计数器分配 seq（c3:recvId，独立于聊天计数器）
+        verify(conversationSeqService, times(1)).allocateBatch(eq("c3:userB"), anyInt());
+        // history 事件正常发布（用于持久化到 MongoDB）
+        verify(queueAdapter, times(1)).send(eq(TopicNames.HISTORY), eq("c3:userB"), any(HistoryEvent.class));
+        // 推送正常触发
+        verify(queueAdapter, times(1)).send(eq(TopicNames.DELIVERY), any(), any());
+        // 聊天会话状态不应被修改
+        verify(messageStateService, times(0)).applyBatch(any());
+        verify(conversationSyncService, times(0)).createIfNew(any());
+        verify(conversationSyncService, times(0)).sync(any());
+    }
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+
+    private static IngressEventListener listener(QueueAdapter queueAdapter,
+                                                  GroupMembershipFacade groupMembershipFacade,
+                                                  ConversationSeqService conversationSeqService,
+                                                  MessageStateService messageStateService) {
+        return new IngressEventListener(
+                new ObjectMapper(),
+                queueAdapter,
+                groupMembershipFacade,
+                new GroupFanoutPlanner(2),
+                conversationSeqService,
+                new DefaultMessagePolicyEngine(),
+                messageStateService,
+                mock(ConversationSyncFacade.class));
     }
 
     private static IngressEvent singleIngressEvent() {
@@ -193,7 +367,6 @@ class IngressEventListenerTest {
         options.setSenderSync(false);
         event.setRequestId("req-single");
         event.setClientMsgId("client-single");
-        event.setConversationId("c1:userA:userB");
         event.setServerMsgId("msg-single");
         event.setSenderId("userA");
         event.setRecvId("userB");
@@ -213,7 +386,6 @@ class IngressEventListenerTest {
         options.setSenderSync(true);
         event.setRequestId("req-group");
         event.setClientMsgId("client-group");
-        event.setConversationId("c2:crew");
         event.setServerMsgId("msg-group");
         event.setSenderId("captain");
         event.setGroupId("crew");
@@ -224,13 +396,33 @@ class IngressEventListenerTest {
         return event;
     }
 
+    private static IngressEvent notificationIngressEvent() {
+        IngressEvent event = new IngressEvent();
+        MessageOptions options = new MessageOptions();
+        options.setNeedHistory(true);
+        options.setNeedOnlinePush(true);
+        options.setNeedOfflinePush(false);
+        options.setNeedUnreadCount(false);  // 通知不计入未读
+        options.setNeedLastMessage(false);  // 通知不更新 lastMessage
+        options.setNotification(true);      // 标记为系统通知
+        event.setRequestId("req-notify");
+        event.setClientMsgId("client-notify");
+        event.setServerMsgId("msg-notify");
+        event.setSenderId("system");
+        event.setRecvId("userB");
+        event.setSessionType(SessionType.NOTIFICATION.getCode());
+        event.setContentType(ContentType.SYSTEM_NOTIFY.getCode());
+        event.setContent("{\"text\":\"you have a new follower\"}");
+        event.setOptions(options);
+        return event;
+    }
+
     private static IngressEvent readReceiptIngressEvent() {
         IngressEvent event = new IngressEvent();
         MessageOptions options = new MessageOptions();
         options.setNeedConversation(true);
         event.setRequestId("req-read");
         event.setClientMsgId("client-read");
-        event.setConversationId("c1:userA:userB");
         event.setSenderId("userA");
         event.setRecvId("userB");
         event.setSessionType(SessionType.SINGLE.getCode());

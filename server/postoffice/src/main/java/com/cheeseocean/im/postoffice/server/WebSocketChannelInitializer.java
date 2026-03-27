@@ -13,8 +13,8 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.handler.timeout.IdleStateHandler;
+import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -27,12 +27,12 @@ import java.util.concurrent.TimeUnit;
  * WebSocket Channel初始化器
  * 配置Netty Channel的处理器链
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 @Component
 public class WebSocketChannelInitializer extends ChannelInitializer<SocketChannel> {
     
-    private static final Logger logger = LoggerFactory.getLogger(WebSocketChannelInitializer.class);
+    private static final Logger logger = CommonLoggers.POSTOFFICE;
     
     @Autowired
     private IMServerConfig IMServerConfig;

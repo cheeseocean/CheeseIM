@@ -3,8 +3,8 @@ package com.cheeseocean.im.postman.provider;
 import com.cheeseocean.im.common.core.enums.PlatformType;
 import com.cheeseocean.im.postman.entity.PushMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -18,12 +18,12 @@ import java.util.*;
  * 小米推送服务实现
  * 基于小米Push SDK实现小米设备推送
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 @Service
 public class XiaomiPushProvider implements PushProvider {
     
-    private static final Logger logger = LoggerFactory.getLogger(XiaomiPushProvider.class);
+    private static final Logger logger = CommonLoggers.POSTMAN;
     
     @Value("${cheeseim.push.xiaomi.enabled:false}")
     private boolean enabled;

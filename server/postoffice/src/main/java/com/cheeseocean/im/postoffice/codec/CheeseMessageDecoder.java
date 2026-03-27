@@ -4,8 +4,8 @@ import com.cheeseocean.im.postoffice.protocol.CheeseMessage;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
+import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -22,11 +22,11 @@ import java.util.List;
  * |                    Data (Length bytes)                               |
  * +--------+--------+--------+--------+--------+--------+--------+--------+
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 public class CheeseMessageDecoder extends ByteToMessageDecoder {
     
-    private static final Logger logger = LoggerFactory.getLogger(CheeseMessageDecoder.class);
+    private static final Logger logger = CommonLoggers.POSTOFFICE;
     
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {

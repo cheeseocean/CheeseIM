@@ -1,7 +1,7 @@
 package com.cheeseocean.im.postman.listener;
 
-import com.cheeseocean.im.common.api.route.OnlineRouteQueryRpc;
-import com.cheeseocean.im.common.api.rpc.OnlineDispatchRpc;
+import com.cheeseocean.im.common.api.route.OnlineRouteQueryService;
+import com.cheeseocean.im.common.api.rpc.OnlineDispatcher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
@@ -34,13 +34,13 @@ class DeliveryEventListenerContextTest {
         }
 
         @Bean
-        OnlineRouteQueryRpc onlineRouteQueryRpc() {
-            return mock(OnlineRouteQueryRpc.class);
+        OnlineRouteQueryService onlineRouteQueryRpc() {
+            return mock(OnlineRouteQueryService.class);
         }
 
         @Bean
-        OnlineDispatchRpc onlineDispatchRpc() {
-            return mock(OnlineDispatchRpc.class);
+        OnlineDispatcher onlineDispatchRpc() {
+            return mock(OnlineDispatcher.class);
         }
 
         @Bean

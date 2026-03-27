@@ -10,7 +10,7 @@ import java.util.Map;
  * 推送提供商服务接口
  * 定义推送提供商的通用接口，支持多种推送服务
  *
- * @author CheeseIM
+ * @author xxxcrel
  */
 public interface PushProvider {
 

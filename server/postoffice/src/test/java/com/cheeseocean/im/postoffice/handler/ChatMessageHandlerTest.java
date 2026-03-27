@@ -1,11 +1,10 @@
 package com.cheeseocean.im.postoffice.handler;
 
 import com.cheeseocean.im.common.api.dto.message.ChatSendRequest;
-import com.cheeseocean.im.common.api.dto.message.ReadReceiptPayload;
 import com.cheeseocean.im.common.api.dto.message.SendMessageResp;
 import com.cheeseocean.im.common.api.dto.receipt.ReceiptAckReq;
 import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
-import com.cheeseocean.im.common.api.rpc.MessageSendRpc;
+import com.cheeseocean.im.common.api.rpc.MessageSender;
 import com.cheeseocean.im.common.api.rpc.ReceiptAckRpc;
 import com.cheeseocean.im.common.core.enums.CommandType;
 import com.cheeseocean.im.common.core.enums.ConnectionState;
@@ -34,13 +33,13 @@ class ChatMessageHandlerTest {
 
     @Test
     void readReceiptChatSendShouldCallReceiptAckRpcInsteadOfMessageSendRpc() {
-        MessageSendRpc messageSendRpc = mock(MessageSendRpc.class);
+        MessageSender messageSender = mock(MessageSender.class);
         ReceiptAckRpc receiptAckRpc = mock(ReceiptAckRpc.class);
         ConnectionSessionGuard guard = mock(ConnectionSessionGuard.class);
         doNothing().when(guard).ensureValid(any(UserConnection.class));
 
         ChatMessageHandler handler = new ChatMessageHandler();
-        ReflectionTestUtils.setField(handler, "messageSendRpc", messageSendRpc);
+        ReflectionTestUtils.setField(handler, "messageSendRpc", messageSender);
         ReflectionTestUtils.setField(handler, "receiptAckRpc", receiptAckRpc);
         ReflectionTestUtils.setField(handler, "objectMapper", new ObjectMapper());
         ReflectionTestUtils.setField(handler, "messageSendReqMapper", new MessageSendReqMapper());
@@ -52,7 +51,7 @@ class ChatMessageHandlerTest {
         assertNotNull(result.getResponseMessage());
         ArgumentCaptor<ReceiptAckReq> reqCaptor = ArgumentCaptor.forClass(ReceiptAckReq.class);
         verify(receiptAckRpc).apply(reqCaptor.capture());
-        verifyNoInteractions(messageSendRpc);
+        verifyNoInteractions(messageSender);
         ReceiptAckReq req = reqCaptor.getValue();
         assertTrue(req.getAckType() == ReceiptType.READ_CURSOR);
         assertTrue(req.getUserId().equals("user-1"));
@@ -62,11 +61,11 @@ class ChatMessageHandlerTest {
 
     @Test
     void normalChatSendShouldStillCallMessageSendRpc() {
-        MessageSendRpc messageSendRpc = mock(MessageSendRpc.class);
+        MessageSender messageSender = mock(MessageSender.class);
         ReceiptAckRpc receiptAckRpc = mock(ReceiptAckRpc.class);
         ConnectionSessionGuard guard = mock(ConnectionSessionGuard.class);
         doNothing().when(guard).ensureValid(any(UserConnection.class));
-        when(messageSendRpc.sendMessage(any())).thenAnswer(invocation -> {
+        when(messageSender.sendMessage(any())).thenAnswer(invocation -> {
             SendMessageResp resp = new SendMessageResp();
             resp.setAccepted(true);
             resp.setServerMsgId("server-1");
@@ -74,7 +73,7 @@ class ChatMessageHandlerTest {
         });
 
         ChatMessageHandler handler = new ChatMessageHandler();
-        ReflectionTestUtils.setField(handler, "messageSendRpc", messageSendRpc);
+        ReflectionTestUtils.setField(handler, "messageSendRpc", messageSender);
         ReflectionTestUtils.setField(handler, "receiptAckRpc", receiptAckRpc);
         ReflectionTestUtils.setField(handler, "objectMapper", new ObjectMapper());
         ReflectionTestUtils.setField(handler, "messageSendReqMapper", new MessageSendReqMapper());
@@ -83,7 +82,7 @@ class ChatMessageHandlerTest {
         MessageHandler.HandleResult result = handler.handle(authenticatedConnection(), textEnvelope());
 
         assertTrue(result.isSuccess());
-        verify(messageSendRpc).sendMessage(any());
+        verify(messageSender).sendMessage(any());
         verifyNoInteractions(receiptAckRpc);
     }
 

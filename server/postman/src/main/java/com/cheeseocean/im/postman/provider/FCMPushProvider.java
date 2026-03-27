@@ -6,8 +6,8 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.messaging.*;
+import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -23,12 +23,12 @@ import java.util.Map;
  * FCM推送服务实现
  * 基于Firebase Cloud Messaging实现Android推送
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 @Service
 public class FCMPushProvider implements PushProvider {
     
-    private static final Logger logger = LoggerFactory.getLogger(FCMPushProvider.class);
+    private static final Logger logger = CommonLoggers.POSTMAN;
     
     @Value("${cheeseim.push.fcm.enabled:false}")
     private boolean enabled;

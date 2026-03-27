@@ -16,4 +16,10 @@ public @interface QueueListener {
     String group();
 
     int concurrency() default 1;
+
+    boolean batch() default false;
+
+    int batchSize() default 100;
+
+    long batchIntervalMs() default 500;
 }

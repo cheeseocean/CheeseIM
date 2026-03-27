@@ -1,6 +1,6 @@
 package com.cheeseocean.im.postmaster.service;
 
-import com.cheeseocean.im.common.api.group.GroupMembershipQueryDubboService;
+import com.cheeseocean.im.common.api.group.GroupMembershipQueryService;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.stereotype.Component;
 
@@ -10,19 +10,19 @@ import java.util.List;
 public class GroupMembershipFacade {
 
     @DubboReference(check = false)
-    private GroupMembershipQueryDubboService groupMembershipQueryDubboService;
+    private GroupMembershipQueryService groupMembershipQueryService;
 
     public GroupMembershipFacade() {
     }
 
-    GroupMembershipFacade(GroupMembershipQueryDubboService groupMembershipQueryDubboService) {
-        this.groupMembershipQueryDubboService = groupMembershipQueryDubboService;
+    GroupMembershipFacade(GroupMembershipQueryService groupMembershipQueryService) {
+        this.groupMembershipQueryService = groupMembershipQueryService;
     }
 
     public List<String> loadTargets(String conversationId) {
-        if (groupMembershipQueryDubboService == null) {
+        if (groupMembershipQueryService == null) {
             throw new IllegalStateException("GroupMembershipQueryDubboService is not configured");
         }
-        return groupMembershipQueryDubboService.queryMembers(conversationId);
+        return groupMembershipQueryService.queryMembers(conversationId);
     }
 }

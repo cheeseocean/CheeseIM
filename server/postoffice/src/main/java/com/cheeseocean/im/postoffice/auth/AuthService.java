@@ -3,7 +3,7 @@ package com.cheeseocean.im.postoffice.auth;
 /**
  * 认证服务接口
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 public interface AuthService {
     

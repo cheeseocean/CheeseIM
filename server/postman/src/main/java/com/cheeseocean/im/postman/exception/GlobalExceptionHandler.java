@@ -1,7 +1,7 @@
 package com.cheeseocean.im.postman.exception;
 
+import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
@@ -19,12 +19,12 @@ import java.util.Map;
  * 全局异常处理器
  * 统一处理推送服务中的异常
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     
-    private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final Logger logger = CommonLoggers.POSTMAN;
     
     /**
      * 处理推送异常

@@ -184,7 +184,7 @@ Expected: FAIL because queue properties and auto-configuration do not exist yet
 @Test
 void shouldCreateKafkaAdapterWhenQueueTypeIsKafka() {
     new ApplicationContextRunner()
-            .withPropertyValues("app.queue.type=kafka", "spring.kafka.bootstrap-servers=localhost:9092")
+            .withPropertyValues("cheeseim.queue.type=kafka", "spring.kafka.bootstrap-servers=localhost:9092")
             .withUserConfiguration(QueueAutoConfigurer.class, KafkaSerializationConfig.class)
             .run(context -> assertThat(context).hasSingleBean(KafkaQueueAdapter.class));
 }
@@ -514,7 +514,7 @@ void bootstrapAllShouldNotRequireEnableKafkaWhenQueueTypeIsChronicle() {
     new SpringApplicationBuilder(AllInOneApplication.class)
             .properties(
                     "spring.config.name=application-all",
-                    "app.queue.type=chronicle",
+                    "cheeseim.queue.type=chronicle",
                     "spring.redis.host=")
             .run()
             .close();

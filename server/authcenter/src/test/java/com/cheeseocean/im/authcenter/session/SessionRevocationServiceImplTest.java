@@ -1,6 +1,7 @@
 package com.cheeseocean.im.authcenter.session;
 
 import com.cheeseocean.im.authcenter.repository.SessionRepository;
+import com.cheeseocean.im.common.api.connection.KickoffCommandService;
 import com.cheeseocean.im.common.core.auth.KickoffCommand;
 import com.cheeseocean.im.common.core.auth.SessionPrincipal;
 import com.cheeseocean.im.common.core.enums.SessionStatus;
@@ -22,8 +23,8 @@ class SessionRevocationServiceImplTest {
         session.setStatus(SessionStatus.ACTIVE);
         when(sessionRepository.findBySessionId("s1")).thenReturn(session);
 
-        SessionRevocationServiceImpl service = new SessionRevocationServiceImpl(sessionRepository);
-        KickoffCommandDubboServiceStub kickoffCommandDubboService = new KickoffCommandDubboServiceStub();
+        SessionRevocationServiceImpl service                    = new SessionRevocationServiceImpl(sessionRepository);
+        KickoffCommandServiceStub    kickoffCommandDubboService = new KickoffCommandServiceStub();
         ReflectionTestUtils.setField(service, "kickoffCommandDubboService", kickoffCommandDubboService);
 
         service.revokeSession("s1", "logout");
@@ -35,7 +36,7 @@ class SessionRevocationServiceImplTest {
         assertThat(kickoffCommandDubboService.lastCommand.getReason()).isEqualTo("logout");
     }
 
-    private static final class KickoffCommandDubboServiceStub implements com.cheeseocean.im.common.api.connection.KickoffCommandDubboService {
+    private static final class KickoffCommandServiceStub implements KickoffCommandService {
         private KickoffCommand lastCommand;
 
         @Override

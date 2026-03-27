@@ -1,7 +1,7 @@
 package com.cheeseocean.im.postman.service.impl;
 
+import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class DeviceTokenServiceImpl {
     
-    private static final Logger logger = LoggerFactory.getLogger(DeviceTokenServiceImpl.class);
+    private static final Logger logger = CommonLoggers.POSTMAN;
     
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;

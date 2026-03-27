@@ -105,6 +105,41 @@ public class FriendService implements FriendRelationService {
         return friendRepository.areAcceptedFriends(userId, friendUserId);
     }
 
+    @Override
+    public boolean isBlocked(String userId, String targetUserId) {
+        if (userId == null || targetUserId == null) {
+            return false;
+        }
+        return friendRepository.isBlocked(userId, targetUserId);
+    }
+
+    @Override
+    public void blockUser(String userId, String targetUserId) {
+        if (userId == null || userId.isBlank() || targetUserId == null || targetUserId.isBlank()) {
+            throw new IllegalArgumentException("userId and targetUserId required");
+        }
+        if (userId.equals(targetUserId)) {
+            throw new IllegalArgumentException("cannot block self");
+        }
+        friendRepository.blockUser(userId, targetUserId);
+    }
+
+    @Override
+    public void unblockUser(String userId, String targetUserId) {
+        if (userId == null || targetUserId == null) {
+            return;
+        }
+        friendRepository.unblockUser(userId, targetUserId);
+    }
+
+    @Override
+    public java.util.List<String> listBlockedUserIds(String userId) {
+        if (userId == null) {
+            return java.util.List.of();
+        }
+        return friendRepository.listBlockedUserIds(userId);
+    }
+
     private FriendSummary toSummary(String userId) {
         FriendSummary summary = new FriendSummary();
         summary.setUserId(userId);

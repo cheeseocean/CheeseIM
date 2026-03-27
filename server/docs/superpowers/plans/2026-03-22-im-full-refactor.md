@@ -356,7 +356,7 @@ Core behavior:
 
 ```java
 SendMessageReq req = sendMessageReqMapper.fromWsCommand(command, principal);
-SendMessageResp resp = messageSendRpc.sendMessage(req);
+SendMessageResp resp = messageSender.sendMessage(req);
 ```
 
 - [ ] **Step 4: Implement online dispatch RPC**
@@ -428,8 +428,8 @@ Core behavior:
 if (!event.message().options().needOnlinePush()) {
     return;
 }
-Map<String, List<String>> connectionsByUser = onlineRouteQueryRpc.groupConnections(event.targetUserIds());
-DispatchMessageResp resp = onlineDispatchRpc.dispatchMessage(req);
+Map<String, List<String>> connectionsByUser = onlineRouteQueryService.groupConnections(event.targetUserIds());
+DispatchMessageResp resp = onlineDispatcher.dispatchMessage(req);
 if (shouldOfflinePush(event, userId, resp)) offlinePushEventPublisher.publish(...);
 ```
 

@@ -1,7 +1,6 @@
 package com.cheeseocean.im.postbox.permission;
 
 import com.cheeseocean.im.common.core.auth.PermissionCheckResult;
-import com.cheeseocean.im.postbox.service.BlockMessageQueryService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 

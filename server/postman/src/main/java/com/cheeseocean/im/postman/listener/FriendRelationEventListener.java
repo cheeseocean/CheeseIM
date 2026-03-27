@@ -3,30 +3,30 @@ package com.cheeseocean.im.postman.listener;
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchMessageReq;
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchPayload;
 import com.cheeseocean.im.common.api.event.FriendRelationEvent;
-import com.cheeseocean.im.common.api.route.OnlineRouteQueryRpc;
-import com.cheeseocean.im.common.api.rpc.OnlineDispatchRpc;
+import com.cheeseocean.im.common.api.route.OnlineRouteQueryService;
+import com.cheeseocean.im.common.api.rpc.OnlineDispatcher;
 import com.cheeseocean.im.common.core.constants.TopicNames;
 import com.cheeseocean.im.common.core.queue.annotation.QueueListener;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 @Component
 public class FriendRelationEventListener {
-    private static final Logger       log = LoggerFactory.getLogger(FriendRelationEventListener.class);
-    private final    ObjectMapper objectMapper;
-    private final OnlineRouteQueryRpc onlineRouteQueryRpc;
-    private final OnlineDispatchRpc onlineDispatchRpc;
+    private static final Logger       log = CommonLoggers.POSTMAN;
+    private final ObjectMapper            objectMapper;
+    private final OnlineRouteQueryService onlineRouteQueryService;
+    private final OnlineDispatcher        onlineDispatcher;
 
     public FriendRelationEventListener(ObjectMapper objectMapper,
-                                       OnlineRouteQueryRpc onlineRouteQueryRpc,
-                                       OnlineDispatchRpc onlineDispatchRpc) {
+                                       OnlineRouteQueryService onlineRouteQueryService,
+                                       OnlineDispatcher onlineDispatcher) {
         this.objectMapper = objectMapper;
-        this.onlineRouteQueryRpc = onlineRouteQueryRpc;
-        this.onlineDispatchRpc = onlineDispatchRpc;
+        this.onlineRouteQueryService = onlineRouteQueryService;
+        this.onlineDispatcher = onlineDispatcher;
     }
 
     @QueueListener(topic = TopicNames.FRIEND_RELATION, group = "push-friend-relation")
@@ -42,7 +42,7 @@ public class FriendRelationEventListener {
         if (event == null || event.getRecipientUserId() == null || event.getEventType() == null) {
             return;
         }
-        List<?> routes = onlineRouteQueryRpc.findByUser(event.getRecipientUserId());
+        List<?> routes = onlineRouteQueryService.findByUser(event.getRecipientUserId());
         if (routes == null || routes.isEmpty()) {
             return;
         }
@@ -50,7 +50,7 @@ public class FriendRelationEventListener {
         DispatchMessageReq req = new DispatchMessageReq();
         req.setUserId(event.getRecipientUserId());
         req.setPayload(toDispatchPayload(event));
-        onlineDispatchRpc.dispatchMessage(req);
+        onlineDispatcher.dispatchMessage(req);
     }
 
     private DispatchPayload toDispatchPayload(FriendRelationEvent event) {

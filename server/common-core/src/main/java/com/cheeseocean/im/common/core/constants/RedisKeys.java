@@ -102,4 +102,28 @@ public final class RedisKeys {
     public static String consumerDedup(String consumerGroup, String eventId) {
         return "idem:consumer:" + consumerGroup + ":" + eventId;
     }
+
+    public static String userBlacklist(String userId) {
+        return AUTH_PREFIX + ":user_blacklist:" + userId;
+    }
+
+    public static String userSettings(String userId) {
+        return AUTH_PREFIX + ":user_settings:" + userId;
+    }
+
+    /**
+     * 用户基础信息缓存 key（TTL 12h）。
+     * 格式：cheese_im:user_info:{userId}
+     */
+    public static String userInfo(String userId) {
+        return AUTH_PREFIX + ":user_info:" + userId;
+    }
+
+    /**
+     * 用户所有会话 ID 集合缓存 key。
+     * 格式：cheese_im:conv_ids:{userId}
+     */
+    public static String userConvIds(String userId) {
+        return AUTH_PREFIX + ":conv_ids:" + userId;
+    }
 }

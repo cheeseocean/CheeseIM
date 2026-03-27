@@ -10,8 +10,8 @@ import com.cheeseocean.im.postman.entity.OfflinePushResult;
 import com.cheeseocean.im.postman.entity.PushMessage;
 import com.cheeseocean.im.postman.service.OfflinePushService;
 import com.cheeseocean.im.postman.provider.PushProvider;
+import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -27,12 +27,12 @@ import java.util.concurrent.TimeUnit;
  * 离线推送服务实现
  * 通过第三方推送服务进行离线推送
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 @Service
 public class OfflinePushServiceImpl implements OfflinePushService {
     
-    private static final Logger logger = LoggerFactory.getLogger(OfflinePushServiceImpl.class);
+    private static final Logger logger = CommonLoggers.POSTMAN;
     
     @Autowired
     private List<PushProvider> pushProviders;

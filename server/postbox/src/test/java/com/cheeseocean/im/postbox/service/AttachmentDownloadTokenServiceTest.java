@@ -1,6 +1,5 @@
 package com.cheeseocean.im.postbox.service;
 
-import com.cheeseocean.im.postbox.config.AttachmentDownloadProperties;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;

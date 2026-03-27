@@ -7,7 +7,7 @@ import java.util.Map;
 /**
  * 离线推送结果类
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 public class OfflinePushResult implements Serializable {
     

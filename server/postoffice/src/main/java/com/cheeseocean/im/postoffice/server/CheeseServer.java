@@ -8,8 +8,8 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
@@ -21,13 +21,13 @@ import javax.annotation.PreDestroy;
  * TCP服务器
  * 基于Netty实现的高性能TCP服务器，使用自定义二进制协议
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 @Component
 @Order(2) // 在WebSocketServer之后启动
 public class CheeseServer implements CommandLineRunner {
     
-    private static final Logger logger = LoggerFactory.getLogger(CheeseServer.class);
+    private static final Logger logger = CommonLoggers.POSTOFFICE;
     
     @Autowired
     private IMServerConfig IMServerConfig;

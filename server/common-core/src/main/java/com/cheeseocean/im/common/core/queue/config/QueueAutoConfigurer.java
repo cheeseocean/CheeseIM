@@ -3,6 +3,7 @@ package com.cheeseocean.im.common.core.queue.config;
 import com.cheeseocean.im.common.core.queue.QueueAdapter;
 import com.cheeseocean.im.common.core.queue.chronicle.ChronicleQueueAdapter;
 import com.cheeseocean.im.common.core.queue.kafka.KafkaQueueAdapter;
+import com.cheeseocean.im.common.core.queue.processor.QueueListenerBeanPostProcessor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -24,14 +25,14 @@ public class QueueAutoConfigurer {
 
     @Bean
     @ConditionalOnMissingBean(QueueAdapter.class)
-    @ConditionalOnProperty(prefix = "app.queue", name = "type", havingValue = "chronicle", matchIfMissing = true)
+    @ConditionalOnProperty(prefix = "cheeseim.queue", name = "type", havingValue = "chronicle", matchIfMissing = true)
     public QueueAdapter chronicleQueueAdapter(ObjectMapper objectMapper, QueueProperties queueProperties) {
         return new ChronicleQueueAdapter(objectMapper, queueProperties);
     }
 
     @Bean
     @ConditionalOnMissingBean(QueueAdapter.class)
-    @ConditionalOnProperty(prefix = "app.queue", name = "type", havingValue = "kafka")
+    @ConditionalOnProperty(prefix = "cheeseim.queue", name = "type", havingValue = "kafka")
     public QueueAdapter kafkaQueueAdapter(KafkaTemplate<String, String> stringKafkaTemplate,
                                           ObjectMapper objectMapper,
                                           KafkaProperties kafkaProperties) {

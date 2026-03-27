@@ -1,8 +1,8 @@
 package com.cheeseocean.im.postoffice.handler;
 
 import com.cheeseocean.im.common.core.enums.CommandType;
+import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -16,12 +16,12 @@ import java.util.Set;
  * 消息处理器工厂
  * 负责管理和分发各种消息类型的处理器
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 @Component
 public class MessageHandlerFactory {
     
-    private static final Logger logger = LoggerFactory.getLogger(MessageHandlerFactory.class);
+    private static final Logger logger = CommonLoggers.POSTOFFICE;
     
     @Autowired
     private List<MessageHandler> messageHandlers;

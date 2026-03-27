@@ -391,13 +391,13 @@ git commit -m "refactor: extract conversation receipt service"
 void readReceiptChatSendShouldCallConversationReceiptServiceInsteadOfMessageSendRpc() {
     handler.handle(connection, readReceiptEnvelope());
     verify(conversationReceiptService).applyReadCursor("userB", "c1:userA:userB", 19L);
-    verifyNoInteractions(messageSendRpc);
+    verifyNoInteractions(messageSender);
 }
 ```
 
 - [ ] **Step 2: Run the chat-handler and send-rpc tests**
 
-Run: `./gradlew :postoffice:test --tests "com.cheeseocean.im.postoffice.handler.ChatMessageHandlerTest" :postbox:test --tests "com.cheeseocean.im.postbox.service.MessageSendRpcImplTest"`
+Run: `./gradlew :postoffice:test --tests "com.cheeseocean.im.postoffice.handler.ChatMessageHandlerTest" :postbox:test --tests "com.cheeseocean.im.postbox.service.MessageSenderImplTest"`
 Expected: FAIL because `ChatMessageHandler` still maps every chat payload into `SendMessageReq`.
 
 - [ ] **Step 3: Branch `ChatMessageHandler` by `ContentType` and route receipts to `ConversationReceiptService`**
@@ -420,7 +420,7 @@ private static boolean defaultNeedHistory(ContentType contentType) {
 
 - [ ] **Step 5: Run the targeted tests**
 
-Run: `./gradlew :postoffice:test --tests "com.cheeseocean.im.postoffice.handler.ChatMessageHandlerTest" :postbox:test --tests "com.cheeseocean.im.postbox.service.MessageSendRpcImplTest"`
+Run: `./gradlew :postoffice:test --tests "com.cheeseocean.im.postoffice.handler.ChatMessageHandlerTest" :postbox:test --tests "com.cheeseocean.im.postbox.service.MessageSenderImplTest"`
 Expected: PASS with receipts no longer treated as normal sends.
 
 - [ ] **Step 6: Commit**
@@ -548,7 +548,7 @@ void dispatchShouldSendServerEnvelopeBackedRecvCommand() {
 
 - [ ] **Step 2: Run the targeted dispatch test**
 
-Run: `./gradlew :postoffice:test --tests "com.cheeseocean.im.postoffice.api.OnlineDispatchRpcImplTest"`
+Run: `./gradlew :postoffice:test --tests "com.cheeseocean.im.postoffice.api.OnlineDispatcherImplTest"`
 Expected: FAIL because outbound dispatch is still building transport-specific messages directly.
 
 - [ ] **Step 3: Introduce shared outbound envelope creation before transport encoding**
@@ -560,7 +560,7 @@ connectionManager.sendMessageToConnection(connection, transportEncoder.encode(en
 
 - [ ] **Step 4: Run the targeted postoffice and push tests**
 
-Run: `./gradlew :postoffice:test --tests "com.cheeseocean.im.postoffice.api.OnlineDispatchRpcImplTest" :push:test --tests "com.cheeseocean.im.postman.listener.DeliveryEventListenerTest"`
+Run: `./gradlew :postoffice:test --tests "com.cheeseocean.im.postoffice.api.OnlineDispatcherImplTest" :push:test --tests "com.cheeseocean.im.postman.listener.DeliveryEventListenerTest"`
 Expected: PASS with outbound delivery still working through the unified envelope boundary.
 
 - [ ] **Step 5: Commit**

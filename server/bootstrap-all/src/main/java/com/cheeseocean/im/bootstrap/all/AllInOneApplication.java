@@ -47,7 +47,7 @@ import java.util.Map;
 })
 @EnableScheduling
 @EnableMongoRepositories(basePackages = {
-        "com.cheeseocean.im.postbox",
+        "com.cheeseocean.im.postmaster",
         "com.cheeseocean.im.social"
 })
 public class AllInOneApplication {
@@ -56,7 +56,7 @@ public class AllInOneApplication {
         SpringApplication application = new SpringApplication(AllInOneApplication.class);
         application.setDefaultProperties(Map.of(
                 "spring.config.name", "application-all",
-                "app.queue.type", "chronicle"
+                "cheeseim.queue.type", "chronicle"
         ));
         application.run(args);
     }

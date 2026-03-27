@@ -4,18 +4,18 @@ import com.cheeseocean.im.postoffice.protocol.CheeseMessage;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
+import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * TCP消息编码器
  * 负责将TcpMessage对象编码为字节流
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 public class CheeseMessageEncoder extends MessageToByteEncoder<CheeseMessage> {
     
-    private static final Logger logger = LoggerFactory.getLogger(CheeseMessageEncoder.class);
+    private static final Logger logger = CommonLoggers.POSTOFFICE;
     
     @Override
     protected void encode(ChannelHandlerContext ctx, CheeseMessage msg, ByteBuf out) throws Exception {

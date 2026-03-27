@@ -13,7 +13,7 @@ spring:
 server:
   port: 18079
 
-app:
+cheeseim:
   queue:
     type: chronicle
     data-dir: data/queue
@@ -29,16 +29,6 @@ app:
       enabled: true
     social:
       enabled: true
-
-cheese:
-  im:
-    delivery:
-      compensation:
-        listener:
-          enabled: false
-    push:
-      scheduled-tasks:
-        enabled: false
 
 dubbo:
   application:

@@ -8,8 +8,8 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
@@ -20,12 +20,12 @@ import javax.annotation.PreDestroy;
  * WebSocket服务器
  * 基于Netty实现的高性能WebSocket服务器
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 @Component
 public class WebSocketServer implements CommandLineRunner {
     
-    private static final Logger logger = LoggerFactory.getLogger(WebSocketServer.class);
+    private static final Logger logger = CommonLoggers.POSTOFFICE;
     
     @Autowired
     private IMServerConfig IMServerConfig;

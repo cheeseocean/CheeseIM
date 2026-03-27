@@ -11,6 +11,7 @@ public class HistoryEvent implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private String conversationId;
+    private Long lastMaxSeq;
     private Long beginSeq;
     private Long endSeq;
     private List<SequencedMessage> messages = new ArrayList<>();
@@ -21,6 +22,14 @@ public class HistoryEvent implements Serializable {
 
     public void setConversationId(String conversationId) {
         this.conversationId = conversationId;
+    }
+
+    public Long getLastMaxSeq() {
+        return lastMaxSeq;
+    }
+
+    public void setLastMaxSeq(Long lastMaxSeq) {
+        this.lastMaxSeq = lastMaxSeq;
     }
 
     public Long getBeginSeq() {

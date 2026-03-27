@@ -1,7 +1,7 @@
 package com.cheeseocean.im.postman.listener;
 
 import com.cheeseocean.im.common.api.event.OfflinePushEvent;
-import com.cheeseocean.im.common.api.route.OnlineRouteQueryRpc;
+import com.cheeseocean.im.common.api.route.OnlineRouteQueryService;
 import com.cheeseocean.im.common.core.constants.TopicNames;
 import com.cheeseocean.im.common.core.queue.annotation.QueueListener;
 import com.cheeseocean.im.postman.service.impl.MessagePushServiceImpl;
@@ -13,15 +13,15 @@ import org.springframework.stereotype.Component;
 public class OfflinePushEventListener {
 
     private final ObjectMapper objectMapper;
-    private final MessagePushServiceImpl messagePushService;
-    private final OnlineRouteQueryRpc onlineRouteQueryRpc;
+    private final MessagePushServiceImpl  messagePushService;
+    private final OnlineRouteQueryService onlineRouteQueryService;
 
     public OfflinePushEventListener(ObjectMapper objectMapper,
                                     MessagePushServiceImpl messagePushService,
-                                    OnlineRouteQueryRpc onlineRouteQueryRpc) {
+                                    OnlineRouteQueryService onlineRouteQueryService) {
         this.objectMapper = objectMapper;
         this.messagePushService = messagePushService;
-        this.onlineRouteQueryRpc = onlineRouteQueryRpc;
+        this.onlineRouteQueryService = onlineRouteQueryService;
     }
 
     @QueueListener(topic = TopicNames.OFFLINE_PUSH, group = "push-offline")
@@ -34,7 +34,7 @@ public class OfflinePushEventListener {
     }
 
     void handle(OfflinePushEvent event) {
-        if (!onlineRouteQueryRpc.findByUser(event.getUserId()).isEmpty()) {
+        if (!onlineRouteQueryService.findByUser(event.getUserId()).isEmpty()) {
             return;
         }
         messagePushService.pushOffline(event);

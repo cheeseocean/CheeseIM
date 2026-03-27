@@ -4,6 +4,7 @@ import com.cheeseocean.im.common.core.queue.QueueAdapter;
 import com.cheeseocean.im.common.core.queue.QueueMessageHandler;
 import com.cheeseocean.im.common.core.queue.Subscription;
 import com.cheeseocean.im.common.core.queue.annotation.QueueListener;
+import com.cheeseocean.im.common.core.queue.processor.QueueListenerBeanPostProcessor;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 

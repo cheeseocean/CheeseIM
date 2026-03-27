@@ -11,7 +11,7 @@ import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.postoffice.service.MessageSendReqMapper;
 import com.cheeseocean.im.common.api.dto.message.SendMessageReq;
 import com.cheeseocean.im.common.api.dto.message.SendMessageResp;
-import com.cheeseocean.im.common.api.rpc.MessageSendRpc;
+import com.cheeseocean.im.common.api.rpc.MessageSender;
 import com.cheeseocean.im.postoffice.auth.WsTicketAuthService;
 import com.cheeseocean.im.postoffice.connection.ConnectionBindService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,7 +25,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -77,10 +76,10 @@ class MessageHandlerContractTest {
 
     @Test
     void chatHandlerShouldConsumeChatSendEnvelopeBody() {
-        MessageSendRpc messageSendRpc = mock(MessageSendRpc.class);
-        ConnectionSessionGuard guard = mock(ConnectionSessionGuard.class);
+        MessageSender          messageSender = mock(MessageSender.class);
+        ConnectionSessionGuard guard         = mock(ConnectionSessionGuard.class);
         doNothing().when(guard).ensureValid(any(UserConnection.class));
-        when(messageSendRpc.sendMessage(any(SendMessageReq.class))).thenAnswer(invocation -> {
+        when(messageSender.sendMessage(any(SendMessageReq.class))).thenAnswer(invocation -> {
             SendMessageResp resp = new SendMessageResp();
             resp.setAccepted(true);
             resp.setServerMsgId("server-1");
@@ -88,7 +87,7 @@ class MessageHandlerContractTest {
         });
 
         ChatMessageHandler handler = new ChatMessageHandler();
-        ReflectionTestUtils.setField(handler, "messageSendRpc", messageSendRpc);
+        ReflectionTestUtils.setField(handler, "messageSendRpc", messageSender);
         ReflectionTestUtils.setField(handler, "objectMapper", new ObjectMapper());
         ReflectionTestUtils.setField(handler, "messageSendReqMapper", new MessageSendReqMapper());
         ReflectionTestUtils.setField(handler, "connectionSessionGuard", guard);
@@ -102,7 +101,7 @@ class MessageHandlerContractTest {
         assertTrue(result.isSuccess());
         assertNotNull(result.getResponseMessage());
         ArgumentCaptor<SendMessageReq> reqCaptor = ArgumentCaptor.forClass(SendMessageReq.class);
-        verify(messageSendRpc).sendMessage(reqCaptor.capture());
+        verify(messageSender).sendMessage(reqCaptor.capture());
         assertEquals("op-chat-1", reqCaptor.getValue().getRequestId());
         assertEquals("client-1", reqCaptor.getValue().getClientMsgId());
         assertEquals("receiver-1", reqCaptor.getValue().getRecvId());

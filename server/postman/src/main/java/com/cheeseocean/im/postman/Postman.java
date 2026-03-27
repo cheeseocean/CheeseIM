@@ -11,7 +11,7 @@ import java.util.Map;
  * CheeseIM Push Service 启动类
  * 推送服务主应用程序入口
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 @SpringBootApplication(scanBasePackages = {"com.cheeseocean.im.postman", "com.cheeseocean.im.common"})
 @EnableKafka

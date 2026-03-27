@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  CheeseIM 统一日志配置
+  ──────────────────────────────────────────────────────────────────────────────
+  策略：
+    - 控制台（CONSOLE）：root logger 聚合所有模块的日志，开发期直观查看全貌
+    - 文件（FILE）：每个模块独立滚动文件，additivity=true 同时传播到控制台
+
+  目录结构（${LOG_HOME} 默认 ./logs）：
+    logs/
+      postmaster.log      消息路由 + seq 分配 + 会话同步
+      postoffice.log      WebSocket/TCP 网关
+      postman.log         在线投递 + 离线推送
+      postbox.log         消息查询 REST API
+      authcenter.log      JWT 认证中心
+      social.log          社交关系服务
+      common.log          公共框架（common-core 基础设施）
+
+  滚动策略：按日期 + 单文件最大 128 MB，保留最近 30 天。
+
+  @author xxxcrel
+-->
+<configuration scan="true" scanPeriod="60 seconds">
+
+    <property name="LOG_HOME"    value="${LOG_HOME:-logs}"/>
+    <property name="MAX_SIZE"    value="128MB"/>
+    <property name="MAX_HISTORY" value="30"/>
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n"/>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         控制台 Appender（聚合所有模块输出）
+    ══════════════════════════════════════════════════════════════════════════ -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         文件 Appender 模板（每个模块独立滚动）
+    ══════════════════════════════════════════════════════════════════════════ -->
+
+    <appender name="POSTMASTER_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_HOME}/postmaster.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_HOME}/archive/postmaster.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>${MAX_SIZE}</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxHistory>${MAX_HISTORY}</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <appender name="POSTOFFICE_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_HOME}/postoffice.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_HOME}/archive/postoffice.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>${MAX_SIZE}</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxHistory>${MAX_HISTORY}</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <appender name="POSTMAN_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_HOME}/postman.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_HOME}/archive/postman.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>${MAX_SIZE}</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxHistory>${MAX_HISTORY}</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <appender name="POSTBOX_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_HOME}/postbox.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_HOME}/archive/postbox.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>${MAX_SIZE}</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxHistory>${MAX_HISTORY}</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <appender name="AUTHCENTER_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_HOME}/authcenter.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_HOME}/archive/authcenter.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>${MAX_SIZE}</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxHistory>${MAX_HISTORY}</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <appender name="SOCIAL_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_HOME}/social.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_HOME}/archive/social.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>${MAX_SIZE}</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxHistory>${MAX_HISTORY}</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <appender name="COMMON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_HOME}/common.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_HOME}/archive/common.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>${MAX_SIZE}</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxHistory>${MAX_HISTORY}</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         命名 Logger（CommonLoggers 中的常量名 → 对应文件 Appender）
+         additivity=true：日志同时传播到 root（即控制台）
+    ══════════════════════════════════════════════════════════════════════════ -->
+    <logger name="cheese-im-postmaster" level="INFO" additivity="true">
+        <appender-ref ref="POSTMASTER_FILE"/>
+    </logger>
+
+    <logger name="cheese-im-postoffice" level="INFO" additivity="true">
+        <appender-ref ref="POSTOFFICE_FILE"/>
+    </logger>
+
+    <logger name="cheese-im-postman" level="INFO" additivity="true">
+        <appender-ref ref="POSTMAN_FILE"/>
+    </logger>
+
+    <logger name="cheese-im-postbox" level="INFO" additivity="true">
+        <appender-ref ref="POSTBOX_FILE"/>
+    </logger>
+
+    <logger name="cheese-im-authcenter" level="INFO" additivity="true">
+        <appender-ref ref="AUTHCENTER_FILE"/>
+    </logger>
+
+    <logger name="cheese-im-social" level="INFO" additivity="true">
+        <appender-ref ref="SOCIAL_FILE"/>
+    </logger>
+
+    <!-- 公共框架包名路由到 common.log（包名路由，不依赖 CommonLoggers 命名 Logger） -->
+    <logger name="com.cheeseocean.im.common" level="INFO" additivity="true">
+        <appender-ref ref="COMMON_FILE"/>
+    </logger>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         降噪：第三方框架只输出 WARN 及以上
+    ══════════════════════════════════════════════════════════════════════════ -->
+    <logger name="org.springframework.kafka" level="WARN"/>
+    <logger name="org.apache.kafka"          level="WARN"/>
+    <logger name="io.netty"                  level="WARN"/>
+    <logger name="org.apache.dubbo"          level="WARN"/>
+    <logger name="redis.clients.jedis"       level="WARN"/>
+    <logger name="org.springframework.data.mongodb" level="WARN"/>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         Root Logger：仅输出控制台（文件由各模块 Logger 负责）
+    ══════════════════════════════════════════════════════════════════════════ -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+</configuration>

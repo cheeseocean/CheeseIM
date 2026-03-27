@@ -12,7 +12,7 @@ import java.util.Map;
  * 推送消息构建器工具类
  * 提供便捷的推送消息构建方法
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 public class PushMessageBuilder {
     

@@ -6,8 +6,8 @@ import com.cheeseocean.im.common.core.enums.PlatformType;
 import com.cheeseocean.im.postoffice.config.IMServerConfig;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -23,7 +23,7 @@ import java.util.Date;
 @Service
 public class JwtAuthService implements AuthService {
     
-    private static final Logger logger = LoggerFactory.getLogger(JwtAuthService.class);
+    private static final Logger logger = CommonLoggers.POSTOFFICE;
 
     @Autowired
     private IMServerConfig imServerConfig;

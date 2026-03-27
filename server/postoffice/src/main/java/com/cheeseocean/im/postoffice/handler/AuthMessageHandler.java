@@ -8,8 +8,8 @@ import com.cheeseocean.im.postoffice.connection.ConnectionBindService;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.postoffice.protocol.WSMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -19,12 +19,12 @@ import java.util.Map;
  * 认证消息处理器
  * 处理用户认证相关的WebSocket消息
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 @Component
 public class AuthMessageHandler implements MessageHandler {
     
-    private static final Logger logger = LoggerFactory.getLogger(AuthMessageHandler.class);
+    private static final Logger logger = CommonLoggers.POSTOFFICE;
     
     @Autowired
     private WsTicketAuthService wsTicketAuthService;

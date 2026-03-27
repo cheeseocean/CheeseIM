@@ -1,6 +1,7 @@
 package com.cheeseocean.im.social.repository;
 
 import com.cheeseocean.im.common.core.constants.RedisKeys;
+import com.cheeseocean.im.social.domain.BlacklistDoc;
 import com.cheeseocean.im.social.domain.FriendRequestDoc;
 import com.cheeseocean.im.social.domain.FriendshipDoc;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -21,13 +22,16 @@ public class FriendRepository {
 
     private final FriendRequestMongoRepository friendRequestMongoRepository;
     private final FriendshipMongoRepository friendshipMongoRepository;
+    private final BlacklistMongoRepository blacklistMongoRepository;
     private final RedisTemplate<String, Object> redisTemplate;
 
     public FriendRepository(FriendRequestMongoRepository friendRequestMongoRepository,
                             FriendshipMongoRepository friendshipMongoRepository,
+                            BlacklistMongoRepository blacklistMongoRepository,
                             RedisTemplate<String, Object> redisTemplate) {
         this.friendRequestMongoRepository = friendRequestMongoRepository;
         this.friendshipMongoRepository = friendshipMongoRepository;
+        this.blacklistMongoRepository = blacklistMongoRepository;
         this.redisTemplate = redisTemplate;
     }
 
@@ -152,6 +156,52 @@ public class FriendRepository {
         return pending;
     }
 
+    // ── Blacklist ─────────────────────────────────────────────────────────────
+
+    /** Returns true if targetUserId has blocked userId. */
+    public boolean isBlocked(String userId, String targetUserId) {
+        Boolean cached = redisTemplate.opsForSet().isMember(blacklistKey(targetUserId), userId);
+        if (Boolean.TRUE.equals(cached)) {
+            return true;
+        }
+        boolean blocked = blacklistMongoRepository.existsByUserIdAndTargetUserId(targetUserId, userId);
+        if (blocked) {
+            redisTemplate.opsForSet().add(blacklistKey(targetUserId), userId);
+        }
+        return blocked;
+    }
+
+    public void blockUser(String userId, String targetUserId) {
+        if (blacklistMongoRepository.existsByUserIdAndTargetUserId(userId, targetUserId)) {
+            return;
+        }
+        BlacklistDoc doc = new BlacklistDoc();
+        doc.setId(userId + ":" + targetUserId);
+        doc.setUserId(userId);
+        doc.setTargetUserId(targetUserId);
+        doc.setCreatedAt(System.currentTimeMillis());
+        blacklistMongoRepository.save(doc);
+        redisTemplate.opsForSet().add(blacklistKey(userId), targetUserId);
+    }
+
+    public void unblockUser(String userId, String targetUserId) {
+        blacklistMongoRepository.deleteByUserIdAndTargetUserId(userId, targetUserId);
+        redisTemplate.opsForSet().remove(blacklistKey(userId), targetUserId);
+    }
+
+    public List<String> listBlockedUserIds(String userId) {
+        Set<Object> cached = redisTemplate.opsForSet().members(blacklistKey(userId));
+        if (cached != null && !cached.isEmpty()) {
+            return cached.stream().map(String::valueOf).sorted().toList();
+        }
+        List<String> ids = blacklistMongoRepository.findByUserId(userId).stream()
+                .map(BlacklistDoc::getTargetUserId)
+                .sorted()
+                .toList();
+        replaceSet(blacklistKey(userId), ids);
+        return ids;
+    }
+
     private void updateRequestStatus(String fromUserId, String toUserId, String status) {
         FriendRequestDoc request = friendRequestMongoRepository
                 .findByFromUserIdAndToUserIdAndStatus(fromUserId, toUserId, STATUS_PENDING)
@@ -201,6 +251,10 @@ public class FriendRepository {
 
     private String friendshipId(String userId, String friendUserId) {
         return userId + ":" + friendUserId;
+    }
+
+    private String blacklistKey(String userId) {
+        return RedisKeys.userBlacklist(userId);
     }
 
     public static final class FriendRequestRecord implements Serializable {

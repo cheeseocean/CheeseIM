@@ -7,14 +7,14 @@ import com.cheeseocean.im.common.api.dto.dispatch.DispatchResult;
 import com.cheeseocean.im.common.api.dto.message.SequencedMessage;
 import com.cheeseocean.im.common.api.event.DeliveryEvent;
 import com.cheeseocean.im.common.api.event.OfflinePushEvent;
-import com.cheeseocean.im.common.api.route.OnlineRouteQueryRpc;
-import com.cheeseocean.im.common.api.rpc.OnlineDispatchRpc;
+import com.cheeseocean.im.common.api.route.OnlineRouteQueryService;
+import com.cheeseocean.im.common.api.rpc.OnlineDispatcher;
 import com.cheeseocean.im.common.core.constants.TopicNames;
 import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
 import com.cheeseocean.im.common.core.queue.annotation.QueueListener;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
@@ -22,19 +22,19 @@ import java.util.List;
 
 @Component
 public class DeliveryEventListener {
-    private static final Logger       log = LoggerFactory.getLogger(DeliveryEventListener.class);
-    private final    ObjectMapper objectMapper;
-    private final OnlineRouteQueryRpc onlineRouteQueryRpc;
-    private final OnlineDispatchRpc onlineDispatchRpc;
+    private static final Logger       log = CommonLoggers.POSTMAN;
+    private final ObjectMapper            objectMapper;
+    private final OnlineRouteQueryService onlineRouteQueryService;
+    private final OnlineDispatcher        onlineDispatcher;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     public DeliveryEventListener(ObjectMapper objectMapper,
-                                 OnlineRouteQueryRpc onlineRouteQueryRpc,
-                                 OnlineDispatchRpc onlineDispatchRpc,
+                                 OnlineRouteQueryService onlineRouteQueryService,
+                                 OnlineDispatcher onlineDispatcher,
                                  KafkaTemplate<String, Object> kafkaTemplate) {
         this.objectMapper = objectMapper;
-        this.onlineRouteQueryRpc = onlineRouteQueryRpc;
-        this.onlineDispatchRpc = onlineDispatchRpc;
+        this.onlineRouteQueryService = onlineRouteQueryService;
+        this.onlineDispatcher = onlineDispatcher;
         this.kafkaTemplate = kafkaTemplate;
     }
 
@@ -57,7 +57,7 @@ public class DeliveryEventListener {
     }
 
     private void deliverToUser(String userId, SequencedMessage message) {
-        List<RouteSnapshot> routes = onlineRouteQueryRpc.findByUser(userId);
+        List<RouteSnapshot> routes = onlineRouteQueryService.findByUser(userId);
         if (routes == null || routes.isEmpty()) {
             emitOfflinePushIfNeeded(userId, message);
             return;
@@ -67,7 +67,7 @@ public class DeliveryEventListener {
         req.setUserId(userId);
         req.setPayload(toDispatchPayload(message));
 
-        DispatchMessageResp resp = onlineDispatchRpc.dispatchMessage(req);
+        DispatchMessageResp resp = onlineDispatcher.dispatchMessage(req);
         if (!hasSuccessfulDispatch(resp)) {
             emitOfflinePushIfNeeded(userId, message);
         }

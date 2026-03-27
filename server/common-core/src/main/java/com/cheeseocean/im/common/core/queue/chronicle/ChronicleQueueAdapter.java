@@ -1,5 +1,6 @@
 package com.cheeseocean.im.common.core.queue.chronicle;
 
+import com.cheeseocean.im.common.core.queue.KeyedMessage;
 import com.cheeseocean.im.common.core.queue.QueueAdapter;
 import com.cheeseocean.im.common.core.queue.QueueMessageHandler;
 import com.cheeseocean.im.common.core.queue.Subscription;
@@ -89,6 +90,60 @@ public class ChronicleQueueAdapter implements QueueAdapter {
 
     protected ExcerptAppender createAppender(ChronicleQueue queue) {
         return queue.createAppender();
+    }
+
+    @Override
+    public <T> Subscription subscribeKeyed(String topic, String group, int concurrency, Class<T> payloadType, QueueMessageHandler<KeyedMessage<T>> handler) {
+        ChronicleQueue    queue   = queue(topic);
+        AtomicBoolean     running = new AtomicBoolean(true);
+        ExcerptTailer     tailer  = queue.createTailer(group);
+        ExecutorService   poller  = Executors.newSingleThreadExecutor(r -> {
+            Thread thread = new Thread(r, "chronicle-queue-poller-" + topic + "-" + group);
+            thread.setDaemon(false);
+            return thread;
+        });
+        ExecutorService workers = Executors.newFixedThreadPool(Math.max(1, concurrency), r -> {
+            Thread thread = new Thread(r, "chronicle-queue-worker-" + topic + "-" + group);
+            thread.setDaemon(false);
+            return thread;
+        });
+        poller.submit(() -> pollLoopKeyed(tailer, payloadType, handler, workers, running));
+        return () -> {
+            running.set(false);
+            poller.shutdownNow();
+            workers.shutdownNow();
+        };
+    }
+
+    private <T> void pollLoopKeyed(ExcerptTailer tailer,
+                                   Class<T> payloadType,
+                                   QueueMessageHandler<KeyedMessage<T>> handler,
+                                   ExecutorService workers,
+                                   AtomicBoolean running) {
+        while (running.get()) {
+            boolean consumed = false;
+            try (DocumentContext context = tailer.readingDocument()) {
+                if (context.isPresent()) {
+                    consumed = true;
+                    String key     = context.wire().read("key").text();
+                    String payload = context.wire().read("payload").text();
+                    workers.submit(() -> {
+                        try {
+                            handler.handle(new KeyedMessage<>(key, objectMapper.readValue(payload, payloadType)));
+                        } catch (Exception e) {
+                            logger.error("Failed to deserialize Chronicle queue message", e);
+                            throw new IllegalStateException("Failed to deserialize Chronicle queue message", e);
+                        }
+                    });
+                }
+            } catch (Exception e) {
+                logger.error("Failed to read Chronicle Queue message", e);
+                throw new IllegalStateException("Failed to read Chronicle queue message", e);
+            }
+            if (!consumed) {
+                sleepQuietly(queueProperties.getPollIntervalMillis());
+            }
+        }
     }
 
     private <T> void pollLoop(ExcerptTailer tailer,

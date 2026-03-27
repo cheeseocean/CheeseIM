@@ -24,19 +24,31 @@ public class ConversationSequenceAllocator {
 
     public synchronized long nextSeq(String conversationId) {
         Objects.requireNonNull(conversationId, "conversationId");
+        return nextSeqLocked(conversationId);
+    }
 
+    public long nextSequence(String conversationId) {
+        return nextSeq(conversationId);
+    }
+
+    public synchronized SequenceRange allocateRange(String conversationId, int count) {
+        Objects.requireNonNull(conversationId, "conversationId");
+        if (count <= 0) throw new IllegalArgumentException("count must be positive");
+        long first = nextSeqLocked(conversationId);
+        for (int i = 1; i < count; i++) {
+            nextSeqLocked(conversationId);
+        }
+        return new SequenceRange(first, first + count - 1);
+    }
+
+    private long nextSeqLocked(String conversationId) {
         ActiveRange activeRange = activeRanges.get(conversationId);
         if (activeRange == null || !activeRange.hasRemaining()) {
             SequenceRange reserved = sequenceStore.reserve(conversationId, reserveSize);
             activeRange = new ActiveRange(reserved.startInclusive(), reserved.endInclusive());
             activeRanges.put(conversationId, activeRange);
         }
-
         return activeRange.next();
-    }
-
-    public long nextSequence(String conversationId) {
-        return nextSeq(conversationId);
     }
 
     private static final class ActiveRange {

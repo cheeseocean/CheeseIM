@@ -4,7 +4,7 @@ import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.dto.push.OfflinePushReq;
 import com.cheeseocean.im.common.api.dto.push.PushResult;
 import com.cheeseocean.im.common.api.event.OfflinePushEvent;
-import com.cheeseocean.im.common.api.rpc.OfflinePushRpc;
+import com.cheeseocean.im.common.api.rpc.OfflinePusher;
 import com.cheeseocean.im.common.core.enums.DeliveryState;
 import com.cheeseocean.im.postman.entity.OfflinePushResult;
 import com.cheeseocean.im.postman.entity.PushAttempt;
@@ -19,8 +19,8 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
-@DubboService(interfaceClass = OfflinePushRpc.class)
-public class MessagePushServiceImpl implements OfflinePushRpc {
+@DubboService(interfaceClass = OfflinePusher.class)
+public class MessagePushServiceImpl implements OfflinePusher {
 
     private final OfflinePushService offlinePushService;
     private final PushDecisionService decisionService;

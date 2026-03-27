@@ -9,7 +9,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * 用户连接实体
  * 封装用户的WebSocket连接信息和状态
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 public class UserConnection implements Serializable {
     

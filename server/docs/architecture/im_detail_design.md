@@ -682,7 +682,7 @@ private void dispatchToOnlineUser(String userId, DeliveryEvent event) {
     req.setConnectionIds(connectionIds);
     req.setPayload(buildPayload(event));
 
-    DispatchMessageResp resp = onlineDispatchRpc.dispatchMessage(req);
+    DispatchMessageResp resp = onlineDispatcher.dispatchMessage(req);
 
     handleDispatchResult(userId, event, resp);
 }

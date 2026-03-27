@@ -22,4 +22,16 @@ public interface FriendRelationService {
     FriendRequestSummary cancelFriendRequest(String userId, String friendUserId);
 
     boolean areAcceptedFriends(String userId, String friendUserId);
+
+    /**
+     * Returns true if targetUserId has blocked userId (i.e. userId is on targetUserId's blacklist).
+     * Used in sendMessage to decide whether to drop the message before delivery.
+     */
+    boolean isBlocked(String userId, String targetUserId);
+
+    void blockUser(String userId, String targetUserId);
+
+    void unblockUser(String userId, String targetUserId);
+
+    java.util.List<String> listBlockedUserIds(String userId);
 }

@@ -10,7 +10,7 @@ import java.util.List;
  * 离线推送服务接口
  * 通过第三方推送服务进行离线推送
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 public interface OfflinePushService {
     

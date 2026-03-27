@@ -3,7 +3,7 @@ package com.cheeseocean.im.postman.exception;
 /**
  * 推送异常基类
  * 
- * @author CheeseIM
+ * @author xxxcrel
  */
 public class PushException extends RuntimeException {
     

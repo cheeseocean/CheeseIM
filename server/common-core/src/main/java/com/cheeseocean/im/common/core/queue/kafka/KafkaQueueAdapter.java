@@ -1,5 +1,6 @@
 package com.cheeseocean.im.common.core.queue.kafka;
 
+import com.cheeseocean.im.common.core.queue.KeyedMessage;
 import com.cheeseocean.im.common.core.queue.QueueAdapter;
 import com.cheeseocean.im.common.core.queue.QueueMessageHandler;
 import com.cheeseocean.im.common.core.queue.Subscription;
@@ -50,6 +51,24 @@ public class KafkaQueueAdapter implements QueueAdapter {
         containerProperties.setMessageListener((org.springframework.kafka.listener.MessageListener<String, String>) record -> {
             try {
                 handler.handle(objectMapper.readValue(record.value(), payloadType));
+            } catch (Exception e) {
+                throw new IllegalStateException("Failed to deserialize Kafka queue message", e);
+            }
+        });
+        ConcurrentMessageListenerContainer<String, String> container =
+                new ConcurrentMessageListenerContainer<>(consumerFactory(group), containerProperties);
+        container.setConcurrency(Math.max(1, concurrency));
+        container.start();
+        return container::stop;
+    }
+
+    @Override
+    public <T> Subscription subscribeKeyed(String topic, String group, int concurrency, Class<T> payloadType, QueueMessageHandler<KeyedMessage<T>> handler) {
+        ContainerProperties containerProperties = new ContainerProperties(topic);
+        containerProperties.setGroupId(group);
+        containerProperties.setMessageListener((org.springframework.kafka.listener.MessageListener<String, String>) record -> {
+            try {
+                handler.handle(new KeyedMessage<>(record.key(), objectMapper.readValue(record.value(), payloadType)));
             } catch (Exception e) {
                 throw new IllegalStateException("Failed to deserialize Kafka queue message", e);
             }
