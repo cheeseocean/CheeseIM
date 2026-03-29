@@ -1,10 +1,10 @@
-package com.cheeseocean.im.social.service;
+package com.cheeseocean.im.business.service;
 
 import com.cheeseocean.im.common.core.auth.FriendRequestSummary;
 import com.cheeseocean.im.common.core.auth.FriendSummary;
-import com.cheeseocean.im.social.repository.FriendRepository;
-import com.cheeseocean.im.social.service.friend.FriendRealtimeNotifier;
-import com.cheeseocean.im.social.service.friend.FriendService;
+import com.cheeseocean.im.business.repository.FriendRepository;
+import com.cheeseocean.im.business.service.friend.FriendRealtimeNotifier;
+import com.cheeseocean.im.business.service.friend.FriendService;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

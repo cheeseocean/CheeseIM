@@ -19,10 +19,17 @@ public class GroupMembershipFacade {
         this.groupMembershipQueryService = groupMembershipQueryService;
     }
 
-    public List<String> loadTargets(String conversationId) {
+    public List<String> loadDeliveryTargets(String conversationId) {
         if (groupMembershipQueryService == null) {
             throw new IllegalStateException("GroupMembershipQueryDubboService is not configured");
         }
-        return groupMembershipQueryService.queryMembers(conversationId);
+        return groupMembershipQueryService.queryConversationMembers(conversationId);
+    }
+
+    public List<String> loadGroupMembers(String groupId) {
+        if (groupMembershipQueryService == null) {
+            throw new IllegalStateException("GroupMembershipQueryDubboService is not configured");
+        }
+        return groupMembershipQueryService.queryGroupMembers(groupId);
     }
 }

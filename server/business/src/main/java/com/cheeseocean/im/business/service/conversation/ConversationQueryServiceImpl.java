@@ -1,13 +1,13 @@
-package com.cheeseocean.im.social.service.conversation;
+package com.cheeseocean.im.business.service.conversation;
 
 import com.cheeseocean.im.common.api.conversation.ConversationQueryService;
 import com.cheeseocean.im.common.api.dto.conversation.ConversationDTO;
 import com.cheeseocean.im.common.api.dto.message.ConversationLastMessageSummary;
 import com.cheeseocean.im.common.api.message.ConversationLastMessageQueryService;
-import com.cheeseocean.im.social.domain.ConversationOffsetRange;
-import com.cheeseocean.im.social.domain.UserConversationState;
-import com.cheeseocean.im.social.repository.ConversationOffsetRangeRepository;
-import com.cheeseocean.im.social.repository.UserConversationStateRepository;
+import com.cheeseocean.im.business.domain.ConversationOffsetRange;
+import com.cheeseocean.im.business.domain.UserConversationState;
+import com.cheeseocean.im.business.repository.ConversationOffsetRangeRepository;
+import com.cheeseocean.im.business.repository.UserConversationStateRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.dubbo.config.annotation.DubboService;

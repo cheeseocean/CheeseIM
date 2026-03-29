@@ -1,8 +1,8 @@
-package com.cheeseocean.im.social.service;
+package com.cheeseocean.im.business.service;
 
 import com.cheeseocean.im.common.api.event.FriendRelationEvent;
 import com.cheeseocean.im.common.core.constants.TopicNames;
-import com.cheeseocean.im.social.service.friend.FriendRealtimeNotifier;
+import com.cheeseocean.im.business.service.friend.FriendRealtimeNotifier;
 import org.junit.jupiter.api.Test;
 import org.springframework.kafka.core.KafkaTemplate;
 

@@ -1,4 +1,4 @@
-package com.cheeseocean.im.social.service.conversation;
+package com.cheeseocean.im.business.service.conversation;
 
 import com.cheeseocean.im.common.api.conversation.ConversationWriteService;
 import com.cheeseocean.im.common.api.dto.conversation.SetConversationRequest;

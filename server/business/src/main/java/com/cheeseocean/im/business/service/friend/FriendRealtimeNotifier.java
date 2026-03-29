@@ -1,4 +1,4 @@
-package com.cheeseocean.im.social.service.friend;
+package com.cheeseocean.im.business.service.friend;
 
 import com.cheeseocean.im.common.api.event.FriendRelationEvent;
 import com.cheeseocean.im.common.core.constants.TopicNames;

@@ -6,7 +6,7 @@ dependencies {
     implementation project(':common-api')
     implementation project(':config')
     implementation project(':authcenter')
-    implementation project(':social')
+    implementation project(':business')
     implementation project(':postoffice')
     implementation project(':postman')
     implementation project(':postbox')

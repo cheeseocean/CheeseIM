@@ -1,12 +1,12 @@
-package com.cheeseocean.im.social.service.user;
+package com.cheeseocean.im.business.service.user;
 
 import com.cheeseocean.im.common.api.dto.user.RegisterUserRequest;
 import com.cheeseocean.im.common.api.dto.user.UpdateUserInfoRequest;
 import com.cheeseocean.im.common.api.dto.user.UserInfoDTO;
 import com.cheeseocean.im.common.api.user.UserInfoService;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
-import com.cheeseocean.im.social.domain.User;
-import com.cheeseocean.im.social.repository.UserRepository;
+import com.cheeseocean.im.business.domain.User;
+import com.cheeseocean.im.business.repository.UserRepository;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.slf4j.Logger;
 import org.springframework.stereotype.Service;

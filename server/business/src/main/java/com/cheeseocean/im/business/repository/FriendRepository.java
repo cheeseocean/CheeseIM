@@ -1,8 +1,8 @@
-package com.cheeseocean.im.social.repository;
+package com.cheeseocean.im.business.repository;
 
-import com.cheeseocean.im.social.domain.Blacklist;
-import com.cheeseocean.im.social.domain.FriendRequest;
-import com.cheeseocean.im.social.service.friend.FriendService;
+import com.cheeseocean.im.business.domain.Blacklist;
+import com.cheeseocean.im.business.domain.FriendRequest;
+import com.cheeseocean.im.business.service.friend.FriendService;
 
 import java.util.List;
 import java.util.Optional;

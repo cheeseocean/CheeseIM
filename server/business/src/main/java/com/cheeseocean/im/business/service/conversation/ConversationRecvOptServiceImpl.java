@@ -1,7 +1,7 @@
-package com.cheeseocean.im.social.service.conversation;
+package com.cheeseocean.im.business.service.conversation;
 
 import com.cheeseocean.im.common.api.conversation.ConversationRecvOptService;
-import com.cheeseocean.im.social.repository.UserConversationStateRepository;
+import com.cheeseocean.im.business.repository.UserConversationStateRepository;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.stereotype.Service;
 

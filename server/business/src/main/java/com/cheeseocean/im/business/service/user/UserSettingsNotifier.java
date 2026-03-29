@@ -1,4 +1,4 @@
-package com.cheeseocean.im.social.service.user;
+package com.cheeseocean.im.business.service.user;
 
 import com.cheeseocean.im.common.api.event.UserSettingsEvent;
 import com.cheeseocean.im.common.core.constants.TopicNames;

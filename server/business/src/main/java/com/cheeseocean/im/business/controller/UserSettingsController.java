@@ -1,10 +1,10 @@
-package com.cheeseocean.im.social.controller;
+package com.cheeseocean.im.business.controller;
 
 import com.cheeseocean.im.common.core.auth.SessionPrincipal;
-import com.cheeseocean.im.social.auth.AccessTokenSessionResolver;
-import com.cheeseocean.im.social.model.UpdateSettingsRequest;
-import com.cheeseocean.im.social.model.UserSettingsResponse;
-import com.cheeseocean.im.social.service.user.UserSettingsServiceImpl;
+import com.cheeseocean.im.business.auth.AccessTokenSessionResolver;
+import com.cheeseocean.im.business.model.UpdateSettingsRequest;
+import com.cheeseocean.im.business.model.UserSettingsResponse;
+import com.cheeseocean.im.business.service.user.UserSettingsServiceImpl;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;

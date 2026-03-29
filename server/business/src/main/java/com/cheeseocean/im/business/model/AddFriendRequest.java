@@ -1,4 +1,4 @@
-package com.cheeseocean.im.social.model;
+package com.cheeseocean.im.business.model;
 
 public class AddFriendRequest {
 

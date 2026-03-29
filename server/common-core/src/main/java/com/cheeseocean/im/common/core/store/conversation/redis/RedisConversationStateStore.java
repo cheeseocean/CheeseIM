@@ -4,6 +4,10 @@ import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 public class RedisConversationStateStore implements ConversationStateStore {
@@ -64,6 +68,32 @@ public class RedisConversationStateStore implements ConversationStateStore {
     @Override
     public String getLastMessageSummary(String conversationId) {
         return redisTemplate.opsForValue().get(RedisKeys.convLastMsg(conversationId));
+    }
+
+    @Override
+    public Map<String, String> getLastMessageSummaries(List<String> conversationIds) {
+        if (conversationIds == null || conversationIds.isEmpty()) {
+            return Map.of();
+        }
+        List<String> ids = new ArrayList<>();
+        for (String conversationId : conversationIds) {
+            if (conversationId != null && !conversationId.isBlank()) {
+                ids.add(conversationId);
+            }
+        }
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        List<String> keys = ids.stream().map(RedisKeys::convLastMsg).toList();
+        List<String> values = redisTemplate.opsForValue().multiGet(keys);
+        Map<String, String> result = new LinkedHashMap<>();
+        for (int i = 0; i < ids.size(); i++) {
+            String value = values == null ? null : values.get(i);
+            if (value != null) {
+                result.put(ids.get(i), value);
+            }
+        }
+        return result;
     }
 
     private Long parseLong(String value) {

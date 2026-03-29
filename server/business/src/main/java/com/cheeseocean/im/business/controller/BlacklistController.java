@@ -1,9 +1,9 @@
-package com.cheeseocean.im.social.controller;
+package com.cheeseocean.im.business.controller;
 
 import com.cheeseocean.im.common.core.auth.SessionPrincipal;
-import com.cheeseocean.im.social.auth.AccessTokenSessionResolver;
-import com.cheeseocean.im.social.model.BlacklistActionRequest;
-import com.cheeseocean.im.social.service.friend.FriendService;
+import com.cheeseocean.im.business.auth.AccessTokenSessionResolver;
+import com.cheeseocean.im.business.model.BlacklistActionRequest;
+import com.cheeseocean.im.business.service.friend.FriendService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;

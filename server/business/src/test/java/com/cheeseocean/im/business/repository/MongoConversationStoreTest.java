@@ -1,7 +1,7 @@
-package com.cheeseocean.im.social.repository;
+package com.cheeseocean.im.business.repository;
 
-import com.cheeseocean.im.social.domain.UserConversationStateDoc;
-import com.cheeseocean.im.social.model.Conversation;
+import com.cheeseocean.im.business.domain.UserConversationStateDoc;
+import com.cheeseocean.im.business.model.Conversation;
 import com.cheeseocean.im.common.core.enums.SessionType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

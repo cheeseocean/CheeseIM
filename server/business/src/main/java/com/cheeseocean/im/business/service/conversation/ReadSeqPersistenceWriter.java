@@ -1,8 +1,8 @@
-package com.cheeseocean.im.social.service.conversation;
+package com.cheeseocean.im.business.service.conversation;
 
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
-import com.cheeseocean.im.social.repository.ConversationOffsetRangeRepository;
-import com.cheeseocean.im.social.repository.UserConversationStateRepository;
+import com.cheeseocean.im.business.repository.ConversationOffsetRangeRepository;
+import com.cheeseocean.im.business.repository.UserConversationStateRepository;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.springframework.stereotype.Component;

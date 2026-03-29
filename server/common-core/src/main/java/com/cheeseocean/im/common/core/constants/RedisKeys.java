@@ -31,6 +31,10 @@ public final class RedisKeys {
         return AUTH_PREFIX + ":user_friends:" + userId;
     }
 
+    public static String userFriendsLoaded(String userId) {
+        return AUTH_PREFIX + ":user_friends_loaded:" + userId;
+    }
+
     public static String userFriendRequests(String userId) {
         return AUTH_PREFIX + ":user_friend_requests:" + userId;
     }
@@ -107,6 +111,10 @@ public final class RedisKeys {
         return AUTH_PREFIX + ":user_blacklist:" + userId;
     }
 
+    public static String userBlacklistLoaded(String userId) {
+        return AUTH_PREFIX + ":user_blacklist_loaded:" + userId;
+    }
+
     public static String userSettings(String userId) {
         return AUTH_PREFIX + ":user_settings:" + userId;
     }
@@ -125,5 +133,82 @@ public final class RedisKeys {
      */
     public static String userConvIds(String userId) {
         return AUTH_PREFIX + ":conv_ids:" + userId;
+    }
+
+    /**
+     * 用户会话 ID 集合已加载标记 key。
+     * 用于表达“空集合已回源过”，避免无会话用户重复回源 MongoDB。
+     * 格式：cheese_im:conv_ids_loaded:{userId}
+     */
+    public static String userConvIdsLoaded(String userId) {
+        return AUTH_PREFIX + ":conv_ids_loaded:" + userId;
+    }
+
+    /**
+     * 单条用户-会话业务状态缓存 key（TTL 12h）。
+     * 存储完整的 UserConversationState JSON，写操作触发 DEL 失效。
+     * 格式：cheese_im:conv_state:{userId}:{conversationId}
+     */
+    public static String userConvState(String userId, String conversationId) {
+        return AUTH_PREFIX + ":conv_state:" + userId + ":" + conversationId;
+    }
+
+    /**
+     * 群组信息缓存 key（TTL 12h）。
+     * 存储完整 Group 对象，写操作触发 DEL 失效。
+     * 格式：cheese_im:group_info:{groupId}
+     */
+    public static String groupInfo(String groupId) {
+        return AUTH_PREFIX + ":group_info:" + groupId;
+    }
+
+    /**
+     * 群成员 ID 集合缓存 key（Redis SET，无 TTL，写时维护）。
+     * 格式：cheese_im:group_member_ids:{groupId}
+     */
+    public static String groupMemberIds(String groupId) {
+        return AUTH_PREFIX + ":group_member_ids:" + groupId;
+    }
+
+    public static String groupMemberIdsLoaded(String groupId) {
+        return AUTH_PREFIX + ":group_member_ids_loaded:" + groupId;
+    }
+
+    /**
+     * 单条群成员信息缓存 key（TTL 12h）。
+     * 存储完整 GroupMember 对象，写操作触发 DEL 失效。
+     * 格式：cheese_im:group_member_info:{groupId}:{userId}
+     */
+    public static String groupMemberInfo(String groupId, String userId) {
+        return AUTH_PREFIX + ":group_member_info:" + groupId + ":" + userId;
+    }
+
+    /**
+     * 用户已加入群组 ID 集合缓存 key（Redis SET，无 TTL，写时维护）。
+     * 格式：cheese_im:user_joined_groups:{userId}
+     */
+    public static String userJoinedGroupIds(String userId) {
+        return AUTH_PREFIX + ":user_joined_groups:" + userId;
+    }
+
+    public static String userJoinedGroupIdsLoaded(String userId) {
+        return AUTH_PREFIX + ":user_joined_groups_loaded:" + userId;
+    }
+
+    /**
+     * 群成员数量缓存 key（TTL 12h，String 存整数字符串）。
+     * 写操作触发 DEL 失效，下次读取时回源 MongoDB 重建。
+     * 格式：cheese_im:group_member_num:{groupId}
+     */
+    public static String groupMemberNum(String groupId) {
+        return AUTH_PREFIX + ":group_member_num:" + groupId;
+    }
+
+    /**
+     * 群内指定角色成员 ID 集合缓存 key（Redis SET，无 TTL，写时失效）。
+     * 格式：cheese_im:group_role_members:{groupId}:{roleLevel}
+     */
+    public static String groupRoleLevelMemberIds(String groupId, int roleLevel) {
+        return AUTH_PREFIX + ":group_role_members:" + groupId + ":" + roleLevel;
     }
 }

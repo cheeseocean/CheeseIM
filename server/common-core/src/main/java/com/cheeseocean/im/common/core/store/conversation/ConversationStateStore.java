@@ -1,5 +1,9 @@
 package com.cheeseocean.im.common.core.store.conversation;
 
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 public interface ConversationStateStore {
 
     void setConversationMinSeqIfAbsent(String conversationId, long seq);
@@ -26,4 +30,21 @@ public interface ConversationStateStore {
     void setLastMessageSummary(String conversationId, String summary);
 
     String getLastMessageSummary(String conversationId);
+
+    default Map<String, String> getLastMessageSummaries(List<String> conversationIds) {
+        if (conversationIds == null || conversationIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, String> result = new LinkedHashMap<>();
+        for (String conversationId : conversationIds) {
+            if (conversationId == null || conversationId.isBlank()) {
+                continue;
+            }
+            String summary = getLastMessageSummary(conversationId);
+            if (summary != null) {
+                result.put(conversationId, summary);
+            }
+        }
+        return result;
+    }
 }

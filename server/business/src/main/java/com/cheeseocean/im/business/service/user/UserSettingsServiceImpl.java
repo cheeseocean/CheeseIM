@@ -1,8 +1,8 @@
-package com.cheeseocean.im.social.service.user;
+package com.cheeseocean.im.business.service.user;
 
 import com.cheeseocean.im.common.api.user.UserSettingsService;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
-import com.cheeseocean.im.social.repository.UserRepository;
+import com.cheeseocean.im.business.repository.UserRepository;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;

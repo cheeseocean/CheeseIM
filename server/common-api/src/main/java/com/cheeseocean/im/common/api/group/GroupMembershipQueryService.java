@@ -4,5 +4,9 @@ import java.util.List;
 
 public interface GroupMembershipQueryService {
 
-    List<String> queryMembers(String conversationId);
+    List<String> queryConversationMembers(String conversationId);
+
+    List<String> queryGroupMembers(String groupId);
+
+    boolean isGroupMember(String groupId, String userId);
 }

@@ -1,4 +1,4 @@
-package com.cheeseocean.im.social.auth;
+package com.cheeseocean.im.business.auth;
 
 import com.cheeseocean.im.common.api.session.SessionQueryService;
 import com.cheeseocean.im.common.core.auth.SessionPrincipal;

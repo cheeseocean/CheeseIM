@@ -1,4 +1,4 @@
-package com.cheeseocean.im.social.model;
+package com.cheeseocean.im.business.model;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;

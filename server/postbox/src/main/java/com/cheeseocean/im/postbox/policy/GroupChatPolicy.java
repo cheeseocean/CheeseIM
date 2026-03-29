@@ -8,7 +8,7 @@ public class GroupChatPolicy {
 
     private final GroupMembershipQueryService groupMemberService;
 
-    public GroupChatPolicy(GroupMemberService groupMemberService) {
+    public GroupChatPolicy(GroupMembershipQueryService groupMemberService) {
         this.groupMemberService = groupMemberService;
     }
 
