@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * 会话查询 Dubbo 服务接口。
  *
- * <p>提供用户维度的会话读取能力，对应 OpenIM conversationServer 中的查询类接口：
+ * <p>提供用户维度的会话读取能力：
  * GetConversation / GetConversations / GetAllConversations /
  * GetConversationIDs / GetUserConversationIDsHash / GetConversationOfflinePushUserIDs。
  */

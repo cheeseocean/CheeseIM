@@ -11,6 +11,7 @@ import com.cheeseocean.im.common.core.util.ConversationIdUtil;
 import com.cheeseocean.im.common.api.conversation.ConversationSyncCommand;
 import com.cheeseocean.im.postmaster.service.ConversationSeqService;
 import com.cheeseocean.im.postmaster.service.ConversationSyncFacade;
+import com.cheeseocean.im.postmaster.service.ConversationWriteFacade;
 import com.cheeseocean.im.postmaster.service.GroupFanoutPlanner;
 import com.cheeseocean.im.postmaster.service.GroupMembershipFacade;
 import com.cheeseocean.im.postmaster.service.MessagePolicyEngine;
@@ -49,6 +50,7 @@ public class IngressEventListener {
     private final ConversationSeqService conversationSeqService;
     private final MessagePolicyEngine messagePolicyEngine;
     private final MessageStateService messageStateService;
+    private final ConversationWriteFacade conversationWriteService;
     private final ConversationSyncFacade conversationSyncService;
 
     public IngressEventListener(ObjectMapper objectMapper,
@@ -58,6 +60,7 @@ public class IngressEventListener {
                                 ConversationSeqService conversationSeqService,
                                 MessagePolicyEngine messagePolicyEngine,
                                 MessageStateService messageStateService,
+                                ConversationWriteFacade conversationWriteService,
                                 ConversationSyncFacade conversationSyncService) {
         this.objectMapper = objectMapper.copy().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         this.queueAdapter = queueAdapter;
@@ -66,6 +69,7 @@ public class IngressEventListener {
         this.conversationSeqService = conversationSeqService;
         this.messagePolicyEngine = messagePolicyEngine;
         this.messageStateService = messageStateService;
+        this.conversationWriteService = conversationWriteService;
         this.conversationSyncService = conversationSyncService;
     }
 
@@ -89,7 +93,7 @@ public class IngressEventListener {
         // 已读回执旁路：提前将已读 seq 写入 Redis，消息本身继续走完整管道
         preProcessReadReceipts(events);
 
-        // 四路分类（对应 Go 的 categorizeMessageLists）
+        // 四路分类
         List<EventCtx> storageMsgList      = new ArrayList<>();
         List<EventCtx> transientMsgList    = new ArrayList<>();
         List<EventCtx> storageNotifyList   = new ArrayList<>();
@@ -109,7 +113,7 @@ public class IngressEventListener {
 
     // ── handleMsg ────────────────────────────────────────────────────────────
     // 处理普通聊天消息
-    // conversationId 在此处由 ConversationIdUtil.buildConversationId 计算，对应 Go 的 GetChatConversationIDByMsg
+    // conversationId 在此处由 ConversationIdUtil.buildConversationId 计算
     private void handleMsg(List<EventCtx> storageList, List<EventCtx> transientList) {
         if (storageList.isEmpty() && transientList.isEmpty()) return;
 
@@ -130,18 +134,16 @@ public class IngressEventListener {
 
         publishHistoryEvent(conversationId, seqBatch, processed);
 
-        ConversationSyncCommand cmd = buildSyncCommand(conversationId, seqBatch, processed);
-        conversationSyncService.createIfNew(cmd);
+        createConversationIfNeeded(sample, conversationId, seqBatch.isNewConversation());
         for (ProcessedMsg p : processed) {
             if (p.decision().sendDelivery()) sendDelivery(p.message(), p.targets(), p.event());
         }
-        conversationSyncService.sync(cmd);
     }
 
     // ── handleNotification ───────────────────────────────────────────────────
     // 处理通知消息
     // conversationId 在此处由 ConversationIdUtil.buildNotificationConversationId 计算，
-    // 对应 Go 的 GetNotificationConversationIDByMsg，与聊天会话使用独立的 seq 计数器
+    // 与聊天会话使用独立的 seq 计数器
     private void handleNotification(List<EventCtx> storageList, List<EventCtx> transientList) {
         if (storageList.isEmpty() && transientList.isEmpty()) return;
 
@@ -157,6 +159,8 @@ public class IngressEventListener {
         List<ProcessedMsg> processed = bindSeqs(storageList, seqBatch.range().startInclusive(), conversationId);
 
         publishHistoryEvent(conversationId, seqBatch, processed);
+
+        createConversationIfNeeded(sample, conversationId, seqBatch.isNewConversation());
 
         for (ProcessedMsg p : processed) {
             if (p.decision().sendDelivery()) sendDelivery(p.message(), p.targets(), p.event());
@@ -218,13 +222,10 @@ public class IngressEventListener {
     private ConversationSyncCommand buildSyncCommand(String conversationId,
                                                      ConversationSeqService.SeqBatch seqBatch,
                                                      List<ProcessedMsg> processed) {
-        Set<String> participantSet = new LinkedHashSet<>();
+        Set<String> participantSet = resolveConversationParticipants(processed);
         List<String> senderIds    = new ArrayList<>(processed.size());
         for (ProcessedMsg p : processed) {
-            participantSet.addAll(p.targets());
-            String senderId = p.message().getSenderId();
-            if (senderId != null) participantSet.add(senderId);
-            senderIds.add(senderId);
+            senderIds.add(p.message().getSenderId());
         }
         SequencedMessage latestMessage = processed.get(processed.size() - 1).message();
         return new ConversationSyncCommand(
@@ -255,9 +256,55 @@ public class IngressEventListener {
         }
     }
 
+    private Set<String> resolveConversationParticipants(List<ProcessedMsg> processed) {
+        Set<String> participants = new LinkedHashSet<>();
+        if (processed == null || processed.isEmpty()) {
+            return participants;
+        }
+        SequencedMessage sample = processed.get(0).message();
+        Integer sessionType = sample.getSessionType();
+        if (sessionType != null && sessionType == SessionType.GROUP.getCode()) {
+            participants.addAll(groupMembershipFacade.loadGroupMembers(sample.getGroupId()));
+            if (sample.getSenderId() != null) {
+                participants.add(sample.getSenderId());
+            }
+            return participants;
+        }
+        if (sessionType != null && sessionType == SessionType.NOTIFICATION.getCode()) {
+            if (sample.getRecvId() != null) {
+                participants.add(sample.getRecvId());
+            }
+            return participants;
+        }
+        if (sample.getRecvId() != null) {
+            participants.add(sample.getRecvId());
+        }
+        if (sample.getSenderId() != null) {
+            participants.add(sample.getSenderId());
+        }
+        return participants;
+    }
+
+    private void createConversationIfNeeded(IngressEvent sample, String conversationId, boolean newConversation) {
+        if (!newConversation) {
+            return;
+        }
+        if (sample.getSessionType() != null && sample.getSessionType() == SessionType.GROUP.getCode()) {
+            List<String> userIds = groupMembershipFacade.loadGroupMembers(sample.getGroupId());
+            conversationWriteService.createGroupChatConversations(sample.getGroupId(), conversationId, userIds);
+            return;
+        }
+        conversationWriteService.createSingleChatConversation(
+                sample.getSenderId(),
+                sample.getRecvId(),
+                conversationId,
+                sample.getSessionType() == null ? 0 : sample.getSessionType()
+        );
+    }
+
     private List<String> resolveTargets(SequencedMessage message, MessageRouteDecision decision) {
         if (message.getSessionType() != null && message.getSessionType() == SessionType.GROUP.getCode()) {
-            return groupMembershipFacade.loadTargets(message.getConversationId());
+            return groupMembershipFacade.loadDeliveryTargets(message.getConversationId());
         }
         if (decision.senderSync() && message.getSenderId() != null) {
             return List.of(message.getRecvId(), message.getSenderId());

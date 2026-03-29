@@ -35,7 +35,7 @@ public final class ConversationIdUtil {
     }
 
     /**
-     * 计算通知会话 conversationId，对应 Go 的 GetNotificationConversationIDByMsg。
+     * 计算通知会话 conversationId。
      * 与 buildConversationId 使用各自独立的 seq 计数器：
      *   SINGLE / NOTIFICATION → c3:{recvId}（接收方的通知收件箱）
      *   GROUP                 → c3:{groupId}（群通知频道）

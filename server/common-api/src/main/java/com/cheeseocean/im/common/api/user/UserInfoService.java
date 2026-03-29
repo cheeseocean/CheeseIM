@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * 用户基础信息 Dubbo 服务接口。
  *
- * <p>覆盖 OpenIM userServer 中与用户信息增删改查相关的接口，
+ * <p>覆盖与用户信息增删改查相关的接口，
  * 包括普通用户、管理员账号以及通知系统账号的管理。
  */
 public interface UserInfoService {
@@ -18,7 +18,7 @@ public interface UserInfoService {
 
     /**
      * 批量查询用户基础信息。
-     * 对应 OpenIM GetDesignateUsers，结果顺序与入参 userIds 一致，不存在的用户跳过。
+     * 结果顺序与入参 userIds 一致，不存在的用户跳过。
      */
     List<UserInfoDTO> getUsersInfo(List<String> userIds);
 
@@ -73,7 +73,7 @@ public interface UserInfoService {
      */
     void updateUserInfo(String userId, UpdateUserInfoRequest request);
 
-    // ── 通知系统账号管理（对应 OpenIM Notification Account） ──────────────────
+    // ── 通知系统账号管理 ─────────────────────────────────────────────────────
 
     /**
      * 注册通知/系统账号。

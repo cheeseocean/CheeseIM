@@ -7,11 +7,11 @@ import java.util.List;
 /**
  * 会话写入 Dubbo 服务接口。
  *
- * <p>提供会话的显式创建和配置更新能力，对应 OpenIM conversationServer 中的写类接口：
+ * <p>提供会话的显式创建和配置更新能力：
  * CreateSingleChatConversations / CreateGroupChatConversations / SetConversations。
  *
- * <p>注意：消息路径上的懒创建由 {@link ConversationSyncService#createIfNew} 负责，
- * 本接口用于客户端主动发起的预建会话或配置变更场景。
+ * <p>消息路径上的首条消息创建也可以复用本接口的显式创建能力；
+ * ConversationSyncService 只保留偏移量同步与已读推进语义。
  */
 public interface ConversationWriteService {
 

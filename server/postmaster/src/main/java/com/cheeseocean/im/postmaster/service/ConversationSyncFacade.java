@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 /**
  * {@link ConversationSyncService} 的 Dubbo 客户端门面。
  * 使用字段级 {@code @DubboReference}，使 postmaster 在独立部署时也能通过 RPC 调用
- * social 模块；all-in-one 部署时 Dubbo 自动短路为本地调用。
+ * 业务模块；all-in-one 部署时 Dubbo 自动短路为本地调用。
  */
 @Component
 public class ConversationSyncFacade {

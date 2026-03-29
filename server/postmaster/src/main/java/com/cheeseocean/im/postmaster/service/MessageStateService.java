@@ -77,7 +77,7 @@ public class MessageStateService {
     }
 
     /**
-     * Pre-process READ_RECEIPT events before seq allocation (Go's doSetReadSeq equivalent).
+     * Pre-process READ_RECEIPT events before seq allocation.
      *
      * Aggregates by (userId=senderId, conversationId) → max seq, then:
      *   1. Writes to Redis synchronously for immediate read-cursor visibility.
