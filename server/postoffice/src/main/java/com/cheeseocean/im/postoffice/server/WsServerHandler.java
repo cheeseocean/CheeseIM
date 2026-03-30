@@ -36,7 +36,7 @@ import java.util.Map;
  */
 @Component
 @ChannelHandler.Sharable
-public class WebSocketServerHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
+public class WsServerHandler extends SimpleChannelInboundHandler<TextWebSocketFrame> {
     
     private static final Logger logger = CommonLoggers.POSTOFFICE;
     

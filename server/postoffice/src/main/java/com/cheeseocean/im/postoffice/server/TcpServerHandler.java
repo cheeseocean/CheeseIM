@@ -28,7 +28,7 @@ import java.net.InetSocketAddress;
  */
 @Component
 @ChannelHandler.Sharable
-public class CheeseServerHandler extends SimpleChannelInboundHandler<ClientEnvelope> {
+public class TcpServerHandler extends SimpleChannelInboundHandler<ClientEnvelope> {
     
     private static final Logger logger = CommonLoggers.POSTOFFICE;
     

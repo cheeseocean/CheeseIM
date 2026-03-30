@@ -30,7 +30,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class CheeseServerHandlerTest {
+class TcpServerHandlerTest {
 
     @Test
     void channelActiveShouldRegisterPendingConnection() throws Exception {
@@ -43,7 +43,7 @@ class CheeseServerHandlerTest {
         when(channel.remoteAddress()).thenReturn(new InetSocketAddress("127.0.0.1", 5148));
         when(connectionManager.registerPendingConnection(org.mockito.ArgumentMatchers.any(UserConnection.class))).thenReturn(true);
 
-        CheeseServerHandler handler = new CheeseServerHandler();
+        TcpServerHandler handler = new TcpServerHandler();
         ReflectionTestUtils.setField(handler, "connectionManager", connectionManager);
         ReflectionTestUtils.setField(handler, "messageHandlerFactory", messageHandlerFactory);
 
@@ -59,7 +59,7 @@ class CheeseServerHandlerTest {
 
     @Test
     void cheeseServerHandlerShouldBeSharable() {
-        assertTrue(CheeseServerHandler.class.isAnnotationPresent(ChannelHandler.Sharable.class));
+        assertTrue(TcpServerHandler.class.isAnnotationPresent(ChannelHandler.Sharable.class));
     }
 
     @Test
@@ -77,7 +77,7 @@ class CheeseServerHandlerTest {
         when(handler.handle(any(UserConnection.class), any(ClientEnvelope.class)))
                 .thenReturn(MessageHandler.HandleResult.success(chatSendAck()));
 
-        CheeseServerHandler handlerUnderTest = new CheeseServerHandler();
+        TcpServerHandler handlerUnderTest = new TcpServerHandler();
         ReflectionTestUtils.setField(handlerUnderTest, "connectionManager", connectionManager);
         ReflectionTestUtils.setField(handlerUnderTest, "messageHandlerFactory", messageHandlerFactory);
 
@@ -111,7 +111,7 @@ class CheeseServerHandlerTest {
         when(connectionManager.getConnectionByChannel(channel)).thenReturn(authenticatedConnection());
         when(messageHandlerFactory.getHandler(null)).thenReturn(null);
 
-        CheeseServerHandler handlerUnderTest = new CheeseServerHandler();
+        TcpServerHandler handlerUnderTest = new TcpServerHandler();
         ReflectionTestUtils.setField(handlerUnderTest, "connectionManager", connectionManager);
         ReflectionTestUtils.setField(handlerUnderTest, "messageHandlerFactory", messageHandlerFactory);
 

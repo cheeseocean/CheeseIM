@@ -2,7 +2,7 @@ package com.cheeseocean.im.postoffice.startup;
 
 import com.cheeseocean.im.common.core.startup.StartupSummaryContributor;
 import com.cheeseocean.im.common.core.startup.StartupSummaryItem;
-import com.cheeseocean.im.postoffice.config.IMServerConfig;
+import com.cheeseocean.im.postoffice.config.ServerProperties;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -11,24 +11,24 @@ import java.util.List;
 @Component
 public class PostOfficeStartupSummaryContributor implements StartupSummaryContributor {
 
-    private final IMServerConfig serverConfig;
+    private final ServerProperties serverConfig;
 
-    public PostOfficeStartupSummaryContributor(IMServerConfig serverConfig) {
+    public PostOfficeStartupSummaryContributor(ServerProperties serverConfig) {
         this.serverConfig = serverConfig;
     }
 
     @Override
     public List<StartupSummaryItem> contribute() {
-        List<StartupSummaryItem> items = new ArrayList<>();
-        IMServerConfig.WebSocketConfig websocket = serverConfig.getWebsocket();
-        IMServerConfig.TcpConfig tcp = serverConfig.getTcp();
+        List<StartupSummaryItem>         items     = new ArrayList<>();
+        ServerProperties.WebSocketConfig websocket = serverConfig.getWebsocket();
+        ServerProperties.TcpConfig       tcp       = serverConfig.getTcp();
 
         items.add(new StartupSummaryItem("WebSocket", formatWebSocketEndpoint(websocket)));
         items.add(new StartupSummaryItem("TCP", formatTcpEndpoint(tcp)));
         return items;
     }
 
-    private String formatWebSocketEndpoint(IMServerConfig.WebSocketConfig websocket) {
+    private String formatWebSocketEndpoint(ServerProperties.WebSocketConfig websocket) {
         if (!websocket.isEnabled()) {
             return "disabled";
         }
@@ -36,7 +36,7 @@ public class PostOfficeStartupSummaryContributor implements StartupSummaryContri
         return protocol + "://localhost:" + websocket.getPort() + websocket.getPath();
     }
 
-    private String formatTcpEndpoint(IMServerConfig.TcpConfig tcp) {
+    private String formatTcpEndpoint(ServerProperties.TcpConfig tcp) {
         if (!tcp.isEnabled()) {
             return "disabled";
         }

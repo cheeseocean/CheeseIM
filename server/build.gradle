@@ -98,10 +98,42 @@ subprojects {
 
     dependencies {
         // 测试依赖
+        testImplementation 'org.springframework.boot:spring-boot-starter-test'
         testImplementation "org.junit.jupiter:junit-jupiter"
+        testImplementation 'org.springframework.kafka:spring-kafka-test'
         testRuntimeOnly "org.junit.platform:junit-platform-launcher"
         testCompileOnly "org.projectlombok:lombok"
         testAnnotationProcessor "org.projectlombok:lombok"
+
+        // Spring Boot
+        implementation 'org.springframework.boot:spring-boot-starter'
+        implementation 'org.springframework.boot:spring-boot-starter-web'
+        implementation 'org.springframework.boot:spring-boot-starter-websocket'
+        implementation 'org.springframework.boot:spring-boot-starter-validation'
+        implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+        // Redis
+        implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+        implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+
+        // Kafka
+        implementation 'org.springframework.kafka:spring-kafka'
+        implementation 'org.apache.kafka:kafka-clients'
+
+        // JSON处理
+        implementation 'com.fasterxml.jackson.core:jackson-databind'
+        implementation 'com.fasterxml.jackson.core:jackson-core'
+        implementation 'com.fasterxml.jackson.core:jackson-annotations'
+        implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+        runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+        runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+
+        // 工具类
+        implementation 'org.apache.commons:commons-lang3:3.18.0'
+
+        // RPC框架 (Dubbo)
+        implementation 'org.apache.dubbo:dubbo-spring-boot-starter'
+        implementation 'org.apache.dubbo:dubbo-registry-nacos'
 
         // Dubbo核心依赖 - 版本由BOM管理
         implementation "org.apache.dubbo:dubbo-config-spring"
@@ -119,6 +151,9 @@ subprojects {
 
         // JSON处理 - 版本由dependencyManagement管理
         implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml"
+        implementation 'com.fasterxml.jackson.core:jackson-databind'
+        implementation 'com.fasterxml.jackson.core:jackson-core'
+        implementation 'com.fasterxml.jackson.core:jackson-annotations'
 
         // 日志框架 - 版本由dependencyManagement管理
         implementation "ch.qos.logback:logback-classic"
@@ -128,59 +163,6 @@ subprojects {
         // Lombok - 版本由dependencyManagement管理
         compileOnly "org.projectlombok:lombok"
         annotationProcessor "org.projectlombok:lombok"
-    }
-
-    tasks.register('apiJar', Jar) {
-        from(sourceSets.main.output) {
-            include 'com/cheeseocean/im/*/api/**'
-        }
-        archiveClassifier = 'api'
-    }
-
-    tasks.register('apiSourceJar', Jar) {
-        from(sourceSets.main.allSource) {
-            include 'com/cheeseocean/im/*/api/**'
-        }
-        archiveClassifier = 'api-sources'
-    }
-
-    publishing {
-        repositories {
-            maven {
-                name = "GitHubPackages"
-                url = uri("https://maven.pkg.github.com/cheeseocean/CheesePackages")
-                credentials {
-                    username = project.findProperty("gpr.user") ?: System.getenv("USERNAME")
-                    password = project.findProperty("gpr.key") ?: System.getenv("TOKEN")
-                }
-            }
-        }
-        publications {
-            gpr(MavenPublication) {
-                artifactId = "${project.name}-api"
-                version = System.getProperty("api.version") ?: project.findProperty("${project.name}.api.version")
-                artifact apiJar
-                artifact apiSourceJar
-                pom {
-                    name = "CheeseIM ${project.name} API Jar"
-                    description = "CheeseIM API dependencies"
-                    url = "http://github.com/cheeseocean/CheeseIM"
-                    licenses {
-                        license {
-                            name = "The Apache License, Version 2.0"
-                            url = "http://www.apache.org/licenses/LICENSE-2.0.txt"
-                        }
-                    }
-                    developers {
-                        developer {
-                            id = "xxxcrel"
-                            name = "xxxcrel"
-                            email = "xxxcrel@gmail.com"
-                        }
-                    }
-                }
-            }
-        }
     }
 
     test {

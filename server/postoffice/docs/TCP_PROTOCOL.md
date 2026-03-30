@@ -12,7 +12,7 @@ CheeseIM Postoffice 网关现在支持双协议模式：
 
 ```
 +--------+--------+--------+--------+--------+--------+--------+--------+
-| Magic  | Version| MsgType| Length |    OperationID (16 bytes)        |
+| Magic  | Version| CommandType| Length |    OperationID (16 bytes)        |
 +--------+--------+--------+--------+--------+--------+--------+--------+
 |                    Timestamp (8 bytes)                               |
 +--------+--------+--------+--------+--------+--------+--------+--------+
@@ -26,7 +26,7 @@ CheeseIM Postoffice 网关现在支持双协议模式：
 |------|------|------|------|
 | Magic | 2 bytes | short | 协议标识：0xCEEE，按大端序写入 |
 | Version | 1 byte | byte | 协议版本：0x01 |
-| MsgType | 1 byte | byte | 消息类型 |
+| CommnadType | 1 byte | byte | 消息类型 |
 | Length | 4 bytes | int | 数据长度，按大端序写入 |
 | OperationID | 16 bytes | string | UTF-8 编码后固定 16 字节；超长截断，不足补零，解码后 trim |
 | Timestamp | 8 bytes | long | 毫秒时间戳，按大端序写入 |
@@ -309,7 +309,7 @@ import (
 )
 
 type TcpMessage struct {
-    MsgType     byte
+    CommnadType     byte
     OperationID string
     Timestamp   int64
     Data        string
@@ -336,7 +336,7 @@ func main() {
 
     // 收到 CONNECT_SUCCESS 后再发送认证请求
     authReq := &TcpMessage{
-        MsgType:     10, // TCP_AUTH_REQ
+        CommnadType:     10, // TCP_AUTH_REQ
         OperationID: generateUUID(),
         Data:        "{\"token\":\"jwt-token\",\"userID\":\"user123\",\"platformID\":2}",
     }
@@ -429,7 +429,7 @@ class TcpClient {
 ```yaml
 logging:
   level:
-    com.cheeseocean.im.postoffice.server.CheeseServer: DEBUG
+    com.cheeseocean.im.postoffice.server.TcpServer: DEBUG
     com.cheeseocean.im.postoffice.codec: DEBUG
 ```
 

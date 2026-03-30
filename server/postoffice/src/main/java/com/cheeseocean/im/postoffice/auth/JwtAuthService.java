@@ -3,7 +3,7 @@ package com.cheeseocean.im.postoffice.auth;
 import com.cheeseocean.im.common.core.cache.MultiLevelCacheService;
 import com.cheeseocean.im.common.core.constants.MessageConstants;
 import com.cheeseocean.im.common.core.enums.PlatformType;
-import com.cheeseocean.im.postoffice.config.IMServerConfig;
+import com.cheeseocean.im.postoffice.config.ServerProperties;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
@@ -26,7 +26,7 @@ public class JwtAuthService implements AuthService {
     private static final Logger logger = CommonLoggers.POSTOFFICE;
 
     @Autowired
-    private IMServerConfig imServerConfig;
+    private ServerProperties serverProperties;
 
     private final MultiLevelCacheService cacheService;
     
@@ -41,7 +41,7 @@ public class JwtAuthService implements AuthService {
      */
     private SecretKey getSecretKey() {
         if (secretKey == null) {
-            secretKey = Keys.hmacShaKeyFor(imServerConfig.getSecurity().getJwtSecret().getBytes());
+            secretKey = Keys.hmacShaKeyFor(serverProperties.getSecurity().getJwtSecret().getBytes());
         }
         return secretKey;
     }
@@ -76,7 +76,7 @@ public class JwtAuthService implements AuthService {
             
             // 检查Redis中的Token状态
             String tokenKey = MessageConstants.REDIS_KEY_USER_TOKEN + userID + ":" + platformType.getCode();
-            String storedToken = cacheService.getOrLoad(tokenKey, String.class, Duration.ofMillis(imServerConfig.getSecurity().getTokenExpiration()), () -> null);
+            String storedToken = cacheService.getOrLoad(tokenKey, String.class, Duration.ofMillis(serverProperties.getSecurity().getTokenExpiration()), () -> null);
             
             if (storedToken == null) {
                 return AuthResult.failure("Token不存在或已失效");
@@ -87,7 +87,7 @@ public class JwtAuthService implements AuthService {
             }
             
             // 更新Token的有效期
-            cacheService.put(tokenKey, storedToken, Duration.ofMillis(imServerConfig.getSecurity().getTokenExpiration()));
+            cacheService.put(tokenKey, storedToken, Duration.ofMillis(serverProperties.getSecurity().getTokenExpiration()));
             
             logger.debug("Token validation success: userID={}, platform={}, platformID={}",
                     userID, platformType.getWireName(), platformType.getCode());
@@ -127,7 +127,7 @@ public class JwtAuthService implements AuthService {
                 throw new IllegalArgumentException("不支持的平台");
             }
             Date now = new Date();
-            Date expiration = new Date(now.getTime() + imServerConfig.getSecurity().getTokenExpiration());
+            Date expiration = new Date(now.getTime() + serverProperties.getSecurity().getTokenExpiration());
             
             String token = Jwts.builder()
                     .setSubject(userID)
@@ -139,7 +139,7 @@ public class JwtAuthService implements AuthService {
             
             // 将Token存储到Redis
             String tokenKey = MessageConstants.REDIS_KEY_USER_TOKEN + userID + ":" + platformType.getCode();
-            cacheService.put(tokenKey, token, Duration.ofMillis(imServerConfig.getSecurity().getTokenExpiration()));
+            cacheService.put(tokenKey, token, Duration.ofMillis(serverProperties.getSecurity().getTokenExpiration()));
             
             logger.info("Token generated: userID={}, platform={}, platformID={}, expiration={}",
                     userID, platformType.getWireName(), platformType.getCode(), expiration);
@@ -153,7 +153,7 @@ public class JwtAuthService implements AuthService {
     }
 
     public long getTokenExpirationMs() {
-        return imServerConfig.getSecurity().getTokenExpiration();
+        return serverProperties.getSecurity().getTokenExpiration();
     }
     
 }

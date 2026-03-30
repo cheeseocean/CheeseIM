@@ -2,17 +2,6 @@ dependencies {
     implementation project(':common-core')
     implementation project(':common-api')
     implementation project(':config')
-    implementation 'org.springframework.boot:spring-boot-starter'
-    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-    implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'org.springframework.boot:spring-boot-starter-actuator'
-
-    // Kafka
-    implementation 'org.springframework.kafka:spring-kafka'
-
-    // Dubbo
-    implementation 'org.apache.dubbo:dubbo-spring-boot-starter'
-    implementation 'org.apache.dubbo:dubbo-registry-nacos'
 
     // 极光推送依赖 - 升级版本
     implementation 'cn.jpush.api:jpush-client:3.4.10'
@@ -24,17 +13,7 @@ dependencies {
     // FCM推送依赖
     implementation 'com.google.firebase:firebase-admin:9.1.1'
 
-    // JSON处理 - 使用统一版本
-    implementation "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
-    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:${jacksonVersion}"
-
     // Micrometer for metrics
     implementation 'io.micrometer:micrometer-registry-prometheus'
 
-    // 验证框架
-    implementation 'org.springframework.boot:spring-boot-starter-validation'
-
-    // 测试依赖
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testImplementation 'org.springframework.kafka:spring-kafka-test'
 }

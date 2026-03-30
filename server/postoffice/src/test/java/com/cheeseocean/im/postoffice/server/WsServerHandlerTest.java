@@ -30,7 +30,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-class WebSocketServerHandlerTest {
+class WsServerHandlerTest {
 
     @Test
     void handshakeShouldRegisterPendingConnectionWithoutSendingUncorrelatedFrame() throws Exception {
@@ -42,7 +42,7 @@ class WebSocketServerHandlerTest {
         when(channel.remoteAddress()).thenReturn(new InetSocketAddress("127.0.0.1", 5147));
         when(connectionManager.registerPendingConnection(any(UserConnection.class))).thenReturn(true);
 
-        WebSocketServerHandler serverHandler = newHandler(connectionManager, mock(MessageHandlerFactory.class));
+        WsServerHandler serverHandler = newHandler(connectionManager, mock(MessageHandlerFactory.class));
 
         serverHandler.userEventTriggered(
                 ctx,
@@ -65,7 +65,7 @@ class WebSocketServerHandlerTest {
         when(channel.remoteAddress()).thenReturn(new InetSocketAddress("127.0.0.1", 5148));
         when(connectionManager.getConnectionByChannel(channel)).thenReturn(pendingConnection);
 
-        WebSocketServerHandler serverHandler = newHandler(connectionManager, factory);
+        WsServerHandler serverHandler = newHandler(connectionManager, factory);
 
         serverHandler.channelRead0(ctx, new TextWebSocketFrame(writeClientEnvelope(
                 CommandType.CONNECT,
@@ -102,7 +102,7 @@ class WebSocketServerHandlerTest {
         when(factory.getHandler(CommandType.CHAT_SEND)).thenReturn(handler);
         when(handler.handle(any(UserConnection.class), any(ClientEnvelope.class))).thenReturn(MessageHandler.HandleResult.success());
 
-        WebSocketServerHandler serverHandler = newHandler(connectionManager, factory);
+        WsServerHandler serverHandler = newHandler(connectionManager, factory);
 
         serverHandler.channelRead0(ctx, new TextWebSocketFrame(writeClientEnvelope(
                 CommandType.CHAT_SEND,
@@ -130,7 +130,7 @@ class WebSocketServerHandlerTest {
         when(ctx.channel()).thenReturn(channel);
         when(channel.remoteAddress()).thenReturn(new InetSocketAddress("127.0.0.1", 5148));
 
-        WebSocketServerHandler serverHandler = newHandler(connectionManager, factory);
+        WsServerHandler serverHandler = newHandler(connectionManager, factory);
 
         serverHandler.channelRead0(ctx, new TextWebSocketFrame(new ObjectMapper().writeValueAsString(Map.of(
                 "msgType", 6007,
@@ -181,9 +181,9 @@ class WebSocketServerHandlerTest {
         return connection;
     }
 
-    private static WebSocketServerHandler newHandler(ConnectionManager connectionManager,
-                                                     MessageHandlerFactory factory) {
-        WebSocketServerHandler serverHandler = new WebSocketServerHandler();
+    private static WsServerHandler newHandler(ConnectionManager connectionManager,
+                                              MessageHandlerFactory factory) {
+        WsServerHandler serverHandler = new WsServerHandler();
         ReflectionTestUtils.setField(serverHandler, "connectionManager", connectionManager);
         ReflectionTestUtils.setField(serverHandler, "messageHandlerFactory", factory);
         ReflectionTestUtils.setField(serverHandler, "objectMapper", new ObjectMapper());

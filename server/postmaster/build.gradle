@@ -3,16 +3,8 @@ dependencies {
     implementation project(':common-api')
     implementation project(':config')
 
-    // Spring Boot
-    implementation 'org.springframework.boot:spring-boot-starter'
-    implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    // Spring Data MongoDB
     implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
-    implementation 'org.springframework.boot:spring-boot-starter-validation'
-
-    // Kafka
-    implementation 'org.springframework.kafka:spring-kafka'
-    implementation 'org.apache.kafka:kafka-clients'
 
     // JSON处理
     implementation 'com.fasterxml.jackson.core:jackson-databind'
