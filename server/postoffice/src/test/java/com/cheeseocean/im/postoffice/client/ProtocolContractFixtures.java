@@ -1,10 +1,14 @@
 package com.cheeseocean.im.postoffice.client;
 
-import com.cheeseocean.im.postoffice.protocol.CheeseMessage;
-import com.cheeseocean.im.postoffice.protocol.CheeseMessageType;
-import com.cheeseocean.im.postoffice.protocol.WSMessage;
-import com.cheeseocean.im.postoffice.protocol.WSMessageType;
+import com.cheeseocean.im.common.api.dto.dispatch.DispatchPayload;
+import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
+import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
+import com.cheeseocean.im.common.core.enums.CommandType;
+import com.cheeseocean.im.common.core.util.ObjectMapperFactory;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -12,6 +16,21 @@ import java.util.Map;
  * Canonical protocol fixtures shared by TCP and WebSocket contract tests.
  */
 public final class ProtocolContractFixtures {
+
+    private static final ObjectMapper OBJECT_MAPPER = ObjectMapperFactory.createDefaultMapper();
+    public static final short TCP_MAGIC = (short) 0xCEEE;
+    public static final byte TCP_VERSION = 0x01;
+    public static final int TCP_HEADER_LENGTH = 32;
+    public static final byte TCP_CONNECT_SUCCESS = 2;
+    public static final byte TCP_AUTH_REQ = 10;
+    public static final byte TCP_AUTH_SUCCESS = 11;
+    public static final byte TCP_AUTH_FAILED = 12;
+    public static final byte TCP_HEARTBEAT_REQ = 20;
+    public static final byte TCP_HEARTBEAT_RESP = 21;
+    public static final byte TCP_SEND_MSG_REQ = 30;
+    public static final byte TCP_SEND_MSG_RESP = 31;
+    public static final byte TCP_RECV_MSG_NOTIFY = 32;
+    public static final byte TCP_MSG_READ_RECEIPT = 33;
 
     public static final String CONNECT_OPERATION_ID = "system";
     public static final String AUTH_OPERATION_ID = "op-auth-00000001";
@@ -56,32 +75,32 @@ public final class ProtocolContractFixtures {
                 + "\",\"content\":\"Hello World!\",\"contentType\":101,\"sessionType\":1,\"sendTime\":" + SEND_TIME + "}";
     }
 
-    public static CheeseMessage tcpAuthRequest() {
-        return new CheeseMessage(CheeseMessageType.TCP_AUTH_REQ, AUTH_OPERATION_ID, tcpAuthRequestJson());
+    public static byte[] tcpAuthRequestBytes() {
+        return tcpFrame(TCP_AUTH_REQ, AUTH_OPERATION_ID, tcpAuthRequestJson());
     }
 
-    public static CheeseMessage tcpConnectSuccessPush() {
-        return CheeseMessage.connectSuccess(CONNECT_OPERATION_ID);
+    public static byte[] tcpConnectSuccessBytes() {
+        return tcpFrame(TCP_CONNECT_SUCCESS, CONNECT_OPERATION_ID, CONNECT_SUCCESS_MESSAGE);
     }
 
-    public static CheeseMessage tcpAuthSuccessResponse() {
-        return CheeseMessage.authSuccess(AUTH_OPERATION_ID, USER_ID);
+    public static byte[] tcpAuthSuccessBytes() {
+        return tcpFrame(TCP_AUTH_SUCCESS, AUTH_OPERATION_ID, tcpAuthSuccessJson());
     }
 
-    public static CheeseMessage tcpAuthFailedResponse() {
-        return CheeseMessage.authFailed(AUTH_OPERATION_ID, AUTH_FAILED_REASON);
+    public static byte[] tcpAuthFailedBytes() {
+        return tcpFrame(TCP_AUTH_FAILED, AUTH_OPERATION_ID, AUTH_FAILED_REASON);
     }
 
-    public static CheeseMessage tcpSendRequest() {
-        return new CheeseMessage(CheeseMessageType.TCP_SEND_MSG_REQ, SEND_OPERATION_ID, tcpSendRequestJson());
+    public static byte[] tcpSendRequestBytes() {
+        return tcpFrame(TCP_SEND_MSG_REQ, SEND_OPERATION_ID, tcpSendRequestJson());
     }
 
-    public static CheeseMessage tcpSendResponseAck() {
-        return new CheeseMessage(CheeseMessageType.TCP_SEND_MSG_RESP, SEND_OPERATION_ID, tcpSendResponseJson());
+    public static byte[] tcpSendResponseAckBytes() {
+        return tcpFrame(TCP_SEND_MSG_RESP, SEND_OPERATION_ID, tcpSendResponseJson());
     }
 
-    public static CheeseMessage tcpInboundNotify() {
-        return new CheeseMessage(CheeseMessageType.TCP_RECV_MSG_NOTIFY, NOTIFY_OPERATION_ID, tcpRecvNotifyJson());
+    public static byte[] tcpInboundNotifyBytes() {
+        return tcpFrame(TCP_RECV_MSG_NOTIFY, NOTIFY_OPERATION_ID, tcpRecvNotifyJson());
     }
 
     public static Map<String, Object> wsAuthPayload() {
@@ -130,31 +149,115 @@ public final class ProtocolContractFixtures {
         return payload;
     }
 
-    public static WSMessage wsAuthRequest() {
-        return new WSMessage(WSMessageType.WS_AUTH_REQ, AUTH_OPERATION_ID, wsAuthPayload());
+    public static String wsAuthRequestJson() throws Exception {
+        return OBJECT_MAPPER.writeValueAsString(serializeEnvelope(clientEnvelope(CommandType.AUTH, AUTH_OPERATION_ID, wsAuthPayload())));
     }
 
-    public static WSMessage wsConnectSuccessPush() {
-        return WSMessage.connectSuccess(CONNECT_OPERATION_ID);
+    public static String wsConnectSuccessJson() throws Exception {
+        return OBJECT_MAPPER.writeValueAsString(serializeEnvelope(serverEnvelope(CommandType.CONNECT, CONNECT_OPERATION_ID, Map.of("message", CONNECT_SUCCESS_MESSAGE))));
     }
 
-    public static WSMessage wsAuthSuccessResponse() {
-        return WSMessage.authSuccess(AUTH_OPERATION_ID, USER_ID);
+    public static String wsAuthSuccessJson() throws Exception {
+        return OBJECT_MAPPER.writeValueAsString(serializeEnvelope(serverEnvelope(CommandType.AUTH, AUTH_OPERATION_ID, wsAuthSuccessPayload())));
     }
 
-    public static WSMessage wsAuthFailedResponse() {
-        return WSMessage.authFailed(AUTH_OPERATION_ID, AUTH_FAILED_REASON);
+    public static String wsAuthFailedJson() throws Exception {
+        return OBJECT_MAPPER.writeValueAsString(serializeEnvelope(serverEnvelope(CommandType.ERROR, AUTH_OPERATION_ID, Map.of("message", AUTH_FAILED_REASON))));
     }
 
-    public static WSMessage wsSendRequest() {
-        return new WSMessage(WSMessageType.WS_SEND_MSG_REQ, SEND_OPERATION_ID, wsSendPayload());
+    public static String wsSendRequestJson() throws Exception {
+        return OBJECT_MAPPER.writeValueAsString(serializeEnvelope(clientEnvelope(CommandType.CHAT_SEND, SEND_OPERATION_ID, wsSendPayload())));
     }
 
-    public static WSMessage wsSendResponseAck() {
-        return WSMessage.sendMsgResp(SEND_OPERATION_ID, SERVER_MSG_ID, CLIENT_MSG_ID, SEND_TIME);
+    public static String wsSendResponseAckJson() throws Exception {
+        return OBJECT_MAPPER.writeValueAsString(serializeEnvelope(serverEnvelope(CommandType.CHAT_SEND, SEND_OPERATION_ID, wsSendResponsePayload())));
     }
 
-    public static WSMessage wsRecvNotify() {
-        return WSMessage.recvMsgNotify(NOTIFY_OPERATION_ID, wsRecvNotifyPayload());
+    public static String wsRecvNotifyJson() throws Exception {
+        return OBJECT_MAPPER.writeValueAsString(serializeEnvelope(serverEnvelope(CommandType.CHAT_RECV, NOTIFY_OPERATION_ID, wsRecvNotifyPayload())));
+    }
+
+    public static RawTcpFrame decodeTcpFrame(byte[] bytes) {
+        if (bytes.length < TCP_HEADER_LENGTH) {
+            throw new IllegalArgumentException("Invalid message length: " + bytes.length);
+        }
+        ByteBuffer buffer = ByteBuffer.wrap(bytes);
+        short magic = buffer.getShort();
+        if (magic != TCP_MAGIC) {
+            throw new IllegalArgumentException("Invalid magic: " + magic);
+        }
+        byte version = buffer.get();
+        byte msgType = buffer.get();
+        int dataLength = buffer.getInt();
+        byte[] operationIdBytes = new byte[16];
+        buffer.get(operationIdBytes);
+        String requestId = new String(operationIdBytes, StandardCharsets.UTF_8).trim();
+        long timestamp = buffer.getLong();
+        byte[] dataBytes = new byte[dataLength];
+        buffer.get(dataBytes);
+        return new RawTcpFrame(version, msgType, requestId, timestamp, new String(dataBytes, StandardCharsets.UTF_8));
+    }
+
+    public static byte[] tcpFrameForTest(byte msgType, String requestId, String data) {
+        return tcpFrame(msgType, requestId, data);
+    }
+
+    public static ClientEnvelope clientEnvelope(CommandType command, String requestId, Object body) {
+        ClientEnvelope envelope = new ClientEnvelope();
+        envelope.setCommand(command);
+        envelope.setRequestId(requestId);
+        envelope.setBody(body);
+        return envelope;
+    }
+
+    public static ServerEnvelope serverEnvelope(CommandType command, String requestId, Object body) {
+        return ServerEnvelope.of(command, requestId, body);
+    }
+
+    public static DispatchPayload recvDispatchPayload() {
+        DispatchPayload payload = new DispatchPayload();
+        payload.setServerMsgId(SERVER_MSG_ID);
+        payload.setClientMsgId(CLIENT_MSG_ID);
+        payload.setContent("Hello World!");
+        payload.setContentType(101);
+        payload.setConversationId("single:userA:userB");
+        payload.setSeq(1L);
+        payload.setSendTime(SEND_TIME);
+        return payload;
+    }
+
+    private static byte[] tcpFrame(byte msgType, String requestId, String data) {
+        byte[] dataBytes = data == null ? new byte[0] : data.getBytes(StandardCharsets.UTF_8);
+        byte[] requestBytes = requestId == null ? new byte[0] : requestId.getBytes(StandardCharsets.UTF_8);
+        byte[] fixedRequestId = new byte[16];
+        System.arraycopy(requestBytes, 0, fixedRequestId, 0, Math.min(requestBytes.length, 16));
+        ByteBuffer buffer = ByteBuffer.allocate(TCP_HEADER_LENGTH + dataBytes.length);
+        buffer.putShort(TCP_MAGIC);
+        buffer.put(TCP_VERSION);
+        buffer.put(msgType);
+        buffer.putInt(dataBytes.length);
+        buffer.put(fixedRequestId);
+        buffer.putLong(SEND_TIME);
+        buffer.put(dataBytes);
+        return buffer.array();
+    }
+
+    private static Map<String, Object> serializeEnvelope(Object envelope) {
+        if (envelope instanceof ClientEnvelope clientEnvelope) {
+            return Map.of(
+                    "command", clientEnvelope.getCommand().getCode(),
+                    "requestId", clientEnvelope.getRequestId(),
+                    "body", clientEnvelope.getBody()
+            );
+        }
+        ServerEnvelope serverEnvelope = (ServerEnvelope) envelope;
+        return Map.of(
+                "command", serverEnvelope.getCommand().getCode(),
+                "requestId", serverEnvelope.getRequestId(),
+                "body", serverEnvelope.getBody()
+        );
+    }
+
+    public record RawTcpFrame(byte version, byte msgType, String requestId, long timestamp, String data) {
     }
 }

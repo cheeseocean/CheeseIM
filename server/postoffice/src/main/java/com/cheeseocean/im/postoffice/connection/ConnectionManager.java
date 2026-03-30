@@ -2,7 +2,6 @@ package com.cheeseocean.im.postoffice.connection;
 
 import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
-import com.cheeseocean.im.postoffice.protocol.CheeseMessage;
 import com.cheeseocean.im.postoffice.service.OnlineRouteService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.channel.Channel;
@@ -382,8 +381,7 @@ public class ConnectionManager {
             }
 
             if ("TCP".equalsIgnoreCase(connection.getProtocol())) {
-                CheeseMessage tcpMessage = CheeseMessage.fromServerEnvelope(envelope);
-                connection.getChannel().writeAndFlush(tcpMessage);
+                connection.getChannel().writeAndFlush(envelope);
             } else {
                 String messageJson = objectMapper.writeValueAsString(serializeEnvelope(envelope));
                 connection.getChannel().writeAndFlush(new TextWebSocketFrame(messageJson));

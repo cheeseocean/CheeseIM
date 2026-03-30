@@ -2,6 +2,7 @@ package com.cheeseocean.im.postoffice.handler;
 
 import com.cheeseocean.im.common.api.dto.message.ChatSendRequest;
 import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
+import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.common.core.auth.SessionPrincipal;
 import com.cheeseocean.im.common.core.enums.CommandType;
 import com.cheeseocean.im.common.core.enums.ConnectionState;
@@ -51,7 +52,8 @@ class MessageHandlerContractTest {
         ));
 
         assertTrue(result.isSuccess());
-        assertNotNull(result.getResponseMessage());
+        assertNotNull(result.getResponseEnvelope());
+        assertEquals(CommandType.AUTH, result.getResponseEnvelope().getCommand());
         verify(authService).authenticate("ticket-1");
         verify(bindService).bindAuthenticated(any(UserConnection.class), any(SessionPrincipal.class));
     }
@@ -71,7 +73,8 @@ class MessageHandlerContractTest {
         ));
 
         assertTrue(result.isSuccess());
-        assertNotNull(result.getResponseMessage());
+        assertNotNull(result.getResponseEnvelope());
+        assertEquals(CommandType.HEARTBEAT, result.getResponseEnvelope().getCommand());
     }
 
     @Test
@@ -87,7 +90,7 @@ class MessageHandlerContractTest {
         });
 
         ChatMessageHandler handler = new ChatMessageHandler();
-        ReflectionTestUtils.setField(handler, "messageSendRpc", messageSender);
+        ReflectionTestUtils.setField(handler, "messageSender", messageSender);
         ReflectionTestUtils.setField(handler, "objectMapper", new ObjectMapper());
         ReflectionTestUtils.setField(handler, "messageSendReqMapper", new MessageSendReqMapper());
         ReflectionTestUtils.setField(handler, "connectionSessionGuard", guard);
@@ -99,7 +102,9 @@ class MessageHandlerContractTest {
         ));
 
         assertTrue(result.isSuccess());
-        assertNotNull(result.getResponseMessage());
+        ServerEnvelope responseEnvelope = result.getResponseEnvelope();
+        assertNotNull(responseEnvelope);
+        assertEquals(CommandType.CHAT_SEND, responseEnvelope.getCommand());
         ArgumentCaptor<SendMessageReq> reqCaptor = ArgumentCaptor.forClass(SendMessageReq.class);
         verify(messageSender).sendMessage(reqCaptor.capture());
         assertEquals("op-chat-1", reqCaptor.getValue().getRequestId());

@@ -1,9 +1,9 @@
 package com.cheeseocean.im.postoffice.handler;
 
 import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
+import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.common.core.enums.CommandType;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
-import com.cheeseocean.im.postoffice.protocol.WSMessage;
 
 /**
  * 消息处理器接口
@@ -35,7 +35,7 @@ public interface MessageHandler {
     class HandleResult {
         private boolean success;
         private String errorMessage;
-        private WSMessage responseMessage;
+        private ServerEnvelope responseEnvelope;
         private boolean shouldClose;
         
         public HandleResult() {}
@@ -53,9 +53,9 @@ public interface MessageHandler {
             return new HandleResult(true);
         }
         
-        public static HandleResult success(WSMessage responseMessage) {
+        public static HandleResult success(ServerEnvelope responseEnvelope) {
             HandleResult result = new HandleResult(true);
-            result.setResponseMessage(responseMessage);
+            result.setResponseEnvelope(responseEnvelope);
             return result;
         }
         
@@ -63,14 +63,14 @@ public interface MessageHandler {
             return new HandleResult(false, errorMessage);
         }
         
-        public static HandleResult failure(String errorMessage, WSMessage responseMessage) {
+        public static HandleResult failure(String errorMessage, ServerEnvelope responseEnvelope) {
             HandleResult result = new HandleResult(false, errorMessage);
-            result.setResponseMessage(responseMessage);
+            result.setResponseEnvelope(responseEnvelope);
             return result;
         }
-        
-        public static HandleResult failureAndClose(String errorMessage, WSMessage responseMessage) {
-            HandleResult result = failure(errorMessage, responseMessage);
+
+        public static HandleResult failureAndClose(String errorMessage, ServerEnvelope responseEnvelope) {
+            HandleResult result = failure(errorMessage, responseEnvelope);
             result.setShouldClose(true);
             return result;
         }
@@ -92,12 +92,12 @@ public interface MessageHandler {
             this.errorMessage = errorMessage;
         }
         
-        public WSMessage getResponseMessage() {
-            return responseMessage;
+        public ServerEnvelope getResponseEnvelope() {
+            return responseEnvelope;
         }
-        
-        public void setResponseMessage(WSMessage responseMessage) {
-            this.responseMessage = responseMessage;
+
+        public void setResponseEnvelope(ServerEnvelope responseEnvelope) {
+            this.responseEnvelope = responseEnvelope;
         }
         
         public boolean isShouldClose() {
@@ -117,7 +117,7 @@ public interface MessageHandler {
             return "HandleResult{" +
                     "success=" + success +
                     ", errorMessage='" + errorMessage + '\'' +
-                    ", responseMessage=" + responseMessage +
+                    ", responseEnvelope=" + responseEnvelope +
                     ", shouldClose=" + shouldClose +
                     '}';
         }

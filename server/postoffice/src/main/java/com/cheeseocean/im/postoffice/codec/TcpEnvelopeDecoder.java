@@ -1,6 +1,6 @@
 package com.cheeseocean.im.postoffice.codec;
 
-import com.cheeseocean.im.postoffice.protocol.CheeseMessage;
+import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
@@ -11,7 +11,7 @@ import java.util.List;
 
 /**
  * TCP消息解码器
- * 负责将字节流解码为TcpMessage对象
+ * 负责将字节流解码为客户端统一消息包
  * 
  * 协议格式：
  * +--------+--------+--------+--------+--------+--------+--------+--------+
@@ -24,7 +24,7 @@ import java.util.List;
  * 
  * @author xxxcrel
  */
-public class CheeseMessageDecoder extends ByteToMessageDecoder {
+public class TcpEnvelopeDecoder extends ByteToMessageDecoder {
     
     private static final Logger logger = CommonLoggers.POSTOFFICE;
     
@@ -32,7 +32,7 @@ public class CheeseMessageDecoder extends ByteToMessageDecoder {
     protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
         try {
             // 检查是否有足够的字节读取头部
-            if (in.readableBytes() < CheeseMessage.HEADER_LENGTH) {
+            if (in.readableBytes() < TcpEnvelopeCodecSupport.HEADER_LENGTH) {
                 return; // 等待更多数据
             }
             
@@ -41,10 +41,10 @@ public class CheeseMessageDecoder extends ByteToMessageDecoder {
             
             // 读取Magic
             short magic = in.readShort();
-            if (magic != CheeseMessage.MAGIC) {
+            if (magic != TcpEnvelopeCodecSupport.MAGIC) {
                 logger.warn("Invalid magic number: 0x{}, expected: 0x{}", 
                            Integer.toHexString(magic & 0xFFFF), 
-                           Integer.toHexString(CheeseMessage.MAGIC & 0xFFFF));
+                           Integer.toHexString(TcpEnvelopeCodecSupport.MAGIC & 0xFFFF));
                 
                 // 重置读取位置并跳过一个字节，继续寻找有效的Magic
                 in.resetReaderIndex();
@@ -54,9 +54,9 @@ public class CheeseMessageDecoder extends ByteToMessageDecoder {
             
             // 读取Version
             byte version = in.readByte();
-            if (version != CheeseMessage.VERSION) {
+            if (version != TcpEnvelopeCodecSupport.VERSION) {
                 logger.warn("Unsupported protocol version: {}, expected: {}", 
-                           version, CheeseMessage.VERSION);
+                           version, TcpEnvelopeCodecSupport.VERSION);
                 in.resetReaderIndex();
                 in.readByte();
                 return;
@@ -69,16 +69,16 @@ public class CheeseMessageDecoder extends ByteToMessageDecoder {
             int dataLength = in.readInt();
             
             // 验证数据长度
-            if (dataLength < 0 || dataLength > CheeseMessage.MAX_DATA_LENGTH) {
+            if (dataLength < 0 || dataLength > TcpEnvelopeCodecSupport.MAX_DATA_LENGTH) {
                 logger.warn("Invalid data length: {}, max allowed: {}", 
-                           dataLength, CheeseMessage.MAX_DATA_LENGTH);
+                           dataLength, TcpEnvelopeCodecSupport.MAX_DATA_LENGTH);
                 in.resetReaderIndex();
                 in.readByte();
                 return;
             }
             
             // 检查是否有足够的字节读取完整消息
-            int totalLength = CheeseMessage.HEADER_LENGTH + dataLength;
+            int totalLength = TcpEnvelopeCodecSupport.HEADER_LENGTH + dataLength;
             if (in.readableBytes() < totalLength - 8) { // 已经读取了8字节头部
                 in.resetReaderIndex();
                 return; // 等待更多数据
@@ -100,20 +100,12 @@ public class CheeseMessageDecoder extends ByteToMessageDecoder {
                 data = new String(dataBytes, "UTF-8");
             }
             
-            // 创建TcpMessage对象
-            CheeseMessage message = new CheeseMessage();
-            message.setVersion(version);
-            message.setMsgType(msgType);
-            message.setDataLength(dataLength);
-            message.setOperationID(operationID);
-            message.setTimestamp(timestamp);
-            message.setData(data);
-            
             // 添加到输出列表
-            out.add(message);
+            ClientEnvelope envelope = TcpEnvelopeCodecSupport.decode(msgType, operationID, data);
+            out.add(envelope);
             
-            logger.debug("Decoded TCP message: msgType={}, operationID={}, dataLength={}", 
-                        msgType, operationID, dataLength);
+            logger.debug("Decoded TCP message: msgType={}, operationID={}, command={}",
+                    msgType, operationID, envelope.getCommand());
             
         } catch (Exception e) {
             logger.error("Failed to decode TCP message from {}", ctx.channel().remoteAddress(), e);

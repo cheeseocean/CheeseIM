@@ -1,13 +1,13 @@
 package com.cheeseocean.im.postoffice.server;
 
 import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
+import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.common.core.enums.CommandType;
 import com.cheeseocean.im.postoffice.connection.ConnectionManager;
 import com.cheeseocean.im.postoffice.connection.ConnectionContext;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.postoffice.handler.MessageHandler;
 import com.cheeseocean.im.postoffice.handler.MessageHandlerFactory;
-import com.cheeseocean.im.postoffice.protocol.CheeseMessage;
 import com.cheeseocean.im.postoffice.client.ProtocolContractFixtures;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
@@ -19,10 +19,12 @@ import org.springframework.test.util.ReflectionTestUtils;
 import com.cheeseocean.im.common.core.enums.ConnectionState;
 
 import java.net.InetSocketAddress;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -73,17 +75,28 @@ class CheeseServerHandlerTest {
         when(connectionManager.getConnectionByChannel(channel)).thenReturn(authenticatedConnection());
         when(messageHandlerFactory.getHandler(CommandType.CHAT_SEND)).thenReturn(handler);
         when(handler.handle(any(UserConnection.class), any(ClientEnvelope.class)))
-                .thenReturn(MessageHandler.HandleResult.success());
+                .thenReturn(MessageHandler.HandleResult.success(chatSendAck()));
 
         CheeseServerHandler handlerUnderTest = new CheeseServerHandler();
         ReflectionTestUtils.setField(handlerUnderTest, "connectionManager", connectionManager);
         ReflectionTestUtils.setField(handlerUnderTest, "messageHandlerFactory", messageHandlerFactory);
 
-        CheeseMessage message = ProtocolContractFixtures.tcpSendRequest();
-        handlerUnderTest.channelRead0(ctx, message);
+        handlerUnderTest.channelRead0(ctx, ProtocolContractFixtures.clientEnvelope(
+                CommandType.CHAT_SEND,
+                "op-send-00000001",
+                Map.of(
+                        "clientMsgID", "client-123",
+                        "recvID", "receiver123",
+                        "content", "Hello World!",
+                        "contentType", 101,
+                        "sessionType", 1
+                )));
 
         verify(messageHandlerFactory).getHandler(CommandType.CHAT_SEND);
         verify(handler).handle(any(UserConnection.class), any(ClientEnvelope.class));
+        verify(ctx).writeAndFlush(argThat(outbound ->
+                outbound instanceof ServerEnvelope
+                        && ((ServerEnvelope) outbound).getCommand() == CommandType.CHAT_SEND));
     }
 
     @Test
@@ -102,12 +115,11 @@ class CheeseServerHandlerTest {
         ReflectionTestUtils.setField(handlerUnderTest, "connectionManager", connectionManager);
         ReflectionTestUtils.setField(handlerUnderTest, "messageHandlerFactory", messageHandlerFactory);
 
-        CheeseMessage message = new CheeseMessage(
-                com.cheeseocean.im.postoffice.protocol.CheeseMessageType.TCP_MSG_READ_RECEIPT,
+        handlerUnderTest.channelRead0(ctx, ProtocolContractFixtures.clientEnvelope(
+                null,
                 "op-read-1",
                 "{\"receiptType\":\"READ_CURSOR\",\"conversationId\":\"single:userA:userB\",\"seq\":19}"
-        );
-        handlerUnderTest.channelRead0(ctx, message);
+        ));
 
         verify(messageHandlerFactory).getHandler(null);
         verify(messageHandlerFactory, never()).getHandler(CommandType.CHAT_SEND);
@@ -127,5 +139,13 @@ class CheeseServerHandlerTest {
         context.setState(ConnectionState.AUTHENTICATED);
         connection.setContext(context);
         return connection;
+    }
+
+    private static ServerEnvelope chatSendAck() {
+        ServerEnvelope envelope = new ServerEnvelope();
+        envelope.setCommand(CommandType.CHAT_SEND);
+        envelope.setRequestId("op-send-1");
+        envelope.setBody(Map.of("serverMsgID", "server-1"));
+        return envelope;
     }
 }

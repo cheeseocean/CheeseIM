@@ -6,11 +6,11 @@ import com.cheeseocean.im.common.api.dto.message.SendMessageReq;
 import com.cheeseocean.im.common.api.dto.message.SendMessageResp;
 import com.cheeseocean.im.common.api.rpc.MessageSender;
 import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
+import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.common.core.enums.CommandType;
 import com.cheeseocean.im.postoffice.auth.ConnectionSessionGuard;
 import com.cheeseocean.im.postoffice.connection.ConnectionContext;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
-import com.cheeseocean.im.postoffice.protocol.WSMessage;
 import com.cheeseocean.im.postoffice.service.MessageSendReqMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -52,13 +52,13 @@ public class ChatMessageHandler implements MessageHandler {
             
             // 检查用户是否已认证
             if (!connection.isAuthenticated()) {
-                WSMessage errorResp = WSMessage.permissionError(operationID, "用户未认证，无法发送消息");
+                ServerEnvelope errorResp = ServerEnvelope.error(operationID, 403, "用户未认证，无法发送消息");
                 return HandleResult.failure("用户未认证", errorResp);
             }
 
             ConnectionContext context = connection.getContext();
             if (context == null || !context.isAuthenticated()) {
-                WSMessage errorResp = WSMessage.permissionError(operationID, "连接上下文无效");
+                ServerEnvelope errorResp = ServerEnvelope.error(operationID, 403, "连接上下文无效");
                 return HandleResult.failure("连接上下文无效", errorResp);
             }
 
@@ -66,14 +66,14 @@ public class ChatMessageHandler implements MessageHandler {
             
             // 检查消息数据
             if (envelope.getBody() == null) {
-                WSMessage errorResp = WSMessage.paramError(operationID, "消息数据不能为空");
+                ServerEnvelope errorResp = ServerEnvelope.error(operationID, 400, "消息数据不能为空");
                 return HandleResult.failure("消息数据不能为空", errorResp);
             }
             
             // 解析消息数据
             ChatSendRequest request = parseChatSendRequest(envelope.getBody());
             if (request == null) {
-                WSMessage errorResp = WSMessage.paramError(operationID, "消息数据格式错误");
+                ServerEnvelope errorResp = ServerEnvelope.error(operationID, 400, "消息数据格式错误");
                 return HandleResult.failure("消息数据格式错误", errorResp);
             }
 
@@ -82,7 +82,7 @@ public class ChatMessageHandler implements MessageHandler {
             // 验证消息参数
             String validationError = validateMessage(msgData, connection);
             if (validationError != null) {
-                WSMessage errorResp = WSMessage.paramError(operationID, validationError);
+                ServerEnvelope errorResp = ServerEnvelope.error(operationID, 400, validationError);
                 return HandleResult.failure(validationError, errorResp);
             }
             
@@ -101,9 +101,7 @@ public class ChatMessageHandler implements MessageHandler {
                 logger.warn("Message send failed: userID={}, clientMsgID={}",
                            connection.getUserID(), msgData.getClientMsgID());
 
-                WSMessage errorResp = WSMessage.errorResp(operationID,
-                                                         1004,
-                                                         "消息发送失败");
+                ServerEnvelope errorResp = ServerEnvelope.error(operationID, 1004, "消息发送失败");
                 return HandleResult.failure("消息发送失败", errorResp);
             }
             
@@ -111,22 +109,22 @@ public class ChatMessageHandler implements MessageHandler {
                        context.getUserId(), msgData.getClientMsgID(), deliveryResult.getServerMsgId());
             
             // 创建发送消息响应
-            WSMessage sendMsgRespMsg = WSMessage.sendMsgResp(operationID, 
-                                                            deliveryResult.getServerMsgId(),
-                                                            msgData.getClientMsgID(),
-                                                            System.currentTimeMillis(),
-                                                            null);
+            ServerEnvelope sendMsgRespMsg = ServerEnvelope.chatSend(operationID, Map.of(
+                    "serverMsgID", deliveryResult.getServerMsgId(),
+                    "clientMsgID", msgData.getClientMsgID(),
+                    "sendTime", System.currentTimeMillis()
+            ));
             
             return HandleResult.success(sendMsgRespMsg);
             
         } catch (IllegalStateException e) {
-            WSMessage errorResp = WSMessage.permissionError(envelope.getRequestId(), e.getMessage());
+            ServerEnvelope errorResp = ServerEnvelope.error(envelope.getRequestId(), 403, e.getMessage());
             return HandleResult.failureAndClose(e.getMessage(), errorResp);
         } catch (Exception e) {
             logger.error("Failed to handle chat message: userID={}, connectionID={}", 
                         connection.getUserID(), connection.getConnectionID(), e);
             
-            WSMessage errorResp = WSMessage.internalError(envelope.getRequestId(), "消息处理失败");
+            ServerEnvelope errorResp = ServerEnvelope.error(envelope.getRequestId(), 500, "消息处理失败");
             return HandleResult.failure("消息处理失败", errorResp);
         }
     }

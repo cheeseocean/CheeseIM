@@ -1,12 +1,12 @@
 package com.cheeseocean.im.postoffice.handler;
 
 import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
+import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.common.core.auth.SessionPrincipal;
 import com.cheeseocean.im.common.core.enums.CommandType;
 import com.cheeseocean.im.postoffice.auth.WsTicketAuthService;
 import com.cheeseocean.im.postoffice.connection.ConnectionBindService;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
-import com.cheeseocean.im.postoffice.protocol.WSMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
@@ -42,14 +42,14 @@ public class AuthMessageHandler implements MessageHandler {
             
             // 检查消息数据
             if (envelope.getBody() == null) {
-                WSMessage errorResp = WSMessage.authFailed(operationID, "认证数据不能为空");
+                ServerEnvelope errorResp = ServerEnvelope.error(operationID, 400, "认证数据不能为空");
                 return HandleResult.failure("认证数据不能为空", errorResp);
             }
             
             // 解析认证数据
             Map<String, Object> authData = parseAuthData(envelope.getBody());
             if (authData == null) {
-                WSMessage errorResp = WSMessage.authFailed(operationID, "认证数据格式错误");
+                ServerEnvelope errorResp = ServerEnvelope.error(operationID, 400, "认证数据格式错误");
                 return HandleResult.failure("认证数据格式错误", errorResp);
             }
             
@@ -57,7 +57,7 @@ public class AuthMessageHandler implements MessageHandler {
             
             // 参数验证
             if (ticket == null || ticket.trim().isEmpty()) {
-                WSMessage errorResp = WSMessage.authFailed(operationID, "ticket不能为空");
+                ServerEnvelope errorResp = ServerEnvelope.error(operationID, 400, "ticket不能为空");
                 return HandleResult.failure("ticket不能为空", errorResp);
             }
             
@@ -67,7 +67,7 @@ public class AuthMessageHandler implements MessageHandler {
             if (!added) {
                 logger.warn("Failed to bind connection to manager: userID={}, connectionID={}",
                            session.getUserId(), connection.getConnectionID());
-                WSMessage errorResp = WSMessage.authFailed(operationID, "连接添加失败");
+                ServerEnvelope errorResp = ServerEnvelope.error(operationID, 500, "连接添加失败");
                 return HandleResult.failureAndClose("连接添加失败", errorResp);
             }
 
@@ -75,7 +75,8 @@ public class AuthMessageHandler implements MessageHandler {
                     session.getUserId(), session.getSessionId(), session.getDeviceId(), connection.getConnectionID());
 
             // 发送认证成功响应
-            WSMessage successResp = WSMessage.authSuccess(operationID, session.getUserId());
+            ServerEnvelope successResp = ServerEnvelope.auth(operationID,
+                    Map.of("userID", session.getUserId(), "message", "认证成功"));
 
             // 发送用户上线通知给其他连接
             notifyUserOnline(connection);
@@ -85,13 +86,13 @@ public class AuthMessageHandler implements MessageHandler {
         } catch (IllegalStateException e) {
             logger.warn("Authentication failed: connectionID={}, reason={}",
                     connection.getConnectionID(), e.getMessage());
-            WSMessage errorResp = WSMessage.authFailed(envelope.getRequestId(), e.getMessage());
+            ServerEnvelope errorResp = ServerEnvelope.error(envelope.getRequestId(), 401, e.getMessage());
             return HandleResult.failureAndClose("认证失败: " + e.getMessage(), errorResp);
         } catch (Exception e) {
             logger.error("Failed to handle auth message: connectionID={}", 
                         connection.getConnectionID(), e);
             
-            WSMessage errorResp = WSMessage.internalError(envelope.getRequestId(), "服务器内部错误");
+            ServerEnvelope errorResp = ServerEnvelope.error(envelope.getRequestId(), 500, "服务器内部错误");
             return HandleResult.failureAndClose("处理认证消息失败", errorResp);
         }
     }
@@ -129,10 +130,7 @@ public class AuthMessageHandler implements MessageHandler {
         try {
             String userID = connection.getUserID();
             Integer platformID = connection.getPlatformID();
-            
-            // 创建用户上线通知消息
-            WSMessage onlineNotify = WSMessage.userOnlineNotify("system", userID, platformID);
-            
+
             // 可以在这里添加通知好友上线的逻辑
             // 例如：获取用户的好友列表，然后向在线的好友发送上线通知
             

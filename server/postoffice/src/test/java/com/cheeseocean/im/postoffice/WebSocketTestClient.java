@@ -1,8 +1,8 @@
 package com.cheeseocean.im.postoffice;
 
+import com.cheeseocean.im.common.core.enums.CommandType;
 import com.cheeseocean.im.postoffice.client.ProtocolContractFixtures;
-import com.cheeseocean.im.postoffice.protocol.WSMessage;
-import com.cheeseocean.im.postoffice.protocol.WSMessageType;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
@@ -29,61 +29,59 @@ public class WebSocketTestClient {
 
     @Test
     void shouldSerializeCanonicalConnectSuccessPush() throws Exception {
-        WSMessage success = ProtocolContractFixtures.wsConnectSuccessPush();
-        String successJson = objectMapper.writeValueAsString(success);
+        String successJson = ProtocolContractFixtures.wsConnectSuccessJson();
+        Map<String, Object> envelope = objectMapper.readValue(successJson, new TypeReference<Map<String, Object>>() {});
 
-        assertTrue(successJson.contains("\"msgType\":1002"));
-        assertTrue(successJson.contains("\"operationID\":\"system\""));
-        assertTrue(successJson.contains(ProtocolContractFixtures.CONNECT_SUCCESS_MESSAGE));
+        assertEquals(CommandType.CONNECT.getCode(), Integer.parseInt(String.valueOf(envelope.get("command"))));
+        assertEquals("system", envelope.get("requestId"));
+        assertEquals(ProtocolContractFixtures.CONNECT_SUCCESS_MESSAGE, ((Map<?, ?>) envelope.get("body")).get("message"));
     }
 
     @Test
     void shouldSerializeCanonicalAuthRequestAndResponses() throws Exception {
-        WSMessage authRequest = ProtocolContractFixtures.wsAuthRequest();
-        WSMessage authSuccess = ProtocolContractFixtures.wsAuthSuccessResponse();
-        WSMessage authFailed = ProtocolContractFixtures.wsAuthFailedResponse();
+        String requestJson = ProtocolContractFixtures.wsAuthRequestJson();
+        String successJson = ProtocolContractFixtures.wsAuthSuccessJson();
+        String failedJson = ProtocolContractFixtures.wsAuthFailedJson();
+        Map<String, Object> requestEnvelope = objectMapper.readValue(requestJson, new TypeReference<Map<String, Object>>() {});
+        Map<String, Object> successEnvelope = objectMapper.readValue(successJson, new TypeReference<Map<String, Object>>() {});
+        Map<String, Object> failedEnvelope = objectMapper.readValue(failedJson, new TypeReference<Map<String, Object>>() {});
 
-        String requestJson = objectMapper.writeValueAsString(authRequest);
-        String successJson = objectMapper.writeValueAsString(authSuccess);
-        String failedJson = objectMapper.writeValueAsString(authFailed);
-
-        assertTrue(requestJson.contains("\"msgType\":1101"));
-        assertTrue(requestJson.contains("\"token\":\"" + ProtocolContractFixtures.TOKEN + "\""));
+        assertEquals(CommandType.AUTH.getCode(), Integer.parseInt(String.valueOf(requestEnvelope.get("command"))));
+        assertEquals(ProtocolContractFixtures.TOKEN, ((Map<?, ?>) requestEnvelope.get("body")).get("token"));
         assertEquals(
                 objectMapper.readTree(objectMapper.writeValueAsString(ProtocolContractFixtures.wsAuthSuccessPayload())),
-                objectMapper.readTree(objectMapper.writeValueAsString(authSuccess.getData()))
+                objectMapper.readTree(objectMapper.writeValueAsString(successEnvelope.get("body")))
         );
-        assertTrue(successJson.contains("\"msgType\":1102"));
-        assertTrue(failedJson.contains("\"msgType\":1103"));
-        assertTrue(failedJson.contains(ProtocolContractFixtures.AUTH_FAILED_REASON));
+        assertEquals(CommandType.AUTH.getCode(), Integer.parseInt(String.valueOf(successEnvelope.get("command"))));
+        assertEquals(CommandType.ERROR.getCode(), Integer.parseInt(String.valueOf(failedEnvelope.get("command"))));
+        assertEquals(ProtocolContractFixtures.AUTH_FAILED_REASON, ((Map<?, ?>) failedEnvelope.get("body")).get("message"));
     }
 
     @Test
     void shouldSerializeCanonicalSendRequestAndAck() throws Exception {
-        WSMessage sendRequest = ProtocolContractFixtures.wsSendRequest();
-        WSMessage sendResponse = ProtocolContractFixtures.wsSendResponseAck();
+        String requestJson = ProtocolContractFixtures.wsSendRequestJson();
+        String responseJson = ProtocolContractFixtures.wsSendResponseAckJson();
+        Map<String, Object> requestEnvelope = objectMapper.readValue(requestJson, new TypeReference<Map<String, Object>>() {});
+        Map<String, Object> responseEnvelope = objectMapper.readValue(responseJson, new TypeReference<Map<String, Object>>() {});
 
-        String requestJson = objectMapper.writeValueAsString(sendRequest);
-        String responseJson = objectMapper.writeValueAsString(sendResponse);
-
-        assertTrue(requestJson.contains("\"msgType\":2001"));
-        assertTrue(requestJson.contains("\"clientMsgID\":\"" + ProtocolContractFixtures.CLIENT_MSG_ID + "\""));
+        assertEquals(CommandType.CHAT_SEND.getCode(), Integer.parseInt(String.valueOf(requestEnvelope.get("command"))));
+        assertEquals(ProtocolContractFixtures.CLIENT_MSG_ID, ((Map<?, ?>) requestEnvelope.get("body")).get("clientMsgID"));
         assertEquals(
                 objectMapper.readTree(objectMapper.writeValueAsString(ProtocolContractFixtures.wsSendResponsePayload())),
-                objectMapper.readTree(objectMapper.writeValueAsString(sendResponse.getData()))
+                objectMapper.readTree(objectMapper.writeValueAsString(responseEnvelope.get("body")))
         );
-        assertTrue(responseJson.contains("\"msgType\":2002"));
+        assertEquals(CommandType.CHAT_SEND.getCode(), Integer.parseInt(String.valueOf(responseEnvelope.get("command"))));
     }
 
     @Test
     void shouldSerializeCanonicalInboundNotify() throws Exception {
-        WSMessage notify = ProtocolContractFixtures.wsRecvNotify();
-        String json = objectMapper.writeValueAsString(notify);
+        String json = ProtocolContractFixtures.wsRecvNotifyJson();
+        Map<String, Object> envelope = objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
 
-        assertTrue(json.contains("\"msgType\":2003"));
+        assertEquals(CommandType.CHAT_RECV.getCode(), Integer.parseInt(String.valueOf(envelope.get("command"))));
         assertEquals(
                 objectMapper.readTree(objectMapper.writeValueAsString(ProtocolContractFixtures.wsRecvNotifyPayload())),
-                objectMapper.readTree(objectMapper.writeValueAsString(notify.getData()))
+                objectMapper.readTree(objectMapper.writeValueAsString(envelope.get("body")))
         );
     }
 
@@ -104,8 +102,8 @@ public class WebSocketTestClient {
                 public void onMessage(String message) {
                     System.out.println("Received: " + message);
                     try {
-                        WSMessage wsMessage = objectMapper.readValue(message, WSMessage.class);
-                        handleServerMessage(wsMessage);
+                        Map<String, Object> envelope = objectMapper.readValue(message, new TypeReference<Map<String, Object>>() {});
+                        handleServerMessage(envelope);
                     } catch (Exception e) {
                         System.err.println("Failed to parse message: " + e.getMessage());
                     }
@@ -205,12 +203,12 @@ public class WebSocketTestClient {
         authData.put("userID", userID);
         authData.put("platformID", platformID);
 
-        sendMessage(new WSMessage(WSMessageType.WS_AUTH_REQ, generateOperationID(), authData));
+        sendEnvelope(CommandType.AUTH, generateOperationID(), authData);
         System.out.println("Authentication request sent: userID=" + userID + ", platformID=" + platformID);
     }
 
     private static void sendHeartbeat() throws Exception {
-        sendMessage(new WSMessage(WSMessageType.WS_HEARTBEAT_REQ, generateOperationID(), "ping"));
+        sendEnvelope(CommandType.HEARTBEAT, generateOperationID(), "ping");
         System.out.println("Heartbeat sent");
     }
 
@@ -222,42 +220,33 @@ public class WebSocketTestClient {
         msgData.put("contentType", 101);
         msgData.put("sessionType", 1);
 
-        sendMessage(new WSMessage(WSMessageType.WS_SEND_MSG_REQ, generateOperationID(), msgData));
+        sendEnvelope(CommandType.CHAT_SEND, generateOperationID(), msgData);
         System.out.println("Chat message sent to " + recvID + ": " + content);
     }
 
-    private static void sendMessage(WSMessage message) throws Exception {
-        client.send(objectMapper.writeValueAsString(message));
+    private static void sendEnvelope(CommandType command, String requestId, Object body) throws Exception {
+        client.send(objectMapper.writeValueAsString(ProtocolContractFixtures.clientEnvelope(command, requestId, body)));
     }
 
-    private static void handleServerMessage(WSMessage message) {
-        int msgType = message.getMsgType();
+    private static void handleServerMessage(Map<String, Object> message) {
+        Number command = (Number) message.get("command");
+        Object body = message.get("body");
+        int commandCode = command == null ? -1 : command.intValue();
 
-        switch (msgType) {
-            case WSMessageType.WS_CONNECT_SUCCESS:
+        if (commandCode == CommandType.CONNECT.getCode()) {
                 System.out.println("Connection established successfully");
-                break;
-            case WSMessageType.WS_AUTH_SUCCESS:
+        } else if (commandCode == CommandType.AUTH.getCode()) {
                 System.out.println("Authentication successful");
-                break;
-            case WSMessageType.WS_AUTH_FAILED:
-                System.out.println("Authentication failed: " + message.getData());
-                break;
-            case WSMessageType.WS_HEARTBEAT_RESP:
+        } else if (commandCode == CommandType.ERROR.getCode()) {
+                System.out.println("Server error: " + body);
+        } else if (commandCode == CommandType.HEARTBEAT.getCode()) {
                 System.out.println("Heartbeat response received");
-                break;
-            case WSMessageType.WS_SEND_MSG_RESP:
-                System.out.println("Message sent successfully: " + message.getData());
-                break;
-            case WSMessageType.WS_RECV_MSG_NOTIFY:
-                System.out.println("New message received: " + message.getData());
-                break;
-            case WSMessageType.WS_ERROR_RESP:
-                System.out.println("Server error: " + message.getData());
-                break;
-            default:
-                System.out.println("Server message [" + msgType + "]: " + message.getData());
-                break;
+        } else if (commandCode == CommandType.CHAT_SEND.getCode()) {
+                System.out.println("Message sent successfully: " + body);
+        } else if (commandCode == CommandType.CHAT_RECV.getCode()) {
+                System.out.println("New message received: " + body);
+        } else {
+            System.out.println("Server message [" + command + "]: " + body);
         }
     }
 

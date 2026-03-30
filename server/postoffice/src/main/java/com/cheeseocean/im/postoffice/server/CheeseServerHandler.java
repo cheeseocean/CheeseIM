@@ -2,12 +2,11 @@ package com.cheeseocean.im.postoffice.server;
 
 import com.cheeseocean.im.common.core.util.IdGenerator;
 import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
+import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.postoffice.connection.ConnectionManager;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.postoffice.handler.MessageHandler;
 import com.cheeseocean.im.postoffice.handler.MessageHandlerFactory;
-import com.cheeseocean.im.postoffice.protocol.CheeseMessage;
-import com.cheeseocean.im.postoffice.protocol.WSMessage;
 import com.cheeseocean.im.common.core.enums.CommandType;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -29,7 +28,7 @@ import java.net.InetSocketAddress;
  */
 @Component
 @ChannelHandler.Sharable
-public class CheeseServerHandler extends SimpleChannelInboundHandler<CheeseMessage> {
+public class CheeseServerHandler extends SimpleChannelInboundHandler<ClientEnvelope> {
     
     private static final Logger logger = CommonLoggers.POSTOFFICE;
     
@@ -67,7 +66,7 @@ public class CheeseServerHandler extends SimpleChannelInboundHandler<CheeseMessa
             logger.info("TCP connection created: connectionID={}, clientIP={}", connectionID, clientIP);
             
             // 发送连接成功响应
-            CheeseMessage connectSuccessMsg = CheeseMessage.connectSuccess("system");
+            ServerEnvelope connectSuccessMsg = ServerEnvelope.connect("system", "连接成功");
             sendMessage(ctx, connectSuccessMsg);
             
         } catch (Exception e) {
@@ -104,16 +103,16 @@ public class CheeseServerHandler extends SimpleChannelInboundHandler<CheeseMessa
     }
     
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, CheeseMessage message) throws Exception {
+    protected void channelRead0(ChannelHandlerContext ctx, ClientEnvelope envelope) throws Exception {
         try {
-            logger.debug("Received TCP message from {}: msgType={}, operationID={}", 
-                        ctx.channel().remoteAddress(), message.getMsgType(), message.getOperationID());
+            logger.debug("Received TCP message from {}: command={}, requestId={}",
+                    ctx.channel().remoteAddress(), envelope.getCommand(), envelope.getRequestId());
             
             // 获取用户连接
             UserConnection connection = connectionManager.getConnectionByChannel(ctx.channel());
             if (connection == null) {
                 logger.warn("Connection not found for channel: {}", ctx.channel().remoteAddress());
-                sendErrorResponse(ctx, message.getOperationID(), "连接不存在");
+                sendErrorResponse(ctx, envelope.getRequestId(), "连接不存在");
                 return;
             }
             
@@ -121,11 +120,11 @@ public class CheeseServerHandler extends SimpleChannelInboundHandler<CheeseMessa
             connection.updateLastActiveTime();
             
             // 处理消息
-            handleMessage(ctx, connection, message);
+            handleMessage(ctx, connection, envelope);
             
         } catch (Exception e) {
             logger.error("Failed to process TCP message from {}", ctx.channel().remoteAddress(), e);
-            sendErrorResponse(ctx, message != null ? message.getOperationID() : "unknown", 
+            sendErrorResponse(ctx, envelope != null ? envelope.getRequestId() : "unknown",
                             "消息处理异常: " + e.getMessage());
         }
     }
@@ -154,11 +153,9 @@ public class CheeseServerHandler extends SimpleChannelInboundHandler<CheeseMessa
     /**
      * 处理TCP消息
      */
-    private void handleMessage(ChannelHandlerContext ctx, UserConnection connection, CheeseMessage message) {
-        ClientEnvelope envelope = null;
+    private void handleMessage(ChannelHandlerContext ctx, UserConnection connection, ClientEnvelope envelope) {
         CommandType commandType = null;
         try {
-            envelope = message.toClientEnvelope();
             commandType = envelope.getCommand();
 
             // 获取消息处理器
@@ -167,7 +164,7 @@ public class CheeseServerHandler extends SimpleChannelInboundHandler<CheeseMessa
                 logger.warn("Unsupported command type: {} from {}",
                         commandType, ctx.channel().remoteAddress());
                 
-                sendErrorResponse(ctx, message.getOperationID(), 
+                sendErrorResponse(ctx, envelope.getRequestId(),
                                 "不支持的消息类型: " + commandType);
                 return;
             }
@@ -176,9 +173,8 @@ public class CheeseServerHandler extends SimpleChannelInboundHandler<CheeseMessa
             MessageHandler.HandleResult result = handler.handle(connection, envelope);
             
             // 发送响应消息
-            if (result.getResponseMessage() != null) {
-                CheeseMessage tcpResponse = CheeseMessage.fromWSMessage(result.getResponseMessage());
-                sendMessage(ctx, tcpResponse);
+            if (result.getResponseEnvelope() != null) {
+                sendMessage(ctx, result.getResponseEnvelope());
             }
             
             // 如果需要关闭连接
@@ -189,21 +185,21 @@ public class CheeseServerHandler extends SimpleChannelInboundHandler<CheeseMessa
         } catch (Exception e) {
             logger.error("Failed to handle TCP message: commandType={}, operationID={}",
                     commandType,
-                    message != null ? message.getOperationID() : null,
+                    envelope != null ? envelope.getRequestId() : null,
                     e);
             
-            sendErrorResponse(ctx, message.getOperationID(), "消息处理失败: " + e.getMessage());
+            sendErrorResponse(ctx, envelope != null ? envelope.getRequestId() : null, "消息处理失败: " + e.getMessage());
         }
     }
     
     /**
      * 发送TCP消息
      */
-    private void sendMessage(ChannelHandlerContext ctx, CheeseMessage message) {
+    private void sendMessage(ChannelHandlerContext ctx, ServerEnvelope message) {
         try {
             ctx.writeAndFlush(message);
-            logger.debug("Sent TCP message to {}: msgType={}, operationID={}", 
-                        ctx.channel().remoteAddress(), message.getMsgType(), message.getOperationID());
+            logger.debug("Sent TCP message to {}: command={}, requestId={}",
+                    ctx.channel().remoteAddress(), message.getCommand(), message.getRequestId());
             
         } catch (Exception e) {
             logger.error("Failed to send TCP message to {}", ctx.channel().remoteAddress(), e);
@@ -215,7 +211,7 @@ public class CheeseServerHandler extends SimpleChannelInboundHandler<CheeseMessa
      */
     private void sendErrorResponse(ChannelHandlerContext ctx, String operationID, String errorMessage) {
         try {
-            CheeseMessage errorMsg = CheeseMessage.errorResp(operationID, 500, errorMessage);
+            ServerEnvelope errorMsg = ServerEnvelope.error(operationID, 500, errorMessage);
             sendMessage(ctx, errorMsg);
             
         } catch (Exception e) {

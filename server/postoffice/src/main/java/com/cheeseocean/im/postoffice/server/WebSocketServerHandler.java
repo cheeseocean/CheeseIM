@@ -10,7 +10,6 @@ import com.cheeseocean.im.postoffice.connection.ConnectionContext;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.postoffice.handler.MessageHandler;
 import com.cheeseocean.im.postoffice.handler.MessageHandlerFactory;
-import com.cheeseocean.im.postoffice.protocol.WSMessage;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.channel.ChannelHandler;
@@ -202,14 +201,8 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<TextWebS
             
             MessageHandler.HandleResult result = handler.handle(connection, envelope);
             
-            if (result.getResponseMessage() != null) {
-                ServerEnvelope responseEnvelope = result.getResponseMessage().toServerEnvelope();
-                if (responseEnvelope == null || responseEnvelope.getCommand() == null) {
-                    logger.warn("Unable to translate handler response to envelope: {}", result.getResponseMessage());
-                    sendErrorResponse(ctx, envelope.getRequestId(), "响应编码失败");
-                    return;
-                }
-                sendMessage(ctx, responseEnvelope);
+            if (result.getResponseEnvelope() != null) {
+                sendMessage(ctx, result.getResponseEnvelope());
             }
             
             if (!result.isSuccess()) {
@@ -275,10 +268,11 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<TextWebS
      * 发送错误响应
      */
     private void sendErrorResponse(ChannelHandlerContext ctx, String operationID, String errorMessage) {
-        ServerEnvelope envelope = new ServerEnvelope();
-        envelope.setCommand(CommandType.ERROR);
-        envelope.setRequestId(operationID == null || operationID.isBlank() ? "system" : operationID);
-        envelope.setBody(Map.of("code", 500, "message", errorMessage));
+        ServerEnvelope envelope = ServerEnvelope.error(
+                operationID == null || operationID.isBlank() ? "system" : operationID,
+                500,
+                errorMessage
+        );
         sendMessage(ctx, envelope);
     }
     
@@ -322,14 +316,12 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<TextWebS
     }
 
     private ServerEnvelope buildConnectSuccessEnvelope(String requestId, UserConnection connection) {
-        ServerEnvelope envelope = new ServerEnvelope();
-        envelope.setCommand(CommandType.CONNECT);
-        envelope.setRequestId(requestId == null || requestId.isBlank() ? "system" : requestId);
-        envelope.setBody(Map.of(
+        return ServerEnvelope.connect(
+                requestId == null || requestId.isBlank() ? "system" : requestId,
+                Map.of(
                 "connId", connection.getConnectionID(),
                 "message", "连接成功"
         ));
-        return envelope;
     }
 
     private Map<String, Object> serializeEnvelope(ServerEnvelope envelope) {

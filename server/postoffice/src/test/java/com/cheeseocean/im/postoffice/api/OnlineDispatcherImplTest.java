@@ -6,7 +6,6 @@ import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.common.core.enums.CommandType;
 import com.cheeseocean.im.postoffice.connection.ConnectionManager;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
-import com.cheeseocean.im.postoffice.protocol.CheeseMessage;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -99,8 +98,8 @@ class OnlineDispatcherImplTest {
 
         Object outbound = activeChannel.readOutbound();
         assertNotNull(outbound);
-        assertEquals(CheeseMessage.class, outbound.getClass());
-        ServerEnvelope envelope = ((CheeseMessage) outbound).toServerEnvelope();
+        assertEquals(ServerEnvelope.class, outbound.getClass());
+        ServerEnvelope envelope = (ServerEnvelope) outbound;
         assertEquals(CommandType.CHAT_RECV, envelope.getCommand());
     }
 

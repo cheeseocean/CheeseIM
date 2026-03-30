@@ -1,7 +1,7 @@
 package com.cheeseocean.im.postoffice.server;
 
-import com.cheeseocean.im.postoffice.codec.CheeseMessageDecoder;
-import com.cheeseocean.im.postoffice.codec.CheeseMessageEncoder;
+import com.cheeseocean.im.postoffice.codec.TcpEnvelopeDecoder;
+import com.cheeseocean.im.postoffice.codec.TcpEnvelopeEncoder;
 import com.cheeseocean.im.postoffice.config.IMServerConfig;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
@@ -91,10 +91,10 @@ public class CheeseChannelInitializer extends ChannelInitializer<SocketChannel> 
                                            TimeUnit.SECONDS));
         
         // TCP消息解码器
-        pipeline.addLast("tcp-decoder", new CheeseMessageDecoder());
+        pipeline.addLast("tcp-decoder", new TcpEnvelopeDecoder());
         
         // TCP消息编码器
-        pipeline.addLast("tcp-encoder", new CheeseMessageEncoder());
+        pipeline.addLast("tcp-encoder", new TcpEnvelopeEncoder());
         
         // TCP服务器处理器
         pipeline.addLast("tcp-handler", cheeseServerHandler);
