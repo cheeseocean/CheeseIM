@@ -4,10 +4,10 @@ import com.cheeseocean.im.common.api.conversation.ConversationQueryService;
 import com.cheeseocean.im.common.api.dto.conversation.ConversationDTO;
 import com.cheeseocean.im.common.api.dto.message.ConversationLastMessageSummary;
 import com.cheeseocean.im.common.api.message.ConversationLastMessageQueryService;
-import com.cheeseocean.im.common.core.business.domain.ConversationOffsetRange;
-import com.cheeseocean.im.common.core.business.domain.UserConversationState;
-import com.cheeseocean.im.common.core.business.repository.ConversationOffsetRangeRepository;
-import com.cheeseocean.im.common.core.business.repository.UserConversationStateRepository;
+import com.cheeseocean.im.common.core.business.domain.UserConversationSyncPoint;
+import com.cheeseocean.im.common.core.business.domain.UserConversation;
+import com.cheeseocean.im.common.core.business.repository.UserConversationSyncPointRepository;
+import com.cheeseocean.im.common.core.business.repository.UserConversationRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.dubbo.config.annotation.DubboService;
@@ -31,13 +31,13 @@ import java.util.stream.Collectors;
 @DubboService
 public class ConversationQueryServiceImpl implements ConversationQueryService {
 
-    private final UserConversationStateRepository stateRepository;
-    private final ConversationOffsetRangeRepository offsetRepository;
+    private final UserConversationRepository stateRepository;
+    private final UserConversationSyncPointRepository offsetRepository;
     private final ConversationLastMessageQueryService lastMessageQueryService;
     private final ObjectMapper objectMapper;
 
-    public ConversationQueryServiceImpl(UserConversationStateRepository stateRepository,
-                                        ConversationOffsetRangeRepository offsetRepository,
+    public ConversationQueryServiceImpl(UserConversationRepository stateRepository,
+                                        UserConversationSyncPointRepository offsetRepository,
                                         ConversationLastMessageQueryService lastMessageQueryService,
                                         ObjectMapper objectMapper) {
         this.stateRepository = stateRepository;
@@ -48,7 +48,7 @@ public class ConversationQueryServiceImpl implements ConversationQueryService {
 
     @Override
     public ConversationDTO getConversation(String ownerUserId, String conversationId) {
-        UserConversationState state = stateRepository.findOne(ownerUserId, conversationId);
+        UserConversation state = stateRepository.findOne(ownerUserId, conversationId);
         if (state == null) {
             return null;
         }
@@ -91,18 +91,18 @@ public class ConversationQueryServiceImpl implements ConversationQueryService {
 
     // ── 私有工具方法 ──────────────────────────────────────────────────────────
 
-    private List<ConversationDTO> enrich(String ownerUserId, List<UserConversationState> states) {
+    private List<ConversationDTO> enrich(String ownerUserId, List<UserConversation> states) {
         if (states == null || states.isEmpty()) {
             return List.of();
         }
         List<String> conversationIds = states.stream()
-                .map(UserConversationState::getConversationId)
+                .map(UserConversation::getConversationId)
                 .filter(id -> id != null && !id.isBlank())
                 .toList();
-        Map<String, ConversationOffsetRange> offsets = offsetRepository.findByIds(ownerUserId, conversationIds)
+        Map<String, UserConversationSyncPoint> offsets = offsetRepository.findByIds(ownerUserId, conversationIds)
                 .stream()
                 .collect(Collectors.toMap(
-                        ConversationOffsetRange::getConversationId,
+                        UserConversationSyncPoint::getConversationId,
                         range -> range,
                         (left, right) -> left,
                         LinkedHashMap::new
@@ -118,8 +118,8 @@ public class ConversationQueryServiceImpl implements ConversationQueryService {
                 .collect(Collectors.toList());
     }
 
-    private ConversationDTO toDTO(UserConversationState state,
-                                  ConversationOffsetRange offsetRange,
+    private ConversationDTO toDTO(UserConversation state,
+                                  UserConversationSyncPoint offsetRange,
                                   ConversationLastMessageSummary lastMessage) {
         ConversationDTO dto = new ConversationDTO();
         dto.setOwnerUserId(state.getOwnerUserId());
@@ -139,7 +139,7 @@ public class ConversationQueryServiceImpl implements ConversationQueryService {
         return dto;
     }
 
-    private int resolveUnreadCount(UserConversationState state, ConversationOffsetRange offsetRange) {
+    private int resolveUnreadCount(UserConversation state, UserConversationSyncPoint offsetRange) {
         if (offsetRange == null) {
             return state.getUnreadCount();
         }

@@ -3,7 +3,7 @@ package com.cheeseocean.im.common.core.enums;
 /**
  * 申请处理结果枚举。
  *
- * <p>通用于好友申请（FriendApplication）和群组申请（GroupApplication）。
+ * <p>通用于好友申请（FriendApplication）和群组申请（GroupRequest）。
  * 存储整数 code，应用逻辑使用 {@link #fromCode(int)} 转换。
  */
 public enum HandleResultEnum {

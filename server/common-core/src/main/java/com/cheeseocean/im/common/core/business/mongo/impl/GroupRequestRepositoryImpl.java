@@ -1,10 +1,10 @@
 package com.cheeseocean.im.common.core.business.mongo.impl;
 
 import com.cheeseocean.im.common.core.enums.HandleResultEnum;
-import com.cheeseocean.im.common.core.business.domain.GroupApplication;
+import com.cheeseocean.im.common.core.business.domain.GroupRequest;
 import com.cheeseocean.im.common.core.business.mongo.document.group.GroupRequestDoc;
-import com.cheeseocean.im.common.core.business.mongo.repository.GroupApplicationMongoRepository;
-import com.cheeseocean.im.common.core.business.repository.GroupApplicationRepository;
+import com.cheeseocean.im.common.core.business.mongo.repository.GroupRequestMongoRepository;
+import com.cheeseocean.im.common.core.business.repository.GroupRequestRepository;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -15,46 +15,46 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * {@link GroupApplicationRepository} 的 MongoDB 实现。
+ * {@link GroupRequestRepository} 的 MongoDB 实现。
  *
  * <p>以 "{userId}:{groupId}" 作为文档 _id（唯一索引约束），
  * handleResult 在存储时保存 int code，读取时通过 {@link HandleResultEnum#fromCode} 还原。
  */
-public class GroupApplicationRepositoryImpl implements GroupApplicationRepository {
+public class GroupRequestRepositoryImpl implements GroupRequestRepository {
 
     private static final int PENDING = HandleResultEnum.PENDING.getCode();
 
-    private final GroupApplicationMongoRepository groupApplicationMongoRepository;
+    private final GroupRequestMongoRepository groupApplicationMongoRepository;
     private final MongoTemplate mongoTemplate;
 
-    public GroupApplicationRepositoryImpl(GroupApplicationMongoRepository groupApplicationMongoRepository,
+    public GroupRequestRepositoryImpl(GroupRequestMongoRepository groupApplicationMongoRepository,
                                           MongoTemplate mongoTemplate) {
         this.groupApplicationMongoRepository = groupApplicationMongoRepository;
         this.mongoTemplate = mongoTemplate;
     }
 
     @Override
-    public Optional<GroupApplication> findByUserAndGroup(String userId, String groupId) {
+    public Optional<GroupRequest> findByUserAndGroup(String userId, String groupId) {
         return groupApplicationMongoRepository.findByUserIdAndGroupId(userId, groupId)
                 .map(this::toDomain);
     }
 
     @Override
-    public List<GroupApplication> findPendingByGroupId(String groupId) {
+    public List<GroupRequest> findPendingByGroupId(String groupId) {
         return groupApplicationMongoRepository
                 .findByGroupIdAndHandleResultOrderByReqTimeDesc(groupId, PENDING)
                 .stream().map(this::toDomain).collect(Collectors.toList());
     }
 
     @Override
-    public List<GroupApplication> findPendingByUserId(String userId) {
+    public List<GroupRequest> findPendingByUserId(String userId) {
         return groupApplicationMongoRepository
                 .findByUserIdAndHandleResultOrderByReqTimeDesc(userId, PENDING)
                 .stream().map(this::toDomain).collect(Collectors.toList());
     }
 
     @Override
-    public void save(GroupApplication application) {
+    public void save(GroupRequest application) {
         groupApplicationMongoRepository.save(toDoc(application));
     }
 
@@ -73,8 +73,8 @@ public class GroupApplicationRepositoryImpl implements GroupApplicationRepositor
 
     // ── 转换方法 ─────────────────────────────────────────────────────────────
 
-    private GroupApplication toDomain(GroupRequestDoc doc) {
-        GroupApplication app = new GroupApplication();
+    private GroupRequest toDomain(GroupRequestDoc doc) {
+        GroupRequest app = new GroupRequest();
         app.setId(doc.getId());
         app.setUserId(doc.getUserId());
         app.setGroupId(doc.getGroupId());
@@ -90,7 +90,7 @@ public class GroupApplicationRepositoryImpl implements GroupApplicationRepositor
         return app;
     }
 
-    private GroupRequestDoc toDoc(GroupApplication app) {
+    private GroupRequestDoc toDoc(GroupRequest app) {
         GroupRequestDoc doc = new GroupRequestDoc();
         doc.setId(app.getId() != null
                 ? app.getId()

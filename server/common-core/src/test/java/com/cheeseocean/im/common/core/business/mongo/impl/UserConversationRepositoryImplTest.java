@@ -1,6 +1,6 @@
 package com.cheeseocean.im.common.core.business.mongo.impl;
 
-import com.cheeseocean.im.common.core.business.domain.UserConversationState;
+import com.cheeseocean.im.common.core.business.domain.UserConversation;
 import com.cheeseocean.im.common.core.business.mongo.document.conversation.UserConversationDoc;
 import com.cheeseocean.im.common.core.enums.SessionType;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,12 +22,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class UserConversationStateRepositoryImplTest {
+class UserConversationRepositoryImplTest {
 
     private MongoTemplate mongoTemplate;
     private RedisTemplate<String, Object> redisTemplate;
     private StringRedisTemplate stringRedisTemplate;
-    private UserConversationStateRepositoryImpl repository;
+    private UserConversationRepositoryImpl repository;
 
     @BeforeEach
     void setUp() {
@@ -46,7 +46,7 @@ class UserConversationStateRepositoryImplTest {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(stringRedisTemplate.opsForValue()).thenReturn(stringValueOperations);
 
-        repository = new UserConversationStateRepositoryImpl(
+        repository = new UserConversationRepositoryImpl(
                 mongoTemplate,
                 redisTemplate,
                 stringRedisTemplate
@@ -55,7 +55,7 @@ class UserConversationStateRepositoryImplTest {
 
     @Test
     void createIfAbsentShouldUpsertWithSetOnInsertOnly() {
-        UserConversationState state = conversation("alice", "c1:alice:bob", SessionType.SINGLE.getCode(), "bob");
+        UserConversation state = conversation("alice", "c1:alice:bob", SessionType.SINGLE.getCode(), "bob");
 
         repository.createIfAbsent(state);
 
@@ -102,8 +102,8 @@ class UserConversationStateRepositoryImplTest {
                 eq(UserConversationDoc.class));
     }
 
-    private static UserConversationState conversation(String owner, String convId, int type, String target) {
-        UserConversationState state = new UserConversationState();
+    private static UserConversation conversation(String owner, String convId, int type, String target) {
+        UserConversation state = new UserConversation();
         state.setOwnerUserId(owner);
         state.setConversationId(convId);
         state.setConversationType(type);

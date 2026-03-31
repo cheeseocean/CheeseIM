@@ -158,7 +158,7 @@ public final class RedisKeys {
 
     /**
      * 单条用户-会话业务状态缓存 key（TTL 12h）。
-     * 存储完整的 UserConversationState JSON，写操作触发 DEL 失效。
+     * 存储完整的 UserConversation JSON，写操作触发 DEL 失效。
      * 格式：cheese_im:conv_state:{userId}:{conversationId}
      */
     public static String userConvState(String userId, String conversationId) {

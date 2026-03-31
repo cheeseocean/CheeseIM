@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 /** group_request 集合的 Spring Data 访问接口 */
-public interface GroupApplicationMongoRepository extends MongoRepository<GroupRequestDoc, String> {
+public interface GroupRequestMongoRepository extends MongoRepository<GroupRequestDoc, String> {
 
     Optional<GroupRequestDoc> findByUserIdAndGroupId(String userId, String groupId);
 

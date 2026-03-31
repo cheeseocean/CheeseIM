@@ -3,9 +3,9 @@ package com.cheeseocean.im.business.service.conversation;
 import com.cheeseocean.im.common.api.conversation.ConversationSyncCommand;
 import com.cheeseocean.im.common.api.dto.conversation.SetConversationRequest;
 import com.cheeseocean.im.common.core.enums.SessionType;
-import com.cheeseocean.im.common.core.business.domain.UserConversationState;
-import com.cheeseocean.im.common.core.business.repository.ConversationOffsetRangeRepository;
-import com.cheeseocean.im.common.core.business.repository.UserConversationStateRepository;
+import com.cheeseocean.im.common.core.business.domain.UserConversation;
+import com.cheeseocean.im.common.core.business.repository.UserConversationSyncPointRepository;
+import com.cheeseocean.im.common.core.business.repository.UserConversationRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -21,12 +21,12 @@ import java.util.Map;
 @Service
 public class ConversationLifecycleService {
 
-    private final UserConversationStateRepository stateRepository;
-    private final ConversationOffsetRangeRepository offsetRepository;
+    private final UserConversationRepository stateRepository;
+    private final UserConversationSyncPointRepository offsetRepository;
     private final ConversationSettingsNotifier settingsNotifier;
 
-    public ConversationLifecycleService(UserConversationStateRepository stateRepository,
-                                        ConversationOffsetRangeRepository offsetRepository,
+    public ConversationLifecycleService(UserConversationRepository stateRepository,
+                                        UserConversationSyncPointRepository offsetRepository,
                                         ConversationSettingsNotifier settingsNotifier) {
         this.stateRepository = stateRepository;
         this.offsetRepository = offsetRepository;
@@ -89,14 +89,14 @@ public class ConversationLifecycleService {
         }
     }
 
-    private void createParticipantConversation(UserConversationState state) {
+    private void createParticipantConversation(UserConversation state) {
         stateRepository.createIfAbsent(state);
         offsetRepository.createIfAbsent(state.getOwnerUserId(), state.getConversationId());
     }
 
-    private UserConversationState buildExplicitState(String ownerUserId, String conversationId,
+    private UserConversation buildExplicitState(String ownerUserId, String conversationId,
                                                      int conversationType, String targetId) {
-        UserConversationState state = new UserConversationState();
+        UserConversation state = new UserConversation();
         state.setOwnerUserId(ownerUserId);
         state.setConversationId(conversationId);
         state.setConversationType(conversationType);
@@ -104,7 +104,7 @@ public class ConversationLifecycleService {
         return state;
     }
 
-    private UserConversationState buildState(String ownerId, ConversationSyncCommand cmd) {
+    private UserConversation buildState(String ownerId, ConversationSyncCommand cmd) {
         return buildExplicitState(ownerId, cmd.conversationId(), cmd.sessionType(), resolveTargetId(ownerId, cmd));
     }
 

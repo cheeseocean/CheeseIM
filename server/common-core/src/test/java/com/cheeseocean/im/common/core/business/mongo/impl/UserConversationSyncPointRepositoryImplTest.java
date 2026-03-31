@@ -1,8 +1,8 @@
 package com.cheeseocean.im.common.core.business.mongo.impl;
 
-import com.cheeseocean.im.common.core.business.domain.UserSyncCheckpoint;
+import com.cheeseocean.im.common.core.business.domain.UserConversationSyncPoint;
 import com.cheeseocean.im.common.core.business.mongo.document.conversation.UserConversationSyncPointDoc;
-import com.cheeseocean.im.common.core.business.mongo.repository.UserSyncCheckpointMongoRepository;
+import com.cheeseocean.im.common.core.business.mongo.repository.UserConversationSyncPointMongoRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -20,24 +20,24 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class UserSyncCheckpointRepositoryImplTest {
+class UserConversationSyncPointRepositoryImplTest {
 
     private MongoTemplate mongoTemplate;
-    private UserSyncCheckpointMongoRepository mongoRepository;
+    private UserConversationSyncPointMongoRepository mongoRepository;
     private StringRedisTemplate stringRedisTemplate;
-    private UserSyncCheckpointRepositoryImpl repository;
+    private UserConversationSyncPointRepositoryImpl repository;
 
     @BeforeEach
     void setUp() {
         mongoTemplate = mock(MongoTemplate.class);
-        mongoRepository = mock(UserSyncCheckpointMongoRepository.class);
+        mongoRepository = mock(UserConversationSyncPointMongoRepository.class);
         stringRedisTemplate = mock(StringRedisTemplate.class);
 
         @SuppressWarnings("unchecked")
         ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
         when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
 
-        repository = new UserSyncCheckpointRepositoryImpl(mongoRepository, mongoTemplate, stringRedisTemplate);
+        repository = new UserConversationSyncPointRepositoryImpl(mongoRepository, mongoTemplate, stringRedisTemplate);
     }
 
     @Test
@@ -94,7 +94,7 @@ class UserSyncCheckpointRepositoryImplTest {
 
     @Test
     void domainShouldComputeUnreadCount() {
-        UserSyncCheckpoint checkpoint = new UserSyncCheckpoint();
+        UserConversationSyncPoint checkpoint = new UserConversationSyncPoint();
         checkpoint.setReadSeq(4L);
         checkpoint.setMaxSeq(9L);
 

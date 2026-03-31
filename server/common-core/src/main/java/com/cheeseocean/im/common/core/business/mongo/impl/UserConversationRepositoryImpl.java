@@ -3,9 +3,9 @@ package com.cheeseocean.im.common.core.business.mongo.impl;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.common.core.cache.redis.BatchCacheHelper;
 import com.cheeseocean.im.common.core.cache.redis.StringSetCacheHelper;
-import com.cheeseocean.im.common.core.business.domain.UserConversationState;
+import com.cheeseocean.im.common.core.business.domain.UserConversation;
 import com.cheeseocean.im.common.core.business.mongo.document.conversation.UserConversationDoc;
-import com.cheeseocean.im.common.core.business.repository.UserConversationStateRepository;
+import com.cheeseocean.im.common.core.business.repository.UserConversationRepository;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * {@link UserConversationStateRepository} 的 MongoDB + Redis 实现。
+ * {@link UserConversationRepository} 的 MongoDB + Redis 实现。
  *
  * <p><b>缓存策略：</b>
  * <ul>
@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
  *
  * <p>所有写操作以确定性 _id "{ownerUserId}:{conversationId}" upsert，保证幂等可重试。
  */
-public class UserConversationStateRepositoryImpl implements UserConversationStateRepository {
+public class UserConversationRepositoryImpl implements UserConversationRepository {
 
     /** 会话业务状态缓存 TTL */
     private static final Duration CONV_STATE_TTL = Duration.ofHours(12);
@@ -41,7 +41,7 @@ public class UserConversationStateRepositoryImpl implements UserConversationStat
     private final RedisTemplate<String, Object> redisTemplate;
     private final StringRedisTemplate stringRedisTemplate;
 
-    public UserConversationStateRepositoryImpl(MongoTemplate mongoTemplate,
+    public UserConversationRepositoryImpl(MongoTemplate mongoTemplate,
                                                RedisTemplate<String, Object> redisTemplate,
                                                StringRedisTemplate stringRedisTemplate) {
         this.mongoTemplate = mongoTemplate;
@@ -52,7 +52,7 @@ public class UserConversationStateRepositoryImpl implements UserConversationStat
     // ── 写操作 ────────────────────────────────────────────────────────────────
 
     @Override
-    public void createIfAbsent(UserConversationState state) {
+    public void createIfAbsent(UserConversation state) {
         String id = docId(state.getOwnerUserId(), state.getConversationId());
         Query query = Query.query(Criteria.where("_id").is(id));
         Update update = new Update()
@@ -149,7 +149,7 @@ public class UserConversationStateRepositoryImpl implements UserConversationStat
     @Override
     public int getRecvMsgOpt(String ownerUserId, String conversationId) {
         // 优先从缓存会话状态中读取
-        UserConversationState cached = getConvStateFromCache(ownerUserId, conversationId);
+        UserConversation cached = getConvStateFromCache(ownerUserId, conversationId);
         if (cached != null) {
             return cached.getRecvMsgOpt();
         }
@@ -161,7 +161,7 @@ public class UserConversationStateRepositoryImpl implements UserConversationStat
     }
 
     @Override
-    public UserConversationState findOne(String ownerUserId, String conversationId) {
+    public UserConversation findOne(String ownerUserId, String conversationId) {
         return BatchCacheHelper.getCache(
                 redisTemplate,
                 RedisKeys.userConvState(ownerUserId, conversationId),
@@ -171,16 +171,16 @@ public class UserConversationStateRepositoryImpl implements UserConversationStat
                     UserConversationDoc doc   = mongoTemplate.findOne(query, UserConversationDoc.class);
                     return doc == null ? java.util.Optional.empty() : java.util.Optional.of(toDomain(doc));
                 },
-                UserConversationState.class
+                UserConversation.class
         ).orElse(null);
     }
 
     @Override
-    public List<UserConversationState> findAll(String ownerUserId) {
+    public List<UserConversation> findAll(String ownerUserId) {
         // MongoDB 负责排序，同时将结果写入各自的缓存 key
         Query query = Query.query(Criteria.where("ownerUserId").is(ownerUserId))
                 .with(Sort.by(Sort.Direction.DESC, "updatedAt"));
-        List<UserConversationState> results = mongoTemplate.find(query, UserConversationDoc.class)
+        List<UserConversation> results = mongoTemplate.find(query, UserConversationDoc.class)
                 .stream().map(this::toDomain).collect(Collectors.toList());
         // 顺带刷新各条目的缓存
         results.forEach(s -> putConvStateToCache(s.getOwnerUserId(), s.getConversationId(), s));
@@ -191,13 +191,13 @@ public class UserConversationStateRepositoryImpl implements UserConversationStat
      * batchGetCache2 实现：批量检查 Redis，未命中的从 MongoDB 一次批量查询，再写回 Redis。
      */
     @Override
-    public List<UserConversationState> findByIds(String ownerUserId, List<String> conversationIds) {
+    public List<UserConversation> findByIds(String ownerUserId, List<String> conversationIds) {
         return BatchCacheHelper.batchGetCache2(
                 redisTemplate,
                 CONV_STATE_TTL,
                 conversationIds,
                 id -> RedisKeys.userConvState(ownerUserId, id),
-                UserConversationState::getConversationId,
+                UserConversation::getConversationId,
                 ids -> {
                     List<String> docIds = ids.stream()
                             .map(cid -> docId(ownerUserId, cid))
@@ -207,7 +207,7 @@ public class UserConversationStateRepositoryImpl implements UserConversationStat
                             .map(this::toDomain)
                             .collect(Collectors.toList());
                 },
-                UserConversationState.class
+                UserConversation.class
         );
     }
 
@@ -240,22 +240,22 @@ public class UserConversationStateRepositoryImpl implements UserConversationStat
 
     // ── 缓存工具方法 ──────────────────────────────────────────────────────────
 
-    private UserConversationState getConvStateFromCache(String ownerUserId, String conversationId) {
+    private UserConversation getConvStateFromCache(String ownerUserId, String conversationId) {
         Object val = redisTemplate.opsForValue().get(
                 RedisKeys.userConvState(ownerUserId, conversationId));
-        return val instanceof UserConversationState state ? state : null;
+        return val instanceof UserConversation state ? state : null;
     }
 
     private void putConvStateToCache(String ownerUserId, String conversationId,
-                                     UserConversationState state) {
+                                     UserConversation state) {
         redisTemplate.opsForValue().set(
                 RedisKeys.userConvState(ownerUserId, conversationId), state, CONV_STATE_TTL);
     }
 
     // ── toDomain 转换 ─────────────────────────────────────────────────────────
 
-    private UserConversationState toDomain(UserConversationDoc doc) {
-        UserConversationState state = new UserConversationState();
+    private UserConversation toDomain(UserConversationDoc doc) {
+        UserConversation state = new UserConversation();
         state.setOwnerUserId(doc.getOwnerUserId());
         state.setConversationId(doc.getConversationId());
         state.setConversationType(doc.getConversationType());

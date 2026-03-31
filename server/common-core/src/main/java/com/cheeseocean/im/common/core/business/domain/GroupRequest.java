@@ -8,7 +8,7 @@ import com.cheeseocean.im.common.core.enums.HandleResultEnum;
  * <p>记录用户主动申请加群或被邀请入群的完整审批流程。
  * 处理结果用 {@link HandleResultEnum} 枚举表达。
  */
-public class GroupApplication {
+public class GroupRequest {
 
     /** 文档唯一标识 */
     private String id;

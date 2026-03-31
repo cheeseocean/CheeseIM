@@ -1,8 +1,8 @@
 package com.cheeseocean.im.business.service.conversation;
 
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
-import com.cheeseocean.im.common.core.business.repository.ConversationOffsetRangeRepository;
-import com.cheeseocean.im.common.core.business.repository.UserConversationStateRepository;
+import com.cheeseocean.im.common.core.business.repository.UserConversationSyncPointRepository;
+import com.cheeseocean.im.common.core.business.repository.UserConversationRepository;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.springframework.stereotype.Component;
@@ -21,8 +21,8 @@ import java.util.concurrent.TimeUnit;
  * <ol>
  *   <li>{@link ConversationSyncServiceImpl#markRead} 调用 {@link #enqueue} 入队。</li>
  *   <li>后台 drain 线程按 (userId, conversationId) 聚合取最大 readSeq。</li>
- *   <li>将 readSeq 写入 {@link ConversationOffsetRangeRepository}（轻量偏移量表）。</li>
- *   <li>同时重置 {@link UserConversationStateRepository} 的未读计数为 0。</li>
+ *   <li>将 readSeq 写入 {@link UserConversationSyncPointRepository}（轻量偏移量表）。</li>
+ *   <li>同时重置 {@link UserConversationRepository} 的未读计数为 0。</li>
  * </ol>
  *
  * <p>Redis 在热路径同步更新（即时可见）；MongoDB 在此异步更新（持久化保障）。
@@ -38,14 +38,14 @@ public class ReadSeqPersistenceWriter {
 
     record ReadSeqEntry(String userId, String conversationId, long readSeq) {}
 
-    private final ConversationOffsetRangeRepository offsetRepository;
-    private final UserConversationStateRepository stateRepository;
+    private final UserConversationSyncPointRepository offsetRepository;
+    private final UserConversationRepository stateRepository;
     private final LinkedBlockingQueue<ReadSeqEntry> queue;
     private final Thread drainThread;
     private volatile boolean running = true;
 
-    public ReadSeqPersistenceWriter(ConversationOffsetRangeRepository offsetRepository,
-                                    UserConversationStateRepository stateRepository) {
+    public ReadSeqPersistenceWriter(UserConversationSyncPointRepository offsetRepository,
+                                    UserConversationRepository stateRepository) {
         this.offsetRepository = offsetRepository;
         this.stateRepository = stateRepository;
         this.queue = new LinkedBlockingQueue<>(QUEUE_CAPACITY);

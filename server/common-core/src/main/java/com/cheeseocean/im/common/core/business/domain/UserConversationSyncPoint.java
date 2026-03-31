@@ -6,7 +6,7 @@ package com.cheeseocean.im.common.core.business.domain;
  * <p>记录单个用户在某条会话中的读写水位线，用于计算未读数和支持增量拉取。
  * readSeq/maxSeq/minSeq 默认值必须为 0L，不允许 null。
  */
-public class UserSyncCheckpoint {
+public class UserConversationSyncPoint {
 
     /** 文档唯一标识（"{userId}:{conversationId}"） */
     private String id;

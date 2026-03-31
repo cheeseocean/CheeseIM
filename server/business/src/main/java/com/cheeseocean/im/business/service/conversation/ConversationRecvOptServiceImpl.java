@@ -1,7 +1,7 @@
 package com.cheeseocean.im.business.service.conversation;
 
 import com.cheeseocean.im.common.api.conversation.ConversationRecvOptService;
-import com.cheeseocean.im.common.core.business.repository.UserConversationStateRepository;
+import com.cheeseocean.im.common.core.business.repository.UserConversationRepository;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.stereotype.Service;
 
@@ -15,10 +15,10 @@ import org.springframework.stereotype.Service;
 @DubboService
 public class ConversationRecvOptServiceImpl implements ConversationRecvOptService {
 
-    private final UserConversationStateRepository stateRepository;
+    private final UserConversationRepository stateRepository;
     private final ConversationSettingsNotifier conversationSettingsNotifier;
 
-    public ConversationRecvOptServiceImpl(UserConversationStateRepository stateRepository,
+    public ConversationRecvOptServiceImpl(UserConversationRepository stateRepository,
                                           ConversationSettingsNotifier conversationSettingsNotifier) {
         this.stateRepository = stateRepository;
         this.conversationSettingsNotifier = conversationSettingsNotifier;

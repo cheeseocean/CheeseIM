@@ -7,9 +7,9 @@ package com.cheeseocean.im.common.core.business.domain;
  * 及用于会话列表展示的聚合信息（最新消息摘要、未读计数）。
  *
  * <p>序列号相关字段（maxSeq / minSeq / readSeq）独立存储在
- * {@link ConversationOffsetRange}，避免高频已读回执写入污染本表。
+ * {@link UserConversationSyncPoint}，避免高频已读回执写入污染本表。
  */
-public class UserConversationState {
+public class UserConversation {
 
     /** 会话所属者用户 ID */
     private String ownerUserId;

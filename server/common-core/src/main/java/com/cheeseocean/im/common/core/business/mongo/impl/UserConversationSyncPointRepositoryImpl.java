@@ -1,10 +1,10 @@
 package com.cheeseocean.im.common.core.business.mongo.impl;
 
 import com.cheeseocean.im.common.core.constants.RedisKeys;
-import com.cheeseocean.im.common.core.business.domain.ConversationOffsetRange;
+import com.cheeseocean.im.common.core.business.domain.UserConversationSyncPoint;
 import com.cheeseocean.im.common.core.business.mongo.document.conversation.UserConversationSyncPointDoc;
-import com.cheeseocean.im.common.core.business.mongo.repository.ConversationOffsetRangeMongoRepository;
-import com.cheeseocean.im.common.core.business.repository.ConversationOffsetRangeRepository;
+import com.cheeseocean.im.common.core.business.mongo.repository.UserConversationSyncPointMongoRepository;
+import com.cheeseocean.im.common.core.business.repository.UserConversationSyncPointRepository;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -21,7 +21,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * {@link ConversationOffsetRangeRepository} 的 MongoDB + Redis 实现。
+ * {@link UserConversationSyncPointRepository} 的 MongoDB + Redis 实现。
  *
  * <p><b>缓存策略：</b>
  * <ul>
@@ -34,16 +34,16 @@ import java.util.stream.Collectors;
  * {@code RedisConversationStateStore} 保持一致，不设固定 TTL（由业务
  * 生命周期驱动失效）。
  *
- * <p>所有写操作以确定性 _id "{ownerUserId}:{conversationId}" upsert，保证幂等。
+ * <p>所有写操作以确定性 _id "{userId}:{conversationId}" upsert，保证幂等。
  */
-public class ConversationOffsetRangeRepositoryImpl implements ConversationOffsetRangeRepository {
+public class UserConversationSyncPointRepositoryImpl implements UserConversationSyncPointRepository {
 
-    private final ConversationOffsetRangeMongoRepository mongoRepository;
+    private final UserConversationSyncPointMongoRepository mongoRepository;
     private final MongoTemplate mongoTemplate;
     private final StringRedisTemplate stringRedisTemplate;
 
-    public ConversationOffsetRangeRepositoryImpl(
-            ConversationOffsetRangeMongoRepository mongoRepository,
+    public UserConversationSyncPointRepositoryImpl(
+            UserConversationSyncPointMongoRepository mongoRepository,
             MongoTemplate mongoTemplate,
             StringRedisTemplate stringRedisTemplate) {
         this.mongoRepository = mongoRepository;
@@ -54,12 +54,12 @@ public class ConversationOffsetRangeRepositoryImpl implements ConversationOffset
     // ── 写操作 ────────────────────────────────────────────────────────────────
 
     @Override
-    public void createIfAbsent(String ownerUserId, String conversationId) {
-        String id = docId(ownerUserId, conversationId);
+    public void createIfAbsent(String userId, String conversationId) {
+        String id = docId(userId, conversationId);
         Query query = Query.query(Criteria.where("_id").is(id));
         Update update = new Update()
                 .setOnInsert("_id",            id)
-                .setOnInsert("ownerUserId",     ownerUserId)
+                .setOnInsert("userId",          userId)
                 .setOnInsert("conversationId",  conversationId)
                 .setOnInsert("maxSeq",          0L)
                 .setOnInsert("minSeq",          0L)
@@ -67,32 +67,32 @@ public class ConversationOffsetRangeRepositoryImpl implements ConversationOffset
         mongoTemplate.upsert(query, update, UserConversationSyncPointDoc.class);
         // 仅在 key 不存在时初始化缓存，避免覆盖已有值
         stringRedisTemplate.opsForValue().setIfAbsent(
-                RedisKeys.userReadSeq(ownerUserId, conversationId), "0");
+                RedisKeys.userReadSeq(userId, conversationId), "0");
         stringRedisTemplate.opsForValue().setIfAbsent(
-                RedisKeys.userMaxSeq(ownerUserId, conversationId), "0");
+                RedisKeys.userMaxSeq(userId, conversationId), "0");
         stringRedisTemplate.opsForValue().setIfAbsent(
-                RedisKeys.userMinSeq(ownerUserId, conversationId), "0");
+                RedisKeys.userMinSeq(userId, conversationId), "0");
     }
 
     @Override
-    public void updateReadSeq(String ownerUserId, String conversationId, long readSeq) {
+    public void updateReadSeq(String userId, String conversationId, long readSeq) {
         // Redis 直写（热路径）
         stringRedisTemplate.opsForValue().set(
-                RedisKeys.userReadSeq(ownerUserId, conversationId), String.valueOf(readSeq));
-        Query query = Query.query(Criteria.where("_id").is(docId(ownerUserId, conversationId)));
+                RedisKeys.userReadSeq(userId, conversationId), String.valueOf(readSeq));
+        Query query = Query.query(Criteria.where("_id").is(docId(userId, conversationId)));
         mongoTemplate.updateFirst(query, new Update().set("readSeq", readSeq),
                 UserConversationSyncPointDoc.class);
     }
 
     @Override
-    public void updateMaxSeq(String ownerUserId, String conversationId, long maxSeq) {
+    public void updateMaxSeq(String userId, String conversationId, long maxSeq) {
         stringRedisTemplate.opsForValue().set(
-                RedisKeys.userMaxSeq(ownerUserId, conversationId), String.valueOf(maxSeq));
-        String id = docId(ownerUserId, conversationId);
+                RedisKeys.userMaxSeq(userId, conversationId), String.valueOf(maxSeq));
+        String id = docId(userId, conversationId);
         Query query = Query.query(Criteria.where("_id").is(id));
         Update update = new Update()
                 .setOnInsert("_id",           id)
-                .setOnInsert("ownerUserId",    ownerUserId)
+                .setOnInsert("userId",         userId)
                 .setOnInsert("conversationId", conversationId)
                 .setOnInsert("minSeq",         0L)
                 .setOnInsert("readSeq",        0L)
@@ -101,10 +101,10 @@ public class ConversationOffsetRangeRepositoryImpl implements ConversationOffset
     }
 
     @Override
-    public void updateMinSeq(String ownerUserId, String conversationId, long minSeq) {
+    public void updateMinSeq(String userId, String conversationId, long minSeq) {
         stringRedisTemplate.opsForValue().set(
-                RedisKeys.userMinSeq(ownerUserId, conversationId), String.valueOf(minSeq));
-        Query query = Query.query(Criteria.where("_id").is(docId(ownerUserId, conversationId)));
+                RedisKeys.userMinSeq(userId, conversationId), String.valueOf(minSeq));
+        Query query = Query.query(Criteria.where("_id").is(docId(userId, conversationId)));
         mongoTemplate.updateFirst(query, new Update().set("minSeq", minSeq),
                 UserConversationSyncPointDoc.class);
     }
@@ -112,16 +112,16 @@ public class ConversationOffsetRangeRepositoryImpl implements ConversationOffset
     // ── 读操作 ────────────────────────────────────────────────────────────────
 
     @Override
-    public Optional<ConversationOffsetRange> find(String ownerUserId, String conversationId) {
+    public Optional<UserConversationSyncPoint> find(String userId, String conversationId) {
         // 三个 key 全部命中才返回缓存，任意缺失均回源 MongoDB
         List<String> vals = stringRedisTemplate.opsForValue().multiGet(List.of(
-                RedisKeys.userReadSeq(ownerUserId, conversationId),
-                RedisKeys.userMaxSeq(ownerUserId, conversationId),
-                RedisKeys.userMinSeq(ownerUserId, conversationId)
+                RedisKeys.userReadSeq(userId, conversationId),
+                RedisKeys.userMaxSeq(userId, conversationId),
+                RedisKeys.userMinSeq(userId, conversationId)
         ));
         if (vals != null && vals.stream().allMatch(Objects::nonNull)) {
-            ConversationOffsetRange range = new ConversationOffsetRange();
-            range.setOwnerUserId(ownerUserId);
+            UserConversationSyncPoint range = new UserConversationSyncPoint();
+            range.setUserId(userId);
             range.setConversationId(conversationId);
             range.setReadSeq(Long.parseLong(vals.get(0)));
             range.setMaxSeq(Long.parseLong(vals.get(1)));
@@ -129,16 +129,16 @@ public class ConversationOffsetRangeRepositoryImpl implements ConversationOffset
             return Optional.of(range);
         }
         // 缓存未命中：查 MongoDB 并写回
-        return mongoRepository.findByUserIdAndConversationId(ownerUserId, conversationId)
+        return mongoRepository.findByUserIdAndConversationId(userId, conversationId)
                 .map(doc -> {
-                    ConversationOffsetRange range = toDomain(doc);
-                    writeToCache(ownerUserId, conversationId, range);
+                    UserConversationSyncPoint range = toDomain(doc);
+                    writeToCache(userId, conversationId, range);
                     return range;
                 });
     }
 
     @Override
-    public List<ConversationOffsetRange> findByIds(String ownerUserId, List<String> conversationIds) {
+    public List<UserConversationSyncPoint> findByIds(String userId, List<String> conversationIds) {
         if (conversationIds == null || conversationIds.isEmpty()) {
             return List.of();
         }
@@ -156,13 +156,13 @@ public class ConversationOffsetRangeRepositoryImpl implements ConversationOffset
 
         List<String> keys = new ArrayList<>(dedupedIds.size() * 3);
         for (String conversationId : dedupedIds) {
-            keys.add(RedisKeys.userReadSeq(ownerUserId, conversationId));
-            keys.add(RedisKeys.userMaxSeq(ownerUserId, conversationId));
-            keys.add(RedisKeys.userMinSeq(ownerUserId, conversationId));
+            keys.add(RedisKeys.userReadSeq(userId, conversationId));
+            keys.add(RedisKeys.userMaxSeq(userId, conversationId));
+            keys.add(RedisKeys.userMinSeq(userId, conversationId));
         }
 
         List<String> values = stringRedisTemplate.opsForValue().multiGet(keys);
-        Map<String, ConversationOffsetRange> ranges = new LinkedHashMap<>();
+        Map<String, UserConversationSyncPoint> ranges = new LinkedHashMap<>();
         List<String> misses = new ArrayList<>();
 
         for (int i = 0; i < dedupedIds.size(); i++) {
@@ -172,8 +172,8 @@ public class ConversationOffsetRangeRepositoryImpl implements ConversationOffset
             String min = values == null ? null : values.get(base + 2);
             String conversationId = dedupedIds.get(i);
             if (read != null && max != null && min != null) {
-                ConversationOffsetRange range = new ConversationOffsetRange();
-                range.setOwnerUserId(ownerUserId);
+                UserConversationSyncPoint range = new UserConversationSyncPoint();
+                range.setUserId(userId);
                 range.setConversationId(conversationId);
                 range.setReadSeq(Long.parseLong(read));
                 range.setMaxSeq(Long.parseLong(max));
@@ -185,13 +185,13 @@ public class ConversationOffsetRangeRepositoryImpl implements ConversationOffset
         }
 
         if (!misses.isEmpty()) {
-            List<ConversationOffsetRange> loaded = mongoRepository
-                    .findByUserIdAndConversationIdIn(ownerUserId, misses)
+            List<UserConversationSyncPoint> loaded = mongoRepository
+                    .findByUserIdAndConversationIdIn(userId, misses)
                     .stream()
                     .map(this::toDomain)
                     .toList();
-            for (ConversationOffsetRange range : loaded) {
-                writeToCache(ownerUserId, range.getConversationId(), range);
+            for (UserConversationSyncPoint range : loaded) {
+                writeToCache(userId, range.getConversationId(), range);
                 ranges.put(range.getConversationId(), range);
             }
         }
@@ -203,18 +203,18 @@ public class ConversationOffsetRangeRepositoryImpl implements ConversationOffset
     }
 
     @Override
-    public List<ConversationOffsetRange> findByOwner(String ownerUserId) {
-        List<ConversationOffsetRange> results = mongoRepository.findByUserId(ownerUserId)
+    public List<UserConversationSyncPoint> findByUserId(String userId) {
+        List<UserConversationSyncPoint> results = mongoRepository.findByUserId(userId)
                 .stream().map(this::toDomain).collect(Collectors.toList());
         // 顺带刷新各条目缓存
-        results.forEach(r -> writeToCache(r.getOwnerUserId(), r.getConversationId(), r));
+        results.forEach(r -> writeToCache(r.getUserId(), r.getConversationId(), r));
         return results;
     }
 
     // ── 缓存工具方法 ──────────────────────────────────────────────────────────
 
     private void writeToCache(String ownerUserId, String conversationId,
-                              ConversationOffsetRange range) {
+                              UserConversationSyncPoint range) {
         stringRedisTemplate.opsForValue().set(
                 RedisKeys.userReadSeq(ownerUserId, conversationId),
                 String.valueOf(range.getReadSeq()));
@@ -228,9 +228,10 @@ public class ConversationOffsetRangeRepositoryImpl implements ConversationOffset
 
     // ── 转换方法 ─────────────────────────────────────────────────────────────
 
-    private ConversationOffsetRange toDomain(UserConversationSyncPointDoc doc) {
-        ConversationOffsetRange range = new ConversationOffsetRange();
-        range.setOwnerUserId(doc.getUserId());
+    private UserConversationSyncPoint toDomain(UserConversationSyncPointDoc doc) {
+        UserConversationSyncPoint range = new UserConversationSyncPoint();
+        range.setId(doc.getId());
+        range.setUserId(doc.getUserId());
         range.setConversationId(doc.getConversationId());
         range.setMaxSeq(doc.getMaxSeq());
         range.setMinSeq(doc.getMinSeq());
@@ -238,7 +239,7 @@ public class ConversationOffsetRangeRepositoryImpl implements ConversationOffset
         return range;
     }
 
-    private static String docId(String ownerUserId, String conversationId) {
-        return ownerUserId + ":" + conversationId;
+    private static String docId(String userId, String conversationId) {
+        return userId + ":" + conversationId;
     }
 }

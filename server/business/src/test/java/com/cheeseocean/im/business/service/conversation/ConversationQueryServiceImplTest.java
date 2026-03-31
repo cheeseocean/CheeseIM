@@ -2,10 +2,10 @@ package com.cheeseocean.im.business.service.conversation;
 
 import com.cheeseocean.im.common.api.dto.message.ConversationLastMessageSummary;
 import com.cheeseocean.im.common.api.message.ConversationLastMessageQueryService;
-import com.cheeseocean.im.common.core.business.domain.ConversationOffsetRange;
-import com.cheeseocean.im.common.core.business.domain.UserConversationState;
-import com.cheeseocean.im.common.core.business.repository.ConversationOffsetRangeRepository;
-import com.cheeseocean.im.common.core.business.repository.UserConversationStateRepository;
+import com.cheeseocean.im.common.core.business.domain.UserConversationSyncPoint;
+import com.cheeseocean.im.common.core.business.domain.UserConversation;
+import com.cheeseocean.im.common.core.business.repository.UserConversationSyncPointRepository;
+import com.cheeseocean.im.common.core.business.repository.UserConversationRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
@@ -23,11 +23,11 @@ class ConversationQueryServiceImplTest {
 
     @Test
     void getConversationsShouldComputeUnreadFromOffsetsAndUseMessageDomainLatest() throws Exception {
-        UserConversationStateRepository stateRepository = mock(UserConversationStateRepository.class);
-        ConversationOffsetRangeRepository offsetRepository = mock(ConversationOffsetRangeRepository.class);
+        UserConversationRepository stateRepository = mock(UserConversationRepository.class);
+        UserConversationSyncPointRepository offsetRepository = mock(UserConversationSyncPointRepository.class);
         ConversationLastMessageQueryService lastMessageQueryService = mock(ConversationLastMessageQueryService.class);
 
-        UserConversationState state = new UserConversationState();
+        UserConversation state = new UserConversation();
         state.setOwnerUserId("u1");
         state.setConversationId("c1");
         state.setConversationType(1);
@@ -36,8 +36,8 @@ class ConversationQueryServiceImplTest {
         state.setLatestMsgSeq(3L);
         state.setLatestMsg("{\"legacy\":true}");
 
-        ConversationOffsetRange range = new ConversationOffsetRange();
-        range.setOwnerUserId("u1");
+        UserConversationSyncPoint range = new UserConversationSyncPoint();
+        range.setUserId("u1");
         range.setConversationId("c1");
         range.setReadSeq(4L);
         range.setMaxSeq(9L);
@@ -65,11 +65,11 @@ class ConversationQueryServiceImplTest {
 
     @Test
     void getConversationShouldFallbackToLegacyStateWhenOffsetsOrSummaryMissing() {
-        UserConversationStateRepository stateRepository = mock(UserConversationStateRepository.class);
-        ConversationOffsetRangeRepository offsetRepository = mock(ConversationOffsetRangeRepository.class);
+        UserConversationRepository stateRepository = mock(UserConversationRepository.class);
+        UserConversationSyncPointRepository offsetRepository = mock(UserConversationSyncPointRepository.class);
         ConversationLastMessageQueryService lastMessageQueryService = mock(ConversationLastMessageQueryService.class);
 
-        UserConversationState state = new UserConversationState();
+        UserConversation state = new UserConversation();
         state.setOwnerUserId("u1");
         state.setConversationId("c1");
         state.setUnreadCount(7);

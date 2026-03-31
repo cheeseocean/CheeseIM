@@ -2,8 +2,8 @@ package com.cheeseocean.im.business.service.conversation;
 
 import com.cheeseocean.im.common.api.dto.conversation.SetConversationRequest;
 import com.cheeseocean.im.common.core.enums.SessionType;
-import com.cheeseocean.im.common.core.business.repository.ConversationOffsetRangeRepository;
-import com.cheeseocean.im.common.core.business.repository.UserConversationStateRepository;
+import com.cheeseocean.im.common.core.business.repository.UserConversationSyncPointRepository;
+import com.cheeseocean.im.common.core.business.repository.UserConversationRepository;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -12,14 +12,15 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 class ConversationLifecycleServiceTest {
 
     @Test
     void createSingleChatConversationShouldInitializeStateAndOffsetsForBothSides() {
-        UserConversationStateRepository stateRepository = mock(UserConversationStateRepository.class);
-        ConversationOffsetRangeRepository offsetRepository = mock(ConversationOffsetRangeRepository.class);
+        UserConversationRepository stateRepository = mock(UserConversationRepository.class);
+        UserConversationSyncPointRepository offsetRepository = mock(UserConversationSyncPointRepository.class);
         ConversationSettingsNotifier settingsNotifier = mock(ConversationSettingsNotifier.class);
 
         ConversationLifecycleService service = new ConversationLifecycleService(
@@ -28,15 +29,15 @@ class ConversationLifecycleServiceTest {
 
         service.createSingleChatConversation("userA", "userB", "c_userA_userB", SessionType.SINGLE.getCode());
 
-        verify(stateRepository).createIfAbsent(any());
+        verify(stateRepository, times(2)).createIfAbsent(any());
         verify(offsetRepository).createIfAbsent("userA", "c_userA_userB");
         verify(offsetRepository).createIfAbsent("userB", "c_userA_userB");
     }
 
     @Test
     void createNotificationConversationShouldOnlyInitializeReceiver() {
-        UserConversationStateRepository stateRepository = mock(UserConversationStateRepository.class);
-        ConversationOffsetRangeRepository offsetRepository = mock(ConversationOffsetRangeRepository.class);
+        UserConversationRepository stateRepository = mock(UserConversationRepository.class);
+        UserConversationSyncPointRepository offsetRepository = mock(UserConversationSyncPointRepository.class);
         ConversationSettingsNotifier settingsNotifier = mock(ConversationSettingsNotifier.class);
 
         ConversationLifecycleService service = new ConversationLifecycleService(
@@ -51,8 +52,8 @@ class ConversationLifecycleServiceTest {
 
     @Test
     void createGroupConversationShouldInitializeStateAndOffsetsForAllMembers() {
-        UserConversationStateRepository stateRepository = mock(UserConversationStateRepository.class);
-        ConversationOffsetRangeRepository offsetRepository = mock(ConversationOffsetRangeRepository.class);
+        UserConversationRepository stateRepository = mock(UserConversationRepository.class);
+        UserConversationSyncPointRepository offsetRepository = mock(UserConversationSyncPointRepository.class);
         ConversationSettingsNotifier settingsNotifier = mock(ConversationSettingsNotifier.class);
 
         ConversationLifecycleService service = new ConversationLifecycleService(
@@ -67,8 +68,8 @@ class ConversationLifecycleServiceTest {
 
     @Test
     void setConversationsShouldNotifyOnlyWhenRecvMsgOptChanges() {
-        UserConversationStateRepository stateRepository = mock(UserConversationStateRepository.class);
-        ConversationOffsetRangeRepository offsetRepository = mock(ConversationOffsetRangeRepository.class);
+        UserConversationRepository stateRepository = mock(UserConversationRepository.class);
+        UserConversationSyncPointRepository offsetRepository = mock(UserConversationSyncPointRepository.class);
         ConversationSettingsNotifier settingsNotifier = mock(ConversationSettingsNotifier.class);
 
         ConversationLifecycleService service = new ConversationLifecycleService(

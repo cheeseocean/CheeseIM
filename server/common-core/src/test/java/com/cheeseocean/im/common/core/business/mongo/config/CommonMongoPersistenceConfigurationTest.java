@@ -1,13 +1,13 @@
 package com.cheeseocean.im.common.core.business.mongo.config;
 
-import com.cheeseocean.im.common.core.business.mongo.impl.ConversationOffsetRangeRepositoryImpl;
+import com.cheeseocean.im.common.core.business.mongo.impl.UserConversationSyncPointRepositoryImpl;
 import com.cheeseocean.im.common.core.business.mongo.impl.FriendRepositoryImpl;
-import com.cheeseocean.im.common.core.business.mongo.impl.GroupApplicationRepositoryImpl;
+import com.cheeseocean.im.common.core.business.mongo.impl.GroupRequestRepositoryImpl;
 import com.cheeseocean.im.common.core.business.mongo.impl.GroupMemberRepositoryImpl;
 import com.cheeseocean.im.common.core.business.mongo.impl.GroupRepositoryImpl;
-import com.cheeseocean.im.common.core.business.mongo.impl.UserConversationStateRepositoryImpl;
+import com.cheeseocean.im.common.core.business.mongo.impl.UserConversationRepositoryImpl;
 import com.cheeseocean.im.common.core.business.mongo.impl.UserRepositoryImpl;
-import com.cheeseocean.im.common.core.business.mongo.impl.UserSyncCheckpointRepositoryImpl;
+import com.cheeseocean.im.common.core.business.mongo.impl.UserConversationSyncPointRepositoryImpl;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.ComponentScan;
@@ -41,13 +41,13 @@ class CommonMongoPersistenceConfigurationTest {
 
     @Test
     void repositoryImplementationsShouldNotBeDirectlyDiscoverableWithoutEnablement() {
-        assertNull(ConversationOffsetRangeRepositoryImpl.class.getAnnotation(Repository.class));
+        assertNull(UserConversationSyncPointRepositoryImpl.class.getAnnotation(Repository.class));
         assertNull(FriendRepositoryImpl.class.getAnnotation(Repository.class));
-        assertNull(GroupApplicationRepositoryImpl.class.getAnnotation(Repository.class));
+        assertNull(GroupRequestRepositoryImpl.class.getAnnotation(Repository.class));
         assertNull(GroupMemberRepositoryImpl.class.getAnnotation(Repository.class));
         assertNull(GroupRepositoryImpl.class.getAnnotation(Repository.class));
-        assertNull(UserConversationStateRepositoryImpl.class.getAnnotation(Repository.class));
+        assertNull(UserConversationRepositoryImpl.class.getAnnotation(Repository.class));
         assertNull(UserRepositoryImpl.class.getAnnotation(Repository.class));
-        assertNull(UserSyncCheckpointRepositoryImpl.class.getAnnotation(Repository.class));
+        assertNull(UserConversationSyncPointRepositoryImpl.class.getAnnotation(Repository.class));
     }
 }

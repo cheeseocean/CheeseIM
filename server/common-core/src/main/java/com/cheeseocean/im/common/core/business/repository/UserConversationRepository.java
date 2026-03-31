@@ -1,6 +1,6 @@
 package com.cheeseocean.im.common.core.business.repository;
 
-import com.cheeseocean.im.common.core.business.domain.UserConversationState;
+import com.cheeseocean.im.common.core.business.domain.UserConversation;
 
 import java.util.List;
 import java.util.Map;
@@ -8,16 +8,16 @@ import java.util.Map;
 /**
  * 用户-会话业务状态仓储抽象接口。
  *
- * <p>管理 {@link UserConversationState} 的持久化，
+ * <p>管理 {@link UserConversation} 的持久化，
  * 仅涵盖业务配置类字段（置顶、免打扰、草稿等）以及少量兼容性展示字段。
  * 序列号同步字段（maxSeq / minSeq / readSeq）由偏移量仓储负责。
  */
-public interface UserConversationStateRepository {
+public interface UserConversationRepository {
 
     /**
      * 若会话记录不存在则插入，已存在则忽略（幂等）。
      */
-    void createIfAbsent(UserConversationState state);
+    void createIfAbsent(UserConversation conversation);
 
     /**
      * 更新最新消息摘要和序列号。
@@ -39,7 +39,7 @@ public interface UserConversationStateRepository {
     /**
      * 重置未读计数为 0。
      * 由标记已读流程触发，用于兼容旧字段；readSeq 的持久化由
-     * {@link ConversationOffsetRangeRepository#updateReadSeq} 负责。
+     * {@link UserConversationSyncPointRepository#updateReadSeq} 负责。
      */
     void clearUnread(String ownerUserId, String conversationId);
 
@@ -54,13 +54,13 @@ public interface UserConversationStateRepository {
     void setRecvMsgOpt(String ownerUserId, String conversationId, int recvMsgOpt);
 
     /** 查询单条会话业务状态，不存在时返回 null */
-    UserConversationState findOne(String ownerUserId, String conversationId);
+    UserConversation findOne(String ownerUserId, String conversationId);
 
     /** 查询用户全部会话，按 updatedAt 倒序 */
-    List<UserConversationState> findAll(String ownerUserId);
+    List<UserConversation> findAll(String ownerUserId);
 
     /** 批量查询指定会话，不存在的跳过 */
-    List<UserConversationState> findByIds(String ownerUserId, List<String> conversationIds);
+    List<UserConversation> findByIds(String ownerUserId, List<String> conversationIds);
 
     /** 获取用户所有会话 ID */
     List<String> findConversationIds(String ownerUserId);
