@@ -1,5 +1,7 @@
 package com.cheeseocean.im.business;
 
+import com.alicp.jetcache.anno.config.EnableCreateCacheAnnotation;
+import com.alicp.jetcache.anno.config.EnableMethodCache;
 import com.cheeseocean.im.common.core.business.mongo.config.EnableCommonMongoPersistence;
 import org.apache.dubbo.config.spring.context.annotation.EnableDubbo;
 import org.springframework.boot.SpringApplication;
@@ -10,6 +12,8 @@ import java.util.Map;
 @SpringBootApplication(scanBasePackages = {"com.cheeseocean.im.business", "com.cheeseocean.im.common"})
 @EnableDubbo
 @EnableCommonMongoPersistence
+@EnableMethodCache(basePackages = "com.cheeseocean.im.business")
+@EnableCreateCacheAnnotation
 public class Business {
 
     public static void main(String[] args) {

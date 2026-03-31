@@ -9,8 +9,6 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -24,20 +22,13 @@ class UserConversationSyncPointRepositoryImplTest {
 
     private MongoTemplate mongoTemplate;
     private UserConversationSyncPointMongoRepository mongoRepository;
-    private StringRedisTemplate stringRedisTemplate;
     private UserConversationSyncPointRepositoryImpl repository;
 
     @BeforeEach
     void setUp() {
         mongoTemplate = mock(MongoTemplate.class);
         mongoRepository = mock(UserConversationSyncPointMongoRepository.class);
-        stringRedisTemplate = mock(StringRedisTemplate.class);
-
-        @SuppressWarnings("unchecked")
-        ValueOperations<String, String> valueOperations = mock(ValueOperations.class);
-        when(stringRedisTemplate.opsForValue()).thenReturn(valueOperations);
-
-        repository = new UserConversationSyncPointRepositoryImpl(mongoRepository, mongoTemplate, stringRedisTemplate);
+        repository = new UserConversationSyncPointRepositoryImpl(mongoRepository, mongoTemplate);
     }
 
     @Test

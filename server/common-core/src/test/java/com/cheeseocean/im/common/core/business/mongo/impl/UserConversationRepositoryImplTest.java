@@ -9,10 +9,6 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.SetOperations;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -25,32 +21,12 @@ import static org.mockito.Mockito.when;
 class UserConversationRepositoryImplTest {
 
     private MongoTemplate mongoTemplate;
-    private RedisTemplate<String, Object> redisTemplate;
-    private StringRedisTemplate stringRedisTemplate;
     private UserConversationRepositoryImpl repository;
 
     @BeforeEach
     void setUp() {
         mongoTemplate = mock(MongoTemplate.class);
-        redisTemplate = mock(RedisTemplate.class);
-        stringRedisTemplate = mock(StringRedisTemplate.class);
-
-        @SuppressWarnings("unchecked")
-        SetOperations<String, Object> setOperations = mock(SetOperations.class);
-        @SuppressWarnings("unchecked")
-        ValueOperations<String, Object> valueOperations = mock(ValueOperations.class);
-        @SuppressWarnings("unchecked")
-        ValueOperations<String, String> stringValueOperations = mock(ValueOperations.class);
-
-        when(redisTemplate.opsForSet()).thenReturn(setOperations);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(stringRedisTemplate.opsForValue()).thenReturn(stringValueOperations);
-
-        repository = new UserConversationRepositoryImpl(
-                mongoTemplate,
-                redisTemplate,
-                stringRedisTemplate
-        );
+        repository = new UserConversationRepositoryImpl(mongoTemplate);
     }
 
     @Test

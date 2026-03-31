@@ -1,5 +1,8 @@
 package com.cheeseocean.im.business.service.user;
 
+import com.alicp.jetcache.anno.CacheInvalidate;
+import com.alicp.jetcache.anno.CacheType;
+import com.alicp.jetcache.anno.Cached;
 import com.cheeseocean.im.common.api.dto.user.RegisterUserRequest;
 import com.cheeseocean.im.common.api.dto.user.UpdateUserInfoRequest;
 import com.cheeseocean.im.common.api.dto.user.UserInfoDTO;
@@ -48,6 +51,7 @@ public class UserServiceImpl implements UserInfoService {
     }
 
     @Override
+    @Cached(name = "business:user:info:", key = "#userId", expire = 300, cacheType = CacheType.BOTH)
     public UserInfoDTO getUserInfo(String userId) {
         return userRepository.findById(userId).map(this::toDTO).orElse(null);
     }
@@ -101,6 +105,7 @@ public class UserServiceImpl implements UserInfoService {
     }
 
     @Override
+    @CacheInvalidate(name = "business:user:info:", key = "#userId")
     public void updateUserInfo(String userId, UpdateUserInfoRequest request) {
         Map<String, Object> fields = new HashMap<>();
         if (request.getNickname() != null) {
@@ -142,6 +147,7 @@ public class UserServiceImpl implements UserInfoService {
     }
 
     @Override
+    @CacheInvalidate(name = "business:user:info:", key = "#userId")
     public void updateNotificationAccount(String userId, String nickname, String faceUrl) {
         Map<String, Object> fields = new HashMap<>();
         if (StringUtils.hasText(nickname)) {
@@ -163,6 +169,7 @@ public class UserServiceImpl implements UserInfoService {
     }
 
     @Override
+    @Cached(name = "business:user:notification:", key = "#userId", expire = 300, cacheType = CacheType.BOTH)
     public UserInfoDTO getNotificationAccount(String userId) {
         return userRepository.findById(userId)
                 .filter(User::isNotificationAccount)

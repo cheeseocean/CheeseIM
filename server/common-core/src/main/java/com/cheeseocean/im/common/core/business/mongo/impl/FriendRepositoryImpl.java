@@ -1,8 +1,5 @@
 package com.cheeseocean.im.common.core.business.mongo.impl;
 
-import com.cheeseocean.im.common.core.constants.RedisKeys;
-import com.cheeseocean.im.common.core.cache.redis.StringSetCacheHelper;
-import com.cheeseocean.im.common.core.enums.HandleResultEnum;
 import com.cheeseocean.im.common.core.business.domain.Blacklist;
 import com.cheeseocean.im.common.core.business.domain.FriendRequest;
 import com.cheeseocean.im.common.core.business.domain.Friendship;
@@ -13,106 +10,71 @@ import com.cheeseocean.im.common.core.business.mongo.repository.BlacklistMongoRe
 import com.cheeseocean.im.common.core.business.mongo.repository.FriendRequestMongoRepository;
 import com.cheeseocean.im.common.core.business.mongo.repository.FriendshipMongoRepository;
 import com.cheeseocean.im.common.core.business.repository.FriendRepository;
-import org.springframework.data.redis.core.RedisTemplate;
+import com.cheeseocean.im.common.core.enums.HandleResultEnum;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * {@link FriendRepository} 的 MongoDB + Redis 实现。
- *
- * <p>Redis 负责好友列表、申请队列、黑名单的缓存，命中则跳过 MongoDB。
- * 写操作先落 MongoDB，再同步更新缓存。
+ * {@link FriendRepository} 的 MongoDB 实现。
  */
 public class FriendRepositoryImpl implements FriendRepository {
 
-    private static final int PENDING  = HandleResultEnum.PENDING.getCode();
+    private static final int PENDING = HandleResultEnum.PENDING.getCode();
     private static final int ACCEPTED = HandleResultEnum.ACCEPTED.getCode();
     private static final int REJECTED = HandleResultEnum.REJECTED.getCode();
 
     private final FriendshipMongoRepository friendshipRepo;
     private final FriendRequestMongoRepository friendRequestRepo;
     private final BlacklistMongoRepository blacklistRepo;
-    private final RedisTemplate<String, Object> redisTemplate;
 
     public FriendRepositoryImpl(FriendshipMongoRepository friendshipRepo,
                                 FriendRequestMongoRepository friendRequestRepo,
-                                BlacklistMongoRepository blacklistRepo,
-                                RedisTemplate<String, Object> redisTemplate) {
+                                BlacklistMongoRepository blacklistRepo) {
         this.friendshipRepo = friendshipRepo;
         this.friendRequestRepo = friendRequestRepo;
         this.blacklistRepo = blacklistRepo;
-        this.redisTemplate = redisTemplate;
     }
-
-    // ── 好友关系 ──────────────────────────────────────────────────────────────
 
     @Override
     public boolean areAcceptedFriends(String userId, String friendUserId) {
-        return StringSetCacheHelper.containsOrLoad(
-                redisTemplate,
-                friendKey(userId),
-                friendLoadedKey(userId),
-                friendUserId,
-                () -> friendshipRepo.existsByOwnerUserIdAndFriendUserId(userId, friendUserId)
-        );
+        return friendshipRepo.existsByOwnerUserIdAndFriendUserId(userId, friendUserId);
     }
 
     @Override
     public List<String> listFriendIds(String userId) {
-        return StringSetCacheHelper.getOrLoad(
-                redisTemplate,
-                friendKey(userId),
-                friendLoadedKey(userId),
-                () -> friendshipRepo.findByOwnerUserId(userId).stream()
-                        .map(FriendshipDoc::getFriendUserId)
-                        .sorted()
-                        .toList()
-        );
+        return friendshipRepo.findByOwnerUserId(userId).stream()
+                .map(FriendshipDoc::getFriendUserId)
+                .sorted()
+                .toList();
     }
 
     @Override
     public void acceptFriendPair(String userId, String friendUserId) {
         long now = System.currentTimeMillis();
-        // 更新申请状态
         FriendRequestDoc req = friendRequestRepo
                 .findByFromUserIdAndToUserIdAndHandleResult(friendUserId, userId, PENDING)
                 .orElseThrow(() -> new IllegalStateException("好友申请不存在"));
         req.setHandleResult(ACCEPTED);
         req.setUpdatedAt(now);
         friendRequestRepo.save(req);
-        // 双向建立好友关系
         saveFriendshipIfAbsent(userId, friendUserId, now);
         saveFriendshipIfAbsent(friendUserId, userId, now);
-        // 更新缓存
-        redisTemplate.opsForSet().add(friendKey(userId), friendUserId);
-        redisTemplate.opsForSet().add(friendKey(friendUserId), userId);
-        StringSetCacheHelper.markLoaded(redisTemplate, friendLoadedKey(userId));
-        StringSetCacheHelper.markLoaded(redisTemplate, friendLoadedKey(friendUserId));
-        redisTemplate.opsForSet().remove(incomingKey(userId), friendUserId);
-        redisTemplate.opsForSet().remove(outgoingKey(friendUserId), userId);
     }
-
-    // ── 好友申请 ──────────────────────────────────────────────────────────────
 
     @Override
     public List<FriendRequest> listIncomingPendingRequests(String userId) {
-        List<FriendRequest> requests = friendRequestRepo
+        return friendRequestRepo
                 .findByToUserIdAndHandleResultOrderByUpdatedAtDesc(userId, PENDING)
                 .stream().map(this::toDomain).toList();
-        replaceSet(incomingKey(userId), requests.stream().map(FriendRequest::getFromUserId).toList());
-        return requests;
     }
 
     @Override
     public List<FriendRequest> listOutgoingPendingRequests(String userId) {
-        List<FriendRequest> requests = friendRequestRepo
+        return friendRequestRepo
                 .findByFromUserIdAndHandleResultOrderByUpdatedAtDesc(userId, PENDING)
                 .stream().map(this::toDomain).toList();
-        replaceSet(outgoingKey(userId), requests.stream().map(FriendRequest::getToUserId).toList());
-        return requests;
     }
 
     @Override
@@ -127,34 +89,16 @@ public class FriendRepositoryImpl implements FriendRepository {
         doc.setCreateTime(now);
         doc.setUpdatedAt(now);
         friendRequestRepo.save(doc);
-        redisTemplate.opsForSet().add(incomingKey(toUserId), fromUserId);
-        redisTemplate.opsForSet().add(outgoingKey(fromUserId), toUserId);
     }
 
     @Override
     public boolean hasOutgoingPendingRequest(String userId, String friendUserId) {
-        Boolean cached = redisTemplate.opsForSet().isMember(outgoingKey(userId), friendUserId);
-        if (Boolean.TRUE.equals(cached)) {
-            return true;
-        }
-        boolean pending = friendRequestRepo.existsByFromUserIdAndToUserIdAndHandleResult(userId, friendUserId, PENDING);
-        if (pending) {
-            redisTemplate.opsForSet().add(outgoingKey(userId), friendUserId);
-        }
-        return pending;
+        return friendRequestRepo.existsByFromUserIdAndToUserIdAndHandleResult(userId, friendUserId, PENDING);
     }
 
     @Override
     public boolean hasIncomingPendingRequest(String userId, String friendUserId) {
-        Boolean cached = redisTemplate.opsForSet().isMember(incomingKey(userId), friendUserId);
-        if (Boolean.TRUE.equals(cached)) {
-            return true;
-        }
-        boolean pending = friendRequestRepo.existsByFromUserIdAndToUserIdAndHandleResult(friendUserId, userId, PENDING);
-        if (pending) {
-            redisTemplate.opsForSet().add(incomingKey(userId), friendUserId);
-        }
-        return pending;
+        return friendRequestRepo.existsByFromUserIdAndToUserIdAndHandleResult(friendUserId, userId, PENDING);
     }
 
     @Override
@@ -173,17 +117,9 @@ public class FriendRepositoryImpl implements FriendRepository {
         updateRequestResult(fromUserId, toUserId, REJECTED);
     }
 
-    // ── 黑名单 ────────────────────────────────────────────────────────────────
-
     @Override
     public boolean isBlocked(String userId, String targetUserId) {
-        return StringSetCacheHelper.containsOrLoad(
-                redisTemplate,
-                blacklistKey(targetUserId),
-                blacklistLoadedKey(targetUserId),
-                userId,
-                () -> blacklistRepo.existsByOwnerUserIdAndBlockUserId(targetUserId, userId)
-        );
+        return blacklistRepo.existsByOwnerUserIdAndBlockUserId(targetUserId, userId);
     }
 
     @Override
@@ -197,28 +133,19 @@ public class FriendRepositoryImpl implements FriendRepository {
         doc.setBlockUserId(targetUserId);
         doc.setCreatedAt(System.currentTimeMillis());
         blacklistRepo.save(doc);
-        redisTemplate.opsForSet().add(blacklistKey(userId), targetUserId);
-        StringSetCacheHelper.markLoaded(redisTemplate, blacklistLoadedKey(userId));
     }
 
     @Override
     public void unblockUser(String userId, String targetUserId) {
         blacklistRepo.deleteByOwnerUserIdAndBlockUserId(userId, targetUserId);
-        redisTemplate.opsForSet().remove(blacklistKey(userId), targetUserId);
-        StringSetCacheHelper.markLoaded(redisTemplate, blacklistLoadedKey(userId));
     }
 
     @Override
     public List<String> listBlockedUserIds(String userId) {
-        return StringSetCacheHelper.getOrLoad(
-                redisTemplate,
-                blacklistKey(userId),
-                blacklistLoadedKey(userId),
-                () -> blacklistRepo.findByOwnerUserId(userId).stream()
-                        .map(BlacklistDoc::getBlockUserId)
-                        .sorted()
-                        .toList()
-        );
+        return blacklistRepo.findByOwnerUserId(userId).stream()
+                .map(BlacklistDoc::getBlockUserId)
+                .sorted()
+                .toList();
     }
 
     @Override
@@ -227,8 +154,6 @@ public class FriendRepositoryImpl implements FriendRepository {
                 .map(this::toDomain).collect(Collectors.toList());
     }
 
-    // ── 私有工具方法 ──────────────────────────────────────────────────────────
-
     private void updateRequestResult(String fromUserId, String toUserId, int result) {
         FriendRequestDoc doc = friendRequestRepo
                 .findByFromUserIdAndToUserIdAndHandleResult(fromUserId, toUserId, PENDING)
@@ -236,8 +161,6 @@ public class FriendRepositoryImpl implements FriendRepository {
         doc.setHandleResult(result);
         doc.setUpdatedAt(System.currentTimeMillis());
         friendRequestRepo.save(doc);
-        redisTemplate.opsForSet().remove(incomingKey(toUserId), fromUserId);
-        redisTemplate.opsForSet().remove(outgoingKey(fromUserId), toUserId);
     }
 
     private void saveFriendshipIfAbsent(String ownerUserId, String friendUserId, long createdAt) {
@@ -251,15 +174,6 @@ public class FriendRepositoryImpl implements FriendRepository {
         doc.setCreatedAt(createdAt);
         friendshipRepo.save(doc);
     }
-
-    private void replaceSet(String key, Collection<String> values) {
-        redisTemplate.delete(key);
-        if (values != null && !values.isEmpty()) {
-            redisTemplate.opsForSet().add(key, values.toArray());
-        }
-    }
-
-    // ── 转换方法 ─────────────────────────────────────────────────────────────
 
     private FriendRequest toDomain(FriendRequestDoc doc) {
         FriendRequest req = new FriendRequest();
@@ -302,11 +216,4 @@ public class FriendRepositoryImpl implements FriendRepository {
         b.setCreatedAt(doc.getCreatedAt() != null ? doc.getCreatedAt() : 0L);
         return b;
     }
-
-    private String friendKey(String userId) { return RedisKeys.userFriends(userId); }
-    private String friendLoadedKey(String userId) { return RedisKeys.userFriendsLoaded(userId); }
-    private String incomingKey(String userId) { return RedisKeys.userIncomingFriendRequests(userId); }
-    private String outgoingKey(String userId) { return RedisKeys.userOutgoingFriendRequests(userId); }
-    private String blacklistKey(String userId) { return RedisKeys.userBlacklist(userId); }
-    private String blacklistLoadedKey(String userId) { return RedisKeys.userBlacklistLoaded(userId); }
 }

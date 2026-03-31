@@ -1,5 +1,8 @@
 package com.cheeseocean.im.business.service.conversation;
 
+import com.alicp.jetcache.anno.CacheInvalidate;
+import com.alicp.jetcache.anno.CacheType;
+import com.alicp.jetcache.anno.Cached;
 import com.cheeseocean.im.common.api.conversation.ConversationRecvOptService;
 import com.cheeseocean.im.common.core.business.repository.UserConversationRepository;
 import org.apache.dubbo.config.annotation.DubboService;
@@ -25,11 +28,13 @@ public class ConversationRecvOptServiceImpl implements ConversationRecvOptServic
     }
 
     @Override
+    @Cached(name = "business:conversation:recvOpt:", key = "#ownerUserId + ':' + #conversationId", expire = 300, cacheType = CacheType.BOTH)
     public int getRecvMsgOpt(String ownerUserId, String conversationId) {
         return stateRepository.getRecvMsgOpt(ownerUserId, conversationId);
     }
 
     @Override
+    @CacheInvalidate(name = "business:conversation:recvOpt:", key = "#ownerUserId + ':' + #conversationId")
     public void setRecvMsgOpt(String ownerUserId, String conversationId, int recvMsgOpt) {
         stateRepository.setRecvMsgOpt(ownerUserId, conversationId, recvMsgOpt);
         conversationSettingsNotifier.notifyRecvMsgOptChanged(ownerUserId, conversationId, recvMsgOpt);
