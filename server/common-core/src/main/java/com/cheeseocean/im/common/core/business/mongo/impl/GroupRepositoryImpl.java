@@ -6,7 +6,7 @@ import com.cheeseocean.im.common.core.enums.GroupStatusEnum;
 import com.cheeseocean.im.common.core.enums.GroupTypeEnum;
 import com.cheeseocean.im.common.core.enums.NeedVerificationEnum;
 import com.cheeseocean.im.common.core.business.domain.Group;
-import com.cheeseocean.im.common.core.business.mongo.document.GroupDoc;
+import com.cheeseocean.im.common.core.business.mongo.document.group.GroupDoc;
 import com.cheeseocean.im.common.core.business.mongo.repository.GroupMongoRepository;
 import com.cheeseocean.im.common.core.business.repository.GroupRepository;
 import org.springframework.data.mongodb.core.MongoTemplate;

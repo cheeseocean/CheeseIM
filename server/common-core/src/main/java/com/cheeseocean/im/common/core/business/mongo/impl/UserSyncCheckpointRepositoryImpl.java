@@ -1,7 +1,7 @@
 package com.cheeseocean.im.common.core.business.mongo.impl;
 
 import com.cheeseocean.im.common.core.business.domain.UserSyncCheckpoint;
-import com.cheeseocean.im.common.core.business.mongo.document.UserSyncCheckpointDoc;
+import com.cheeseocean.im.common.core.business.mongo.document.conversation.UserConversationSyncPointDoc;
 import com.cheeseocean.im.common.core.business.mongo.repository.UserSyncCheckpointMongoRepository;
 import com.cheeseocean.im.common.core.business.repository.UserSyncCheckpointRepository;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
@@ -44,7 +44,7 @@ public class UserSyncCheckpointRepositoryImpl implements UserSyncCheckpointRepos
                 .setOnInsert("readSeq", 0L)
                 .setOnInsert("maxSeq", 0L)
                 .setOnInsert("minSeq", 0L);
-        mongoTemplate.upsert(query, update, UserSyncCheckpointDoc.class);
+        mongoTemplate.upsert(query, update, UserConversationSyncPointDoc.class);
         stringRedisTemplate.opsForValue().setIfAbsent(RedisKeys.userSyncCheckpointReadSeq(userId, conversationId), "0");
         stringRedisTemplate.opsForValue().setIfAbsent(RedisKeys.userSyncCheckpointMaxSeq(userId, conversationId), "0");
         stringRedisTemplate.opsForValue().setIfAbsent(RedisKeys.userSyncCheckpointMinSeq(userId, conversationId), "0");
@@ -55,7 +55,7 @@ public class UserSyncCheckpointRepositoryImpl implements UserSyncCheckpointRepos
         stringRedisTemplate.opsForValue().set(
                 RedisKeys.userSyncCheckpointReadSeq(userId, conversationId), String.valueOf(readSeq));
         Query query = Query.query(Criteria.where("_id").is(docId(userId, conversationId)));
-        mongoTemplate.updateFirst(query, new Update().set("readSeq", readSeq), UserSyncCheckpointDoc.class);
+        mongoTemplate.updateFirst(query, new Update().set("readSeq", readSeq), UserConversationSyncPointDoc.class);
     }
 
     @Override
@@ -71,7 +71,7 @@ public class UserSyncCheckpointRepositoryImpl implements UserSyncCheckpointRepos
                 .setOnInsert("readSeq", 0L)
                 .setOnInsert("minSeq", 0L)
                 .set("maxSeq", maxSeq);
-        mongoTemplate.upsert(query, update, UserSyncCheckpointDoc.class);
+        mongoTemplate.upsert(query, update, UserConversationSyncPointDoc.class);
     }
 
     @Override
@@ -79,7 +79,7 @@ public class UserSyncCheckpointRepositoryImpl implements UserSyncCheckpointRepos
         stringRedisTemplate.opsForValue().set(
                 RedisKeys.userSyncCheckpointMinSeq(userId, conversationId), String.valueOf(minSeq));
         Query query = Query.query(Criteria.where("_id").is(docId(userId, conversationId)));
-        mongoTemplate.updateFirst(query, new Update().set("minSeq", minSeq), UserSyncCheckpointDoc.class);
+        mongoTemplate.updateFirst(query, new Update().set("minSeq", minSeq), UserConversationSyncPointDoc.class);
     }
 
     @Override
@@ -195,7 +195,7 @@ public class UserSyncCheckpointRepositoryImpl implements UserSyncCheckpointRepos
                 String.valueOf(checkpoint.getMinSeq()));
     }
 
-    private UserSyncCheckpoint toDomain(UserSyncCheckpointDoc doc) {
+    private UserSyncCheckpoint toDomain(UserConversationSyncPointDoc doc) {
         UserSyncCheckpoint checkpoint = new UserSyncCheckpoint();
         checkpoint.setId(doc.getId());
         checkpoint.setUserId(doc.getUserId());

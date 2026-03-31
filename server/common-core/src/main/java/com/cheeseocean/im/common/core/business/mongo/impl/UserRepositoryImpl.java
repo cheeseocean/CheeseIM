@@ -3,7 +3,7 @@ package com.cheeseocean.im.common.core.business.mongo.impl;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.common.core.cache.redis.BatchCacheHelper;
 import com.cheeseocean.im.common.core.business.domain.User;
-import com.cheeseocean.im.common.core.business.mongo.document.UserDoc;
+import com.cheeseocean.im.common.core.business.mongo.document.user.UserDoc;
 import com.cheeseocean.im.common.core.business.mongo.repository.UserMongoRepository;
 import com.cheeseocean.im.common.core.business.repository.UserRepository;
 import org.springframework.data.domain.PageRequest;

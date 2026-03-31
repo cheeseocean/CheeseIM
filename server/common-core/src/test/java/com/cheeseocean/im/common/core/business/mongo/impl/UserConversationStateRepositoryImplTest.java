@@ -1,7 +1,7 @@
 package com.cheeseocean.im.common.core.business.mongo.impl;
 
 import com.cheeseocean.im.common.core.business.domain.UserConversationState;
-import com.cheeseocean.im.common.core.business.mongo.document.UserConversationStateDoc;
+import com.cheeseocean.im.common.core.business.mongo.document.conversation.UserConversationDoc;
 import com.cheeseocean.im.common.core.enums.SessionType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -62,7 +62,7 @@ class UserConversationStateRepositoryImplTest {
         verify(mongoTemplate).upsert(
                 any(Query.class),
                 any(Update.class),
-                eq(UserConversationStateDoc.class));
+                eq(UserConversationDoc.class));
     }
 
     @Test
@@ -74,7 +74,7 @@ class UserConversationStateRepositoryImplTest {
         verify(mongoTemplate).upsert(
                 any(Query.class),
                 updateCaptor.capture(),
-                eq(UserConversationStateDoc.class));
+                eq(UserConversationDoc.class));
 
         String updateJson = updateCaptor.getValue().getUpdateObject().toString();
         assertNotNull(updateJson);
@@ -89,7 +89,7 @@ class UserConversationStateRepositoryImplTest {
         verify(mongoTemplate).upsert(
                 any(Query.class),
                 any(Update.class),
-                eq(UserConversationStateDoc.class));
+                eq(UserConversationDoc.class));
     }
 
     @Test
@@ -99,7 +99,7 @@ class UserConversationStateRepositoryImplTest {
         verify(mongoTemplate).updateFirst(
                 any(Query.class),
                 any(Update.class),
-                eq(UserConversationStateDoc.class));
+                eq(UserConversationDoc.class));
     }
 
     private static UserConversationState conversation(String owner, String convId, int type, String target) {

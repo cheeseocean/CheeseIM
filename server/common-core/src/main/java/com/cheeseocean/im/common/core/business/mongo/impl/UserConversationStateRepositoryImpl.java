@@ -4,7 +4,7 @@ import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.common.core.cache.redis.BatchCacheHelper;
 import com.cheeseocean.im.common.core.cache.redis.StringSetCacheHelper;
 import com.cheeseocean.im.common.core.business.domain.UserConversationState;
-import com.cheeseocean.im.common.core.business.mongo.document.UserConversationStateDoc;
+import com.cheeseocean.im.common.core.business.mongo.document.conversation.UserConversationDoc;
 import com.cheeseocean.im.common.core.business.repository.UserConversationStateRepository;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -65,7 +65,7 @@ public class UserConversationStateRepositoryImpl implements UserConversationStat
                 .setOnInsert("unreadCount",      0)
                 .setOnInsert("pinned",           false)
                 .setOnInsert("createdAt",        Instant.now());
-        mongoTemplate.upsert(query, update, UserConversationStateDoc.class);
+        mongoTemplate.upsert(query, update, UserConversationDoc.class);
         // 将会话 ID 加入用户会话集合缓存
         redisTemplate.opsForSet().add(
                 RedisKeys.userConvIds(state.getOwnerUserId()), state.getConversationId());
@@ -80,7 +80,7 @@ public class UserConversationStateRepositoryImpl implements UserConversationStat
                 .set("latestMsgSeq", latestMsgSeq)
                 .set("latestMsg",    latestMsgJson)
                 .set("updatedAt",    Instant.now());
-        mongoTemplate.upsert(query, update, UserConversationStateDoc.class);
+        mongoTemplate.upsert(query, update, UserConversationDoc.class);
         // 会话状态已变更，使缓存失效
         redisTemplate.delete(RedisKeys.userConvState(ownerUserId, conversationId));
     }
@@ -94,7 +94,7 @@ public class UserConversationStateRepositoryImpl implements UserConversationStat
         Update update = new Update()
                 .inc("unreadCount", delta)
                 .set("updatedAt",   Instant.now());
-        mongoTemplate.upsert(query, update, UserConversationStateDoc.class);
+        mongoTemplate.upsert(query, update, UserConversationDoc.class);
         redisTemplate.delete(RedisKeys.userConvState(ownerUserId, conversationId));
     }
 
@@ -107,7 +107,7 @@ public class UserConversationStateRepositoryImpl implements UserConversationStat
         Update update = new Update()
                 .set("unreadCount", 0)
                 .set("updatedAt",   Instant.now());
-        mongoTemplate.updateFirst(query, update, UserConversationStateDoc.class);
+        mongoTemplate.updateFirst(query, update, UserConversationDoc.class);
         redisTemplate.delete(RedisKeys.userConvState(ownerUserId, conversationId));
     }
 
@@ -117,7 +117,7 @@ public class UserConversationStateRepositoryImpl implements UserConversationStat
         Update update = new Update()
                 .set("recvMsgOpt", recvMsgOpt)
                 .set("updatedAt",  Instant.now());
-        mongoTemplate.upsert(query, update, UserConversationStateDoc.class);
+        mongoTemplate.upsert(query, update, UserConversationDoc.class);
         redisTemplate.delete(RedisKeys.userConvState(ownerUserId, conversationId));
     }
 
@@ -138,7 +138,7 @@ public class UserConversationStateRepositoryImpl implements UserConversationStat
                 .setOnInsert("createdAt",        Instant.now());
         fields.forEach(update::set);
         update.set("updatedAt", Instant.now());
-        mongoTemplate.upsert(query, update, UserConversationStateDoc.class);
+        mongoTemplate.upsert(query, update, UserConversationDoc.class);
         redisTemplate.delete(RedisKeys.userConvState(ownerUserId, conversationId));
         redisTemplate.opsForSet().add(RedisKeys.userConvIds(ownerUserId), conversationId);
         StringSetCacheHelper.markLoaded(redisTemplate, RedisKeys.userConvIdsLoaded(ownerUserId));
@@ -156,7 +156,7 @@ public class UserConversationStateRepositoryImpl implements UserConversationStat
         // 缓存未命中：只查 recvMsgOpt 字段，避免加载整个文档
         Query query = Query.query(Criteria.where("_id").is(docId(ownerUserId, conversationId)));
         query.fields().include("recvMsgOpt");
-        UserConversationStateDoc doc = mongoTemplate.findOne(query, UserConversationStateDoc.class);
+        UserConversationDoc doc = mongoTemplate.findOne(query, UserConversationDoc.class);
         return doc == null ? 0 : doc.getRecvMsgOpt();
     }
 
@@ -167,8 +167,8 @@ public class UserConversationStateRepositoryImpl implements UserConversationStat
                 RedisKeys.userConvState(ownerUserId, conversationId),
                 CONV_STATE_TTL,
                 () -> {
-                    Query query = Query.query(Criteria.where("_id").is(docId(ownerUserId, conversationId)));
-                    UserConversationStateDoc doc = mongoTemplate.findOne(query, UserConversationStateDoc.class);
+                    Query               query = Query.query(Criteria.where("_id").is(docId(ownerUserId, conversationId)));
+                    UserConversationDoc doc   = mongoTemplate.findOne(query, UserConversationDoc.class);
                     return doc == null ? java.util.Optional.empty() : java.util.Optional.of(toDomain(doc));
                 },
                 UserConversationState.class
@@ -180,7 +180,7 @@ public class UserConversationStateRepositoryImpl implements UserConversationStat
         // MongoDB 负责排序，同时将结果写入各自的缓存 key
         Query query = Query.query(Criteria.where("ownerUserId").is(ownerUserId))
                 .with(Sort.by(Sort.Direction.DESC, "updatedAt"));
-        List<UserConversationState> results = mongoTemplate.find(query, UserConversationStateDoc.class)
+        List<UserConversationState> results = mongoTemplate.find(query, UserConversationDoc.class)
                 .stream().map(this::toDomain).collect(Collectors.toList());
         // 顺带刷新各条目的缓存
         results.forEach(s -> putConvStateToCache(s.getOwnerUserId(), s.getConversationId(), s));
@@ -203,7 +203,7 @@ public class UserConversationStateRepositoryImpl implements UserConversationStat
                             .map(cid -> docId(ownerUserId, cid))
                             .collect(Collectors.toList());
                     Query query = Query.query(Criteria.where("_id").in(docIds));
-                    return mongoTemplate.find(query, UserConversationStateDoc.class).stream()
+                    return mongoTemplate.find(query, UserConversationDoc.class).stream()
                             .map(this::toDomain)
                             .collect(Collectors.toList());
                 },
@@ -220,8 +220,8 @@ public class UserConversationStateRepositoryImpl implements UserConversationStat
                 () -> {
                     Query query = Query.query(Criteria.where("ownerUserId").is(ownerUserId));
                     query.fields().include("conversationId");
-                    return mongoTemplate.find(query, UserConversationStateDoc.class).stream()
-                            .map(UserConversationStateDoc::getConversationId)
+                    return mongoTemplate.find(query, UserConversationDoc.class).stream()
+                            .map(UserConversationDoc::getConversationId)
                             .collect(Collectors.toList());
                 }
         );
@@ -234,8 +234,8 @@ public class UserConversationStateRepositoryImpl implements UserConversationStat
                 .map(uid -> docId(uid, conversationId)).collect(Collectors.toList());
         Query query = Query.query(Criteria.where("_id").in(ids).and("recvMsgOpt").is(1));
         query.fields().include("ownerUserId");
-        return mongoTemplate.find(query, UserConversationStateDoc.class).stream()
-                .map(UserConversationStateDoc::getOwnerUserId).collect(Collectors.toList());
+        return mongoTemplate.find(query, UserConversationDoc.class).stream()
+                .map(UserConversationDoc::getOwnerUserId).collect(Collectors.toList());
     }
 
     // ── 缓存工具方法 ──────────────────────────────────────────────────────────
@@ -254,7 +254,7 @@ public class UserConversationStateRepositoryImpl implements UserConversationStat
 
     // ── toDomain 转换 ─────────────────────────────────────────────────────────
 
-    private UserConversationState toDomain(UserConversationStateDoc doc) {
+    private UserConversationState toDomain(UserConversationDoc doc) {
         UserConversationState state = new UserConversationState();
         state.setOwnerUserId(doc.getOwnerUserId());
         state.setConversationId(doc.getConversationId());

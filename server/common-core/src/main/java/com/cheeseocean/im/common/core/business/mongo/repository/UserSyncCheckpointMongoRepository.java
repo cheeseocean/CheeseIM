@@ -1,16 +1,16 @@
 package com.cheeseocean.im.common.core.business.mongo.repository;
 
-import com.cheeseocean.im.common.core.business.mongo.document.UserSyncCheckpointDoc;
+import com.cheeseocean.im.common.core.business.mongo.document.conversation.UserConversationSyncPointDoc;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.util.List;
 import java.util.Optional;
 
-public interface UserSyncCheckpointMongoRepository extends MongoRepository<UserSyncCheckpointDoc, String> {
+public interface UserSyncCheckpointMongoRepository extends MongoRepository<UserConversationSyncPointDoc, String> {
 
-    Optional<UserSyncCheckpointDoc> findByUserIdAndConversationId(String userId, String conversationId);
+    Optional<UserConversationSyncPointDoc> findByUserIdAndConversationId(String userId, String conversationId);
 
-    List<UserSyncCheckpointDoc> findByUserIdAndConversationIdIn(String userId, List<String> conversationIds);
+    List<UserConversationSyncPointDoc> findByUserIdAndConversationIdIn(String userId, List<String> conversationIds);
 
-    List<UserSyncCheckpointDoc> findByUserId(String userId);
+    List<UserConversationSyncPointDoc> findByUserId(String userId);
 }

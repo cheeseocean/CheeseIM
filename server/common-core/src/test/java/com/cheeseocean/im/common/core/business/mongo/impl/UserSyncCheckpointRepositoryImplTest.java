@@ -1,7 +1,7 @@
 package com.cheeseocean.im.common.core.business.mongo.impl;
 
 import com.cheeseocean.im.common.core.business.domain.UserSyncCheckpoint;
-import com.cheeseocean.im.common.core.business.mongo.document.UserSyncCheckpointDoc;
+import com.cheeseocean.im.common.core.business.mongo.document.conversation.UserConversationSyncPointDoc;
 import com.cheeseocean.im.common.core.business.mongo.repository.UserSyncCheckpointMongoRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,7 +47,7 @@ class UserSyncCheckpointRepositoryImplTest {
         verify(mongoTemplate).upsert(
                 any(Query.class),
                 any(Update.class),
-                eq(UserSyncCheckpointDoc.class));
+                eq(UserConversationSyncPointDoc.class));
     }
 
     @Test
@@ -59,7 +59,7 @@ class UserSyncCheckpointRepositoryImplTest {
         verify(mongoTemplate).updateFirst(
                 any(Query.class),
                 updateCaptor.capture(),
-                eq(UserSyncCheckpointDoc.class));
+                eq(UserConversationSyncPointDoc.class));
 
         String updateJson = updateCaptor.getValue().getUpdateObject().toString();
         assertNotNull(updateJson);
@@ -73,7 +73,7 @@ class UserSyncCheckpointRepositoryImplTest {
         verify(mongoTemplate).upsert(
                 any(Query.class),
                 any(Update.class),
-                eq(UserSyncCheckpointDoc.class));
+                eq(UserConversationSyncPointDoc.class));
     }
 
     @Test
@@ -85,7 +85,7 @@ class UserSyncCheckpointRepositoryImplTest {
         verify(mongoTemplate).updateFirst(
                 any(Query.class),
                 updateCaptor.capture(),
-                eq(UserSyncCheckpointDoc.class));
+                eq(UserConversationSyncPointDoc.class));
 
         String updateJson = updateCaptor.getValue().getUpdateObject().toString();
         assertNotNull(updateJson);

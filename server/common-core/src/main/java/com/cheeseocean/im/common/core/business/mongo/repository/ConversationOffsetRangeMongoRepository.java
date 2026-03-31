@@ -1,19 +1,19 @@
 package com.cheeseocean.im.common.core.business.mongo.repository;
 
-import com.cheeseocean.im.common.core.business.mongo.document.ConversationOffsetRangeDoc;
+import com.cheeseocean.im.common.core.business.mongo.document.conversation.UserConversationSyncPointDoc;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.util.List;
 import java.util.Optional;
 
-/** seq_user 集合的 Spring Data 访问接口 */
+/** 用户-会话同步位点集合的 Spring Data 访问接口。 */
 public interface ConversationOffsetRangeMongoRepository
-        extends MongoRepository<ConversationOffsetRangeDoc, String> {
+        extends MongoRepository<UserConversationSyncPointDoc, String> {
 
-    Optional<ConversationOffsetRangeDoc> findByOwnerUserIdAndConversationId(
-            String ownerUserId, String conversationId);
+    Optional<UserConversationSyncPointDoc> findByUserIdAndConversationId(
+            String userId, String conversationId);
 
-    List<ConversationOffsetRangeDoc> findByOwnerUserIdAndConversationIdIn(String ownerUserId, List<String> conversationIds);
+    List<UserConversationSyncPointDoc> findByUserIdAndConversationIdIn(String userId, List<String> conversationIds);
 
-    List<ConversationOffsetRangeDoc> findByOwnerUserId(String ownerUserId);
+    List<UserConversationSyncPointDoc> findByUserId(String userId);
 }

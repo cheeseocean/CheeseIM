@@ -2,7 +2,7 @@ package com.cheeseocean.im.common.core.business.mongo.impl;
 
 import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.common.core.business.domain.ConversationOffsetRange;
-import com.cheeseocean.im.common.core.business.mongo.document.ConversationOffsetRangeDoc;
+import com.cheeseocean.im.common.core.business.mongo.document.conversation.UserConversationSyncPointDoc;
 import com.cheeseocean.im.common.core.business.mongo.repository.ConversationOffsetRangeMongoRepository;
 import com.cheeseocean.im.common.core.business.repository.ConversationOffsetRangeRepository;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -64,7 +64,7 @@ public class ConversationOffsetRangeRepositoryImpl implements ConversationOffset
                 .setOnInsert("maxSeq",          0L)
                 .setOnInsert("minSeq",          0L)
                 .setOnInsert("readSeq",         0L);
-        mongoTemplate.upsert(query, update, ConversationOffsetRangeDoc.class);
+        mongoTemplate.upsert(query, update, UserConversationSyncPointDoc.class);
         // 仅在 key 不存在时初始化缓存，避免覆盖已有值
         stringRedisTemplate.opsForValue().setIfAbsent(
                 RedisKeys.userReadSeq(ownerUserId, conversationId), "0");
@@ -81,7 +81,7 @@ public class ConversationOffsetRangeRepositoryImpl implements ConversationOffset
                 RedisKeys.userReadSeq(ownerUserId, conversationId), String.valueOf(readSeq));
         Query query = Query.query(Criteria.where("_id").is(docId(ownerUserId, conversationId)));
         mongoTemplate.updateFirst(query, new Update().set("readSeq", readSeq),
-                ConversationOffsetRangeDoc.class);
+                UserConversationSyncPointDoc.class);
     }
 
     @Override
@@ -97,7 +97,7 @@ public class ConversationOffsetRangeRepositoryImpl implements ConversationOffset
                 .setOnInsert("minSeq",         0L)
                 .setOnInsert("readSeq",        0L)
                 .set("maxSeq", maxSeq);
-        mongoTemplate.upsert(query, update, ConversationOffsetRangeDoc.class);
+        mongoTemplate.upsert(query, update, UserConversationSyncPointDoc.class);
     }
 
     @Override
@@ -106,7 +106,7 @@ public class ConversationOffsetRangeRepositoryImpl implements ConversationOffset
                 RedisKeys.userMinSeq(ownerUserId, conversationId), String.valueOf(minSeq));
         Query query = Query.query(Criteria.where("_id").is(docId(ownerUserId, conversationId)));
         mongoTemplate.updateFirst(query, new Update().set("minSeq", minSeq),
-                ConversationOffsetRangeDoc.class);
+                UserConversationSyncPointDoc.class);
     }
 
     // ── 读操作 ────────────────────────────────────────────────────────────────
@@ -129,7 +129,7 @@ public class ConversationOffsetRangeRepositoryImpl implements ConversationOffset
             return Optional.of(range);
         }
         // 缓存未命中：查 MongoDB 并写回
-        return mongoRepository.findByOwnerUserIdAndConversationId(ownerUserId, conversationId)
+        return mongoRepository.findByUserIdAndConversationId(ownerUserId, conversationId)
                 .map(doc -> {
                     ConversationOffsetRange range = toDomain(doc);
                     writeToCache(ownerUserId, conversationId, range);
@@ -186,7 +186,7 @@ public class ConversationOffsetRangeRepositoryImpl implements ConversationOffset
 
         if (!misses.isEmpty()) {
             List<ConversationOffsetRange> loaded = mongoRepository
-                    .findByOwnerUserIdAndConversationIdIn(ownerUserId, misses)
+                    .findByUserIdAndConversationIdIn(ownerUserId, misses)
                     .stream()
                     .map(this::toDomain)
                     .toList();
@@ -204,7 +204,7 @@ public class ConversationOffsetRangeRepositoryImpl implements ConversationOffset
 
     @Override
     public List<ConversationOffsetRange> findByOwner(String ownerUserId) {
-        List<ConversationOffsetRange> results = mongoRepository.findByOwnerUserId(ownerUserId)
+        List<ConversationOffsetRange> results = mongoRepository.findByUserId(ownerUserId)
                 .stream().map(this::toDomain).collect(Collectors.toList());
         // 顺带刷新各条目缓存
         results.forEach(r -> writeToCache(r.getOwnerUserId(), r.getConversationId(), r));
@@ -228,9 +228,9 @@ public class ConversationOffsetRangeRepositoryImpl implements ConversationOffset
 
     // ── 转换方法 ─────────────────────────────────────────────────────────────
 
-    private ConversationOffsetRange toDomain(ConversationOffsetRangeDoc doc) {
+    private ConversationOffsetRange toDomain(UserConversationSyncPointDoc doc) {
         ConversationOffsetRange range = new ConversationOffsetRange();
-        range.setOwnerUserId(doc.getOwnerUserId());
+        range.setOwnerUserId(doc.getUserId());
         range.setConversationId(doc.getConversationId());
         range.setMaxSeq(doc.getMaxSeq());
         range.setMinSeq(doc.getMinSeq());

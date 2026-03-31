@@ -5,7 +5,7 @@ import com.cheeseocean.im.common.core.cache.redis.BatchCacheHelper;
 import com.cheeseocean.im.common.core.cache.redis.StringSetCacheHelper;
 import com.cheeseocean.im.common.core.enums.GroupMemberRoleEnum;
 import com.cheeseocean.im.common.core.business.domain.GroupMember;
-import com.cheeseocean.im.common.core.business.mongo.document.GroupMemberDoc;
+import com.cheeseocean.im.common.core.business.mongo.document.group.GroupMemberDoc;
 import com.cheeseocean.im.common.core.business.mongo.repository.GroupMemberMongoRepository;
 import com.cheeseocean.im.common.core.business.repository.GroupMemberRepository;
 import org.springframework.data.redis.core.RedisTemplate;

@@ -1,6 +1,6 @@
 package com.cheeseocean.im.common.core.business.mongo.repository;
 
-import com.cheeseocean.im.common.core.business.mongo.document.FriendRequestDoc;
+import com.cheeseocean.im.common.core.business.mongo.document.user.FriendRequestDoc;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.util.List;

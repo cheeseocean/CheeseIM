@@ -2,7 +2,7 @@ package com.cheeseocean.im.common.core.business.mongo.impl;
 
 import com.cheeseocean.im.common.core.enums.HandleResultEnum;
 import com.cheeseocean.im.common.core.business.domain.GroupApplication;
-import com.cheeseocean.im.common.core.business.mongo.document.GroupApplicationDoc;
+import com.cheeseocean.im.common.core.business.mongo.document.group.GroupRequestDoc;
 import com.cheeseocean.im.common.core.business.mongo.repository.GroupApplicationMongoRepository;
 import com.cheeseocean.im.common.core.business.repository.GroupApplicationRepository;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -68,12 +68,12 @@ public class GroupApplicationRepositoryImpl implements GroupApplicationRepositor
                 .set("handleUserId", handleUserId)
                 .set("handledMsg",   handledMsg)
                 .set("handledTime",  handledTime);
-        mongoTemplate.updateFirst(query, update, GroupApplicationDoc.class);
+        mongoTemplate.updateFirst(query, update, GroupRequestDoc.class);
     }
 
     // ── 转换方法 ─────────────────────────────────────────────────────────────
 
-    private GroupApplication toDomain(GroupApplicationDoc doc) {
+    private GroupApplication toDomain(GroupRequestDoc doc) {
         GroupApplication app = new GroupApplication();
         app.setId(doc.getId());
         app.setUserId(doc.getUserId());
@@ -90,8 +90,8 @@ public class GroupApplicationRepositoryImpl implements GroupApplicationRepositor
         return app;
     }
 
-    private GroupApplicationDoc toDoc(GroupApplication app) {
-        GroupApplicationDoc doc = new GroupApplicationDoc();
+    private GroupRequestDoc toDoc(GroupApplication app) {
+        GroupRequestDoc doc = new GroupRequestDoc();
         doc.setId(app.getId() != null
                 ? app.getId()
                 : app.getUserId() + ":" + app.getGroupId());
