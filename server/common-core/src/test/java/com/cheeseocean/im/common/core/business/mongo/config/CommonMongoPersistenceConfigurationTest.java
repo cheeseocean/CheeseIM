@@ -7,6 +7,7 @@ import com.cheeseocean.im.common.core.business.mongo.impl.GroupMemberRepositoryI
 import com.cheeseocean.im.common.core.business.mongo.impl.GroupRepositoryImpl;
 import com.cheeseocean.im.common.core.business.mongo.impl.UserConversationStateRepositoryImpl;
 import com.cheeseocean.im.common.core.business.mongo.impl.UserRepositoryImpl;
+import com.cheeseocean.im.common.core.business.mongo.impl.UserSyncCheckpointRepositoryImpl;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.ComponentScan;
@@ -47,5 +48,6 @@ class CommonMongoPersistenceConfigurationTest {
         assertNull(GroupRepositoryImpl.class.getAnnotation(Repository.class));
         assertNull(UserConversationStateRepositoryImpl.class.getAnnotation(Repository.class));
         assertNull(UserRepositoryImpl.class.getAnnotation(Repository.class));
+        assertNull(UserSyncCheckpointRepositoryImpl.class.getAnnotation(Repository.class));
     }
 }

@@ -83,6 +83,18 @@ public final class RedisKeys {
         return "uc:max:" + userId + ":" + conversationId;
     }
 
+    public static String userSyncCheckpointReadSeq(String userId, String conversationId) {
+        return AUTH_PREFIX + ":user_sync_checkpoint:read:" + userId + ":" + conversationId;
+    }
+
+    public static String userSyncCheckpointMaxSeq(String userId, String conversationId) {
+        return AUTH_PREFIX + ":user_sync_checkpoint:max:" + userId + ":" + conversationId;
+    }
+
+    public static String userSyncCheckpointMinSeq(String userId, String conversationId) {
+        return AUTH_PREFIX + ":user_sync_checkpoint:min:" + userId + ":" + conversationId;
+    }
+
     public static String userUnread(String userId, String conversationId) {
         return "uc:unread:" + userId + ":" + conversationId;
     }
