@@ -2,10 +2,10 @@ package com.cheeseocean.im.business.service.conversation;
 
 import com.cheeseocean.im.common.api.dto.message.ConversationLastMessageSummary;
 import com.cheeseocean.im.common.api.message.ConversationLastMessageQueryService;
-import com.cheeseocean.im.business.domain.ConversationOffsetRange;
-import com.cheeseocean.im.business.domain.UserConversationState;
-import com.cheeseocean.im.business.repository.ConversationOffsetRangeRepository;
-import com.cheeseocean.im.business.repository.UserConversationStateRepository;
+import com.cheeseocean.im.common.core.business.domain.ConversationOffsetRange;
+import com.cheeseocean.im.common.core.business.domain.UserConversationState;
+import com.cheeseocean.im.common.core.business.repository.ConversationOffsetRangeRepository;
+import com.cheeseocean.im.common.core.business.repository.UserConversationStateRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 

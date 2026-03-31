@@ -3,8 +3,8 @@ package com.cheeseocean.im.business.service.friend;
 import com.cheeseocean.im.common.api.friend.FriendRelationService;
 import com.cheeseocean.im.common.core.auth.FriendRequestSummary;
 import com.cheeseocean.im.common.core.auth.FriendSummary;
-import com.cheeseocean.im.business.domain.FriendRequest;
-import com.cheeseocean.im.business.repository.FriendRepository;
+import com.cheeseocean.im.common.core.business.domain.FriendRequest;
+import com.cheeseocean.im.common.core.business.repository.FriendRepository;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.stereotype.Service;
 

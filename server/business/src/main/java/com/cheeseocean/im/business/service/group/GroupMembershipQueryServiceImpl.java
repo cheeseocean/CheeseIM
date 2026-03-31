@@ -1,7 +1,7 @@
 package com.cheeseocean.im.business.service.group;
 
 import com.cheeseocean.im.common.api.group.GroupMembershipQueryService;
-import com.cheeseocean.im.business.repository.GroupMemberRepository;
+import com.cheeseocean.im.common.core.business.repository.GroupMemberRepository;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.stereotype.Service;
 

@@ -1,5 +1,6 @@
 package com.cheeseocean.im.common.core.store.conversation.redis;
 
+import com.alicp.jetcache.anno.Cached;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
 import org.springframework.data.redis.core.StringRedisTemplate;

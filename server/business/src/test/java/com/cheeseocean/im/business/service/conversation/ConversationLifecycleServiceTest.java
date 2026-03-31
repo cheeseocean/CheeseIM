@@ -2,8 +2,8 @@ package com.cheeseocean.im.business.service.conversation;
 
 import com.cheeseocean.im.common.api.dto.conversation.SetConversationRequest;
 import com.cheeseocean.im.common.core.enums.SessionType;
-import com.cheeseocean.im.business.repository.ConversationOffsetRangeRepository;
-import com.cheeseocean.im.business.repository.UserConversationStateRepository;
+import com.cheeseocean.im.common.core.business.repository.ConversationOffsetRangeRepository;
+import com.cheeseocean.im.common.core.business.repository.UserConversationStateRepository;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

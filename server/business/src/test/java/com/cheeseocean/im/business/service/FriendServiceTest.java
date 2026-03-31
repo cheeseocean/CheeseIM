@@ -2,7 +2,8 @@ package com.cheeseocean.im.business.service;
 
 import com.cheeseocean.im.common.core.auth.FriendRequestSummary;
 import com.cheeseocean.im.common.core.auth.FriendSummary;
-import com.cheeseocean.im.business.repository.FriendRepository;
+import com.cheeseocean.im.common.core.business.domain.FriendRequest;
+import com.cheeseocean.im.common.core.business.repository.FriendRepository;
 import com.cheeseocean.im.business.service.friend.FriendRealtimeNotifier;
 import com.cheeseocean.im.business.service.friend.FriendService;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,8 @@ class FriendServiceTest {
         FriendRepository       repository = mock(FriendRepository.class);
         FriendRealtimeNotifier notifier   = mock(FriendRealtimeNotifier.class);
         when(repository.areAcceptedFriends("userA", "userB")).thenReturn(false);
-        when(repository.hasIncomingRequest("userA", "userB")).thenReturn(false);
+        when(repository.hasIncomingPendingRequest("userA", "userB")).thenReturn(false);
+        when(repository.findPendingRequest("userA", "userB")).thenReturn(java.util.Optional.empty());
 
         FriendService service = new FriendService(repository, notifier);
 
@@ -43,7 +45,7 @@ class FriendServiceTest {
         FriendRepository repository = mock(FriendRepository.class);
         FriendRealtimeNotifier notifier = mock(FriendRealtimeNotifier.class);
         when(repository.areAcceptedFriends("userA", "userB")).thenReturn(false);
-        when(repository.hasIncomingRequest("userA", "userB")).thenReturn(true);
+        when(repository.hasIncomingPendingRequest("userA", "userB")).thenReturn(true);
 
         FriendService service = new FriendService(repository, notifier);
 
@@ -56,15 +58,15 @@ class FriendServiceTest {
         verify(repository, never()).savePendingRequest(anyString(), anyString(), anyString());
     }
 
-    @Test
+        @Test
     void listIncomingAndOutgoingRequestsShouldMapDirectionAndMessage() {
         FriendRepository repository = mock(FriendRepository.class);
         FriendRealtimeNotifier notifier = mock(FriendRealtimeNotifier.class);
-        when(repository.listIncomingRequests("userA")).thenReturn(List.of(
-                new FriendRepository.FriendRequestRecord("userB", "userA", "please add me")
+        when(repository.listIncomingPendingRequests("userA")).thenReturn(List.of(
+                pendingRequest("userB", "userA", "please add me")
         ));
-        when(repository.listOutgoingRequests("userA")).thenReturn(List.of(
-                new FriendRepository.FriendRequestRecord("userA", "userC", "ping")
+        when(repository.listOutgoingPendingRequests("userA")).thenReturn(List.of(
+                pendingRequest("userA", "userC", "ping")
         ));
 
         FriendService service = new FriendService(repository, notifier);
@@ -82,8 +84,8 @@ class FriendServiceTest {
     void acceptRejectAndCancelShouldUpdateRepositoryAndReturnExpectedPayloads() {
         FriendRepository repository = mock(FriendRepository.class);
         FriendRealtimeNotifier notifier = mock(FriendRealtimeNotifier.class);
-        when(repository.hasIncomingRequest("userA", "userB")).thenReturn(true);
-        when(repository.hasOutgoingRequest("userA", "userC")).thenReturn(true);
+        when(repository.hasIncomingPendingRequest("userA", "userB")).thenReturn(true);
+        when(repository.hasOutgoingPendingRequest("userA", "userC")).thenReturn(true);
 
         FriendService service = new FriendService(repository, notifier);
 
@@ -97,10 +99,18 @@ class FriendServiceTest {
         assertEquals("cancelled", cancelled.getStatus());
         assertEquals("outgoing", cancelled.getDirection());
         verify(repository).acceptFriendPair("userA", "userB");
-        verify(repository).rejectPendingRequest("userB", "userA");
-        verify(repository).cancelPendingRequest("userA", "userC");
+        verify(repository).rejectRequest("userB", "userA");
+        verify(repository).cancelRequest("userA", "userC");
         verify(notifier).friendRequestAccepted("userA", "userB");
         verify(notifier).friendRequestRejected("userA", "userB");
         verify(notifier).friendRequestCancelled("userA", "userC");
+    }
+
+    private static FriendRequest pendingRequest(String fromUserId, String toUserId, String reqMsg) {
+        FriendRequest request = new FriendRequest();
+        request.setFromUserId(fromUserId);
+        request.setToUserId(toUserId);
+        request.setReqMsg(reqMsg);
+        return request;
     }
 }
