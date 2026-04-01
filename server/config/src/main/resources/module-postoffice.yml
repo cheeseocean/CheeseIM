@@ -5,9 +5,6 @@ spring:
     redis:
       database: 1
 
-server:
-  port: 18080
-
 cheeseim:
   postoffice:
     websocket:

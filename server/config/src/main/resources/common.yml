@@ -43,5 +43,26 @@ dubbo:
     timeout: 5000
     retries: 2
 
+jetcache:
+  statIntervalMinutes: 15
+  areaInCacheName: false
+  local:
+    default:
+      type: caffeine #other choose：caffeine
+      keyConvertor: jackson #other choose：fastjson/jackson
+  remote:
+    default:
+      type: redis
+      keyConvertor: jackson #other choose：fastjson/jackson
+      broadcastChannel: projectA
+      valueEncoder: java #other choose：kryo/kryo5
+      valueDecoder: java #other choose：kryo/kryo5
+      poolConfig:
+        minIdle: 5
+        maxIdle: 20
+        maxTotal: 50
+      host: ${redis.host}
+      port: ${redis.port}
+
 # Logging is configured centrally in logback-spring.xml (config module).
 # Pattern, file appenders, and noise suppression are all handled there.

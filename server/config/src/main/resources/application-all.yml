@@ -3,11 +3,11 @@ spring:
     import:
       - classpath:common.yml
       - classpath:module-authcenter.yml
-      - classpath:module-social.yml
+      - classpath:module-business.yml
       - classpath:module-postoffice.yml
       - classpath:module-postman.yml
       - classpath:module-postbox.yml
-      - classpath:module-push.yml
+      - classpath:module-postmaster.yml
   application:
     name: cheese-im-all-in-one
 server:

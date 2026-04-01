@@ -70,6 +70,7 @@ subprojects {
             dependency "org.slf4j:slf4j-api:${slf4jVersion}"
             dependency "ch.qos.logback:logback-classic:${logbackVersion}"
             dependency "com.alibaba.nacos:nacos-client:${nacosVersion}"
+            dependency "com.alicp.jetcache:jetcache-starter-redis-lettuce:${jetCacheVersion}"
         }
     }
 
@@ -107,8 +108,6 @@ subprojects {
 
         // Spring Boot
         implementation 'org.springframework.boot:spring-boot-starter'
-        implementation 'org.springframework.boot:spring-boot-starter-web'
-        implementation 'org.springframework.boot:spring-boot-starter-websocket'
         implementation 'org.springframework.boot:spring-boot-starter-validation'
         implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
@@ -130,6 +129,8 @@ subprojects {
 
         // 工具类
         implementation 'org.apache.commons:commons-lang3:3.18.0'
+
+        implementation "com.alicp.jetcache:jetcache-starter-redis-lettuce"
 
         // RPC框架 (Dubbo)
         implementation 'org.apache.dubbo:dubbo-spring-boot-starter'

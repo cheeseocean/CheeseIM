@@ -78,7 +78,7 @@ class MessageContractsTest {
         ingressEvent.setClientMsgId(message.getClientMsgId());
         ingressEvent.setServerMsgId(message.getServerMsgId());
         ingressEvent.setSenderId(message.getSenderId());
-        ingressEvent.setRecvId(message.getRecvId());
+        ingressEvent.setReceiverId(message.getRecvId());
         ingressEvent.setSessionType(message.getSessionType());
         ingressEvent.setContentType(message.getContentType());
         ingressEvent.setContent(message.getContent());

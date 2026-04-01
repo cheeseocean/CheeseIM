@@ -21,7 +21,7 @@ public class IngressEventPublisher {
     // single chat 和 notification 共享同一 key，进同一批次，由消费方在批次内分流处理。
     public void publish(IngressEvent event) {
         String key = ConversationIdUtil.buildQueueKey(
-                event.getSessionType(), event.getSenderId(), event.getRecvId(), event.getGroupId());
+                event.getSessionType(), event.getSenderId(), event.getReceiverId(), event.getGroupId());
         queueAdapter.send(TopicNames.INGRESS, key, event);
     }
 }

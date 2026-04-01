@@ -18,9 +18,6 @@ spring:
       concurrency: 3
       ack-mode: manual_immediate
 
-server:
-  port: 18082
-
 cheeseim:
   postbox:
     attachment-download:

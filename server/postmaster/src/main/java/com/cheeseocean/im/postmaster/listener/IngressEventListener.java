@@ -107,19 +107,18 @@ public class IngressEventListener {
             }
         }
 
-        handleMsg(storageMsgList, transientMsgList);
+        handleMessage(storageMsgList, transientMsgList);
         handleNotification(storageNotifyList, transientNotifyList);
     }
 
-    // ── handleMsg ────────────────────────────────────────────────────────────
     // 处理普通聊天消息
     // conversationId 在此处由 ConversationIdUtil.buildConversationId 计算
-    private void handleMsg(List<EventCtx> storageList, List<EventCtx> transientList) {
+    private void handleMessage(List<EventCtx> storageList, List<EventCtx> transientList) {
         if (storageList.isEmpty() && transientList.isEmpty()) return;
 
         IngressEvent sample = firstEvent(storageList, transientList);
         String conversationId = ConversationIdUtil.buildConversationId(
-                sample.getSessionType(), sample.getSenderId(), sample.getRecvId(), sample.getGroupId());
+                sample.getSessionType(), sample.getSenderId(), sample.getReceiverId(), sample.getGroupId());
 
         pushTransient(transientList, conversationId);
         if (storageList.isEmpty()) return;
@@ -132,9 +131,11 @@ public class IngressEventListener {
                 .map(p -> new MessageWithTargets(p.message(), p.targets()))
                 .toList());
 
+        // 首次会话需为用户创建会话状态
+        createConversationIfNeeded(sample, conversationId, seqBatch.isNewConversation());
+
         publishHistoryEvent(conversationId, seqBatch, processed);
 
-        createConversationIfNeeded(sample, conversationId, seqBatch.isNewConversation());
         for (ProcessedMsg p : processed) {
             if (p.decision().sendDelivery()) sendDelivery(p.message(), p.targets(), p.event());
         }
@@ -149,7 +150,7 @@ public class IngressEventListener {
 
         IngressEvent sample = firstEvent(storageList, transientList);
         String conversationId = ConversationIdUtil.buildNotificationConversationId(
-                sample.getSessionType(), sample.getRecvId(), sample.getGroupId());
+                sample.getSessionType(), sample.getReceiverId(), sample.getGroupId());
 
         pushTransient(transientList, conversationId);
         if (storageList.isEmpty()) return;
@@ -296,7 +297,7 @@ public class IngressEventListener {
         }
         conversationWriteService.createSingleChatConversation(
                 sample.getSenderId(),
-                sample.getRecvId(),
+                sample.getReceiverId(),
                 conversationId,
                 sample.getSessionType() == null ? 0 : sample.getSessionType()
         );
@@ -320,7 +321,7 @@ public class IngressEventListener {
         message.setClientMsgId(event.getClientMsgId());
         message.setServerMsgId(event.getServerMsgId());
         message.setSenderId(event.getSenderId());
-        message.setRecvId(event.getRecvId());
+        message.setRecvId(event.getReceiverId());
         message.setGroupId(event.getGroupId());
         message.setSessionType(event.getSessionType());
         message.setContentType(event.getContentType());

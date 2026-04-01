@@ -57,7 +57,7 @@ public class MessageSenderImpl implements MessageSender {
         event.setClientMsgId(req.getClientMsgId());
         event.setServerMsgId(serverMsgId);
         event.setSenderId(req.getSenderId());
-        event.setRecvId(req.getRecvId());
+        event.setReceiverId(req.getRecvId());
         event.setGroupId(req.getGroupId());
         event.setSessionType(req.getSessionType());
         event.setContentType(req.getContentType());

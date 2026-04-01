@@ -4,7 +4,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 @Component
-@ConfigurationProperties(prefix = "cheeseim.message-flow")
+@ConfigurationProperties(prefix = "cheeseim.postmaster.message-flow")
 public class MessageFlowProperties {
 
     private boolean asyncHistoryEnabled;

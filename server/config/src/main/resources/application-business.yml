@@ -2,7 +2,7 @@ spring:
   config:
     import:
       - classpath:common.yml
-      - classpath:module-user.yml
+      - classpath:module-business.yml
 
 app:
   runtime:
@@ -10,7 +10,7 @@ app:
 
 dubbo:
   application:
-    name: cheese-im-user
+    name: cheese-im-social
   registry:
     address: nacos://${nacos.server-addr:localhost:8848}
     register: true
@@ -21,7 +21,7 @@ dubbo:
     address: nacos://${nacos.server-addr:localhost:8848}
   protocol:
     name: dubbo
-    port: 20886
+    port: 20885
     injvm: false
   consumer:
     injvm: false

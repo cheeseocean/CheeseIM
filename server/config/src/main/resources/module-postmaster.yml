@@ -8,9 +8,6 @@ spring:
     consumer:
       group-id: postman-delivery-group
 
-server:
-  port: 18081
-
 cheeseim:
   postman:
 

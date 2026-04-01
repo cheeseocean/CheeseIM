@@ -14,9 +14,6 @@ spring:
       concurrency: 3
       ack-mode: manual_immediate
 
-server:
-  port: 18083
-
 cheese:
   im:
     push:

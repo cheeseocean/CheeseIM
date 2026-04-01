@@ -419,7 +419,7 @@ class IngressEventListenerTest {
         event.setClientMsgId("client-single");
         event.setServerMsgId("msg-single");
         event.setSenderId("userA");
-        event.setRecvId("userB");
+        event.setReceiverId("userB");
         event.setSessionType(SessionType.SINGLE.getCode());
         event.setContentType(ContentType.TEXT.getCode());
         event.setContent("hello");
@@ -459,7 +459,7 @@ class IngressEventListenerTest {
         event.setClientMsgId("client-notify");
         event.setServerMsgId("msg-notify");
         event.setSenderId("system");
-        event.setRecvId("userB");
+        event.setReceiverId("userB");
         event.setSessionType(SessionType.NOTIFICATION.getCode());
         event.setContentType(ContentType.SYSTEM_NOTIFY.getCode());
         event.setContent("{\"text\":\"you have a new follower\"}");
@@ -474,7 +474,7 @@ class IngressEventListenerTest {
         event.setRequestId("req-read");
         event.setClientMsgId("client-read");
         event.setSenderId("userA");
-        event.setRecvId("userB");
+        event.setReceiverId("userB");
         event.setSessionType(SessionType.SINGLE.getCode());
         event.setContentType(ContentType.READ_RECEIPT.getCode());
         event.setContent("{\"receiptType\":\"READ_CURSOR\",\"seq\":19}");
