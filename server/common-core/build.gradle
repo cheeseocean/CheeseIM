@@ -1,4 +1,6 @@
 dependencies {
+    implementation project(':common-api')
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.15.4'
     implementation 'com.github.ben-manes.caffeine:caffeine'
     implementation 'net.openhft:chronicle-queue:2026.2'
     implementation 'org.rocksdb:rocksdbjni:9.10.0'

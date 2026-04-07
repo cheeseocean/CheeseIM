@@ -2,9 +2,9 @@ package com.cheeseocean.im.authcenter.session;
 
 import com.cheeseocean.im.authcenter.auth.AccessTokenPrincipal;
 import com.cheeseocean.im.authcenter.config.AuthCenterConfig;
-import com.cheeseocean.im.common.core.auth.SessionPrincipal;
-import com.cheeseocean.im.common.core.auth.WsTicketPrincipal;
-import com.cheeseocean.im.common.core.enums.SessionStatus;
+import com.cheeseocean.im.common.api.session.SessionPrincipal;
+import com.cheeseocean.im.common.api.dto.user.WsTicketPrincipal;
+import com.cheeseocean.im.common.api.enums.SessionStatus;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;

@@ -2,23 +2,24 @@ package com.cheeseocean.im.postmaster.service;
 
 import com.cheeseocean.im.common.core.store.sequence.ConversationSequenceAllocator;
 import com.cheeseocean.im.common.core.store.sequence.SequenceRange;
+import com.cheeseocean.im.common.core.store.sequence.id.SequenceIdGenerator;
 import org.springframework.stereotype.Service;
 
 @Service
 public class ConversationSeqService {
 
-    private final ConversationSequenceAllocator sequenceAllocator;
+    private final SequenceIdGenerator sequenceAllocator;
 
-    public ConversationSeqService(ConversationSequenceAllocator sequenceAllocator) {
+    public ConversationSeqService(SequenceIdGenerator sequenceAllocator) {
         this.sequenceAllocator = sequenceAllocator;
     }
 
     public long nextSeq(String conversationId) {
-        return sequenceAllocator.nextSeq(conversationId);
+        return sequenceAllocator.next(conversationId);
     }
 
     public SeqBatch allocateBatch(String conversationId, int count) {
-        SequenceRange range = sequenceAllocator.allocateRange(conversationId, count);
+        SequenceRange range = sequenceAllocator.allocate(conversationId, count);
         return new SeqBatch(range);
     }
 

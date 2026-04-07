@@ -1,6 +1,6 @@
 package com.cheeseocean.im.postman.entity;
 
-import com.cheeseocean.im.common.core.enums.PlatformType;
+import com.cheeseocean.im.common.api.enums.PlatformType;
 
 import java.io.Serializable;
 import java.util.Map;

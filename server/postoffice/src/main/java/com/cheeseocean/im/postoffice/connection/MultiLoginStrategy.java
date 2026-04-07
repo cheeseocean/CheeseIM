@@ -1,6 +1,6 @@
 package com.cheeseocean.im.postoffice.connection;
 
-import com.cheeseocean.im.common.core.enums.PlatformType;
+import com.cheeseocean.im.common.api.enums.PlatformType;
 
 import java.util.List;
 
@@ -93,7 +93,7 @@ public enum MultiLoginStrategy {
     
     private List<UserConnection> handlePCAndOther(UserConnection newConnection, 
                                                  List<UserConnection> existingConnections) {
-        if (isPCPlatform(newConnection.getPlatformID())) {
+        if (isPCPlatform(newConnection.getPlatformType())) {
             return List.of();
         }
         
@@ -103,24 +103,26 @@ public enum MultiLoginStrategy {
     private List<UserConnection> handleSameTerminalKick(UserConnection newConnection, 
                                                        List<UserConnection> existingConnections) {
         return existingConnections.stream()
-                .filter(conn -> conn.getPlatformID().equals(newConnection.getPlatformID()))
+                .filter(conn -> conn.getPlatformType().equals(newConnection.getPlatformType()))
                 .toList();
     }
     
     private List<UserConnection> handleSameClassKick(UserConnection newConnection, 
                                                     List<UserConnection> existingConnections) {
-        PlatformClass newPlatformClass = getPlatformClass(newConnection.getPlatformID());
+        PlatformClass newPlatformClass = getPlatformClass(newConnection.getPlatformType());
         return existingConnections.stream()
-                .filter(conn -> getPlatformClass(conn.getPlatformID()) == newPlatformClass)
+                .filter(conn -> getPlatformClass(conn.getPlatformType()) == newPlatformClass)
                 .toList();
     }
     
-    private boolean isPCPlatform(Integer platformID) {
-        return PlatformType.fromCode(platformID).isPc();
+    private boolean isPCPlatform(PlatformType platformType) {
+        return platformType != null && platformType.isPc();
     }
     
-    private PlatformClass getPlatformClass(Integer platformID) {
-        PlatformType platformType = PlatformType.fromCode(platformID);
+    private PlatformClass getPlatformClass(PlatformType platformType) {
+        if (platformType == null) {
+            return PlatformClass.UNKNOWN;
+        }
         if (platformType.isMobile()) {
             return PlatformClass.MOBILE;
         }

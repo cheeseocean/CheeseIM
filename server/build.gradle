@@ -4,6 +4,7 @@ plugins {
     id 'org.graalvm.buildtools.native' version '0.10.1'
     id 'org.springframework.boot' version '3.2.4' apply false
     id 'io.spring.dependency-management' version '1.1.4' apply false
+    id 'com.google.protobuf' version '0.9.4' apply false
 }
 
 allprojects {
@@ -13,6 +14,7 @@ allprojects {
 
 ext {
     chronicleJvmArgs = [
+            '-Dchronicle.analytics.disable=true',
             '--add-exports=java.base/jdk.internal.ref=ALL-UNNAMED',
             '--add-exports=java.base/sun.nio.ch=ALL-UNNAMED',
             '--add-exports=jdk.unsupported/sun.misc=ALL-UNNAMED',
@@ -29,6 +31,7 @@ ext {
 
 subprojects {
     apply plugin: 'java'
+    apply plugin: 'com.google.protobuf'
     apply plugin: 'maven-publish'
     apply plugin: 'org.springframework.boot'
     apply plugin: 'io.spring.dependency-management'
@@ -70,6 +73,7 @@ subprojects {
             dependency "org.slf4j:slf4j-api:${slf4jVersion}"
             dependency "ch.qos.logback:logback-classic:${logbackVersion}"
             dependency "com.alibaba.nacos:nacos-client:${nacosVersion}"
+            dependency "com.alicp.jetcache:jetcache-redis:${jetCacheVersion}"
             dependency "com.alicp.jetcache:jetcache-starter-redis-lettuce:${jetCacheVersion}"
         }
     }
@@ -106,6 +110,9 @@ subprojects {
         testCompileOnly "org.projectlombok:lombok"
         testAnnotationProcessor "org.projectlombok:lombok"
 
+        // Protobuf
+        implementation 'com.google.protobuf:protobuf-java:3.25.3'
+
         // Spring Boot
         implementation 'org.springframework.boot:spring-boot-starter'
         implementation 'org.springframework.boot:spring-boot-starter-validation'
@@ -129,7 +136,10 @@ subprojects {
 
         // 工具类
         implementation 'org.apache.commons:commons-lang3:3.18.0'
+        implementation 'org.apache.commons:commons-pool2:2.12.0'
+        implementation 'redis.clients:jedis:5.1.0'
 
+        implementation "com.alicp.jetcache:jetcache-redis"
         implementation "com.alicp.jetcache:jetcache-starter-redis-lettuce"
 
         // RPC框架 (Dubbo)
@@ -166,6 +176,24 @@ subprojects {
         annotationProcessor "org.projectlombok:lombok"
     }
 
+    protobuf {
+        protoc {
+            artifact = 'com.google.protobuf:protoc:3.25.3'
+        }
+    }
+
+    tasks.named('processResources') {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
+
+    sourceSets {
+        main {
+            proto {
+                srcDir 'src/main/proto'
+            }
+        }
+    }
+    
     test {
         useJUnitPlatform()
         testLogging {

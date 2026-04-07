@@ -2,7 +2,7 @@ package com.cheeseocean.im.postoffice.server;
 
 import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
-import com.cheeseocean.im.common.core.enums.CommandType;
+import com.cheeseocean.im.common.api.enums.CommandType;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import com.cheeseocean.im.common.core.util.IdGenerator;
 import com.cheeseocean.im.postoffice.connection.ConnectionManager;

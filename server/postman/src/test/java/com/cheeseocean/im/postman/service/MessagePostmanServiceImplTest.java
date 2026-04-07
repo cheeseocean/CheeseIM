@@ -1,16 +1,18 @@
 package com.cheeseocean.im.postman.service;
 
+import com.cheeseocean.im.common.api.dto.message.MessageOptions;
 import com.cheeseocean.im.common.api.dto.push.OfflinePushReq;
 import com.cheeseocean.im.common.api.dto.push.PushResult;
 import com.cheeseocean.im.common.api.event.OfflinePushEvent;
-import com.cheeseocean.im.common.core.enums.DeliveryState;
-import com.cheeseocean.im.common.core.enums.ContentType;
-import com.cheeseocean.im.common.core.enums.SessionType;
+import com.cheeseocean.im.common.api.enums.ContentType;
+import com.cheeseocean.im.common.api.enums.DeliveryState;
+import com.cheeseocean.im.common.api.enums.SessionType;
 import com.cheeseocean.im.postman.entity.OfflinePushResult;
 import com.cheeseocean.im.postman.entity.PushAttempt;
 import com.cheeseocean.im.postman.service.impl.MessagePushServiceImpl;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentCaptor.forClass;
@@ -100,6 +102,9 @@ class MessagePostmanServiceImplTest {
         assertTrue(result.isSuccess());
         var messageCaptor = forClass(com.cheeseocean.im.common.api.dto.message.Message.class);
         verify(offlinePushService).pushMessageToUser(messageCaptor.capture(), eq("userB"));
-        assertTrue(Boolean.TRUE.equals(messageCaptor.getValue().getOptions().get("notification")));
+        MessageOptions options = messageCaptor.getValue().getOptions();
+        assertTrue(options != null && Boolean.TRUE.equals(options.getNotification()));
+        assertEquals(SessionType.NOTIFICATION, messageCaptor.getValue().getSessionType());
+        assertEquals(ContentType.SYSTEM_NOTIFY, messageCaptor.getValue().getContentType());
     }
 }

@@ -43,10 +43,6 @@ public class FriendRealtimeNotifier {
         targets.add(actorUserId);
         targets.add(targetUserId);
 
-        for (String userId : targets) {
-            FriendRelationEvent event = buildEvent(userId, notificationType, actorUserId, targetUserId, now);
-            kafkaTemplate.send(TopicNames.FRIEND_RELATION, userId, event);
-        }
     }
 
     private FriendRelationEvent buildEvent(String recipientUserId,

@@ -36,20 +36,12 @@ public class ChronicleQueueAdapter implements QueueAdapter {
         this.queueProperties = queueProperties;
     }
 
-    public static void main(String[] args) {
-        ChronicleQueueAdapter adapter = new ChronicleQueueAdapter(new ObjectMapper());
-        adapter.subscribe("test", "test-group", 1, String.class, System.out::println);
-        adapter.subscribe("testA", "testA-group", 1, String.class, System.out::println);
-        adapter.send("test", "key", "helloqueue");
-        adapter.send("testA", "key", "helloAqueue");
-    }
-
     @Override
-    public <T> void send(String topic, String key, T message) {
+    public void send(String topic, String key, byte[] message) {
         ExcerptAppender appender = appender(topic);
         try (DocumentContext context = appender.writingDocument()) {
             context.wire().write("key").text(key);
-            context.wire().write("payload").text(objectMapper.writeValueAsString(message));
+            context.wire().write("payload").bytes(message);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to write Chronicle queue message", e);
         }

@@ -9,11 +9,11 @@ class SessionTypeTest {
 
     @Test
     void fromCodeShouldResolveGroupSessionType() {
-        assertEquals(SessionType.GROUP, SessionType.fromCode(SessionType.GROUP.getCode()));
+        assertEquals(com.cheeseocean.im.common.api.enums.SessionType.GROUP, com.cheeseocean.im.common.api.enums.SessionType.fromCode(com.cheeseocean.im.common.api.enums.SessionType.GROUP.getCode()));
     }
 
     @Test
     void fromCodeShouldRejectUnknownSessionType() {
-        assertThrows(IllegalArgumentException.class, () -> SessionType.fromCode(999999));
+        assertThrows(IllegalArgumentException.class, () -> com.cheeseocean.im.common.api.enums.SessionType.fromCode(999999));
     }
 }

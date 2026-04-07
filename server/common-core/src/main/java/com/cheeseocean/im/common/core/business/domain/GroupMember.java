@@ -1,6 +1,6 @@
 package com.cheeseocean.im.common.core.business.domain;
 
-import com.cheeseocean.im.common.core.enums.GroupMemberRoleEnum;
+import com.cheeseocean.im.common.api.enums.GroupMemberRoleEnum;
 
 /**
  * 群成员领域对象。

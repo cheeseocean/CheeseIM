@@ -1,10 +1,9 @@
 package com.cheeseocean.im.postbox.listener;
 
 import com.cheeseocean.im.common.api.dto.message.MessageOptions;
-import com.cheeseocean.im.common.api.dto.message.SequencedMessage;
 import com.cheeseocean.im.common.api.event.HistoryEvent;
-import com.cheeseocean.im.common.core.enums.ContentType;
-import com.cheeseocean.im.common.core.enums.SessionType;
+import com.cheeseocean.im.common.api.enums.ContentType;
+import com.cheeseocean.im.common.api.enums.SessionType;
 import com.cheeseocean.im.postbox.history.BlockHistoryPersistenceService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -35,7 +34,7 @@ class HistoryEventListenerTest {
         message.setServerMsgId("s1");
         message.setClientMsgId("c1");
         message.setSenderId("u100");
-        message.setRecvId("u200");
+        message.setReceiverId("u200");
         message.setSessionType(SessionType.SINGLE.getCode());
         message.setContentType(ContentType.TEXT.getCode());
         message.setContent("hello");

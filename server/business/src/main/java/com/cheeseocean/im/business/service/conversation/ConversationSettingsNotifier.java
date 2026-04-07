@@ -22,6 +22,5 @@ public class ConversationSettingsNotifier {
         event.setConversationId(conversationId);
         event.setRecvMsgOpt(recvMsgOpt);
         event.setOccurredAt(System.currentTimeMillis());
-        queueAdapter.send(TopicNames.CONVERSATION_SETTINGS, userId, event);
     }
 }

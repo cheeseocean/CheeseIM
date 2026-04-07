@@ -1,6 +1,5 @@
 package com.cheeseocean.im.common.api.session;
 
-import com.cheeseocean.im.common.core.auth.SessionPrincipal;
 
 public interface SessionQueryService {
 

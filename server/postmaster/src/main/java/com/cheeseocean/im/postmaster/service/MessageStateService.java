@@ -1,12 +1,12 @@
 package com.cheeseocean.im.postmaster.service;
 
 import com.cheeseocean.im.common.api.dto.message.ConversationLastMessageSummary;
+import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.dto.message.ReadReceiptPayload;
-import com.cheeseocean.im.common.api.dto.message.SequencedMessage;
-import com.cheeseocean.im.common.api.event.IngressEvent;
-import com.cheeseocean.im.postmaster.service.ConversationSyncFacade;
 import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
+import com.cheeseocean.im.common.core.util.ConversationIdUtil;
 import com.cheeseocean.im.common.core.util.MessagePreviewUtil;
+import com.cheeseocean.im.postmaster.model.MessageWithTargets;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
@@ -19,6 +19,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.nio.charset.StandardCharsets;
 
 @Service
 public class MessageStateService {
@@ -27,50 +28,48 @@ public class MessageStateService {
 
     private final ConversationStateStore conversationStateStore;
     private final ObjectMapper objectMapper;
-    private final ConversationSyncFacade conversationSyncService;
 
     public MessageStateService(ConversationStateStore conversationStateStore,
-                               ObjectMapper objectMapper,
-                               ConversationSyncFacade conversationSyncService) {
+                               ObjectMapper objectMapper) {
         this.conversationStateStore = conversationStateStore;
         this.objectMapper = objectMapper;
-        this.conversationSyncService = conversationSyncService;
     }
 
-    public void apply(SequencedMessage message, List<String> targetUserIds) {
-        if (message == null || message.getConversationId() == null || message.getSeq() == null) {
+    public void apply(Message message, List<String> targetUserIds) {
+        String conversationId = resolveConversationId(message);
+        if (message == null || conversationId == null || message.getSeq() == null) {
             return;
         }
 
-        MessageRouteDecision decision = new DefaultMessagePolicyEngine().decide(toIngressEvent(message));
+        MessageRouteDecision decision = new DefaultMessagePolicyEngine().decide(message);
         if (!decision.updateConversation() && !decision.updateUnread() && !decision.updateLastMessage()) {
             return;
         }
 
-        conversationStateStore.setConversationMinSeqIfAbsent(message.getConversationId(), message.getSeq());
-        conversationStateStore.setConversationMaxSeq(message.getConversationId(), message.getSeq());
+        conversationStateStore.setConversationMinSeqIfAbsent(conversationId, message.getSeq());
+        conversationStateStore.setConversationMaxSeq(conversationId, message.getSeq());
 
         Set<String> participants = normalizeTargets(message.getSenderId(), targetUserIds);
         if (decision.updateConversation()) {
             for (String userId : participants) {
-                conversationStateStore.setUserMaxSeq(userId, message.getConversationId(), message.getSeq());
+                conversationStateStore.setUserMaxSeq(userId, conversationId, message.getSeq());
             }
             if (message.getSenderId() != null) {
-                conversationStateStore.setUserReadSeq(message.getSenderId(), message.getConversationId(), message.getSeq());
+                conversationStateStore.setUserReadSeq(message.getSenderId(), conversationId, message.getSeq());
             }
         }
 
         if (decision.updateUnread()) {
             for (String userId : participants) {
                 if (!userId.equals(message.getSenderId())) {
-                    conversationStateStore.incrementUnread(userId, message.getConversationId());
+                    conversationStateStore.incrementUnread(userId, conversationId);
                 }
             }
         }
 
         if (decision.updateLastMessage()) {
             conversationStateStore.setLastMessageSummary(
-                    message.getConversationId(),
+                    conversationId,
                     serializeSummary(message, decision.notification())
             );
         }
@@ -81,35 +80,38 @@ public class MessageStateService {
      *
      * Aggregates by (userId=senderId, conversationId) → max seq, then:
      *   1. Writes to Redis synchronously for immediate read-cursor visibility.
-     *   2. Enqueues to {@link ReadSeqPersistenceWriter} for async MongoDB durability.
+     *   2. Enqueues to {@link } for async MongoDB durability.
      */
-    public void processReadReceipts(List<IngressEvent> events) {
+    public void processReadReceipts(List<Message> events) {
         record ReadSeqKey(String userId, String conversationId) {}
         Map<ReadSeqKey, Long> aggregated = new HashMap<>();
 
-        for (IngressEvent event : events) {
-            if (event.getSenderId() == null || event.getConversationId() == null
-                    || event.getContent() == null) {
-                continue;
-            }
-            try {
-                ReadReceiptPayload payload = objectMapper.readValue(event.getContent(), ReadReceiptPayload.class);
-                if (payload.getSeq() == null) continue;
-                ReadSeqKey key = new ReadSeqKey(event.getSenderId(), event.getConversationId());
-                aggregated.merge(key, payload.getSeq(), Math::max);
-            } catch (JsonProcessingException e) {
-                log.warn("Failed to parse ReadReceiptPayload content='{}': {}", event.getContent(), e.getMessage());
-            }
-        }
+//        for (Message event : events) {
+//            if (event == null || event.getSenderId() == null || event.getContent() == null) {
+//                continue;
+//            }
+//            try {
+//                ReadReceiptPayload payload = objectMapper.readValue(event.getContent(), ReadReceiptPayload.class);
+//                String conversationId = payload.getConversationId();
+//                if ((conversationId == null || conversationId.isBlank()) && event.getSessionType() != null) {
+//                    conversationId = resolveConversationId(event);
+//                }
+//                if (payload.getSeq() == null || conversationId == null || conversationId.isBlank()) {
+//                    continue;
+//                }
+//                ReadSeqKey key = new ReadSeqKey(event.getSenderId(), conversationId);
+//                aggregated.merge(key, payload.getSeq(), Math::max);
+//            } catch (JsonProcessingException e) {
+//                log.warn("Failed to parse ReadReceiptPayload content='{}': {}",
+//                        decodeContent(event.getContent()), e.getMessage());
+//            }
+//        }
 
-        for (Map.Entry<ReadSeqKey, Long> entry : aggregated.entrySet()) {
-            ReadSeqKey key = entry.getKey();
-            long maxSeq = entry.getValue();
-            conversationStateStore.setUserReadSeq(key.userId(), key.conversationId(), maxSeq);
-            if (conversationSyncService != null) {
-                conversationSyncService.markRead(key.userId(), key.conversationId(), maxSeq);
-            }
-        }
+//        for (Map.Entry<ReadSeqKey, Long> entry : aggregated.entrySet()) {
+//            ReadSeqKey key = entry.getKey();
+//            long maxSeq = entry.getValue();
+//            conversationStateStore.setUserReadSeq(key.userId(), key.conversationId(), maxSeq);
+//        }
     }
 
     /**
@@ -126,8 +128,8 @@ public class MessageStateService {
         if (entries == null || entries.isEmpty()) return;
 
         String conversationId = null;
-        SequencedMessage firstMsg = null;
-        SequencedMessage lastMsg  = null;
+        Message firstMsg = null;
+        Message lastMsg  = null;
         boolean anyUpdateConversation = false;
         boolean anyUpdateLastMessage  = false;
 
@@ -136,16 +138,17 @@ public class MessageStateService {
         Map<String, Integer> unreadDelta   = new LinkedHashMap<>();
 
         for (MessageWithTargets entry : entries) {
-            SequencedMessage msg = entry.message();
-            if (msg == null || msg.getConversationId() == null || msg.getSeq() == null) continue;
+            Message msg = entry.message();
+            String messageConversationId = resolveConversationId(msg);
+            if (msg == null || messageConversationId == null || msg.getSeq() == null) continue;
 
             if (conversationId == null) {
-                conversationId = msg.getConversationId();
+                conversationId = messageConversationId;
                 firstMsg = msg;
             }
             lastMsg = msg;
 
-            MessageRouteDecision decision = new DefaultMessagePolicyEngine().decide(toIngressEvent(msg));
+            MessageRouteDecision decision = new DefaultMessagePolicyEngine().decide(msg);
             anyUpdateConversation |= decision.updateConversation();
             anyUpdateLastMessage  |= decision.updateLastMessage();
 
@@ -183,7 +186,7 @@ public class MessageStateService {
         }
 
         if (anyUpdateLastMessage) {
-            MessageRouteDecision lastDecision = new DefaultMessagePolicyEngine().decide(toIngressEvent(lastMsg));
+            MessageRouteDecision lastDecision = new DefaultMessagePolicyEngine().decide(lastMsg);
             conversationStateStore.setLastMessageSummary(
                     conversationId,
                     serializeSummary(lastMsg, lastDecision.notification()));
@@ -201,19 +204,19 @@ public class MessageStateService {
         return participants;
     }
 
-    private String serializeSummary(SequencedMessage message, boolean notification) {
+    private String serializeSummary(Message message, boolean notification) {
         try {
             ConversationLastMessageSummary summary = new ConversationLastMessageSummary();
             summary.setSeq(message.getSeq());
             summary.setSenderId(message.getSenderId());
-            summary.setContent(message.getContent());
-            summary.setContentType(message.getContentType());
+            summary.setContent(decodeContent(message.getContent()));
+            summary.setContentType(message.getContentType() == null ? null : message.getContentType().getCode());
             summary.setPreviewText(MessagePreviewUtil.resolvePreview(
-                    message.getContentType(),
-                    message.getContent(),
-                    message.getExt()));
+                    message.getContentType() == null ? null : message.getContentType().getCode(),
+                    decodeContent(message.getContent()),
+                    message.getAttributes()));
             summary.setPreviewType(MessagePreviewUtil.resolvePreviewType(
-                    message.getContentType(),
+                    message.getContentType() == null ? null : message.getContentType().getCode(),
                     notification));
             summary.setSendTime(message.getSendTime());
             summary.setNotification(notification);
@@ -223,10 +226,18 @@ public class MessageStateService {
         }
     }
 
-    private com.cheeseocean.im.common.api.event.IngressEvent toIngressEvent(SequencedMessage message) {
-        com.cheeseocean.im.common.api.event.IngressEvent event = new com.cheeseocean.im.common.api.event.IngressEvent();
-        event.setOptions(message.getOptions());
-        return event;
+    private String resolveConversationId(Message message) {
+        if (message == null || message.getSessionType() == null) {
+            return null;
+        }
+        return ConversationIdUtil.buildConversationId(message);
+    }
+
+    private String decodeContent(byte[] content) {
+        if (content == null || content.length == 0) {
+            return null;
+        }
+        return new String(content, StandardCharsets.UTF_8);
     }
 
 }

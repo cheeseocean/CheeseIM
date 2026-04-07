@@ -2,11 +2,11 @@ package com.cheeseocean.im.postbox.service;
 
 import com.cheeseocean.im.common.api.dto.message.ConversationLastMessageSummary;
 import com.cheeseocean.im.common.core.auth.PermissionCheckResult;
-import com.cheeseocean.im.common.core.auth.SessionPrincipal;
-import com.cheeseocean.im.common.core.enums.ConversationKind;
-import com.cheeseocean.im.common.core.enums.ContentType;
-import com.cheeseocean.im.common.core.enums.MessagePreviewType;
-import com.cheeseocean.im.common.core.enums.SessionStatus;
+import com.cheeseocean.im.common.api.session.SessionPrincipal;
+import com.cheeseocean.im.common.api.enums.ConversationKind;
+import com.cheeseocean.im.common.api.enums.ContentType;
+import com.cheeseocean.im.common.api.enums.MessagePreviewType;
+import com.cheeseocean.im.common.api.enums.SessionStatus;
 import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
 import com.cheeseocean.im.postbox.api.ConversationSummaryResponse;
 import com.cheeseocean.im.postbox.history.MessageIdMappingDoc;

@@ -1,11 +1,14 @@
 package com.cheeseocean.im.postman.service.impl;
 
 import com.cheeseocean.im.common.api.dto.message.Message;
+import com.cheeseocean.im.common.api.dto.message.MessageOptions;
 import com.cheeseocean.im.common.api.dto.push.OfflinePushReq;
 import com.cheeseocean.im.common.api.dto.push.PushResult;
 import com.cheeseocean.im.common.api.event.OfflinePushEvent;
+import com.cheeseocean.im.common.api.enums.ContentType;
 import com.cheeseocean.im.common.api.rpc.OfflinePusher;
-import com.cheeseocean.im.common.core.enums.DeliveryState;
+import com.cheeseocean.im.common.api.enums.DeliveryState;
+import com.cheeseocean.im.common.api.enums.SessionType;
 import com.cheeseocean.im.postman.entity.OfflinePushResult;
 import com.cheeseocean.im.postman.entity.PushAttempt;
 import com.cheeseocean.im.postman.service.OfflinePushService;
@@ -17,6 +20,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.nio.charset.StandardCharsets;
 
 @Service
 @DubboService(interfaceClass = OfflinePusher.class)
@@ -91,20 +95,20 @@ public class MessagePushServiceImpl implements OfflinePusher {
 
     private Message toMessage(OfflinePushReq proto) {
         Message message = new Message();
-        message.setServerMsgID(proto.getServerMsgId());
-        message.setSendID(proto.getSenderId());
-        message.setRecvID(proto.getUserId());
-        message.setContent(proto.getContent());
-        message.setContentType(proto.getContentType());
-        message.setSessionType(proto.getSessionType());
-        if (proto.getExt() != null) {
-            message.setAttachedInfo(proto.getExt().get("attachedInfo"));
+        message.setServerMsgId(proto.getServerMsgId());
+        message.setSenderId(proto.getSenderId());
+        message.setReceiverId(proto.getUserId());
+        message.setContent(proto.getContent() == null ? null : proto.getContent().getBytes(StandardCharsets.UTF_8));
+        if (proto.getContentType() != null) {
+            message.setContentType(ContentType.fromCode(proto.getContentType()));
         }
-        Map<String, Boolean> options = new HashMap<>();
+        if (proto.getSessionType() != null) {
+            message.setSessionType(SessionType.fromCode(proto.getSessionType()));
+        }
+        message.setAttributes(proto.getExt());
+        MessageOptions options = new MessageOptions();
         if (proto.getExt() != null && proto.getExt().containsKey("notification")) {
-            options.put("notification", Boolean.parseBoolean(proto.getExt().get("notification")));
-        }
-        if (!options.isEmpty()) {
+            options.setNotification(Boolean.parseBoolean(proto.getExt().get("notification")));
             message.setOptions(options);
         }
         return message;
@@ -117,7 +121,10 @@ public class MessagePushServiceImpl implements OfflinePusher {
         req.setSeq(event.getSeq());
         req.setServerMsgId(event.getServerMsgId());
         req.setContent(event.getContent());
-        Map<String, String> ext = new HashMap<>(event.getExt());
+        Map<String, String> ext = new HashMap<>();
+        if (event.getAttributes() != null) {
+            ext.putAll(event.getAttributes());
+        }
         ext.put("notification", String.valueOf(event.isNotification()));
         req.setExt(ext);
         req.setSenderId(event.getSenderId());

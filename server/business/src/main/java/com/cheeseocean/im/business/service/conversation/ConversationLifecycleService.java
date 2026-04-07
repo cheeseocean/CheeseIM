@@ -1,8 +1,7 @@
 package com.cheeseocean.im.business.service.conversation;
 
-import com.cheeseocean.im.common.api.conversation.ConversationSyncCommand;
 import com.cheeseocean.im.common.api.dto.conversation.SetConversationRequest;
-import com.cheeseocean.im.common.core.enums.SessionType;
+import com.cheeseocean.im.common.api.enums.SessionType;
 import com.cheeseocean.im.common.core.business.domain.UserConversation;
 import com.cheeseocean.im.common.core.business.repository.UserConversationSyncPointRepository;
 import com.cheeseocean.im.common.core.business.repository.UserConversationRepository;
@@ -33,23 +32,6 @@ public class ConversationLifecycleService {
         this.settingsNotifier = settingsNotifier;
     }
 
-    public void createIfNew(ConversationSyncCommand cmd) {
-        if (!cmd.newConversation()) {
-            return;
-        }
-        for (String participantId : cmd.allParticipants()) {
-            createParticipantConversation(buildState(participantId, cmd));
-        }
-    }
-
-    public void sync(ConversationSyncCommand cmd) {
-        long newMaxSeq = cmd.latestMessage().getSeq();
-
-        for (String participantId : cmd.allParticipants()) {
-            offsetRepository.updateMaxSeq(participantId, cmd.conversationId(), newMaxSeq);
-        }
-    }
-
     public void createSingleChatConversation(String senderId, String recvId,
                                              String conversationId, int conversationType) {
         if (conversationType == SessionType.SINGLE.getCode()) {
@@ -57,7 +39,7 @@ public class ConversationLifecycleService {
             createParticipantConversation(buildExplicitState(recvId, conversationId, conversationType, senderId));
             return;
         }
-
+        //notification
         createParticipantConversation(buildExplicitState(recvId, conversationId, conversationType, senderId));
     }
 
@@ -102,22 +84,6 @@ public class ConversationLifecycleService {
         state.setConversationType(conversationType);
         state.setTargetId(targetId);
         return state;
-    }
-
-    private UserConversation buildState(String ownerId, ConversationSyncCommand cmd) {
-        return buildExplicitState(ownerId, cmd.conversationId(), cmd.sessionType(), resolveTargetId(ownerId, cmd));
-    }
-
-    private String resolveTargetId(String ownerId, ConversationSyncCommand cmd) {
-        if (cmd.sessionType() == SessionType.SINGLE.getCode()) {
-            String senderId = cmd.latestMessage().getSenderId();
-            String recvId = cmd.latestMessage().getRecvId();
-            return ownerId.equals(senderId) ? recvId : senderId;
-        }
-        if (cmd.sessionType() == SessionType.NOTIFICATION.getCode()) {
-            return cmd.latestMessage().getSenderId();
-        }
-        return cmd.latestMessage().getGroupId();
     }
 
     private Map<String, Object> buildUpdateFields(SetConversationRequest request) {

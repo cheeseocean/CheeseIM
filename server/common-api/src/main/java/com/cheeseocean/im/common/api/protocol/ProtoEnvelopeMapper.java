@@ -1,0 +1,135 @@
+package com.cheeseocean.im.common.api.protocol;
+
+import com.cheeseocean.im.common.api.dto.dispatch.DispatchPayload;
+import com.cheeseocean.im.common.api.enums.CommandType;
+import com.cheeseocean.im.common.api.protocol.proto.ProtoAuthRequest;
+import com.cheeseocean.im.common.api.protocol.proto.ProtoAuthResponse;
+import com.cheeseocean.im.common.api.protocol.proto.ProtoChatSendAck;
+import com.cheeseocean.im.common.api.protocol.proto.ProtoClientEnvelope;
+import com.cheeseocean.im.common.api.protocol.proto.ProtoConnectResponse;
+import com.cheeseocean.im.common.api.protocol.proto.ProtoErrorResponse;
+import com.cheeseocean.im.common.api.protocol.proto.ProtoHeartbeatResponse;
+import com.cheeseocean.im.common.api.protocol.proto.ProtoServerEnvelope;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.util.Map;
+
+/**
+ * 统一封装协议层 envelope 与 protobuf 结构之间的转换。
+ */
+public final class ProtoEnvelopeMapper {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+    private ProtoEnvelopeMapper() {
+    }
+
+    public static ClientEnvelope fromProto(ProtoClientEnvelope proto) {
+        ClientEnvelope envelope = new ClientEnvelope();
+        envelope.setCommand(CommandType.fromCode(proto.getCommand()));
+        envelope.setRequestId(proto.getRequestId());
+        envelope.setBody(resolveClientBody(proto));
+        return envelope;
+    }
+
+    public static ProtoServerEnvelope toProto(ServerEnvelope envelope) {
+        ProtoServerEnvelope.Builder builder = ProtoServerEnvelope.newBuilder()
+                .setCommand(envelope.getCommand().getCode())
+                .setRequestId(envelope.getRequestId() == null ? "" : envelope.getRequestId());
+        switch (envelope.getCommand()) {
+            case CONNECT -> builder.setConnect(toConnectResponse(envelope.getBody()));
+            case AUTH -> builder.setAuth(toAuthResponse(envelope.getBody()));
+            case HEARTBEAT -> builder.setHeartbeat(toHeartbeatResponse(envelope.getBody()));
+            case CHAT_SEND -> builder.setChatSendAck(toChatSendAck(envelope.getBody()));
+            case CHAT_RECV -> builder.setChatMessage(ProtoMessageMapper.toProto(toDispatchPayload(envelope.getBody()).getMsg()));
+            case ERROR -> builder.setError(toErrorResponse(envelope.getBody()));
+            default -> builder.setError(ProtoErrorResponse.newBuilder()
+                    .setCode(500)
+                    .setMessage("unsupported envelope command")
+                    .build());
+        }
+        return builder.build();
+    }
+
+    private static byte[] resolveClientBody(ProtoClientEnvelope proto) {
+        return switch (proto.getPayloadCase()) {
+            case AUTH -> proto.getAuth().toByteArray();
+            case CHAT_MESSAGE -> proto.getChatMessage().toByteArray();
+            case PAYLOAD_NOT_SET -> null;
+        };
+    }
+
+    private static ProtoAuthResponse toAuthResponse(Object body) {
+        Map<?, ?> map = OBJECT_MAPPER.convertValue(body, Map.class);
+        return ProtoAuthResponse.newBuilder()
+                .setUserId(stringValue(map.get("userID")))
+                .setMessage(stringValue(map.get("message")))
+                .build();
+    }
+
+    private static ProtoConnectResponse toConnectResponse(Object body) {
+        Map<?, ?> map = OBJECT_MAPPER.convertValue(body, Map.class);
+        return ProtoConnectResponse.newBuilder()
+                .setConnId(stringValue(map.get("connId")))
+                .setMessage(stringValue(map.get("message")))
+                .build();
+    }
+
+    private static ProtoHeartbeatResponse toHeartbeatResponse(Object body) {
+        return ProtoHeartbeatResponse.newBuilder()
+                .setMessage(body == null ? "" : String.valueOf(body))
+                .build();
+    }
+
+    private static ProtoChatSendAck toChatSendAck(Object body) {
+        Map<?, ?> map = OBJECT_MAPPER.convertValue(body, Map.class);
+        ProtoChatSendAck.Builder builder = ProtoChatSendAck.newBuilder();
+        Object serverMsgId = firstNonNull(map.get("serverMsgID"), map.get("serverMsgId"));
+        Object clientMsgId = firstNonNull(map.get("clientMsgID"), map.get("clientMsgId"));
+        Object sendTime = map.get("sendTime");
+        if (serverMsgId != null) {
+            builder.setServerMsgId(String.valueOf(serverMsgId));
+        }
+        if (clientMsgId != null) {
+            builder.setClientMsgId(String.valueOf(clientMsgId));
+        }
+        if (sendTime instanceof Number number) {
+            builder.setSendTime(number.longValue());
+        }
+        return builder.build();
+    }
+
+    private static ProtoErrorResponse toErrorResponse(Object body) {
+        Map<?, ?> map = OBJECT_MAPPER.convertValue(body, Map.class);
+        ProtoErrorResponse.Builder builder = ProtoErrorResponse.newBuilder();
+        Object code = map.get("code");
+        if (code instanceof Number number) {
+            builder.setCode(number.intValue());
+        }
+        Object message = map.get("message");
+        if (message != null) {
+            builder.setMessage(String.valueOf(message));
+        }
+        return builder.build();
+    }
+
+    private static DispatchPayload toDispatchPayload(Object body) {
+        return OBJECT_MAPPER.convertValue(body, DispatchPayload.class);
+    }
+
+    public static ProtoAuthRequest parseAuthRequest(byte[] body) throws java.io.IOException {
+        return ProtoAuthRequest.parseFrom(body);
+    }
+
+    public static com.cheeseocean.im.common.api.dto.message.Message parseMessage(byte[] body) throws java.io.IOException {
+        return ProtoMessageMapper.fromProto(com.cheeseocean.im.common.api.protocol.proto.ProtoMessage.parseFrom(body));
+    }
+
+    private static Object firstNonNull(Object first, Object second) {
+        return first != null ? first : second;
+    }
+
+    private static String stringValue(Object value) {
+        return value == null ? "" : String.valueOf(value);
+    }
+}

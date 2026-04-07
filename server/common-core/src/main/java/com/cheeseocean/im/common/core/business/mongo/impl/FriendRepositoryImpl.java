@@ -10,7 +10,7 @@ import com.cheeseocean.im.common.core.business.mongo.repository.BlacklistMongoRe
 import com.cheeseocean.im.common.core.business.mongo.repository.FriendRequestMongoRepository;
 import com.cheeseocean.im.common.core.business.mongo.repository.FriendshipMongoRepository;
 import com.cheeseocean.im.common.core.business.repository.FriendRepository;
-import com.cheeseocean.im.common.core.enums.HandleResultEnum;
+import com.cheeseocean.im.common.api.enums.HandleResultEnum;
 
 import java.util.List;
 import java.util.Optional;

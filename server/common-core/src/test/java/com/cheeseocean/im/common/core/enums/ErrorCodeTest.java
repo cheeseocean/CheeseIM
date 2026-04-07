@@ -9,11 +9,11 @@ class ErrorCodeTest {
 
     @Test
     void fromCodeShouldResolveMessageSendFailedErrorCode() {
-        assertEquals(ErrorCode.MSG_SEND_FAILED, ErrorCode.fromCode(ErrorCode.MSG_SEND_FAILED.getCode()));
+        assertEquals(com.cheeseocean.im.common.api.enums.ErrorCode.MSG_SEND_FAILED, com.cheeseocean.im.common.api.enums.ErrorCode.fromCode(com.cheeseocean.im.common.api.enums.ErrorCode.MSG_SEND_FAILED.getCode()));
     }
 
     @Test
     void fromCodeShouldRejectUnknownErrorCode() {
-        assertThrows(IllegalArgumentException.class, () -> ErrorCode.fromCode(999999));
+        assertThrows(IllegalArgumentException.class, () -> com.cheeseocean.im.common.api.enums.ErrorCode.fromCode(999999));
     }
 }

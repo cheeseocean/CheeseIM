@@ -168,12 +168,12 @@ public class ConnectionManager {
             userConnectionMap.computeIfAbsent(userID, k -> ConcurrentHashMap.newKeySet())
                              .add(connectionID);
 
-            if (connection.getSessionID() != null && !connection.getSessionID().isBlank()) {
-                sessionConnectionMap.computeIfAbsent(connection.getSessionID(), k -> ConcurrentHashMap.newKeySet())
+            if (connection.getSessionId() != null && !connection.getSessionId().isBlank()) {
+                sessionConnectionMap.computeIfAbsent(connection.getSessionId(), k -> ConcurrentHashMap.newKeySet())
                         .add(connectionID);
             }
 
-            String deviceKey = buildDeviceKey(connection.getUserID(), connection.getDeviceID());
+            String deviceKey = buildDeviceKey(connection.getUserID(), connection.getDeviceId());
             if (deviceKey != null) {
                 deviceConnectionMap.computeIfAbsent(deviceKey, k -> ConcurrentHashMap.newKeySet())
                         .add(connectionID);
@@ -224,11 +224,11 @@ public class ConnectionManager {
                 }
             }
 
-            if (connection.getSessionID() != null) {
-                removeIndex(sessionConnectionMap, connection.getSessionID(), connectionID);
+            if (connection.getSessionId() != null) {
+                removeIndex(sessionConnectionMap, connection.getSessionId(), connectionID);
             }
 
-            String deviceKey = buildDeviceKey(connection.getUserID(), connection.getDeviceID());
+            String deviceKey = buildDeviceKey(connection.getUserID(), connection.getDeviceId());
             if (deviceKey != null) {
                 removeIndex(deviceConnectionMap, deviceKey, connectionID);
             }
@@ -477,12 +477,12 @@ public class ConnectionManager {
     }
     
     private void registerOnlineRoute(UserConnection connection) {
-        if (onlineRouteService == null || connection.getUserID() == null || connection.getPlatformID() == null) {
+        if (onlineRouteService == null || connection.getUserID() == null || connection.getPlatformType() == null) {
             return;
         }
         RouteSnapshot snapshot = new RouteSnapshot();
         snapshot.setUserId(connection.getUserID());
-        snapshot.setDeviceId(connection.getPlatformName().toLowerCase() + "-" + connection.getPlatformID());
+        snapshot.setDeviceId(connection.getPlatformName().toLowerCase() + "-" + connection.getPlatformType());
         snapshot.setGatewayNode("postoffice");
         snapshot.setConnectedAt(connection.getConnectTime());
         snapshot.setHeartbeatAt(connection.getLastActiveTime());
@@ -490,11 +490,11 @@ public class ConnectionManager {
     }
 
     private void unregisterOnlineRoute(UserConnection connection) {
-        if (onlineRouteService == null || connection.getUserID() == null || connection.getPlatformID() == null) {
+        if (onlineRouteService == null || connection.getUserID() == null || connection.getPlatformType() == null) {
             return;
         }
         onlineRouteService.unregister(connection.getUserID(),
-                connection.getPlatformName().toLowerCase() + "-" + connection.getPlatformID());
+                connection.getPlatformName().toLowerCase() + "-" + connection.getPlatformType());
     }
     
     // ============ Getter and Setter ============

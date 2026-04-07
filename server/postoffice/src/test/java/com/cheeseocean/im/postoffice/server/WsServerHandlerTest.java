@@ -1,8 +1,8 @@
 package com.cheeseocean.im.postoffice.server;
 
 import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
-import com.cheeseocean.im.common.core.enums.CommandType;
-import com.cheeseocean.im.common.core.enums.ConnectionState;
+import com.cheeseocean.im.common.api.enums.CommandType;
+import com.cheeseocean.im.common.api.enums.ConnectionState;
 import com.cheeseocean.im.postoffice.connection.ConnectionContext;
 import com.cheeseocean.im.postoffice.connection.ConnectionManager;
 import com.cheeseocean.im.postoffice.connection.UserConnection;

@@ -1,15 +1,14 @@
 package com.cheeseocean.im.postoffice.handler;
 
-import com.cheeseocean.im.common.api.dto.message.ChatSendRequest;
+import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
-import com.cheeseocean.im.common.core.auth.SessionPrincipal;
-import com.cheeseocean.im.common.core.enums.CommandType;
-import com.cheeseocean.im.common.core.enums.ConnectionState;
+import com.cheeseocean.im.common.api.session.SessionPrincipal;
+import com.cheeseocean.im.common.api.enums.CommandType;
+import com.cheeseocean.im.common.api.enums.ConnectionState;
 import com.cheeseocean.im.postoffice.auth.ConnectionSessionGuard;
 import com.cheeseocean.im.postoffice.connection.ConnectionContext;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
-import com.cheeseocean.im.postoffice.service.MessageSendReqMapper;
 import com.cheeseocean.im.common.api.dto.message.SendMessageReq;
 import com.cheeseocean.im.common.api.dto.message.SendMessageResp;
 import com.cheeseocean.im.common.api.rpc.MessageSender;
@@ -123,7 +122,6 @@ class MessageHandlerContractTest {
     private static UserConnection pendingConnection() {
         UserConnection connection = new UserConnection();
         connection.setConnectionID("conn-1");
-        connection.setAuthenticated(false);
         return connection;
     }
 
@@ -131,14 +129,14 @@ class MessageHandlerContractTest {
         UserConnection connection = new UserConnection();
         connection.setConnectionID("conn-1");
         connection.setUserID("user-1");
-        connection.setAuthenticated(true);
+        connection.setAuthenticated("token");
 
         ConnectionContext context = new ConnectionContext();
         context.setConnId("conn-1");
         context.setUserId("user-1");
         context.setSessionId("session-1");
         context.setDeviceId("device-1");
-        context.setPlatformId(2);
+        context.setPlatformCode(2);
         context.setState(ConnectionState.AUTHENTICATED);
         connection.setContext(context);
         return connection;
@@ -153,10 +151,10 @@ class MessageHandlerContractTest {
         return session;
     }
 
-    private static ChatSendRequest chatSendRequest() {
-        ChatSendRequest request = new ChatSendRequest();
+    private static Message chatSendRequest() {
+        Message request = new Message();
         request.setSessionType(1);
-        request.setRecvId("receiver-1");
+        request.setReceiverId("receiver-1");
         request.setClientMsgId("client-1");
         request.setContentType(101);
         request.setContent("hello");

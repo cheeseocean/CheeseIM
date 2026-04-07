@@ -15,7 +15,6 @@ import java.util.Map;
  * @author xxxcrel
  */
 @SpringBootApplication(scanBasePackages = {"com.cheeseocean.im.common"})
-@EnableKafka
 @EnableDubbo
 public class PostMaster {
 

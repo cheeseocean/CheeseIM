@@ -1,9 +1,9 @@
 package com.cheeseocean.im.postbox.service;
 
 import com.cheeseocean.im.common.api.friend.FriendRelationService;
-import com.cheeseocean.im.common.core.auth.SessionPrincipal;
-import com.cheeseocean.im.common.core.enums.ConversationKind;
-import com.cheeseocean.im.common.core.enums.SessionStatus;
+import com.cheeseocean.im.common.api.session.SessionPrincipal;
+import com.cheeseocean.im.common.api.enums.ConversationKind;
+import com.cheeseocean.im.common.api.enums.SessionStatus;
 import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
 import com.cheeseocean.im.postbox.history.MessageSlot;
 import org.junit.jupiter.api.Test;

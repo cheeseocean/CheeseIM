@@ -9,11 +9,11 @@ class CommandTypeTest {
 
     @Test
     void fromCodeShouldResolveChatSendCommandType() {
-        assertEquals(CommandType.CHAT_SEND, CommandType.fromCode(CommandType.CHAT_SEND.getCode()));
+        assertEquals(com.cheeseocean.im.common.api.enums.CommandType.CHAT_SEND, com.cheeseocean.im.common.api.enums.CommandType.fromCode(com.cheeseocean.im.common.api.enums.CommandType.CHAT_SEND.getCode()));
     }
 
     @Test
     void fromCodeShouldRejectUnknownCommandType() {
-        assertThrows(IllegalArgumentException.class, () -> CommandType.fromCode(999999));
+        assertThrows(IllegalArgumentException.class, () -> com.cheeseocean.im.common.api.enums.CommandType.fromCode(999999));
     }
 }

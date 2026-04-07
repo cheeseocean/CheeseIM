@@ -1,6 +1,6 @@
 package com.cheeseocean.im.postmaster.history;
 
-import com.cheeseocean.im.common.api.dto.message.SequencedMessage;
+import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.event.HistoryEvent;
 import com.cheeseocean.im.common.core.util.BlockIndexUtil;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 @Service
 public class BlockHistoryPersistenceService {
 
-    private final MongoTemplate mongoTemplate;
+    private final MongoTemplate              mongoTemplate;
     private final MessageIdMappingRepository mappingRepository;
 
     public BlockHistoryPersistenceService(MongoTemplate mongoTemplate,
@@ -27,17 +27,17 @@ public class BlockHistoryPersistenceService {
     }
 
     public void persist(HistoryEvent event) {
-        Map<Long, List<SequencedMessage>> byBlock = event.getMessages().stream()
+        Map<Long, List<Message>> byBlock = event.getMessages().stream()
                 .collect(Collectors.groupingBy(message -> BlockIndexUtil.blockNo(message.getSeq())));
 
-        for (Map.Entry<Long, List<SequencedMessage>> entry : byBlock.entrySet()) {
+        for (Map.Entry<Long, List<Message>> entry : byBlock.entrySet()) {
             persistBlock(event.getConversationId(), entry.getKey(), entry.getValue());
         }
     }
 
-    private void persistBlock(String conversationId, long blockNo, List<SequencedMessage> messages) {
+    private void persistBlock(String conversationId, long blockNo, List<Message> messages) {
         String docId = conversationId + ":" + blockNo;
-        Query query = Query.query(Criteria.where("_id").is(docId));
+        Query  query = Query.query(Criteria.where("_id").is(docId));
         Update update = new Update()
                 .setOnInsert("_id", docId)
                 .setOnInsert("conversationId", conversationId)
@@ -46,11 +46,11 @@ public class BlockHistoryPersistenceService {
                 .set("updatedAt", Instant.now());
 
         long startSeq = blockNo * BlockIndexUtil.BLOCK_SIZE + 1L;
-        long endSeq = startSeq + BlockIndexUtil.BLOCK_SIZE - 1L;
+        long endSeq   = startSeq + BlockIndexUtil.BLOCK_SIZE - 1L;
         update.setOnInsert("startSeq", startSeq);
         update.setOnInsert("endSeq", endSeq);
 
-        for (SequencedMessage message : messages) {
+        for (Message message : messages) {
             update.set("messages." + BlockIndexUtil.index(message.getSeq()), toSlot(message));
             mappingRepository.save(toMapping(conversationId, message));
         }
@@ -58,24 +58,29 @@ public class BlockHistoryPersistenceService {
         mongoTemplate.upsert(query, update, MessageBlockDoc.class);
     }
 
-    private MessageSlot toSlot(SequencedMessage message) {
+    private MessageSlot toSlot(Message message) {
         MessageSlot slot = new MessageSlot();
         slot.setSeq(message.getSeq());
         slot.setClientMsgId(message.getClientMsgId());
         slot.setServerMsgId(message.getServerMsgId());
         slot.setSenderId(message.getSenderId());
-        slot.setRecvId(message.getRecvId());
+        slot.setReceiverId(message.getReceiverId());
         slot.setGroupId(message.getGroupId());
-        slot.setSessionType(message.getSessionType());
-        slot.setContentType(message.getContentType());
+        slot.setSessionType(message.getSessionType() == null ? null : message.getSessionType().getCode());
+        slot.setContentType(message.getContentType() == null ? null : message.getContentType().getCode());
         slot.setContent(message.getContent());
         slot.setSendTime(message.getSendTime());
+        slot.setCreateTime(message.getCreateTime());
+        slot.setStatus(message.getStatus() == null ? null : message.getStatus().getCode());
+        slot.setPlatformType(message.getPlatformType() == null ? null : message.getPlatformType().getCode());
+        slot.setUniqueId(message.getUniqueId());
+        slot.setSource(message.getSource() == null ? null : message.getSource().getCode());
         slot.setOptions(message.getOptions());
-        slot.setExt(message.getExt());
+        slot.setAttributes(message.getAttributes());
         return slot;
     }
 
-    private MessageIdMappingDoc toMapping(String conversationId, SequencedMessage message) {
+    private MessageIdMappingDoc toMapping(String conversationId, Message message) {
         MessageIdMappingDoc mapping = new MessageIdMappingDoc();
         mapping.setId(conversationId + ":" + message.getClientMsgId());
         mapping.setConversationId(conversationId);

@@ -4,35 +4,34 @@ import com.cheeseocean.im.common.api.dto.dispatch.DispatchMessageReq;
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchMessageResp;
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchPayload;
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchResult;
-import com.cheeseocean.im.common.api.dto.message.SequencedMessage;
+import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.event.DeliveryEvent;
 import com.cheeseocean.im.common.api.event.OfflinePushEvent;
+import com.cheeseocean.im.common.api.protocol.ProtoOfflinePushEventMapper;
 import com.cheeseocean.im.common.api.route.OnlineRouteQueryService;
 import com.cheeseocean.im.common.api.rpc.OnlineDispatcher;
 import com.cheeseocean.im.common.core.constants.TopicNames;
 import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
 import com.cheeseocean.im.common.core.queue.annotation.QueueListener;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
+import com.cheeseocean.im.common.core.util.ConversationIdUtil;
 import org.slf4j.Logger;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @Component
 public class DeliveryEventListener {
     private static final Logger       log = CommonLoggers.POSTMAN;
-    private final ObjectMapper            objectMapper;
     private final OnlineRouteQueryService onlineRouteQueryService;
     private final OnlineDispatcher        onlineDispatcher;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    public DeliveryEventListener(ObjectMapper objectMapper,
-                                 OnlineRouteQueryService onlineRouteQueryService,
+    public DeliveryEventListener(OnlineRouteQueryService onlineRouteQueryService,
                                  OnlineDispatcher onlineDispatcher,
                                  KafkaTemplate<String, Object> kafkaTemplate) {
-        this.objectMapper = objectMapper;
         this.onlineRouteQueryService = onlineRouteQueryService;
         this.onlineDispatcher = onlineDispatcher;
         this.kafkaTemplate = kafkaTemplate;
@@ -56,7 +55,7 @@ public class DeliveryEventListener {
         }
     }
 
-    private void deliverToUser(String userId, SequencedMessage message) {
+    private void deliverToUser(String userId, Message message) {
         List<RouteSnapshot> routes = onlineRouteQueryService.findByUser(userId);
         if (routes == null || routes.isEmpty()) {
             emitOfflinePushIfNeeded(userId, message);
@@ -85,41 +84,32 @@ public class DeliveryEventListener {
         return false;
     }
 
-    private void emitOfflinePushIfNeeded(String userId, SequencedMessage message) {
-        if (message.getOptions() == null || !Boolean.TRUE.equals(message.getOptions().isNeedOfflinePush())) {
+    private void emitOfflinePushIfNeeded(String userId, Message message) {
+        if (message.getOptions() == null || !Boolean.TRUE.equals(message.getOptions().getNeedOfflinePush())) {
             return;
         }
-        kafkaTemplate.send(TopicNames.OFFLINE_PUSH, userId, toOfflinePushEvent(userId, message));
+        kafkaTemplate.send(TopicNames.OFFLINE_PUSH, userId, ProtoOfflinePushEventMapper.toProto(toOfflinePushEvent(userId, message)).toByteArray());
     }
 
-    private DispatchPayload toDispatchPayload(SequencedMessage message) {
+    private DispatchPayload toDispatchPayload(Message message) {
         DispatchPayload payload = new DispatchPayload();
-        payload.setConversationId(message.getConversationId());
-        payload.setSeq(message.getSeq());
-        payload.setClientMsgId(message.getClientMsgId());
-        payload.setServerMsgId(message.getServerMsgId());
-        payload.setContentType(message.getContentType());
-        payload.setContent(message.getContent());
-        payload.setSendTime(message.getSendTime());
-        payload.setExt(message.getExt());
-        payload.getExt().put("senderId", message.getSenderId());
-        payload.getExt().put("recvId", message.getRecvId());
+        payload.setMsg(message);
         return payload;
     }
 
-    private OfflinePushEvent toOfflinePushEvent(String userId, SequencedMessage message) {
+    private OfflinePushEvent toOfflinePushEvent(String userId, Message message) {
         OfflinePushEvent event = new OfflinePushEvent();
         event.setUserId(userId);
-        event.setConversationId(message.getConversationId());
+        event.setConversationId(ConversationIdUtil.buildConversationId(message));
         event.setSeq(message.getSeq());
         event.setServerMsgId(message.getServerMsgId());
         event.setSenderId(message.getSenderId());
-        event.setSessionType(message.getSessionType());
-        event.setContentType(message.getContentType());
-        event.setNotification(message.getOptions() != null && Boolean.TRUE.equals(message.getOptions().isNotification()));
+        event.setSessionType(message.getSessionType() == null ? null : message.getSessionType().getCode());
+        event.setContentType(message.getContentType() == null ? null : message.getContentType().getCode());
+        event.setNotification(message.getOptions() != null && Boolean.TRUE.equals(message.getOptions().getNotification()));
         event.setTitle(message.getSenderId());
-        event.setContent(message.getContent());
-        event.setExt(message.getExt());
+        event.setContent(message.getContent() == null ? null : new String(message.getContent(), StandardCharsets.UTF_8));
+        event.setAttributes(message.getAttributes());
         return event;
     }
 }

@@ -51,9 +51,9 @@ public class WsServer implements CommandLineRunner, Server {
     private WsServerHandler                  wsServerHandler;
     private ServerProperties.WebSocketConfig websocketConfig;
     private EventLoopGroup                   bossGroup;
-    private EventLoopGroup                 workerGroup;
-    private ChannelFuture                  channelFuture;
-    private long                           startTime;
+    private EventLoopGroup                   workerGroup;
+    private ChannelFuture                    channelFuture;
+    private long                             startTime;
 
     @Override
     public void run(String... args) throws Exception {

@@ -1,6 +1,6 @@
 package com.cheeseocean.im.common.core.business.domain;
 
-import com.cheeseocean.im.common.core.enums.HandleResultEnum;
+import com.cheeseocean.im.common.api.enums.HandleResultEnum;
 
 /**
  * 入群申请领域对象。

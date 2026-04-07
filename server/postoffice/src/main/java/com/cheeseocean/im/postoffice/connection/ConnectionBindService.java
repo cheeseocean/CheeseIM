@@ -1,8 +1,8 @@
 package com.cheeseocean.im.postoffice.connection;
 
-import com.cheeseocean.im.common.core.auth.SessionPrincipal;
-import com.cheeseocean.im.common.core.enums.ConnectionState;
-import com.cheeseocean.im.common.core.enums.PlatformType;
+import com.cheeseocean.im.common.api.session.SessionPrincipal;
+import com.cheeseocean.im.common.api.enums.ConnectionState;
+import com.cheeseocean.im.common.api.enums.PlatformType;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -20,14 +20,13 @@ public class ConnectionBindService {
             context = new ConnectionContext();
             connection.setContext(context);
         }
-        Integer platformId = resolvePlatformId(session.getPlatform());
-
+        PlatformType platformType = PlatformType.fromName(session.getPlatform());
         context.setConnId(connection.getConnectionID());
         context.setUserId(session.getUserId());
         context.setTenantId(session.getTenantId());
         context.setSessionId(session.getSessionId());
         context.setDeviceId(session.getDeviceId());
-        context.setPlatformId(platformId);
+        context.setPlatformCode(platformType);
         context.setClientVersion(session.getClientVersion());
         context.setTokenVersion(session.getTokenVersion());
         context.setConnectedAt(connection.getConnectTime());
@@ -36,18 +35,15 @@ public class ConnectionBindService {
 
         connection.setUserID(session.getUserId());
         connection.setTokenVersion(session.getTokenVersion());
-        connection.setDeviceID(session.getDeviceId());
-        connection.setPlatformID(platformId);
-        connection.setSessionID(session.getSessionId());
-        connection.setTenantID(session.getTenantId());
+        connection.setDeviceId(session.getDeviceId());
+        connection.setPlatformType(platformType);
+        connection.setSessionId(session.getSessionId());
+        connection.setTenantId(session.getTenantId());
         connection.setPlatform(session.getPlatform());
         connection.setAuthenticated("ws-ticket");
 
         return connectionManager.addConnection(connection);
     }
 
-    private Integer resolvePlatformId(String platform) {
-        PlatformType platformType = PlatformType.fromName(platform);
-        return platformType == PlatformType.UNKNOWN ? null : platformType.getCode();
-    }
+
 }

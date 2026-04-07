@@ -1,7 +1,7 @@
 package com.cheeseocean.im.business.service;
 
-import com.cheeseocean.im.common.core.auth.FriendRequestSummary;
-import com.cheeseocean.im.common.core.auth.FriendSummary;
+import com.cheeseocean.im.common.api.dto.user.FriendRequestSummary;
+import com.cheeseocean.im.common.api.dto.user.FriendSummary;
 import com.cheeseocean.im.common.core.business.domain.FriendRequest;
 import com.cheeseocean.im.common.core.business.repository.FriendRepository;
 import com.cheeseocean.im.business.service.friend.FriendRealtimeNotifier;

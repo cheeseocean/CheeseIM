@@ -33,7 +33,7 @@ public class QueueAutoConfigurer {
     @Bean
     @ConditionalOnMissingBean(QueueAdapter.class)
     @ConditionalOnProperty(prefix = "cheeseim.queue", name = "type", havingValue = "kafka")
-    public QueueAdapter kafkaQueueAdapter(KafkaTemplate<String, String> stringKafkaTemplate,
+    public QueueAdapter kafkaQueueAdapter(KafkaTemplate<String, byte[]> stringKafkaTemplate,
                                           ObjectMapper objectMapper,
                                           KafkaProperties kafkaProperties) {
         return new KafkaQueueAdapter(stringKafkaTemplate, objectMapper, kafkaProperties);

@@ -7,9 +7,9 @@ import com.cheeseocean.im.common.api.dto.user.RegisterUserRequest;
 import com.cheeseocean.im.common.api.dto.user.UpdateUserInfoRequest;
 import com.cheeseocean.im.common.api.dto.user.UserInfoDTO;
 import com.cheeseocean.im.common.api.user.UserInfoService;
-import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import com.cheeseocean.im.common.core.business.domain.User;
 import com.cheeseocean.im.common.core.business.repository.UserRepository;
+import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.slf4j.Logger;
 import org.springframework.stereotype.Service;
@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import static com.cheeseocean.im.common.core.constants.RedisKeys.FIELD_GLOBAL_RECEIVE_OPTIONS;
 
 /**
  * 用户基础信息服务实现。
@@ -33,8 +35,11 @@ public class UserServiceImpl implements UserInfoService {
 
     private static final Logger log = CommonLoggers.SOCIAL;
 
-    /** 通知账号最低管理员级别 */
+    /**
+     * 通知账号最低管理员级别
+     */
     private static final int NOTIFICATION_ACCOUNT_MIN_LEVEL = 2;
+
 
     private final UserRepository userRepository;
 
@@ -43,6 +48,20 @@ public class UserServiceImpl implements UserInfoService {
     }
 
     // ── 查询 ──────────────────────────────────────────────────────────────────
+
+    /**
+     * 将 Redis 缓存值转换为 int，兼容 Integer / Long / String 等类型。
+     */
+    private static int toInt(Object value) {
+        if (value instanceof Number n) {
+            return n.intValue();
+        }
+        try {
+            return Integer.parseInt(String.valueOf(value));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
 
     @Override
     public List<UserInfoDTO> getUsersInfo(List<String> userIds) {
@@ -72,12 +91,12 @@ public class UserServiceImpl implements UserInfoService {
         return userRepository.findAllUserIds(pageNum, pageSize);
     }
 
+    // ── 注册与更新 ────────────────────────────────────────────────────────────
+
     @Override
     public List<String> filterExistingUserIds(List<String> userIds) {
         return userRepository.filterExistingIds(userIds);
     }
-
-    // ── 注册与更新 ────────────────────────────────────────────────────────────
 
     @Override
     public void registerUsers(List<RegisterUserRequest> requests) {
@@ -104,6 +123,8 @@ public class UserServiceImpl implements UserInfoService {
         log.info("批量注册用户成功，数量={}", users.size());
     }
 
+    // ── 通知系统账号管理 ──────────────────────────────────────────────────────
+
     @Override
     @CacheInvalidate(name = "business:user:info:", key = "#userId")
     public void updateUserInfo(String userId, UpdateUserInfoRequest request) {
@@ -123,8 +144,6 @@ public class UserServiceImpl implements UserInfoService {
         userRepository.updateFields(userId, fields);
         log.info("更新用户信息成功，userId={}", userId);
     }
-
-    // ── 通知系统账号管理 ──────────────────────────────────────────────────────
 
     @Override
     public String addNotificationAccount(String userId, String nickname, String faceUrl, int appManagerLevel) {
@@ -168,8 +187,10 @@ public class UserServiceImpl implements UserInfoService {
                 .stream().map(this::toDTO).collect(Collectors.toList());
     }
 
+    // ── 用户设置 ──────────────────────────────────────────────────────────────
+
     @Override
-    @Cached(name = "business:user:notification:", key = "#userId", expire = 300, cacheType = CacheType.BOTH)
+    @Cached(name = "business:user:notification:", key = "#userId", expire = 300, cacheType = CacheType.REMOTE)
     public UserInfoDTO getNotificationAccount(String userId) {
         return userRepository.findById(userId)
                 .filter(User::isNotificationAccount)
@@ -179,7 +200,17 @@ public class UserServiceImpl implements UserInfoService {
 
     // ── 私有工具方法 ──────────────────────────────────────────────────────────
 
-    /** 将领域对象转换为 DTO。 */
+    @Override
+    @Cached(name = FIELD_GLOBAL_RECEIVE_OPTIONS, key = "#userId", expire = 300, cacheType = CacheType.REMOTE)
+    public int getReceiveOptions(String userId) {
+        return userRepository.findById(userId)
+                .map(User::getGlobalRecvMsgOpt)
+                .orElse(0);
+    }
+
+    /**
+     * 将领域对象转换为 DTO。
+     */
     private UserInfoDTO toDTO(User user) {
         UserInfoDTO dto = new UserInfoDTO();
         dto.setUserId(user.getUserId());
@@ -191,7 +222,9 @@ public class UserServiceImpl implements UserInfoService {
         return dto;
     }
 
-    /** 生成随机 10 位纯数字 userId（首位非零）。 */
+    /**
+     * 生成随机 10 位纯数字 userId（首位非零）。
+     */
     private String generateUserId() {
         StringBuilder sb = new StringBuilder();
         sb.append((char) ('1' + (int) (Math.random() * 9)));

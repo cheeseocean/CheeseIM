@@ -3,7 +3,7 @@ package com.cheeseocean.im.postoffice.api;
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchMessageReq;
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchPayload;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
-import com.cheeseocean.im.common.core.enums.CommandType;
+import com.cheeseocean.im.common.api.enums.CommandType;
 import com.cheeseocean.im.postoffice.connection.ConnectionManager;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.fasterxml.jackson.core.type.TypeReference;

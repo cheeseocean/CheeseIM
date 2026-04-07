@@ -2,9 +2,9 @@ package com.cheeseocean.im.postman.service.impl;
 
 import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.core.constants.MessageDisplayConstants;
-import com.cheeseocean.im.common.core.enums.ContentType;
-import com.cheeseocean.im.common.core.enums.PlatformType;
-import com.cheeseocean.im.common.core.enums.SessionType;
+import com.cheeseocean.im.common.api.enums.ContentType;
+import com.cheeseocean.im.common.api.enums.PlatformType;
+import com.cheeseocean.im.common.api.enums.SessionType;
 import com.cheeseocean.im.postman.entity.OfflinePushConfig;
 import com.cheeseocean.im.postman.entity.OfflinePushResult;
 import com.cheeseocean.im.postman.entity.PushMessage;
@@ -66,9 +66,9 @@ class OfflinePostmanServiceImplTest {
     void setUp() {
         // 设置测试消息
         testMessage = new Message();
-        testMessage.setServerMsgID("test-msg-123");
-        testMessage.setSendID("sender-123");
-        testMessage.setRecvID("receiver-123");
+        testMessage.setServerMsgId("test-msg-123");
+        testMessage.setSenderId("sender-123");
+        testMessage.setReceiverId("receiver-123");
         testMessage.setContent("Test message content");
         testMessage.setContentType(ContentType.TEXT.getCode());
         testMessage.setSessionType(SessionType.SINGLE.getCode());
@@ -167,9 +167,9 @@ class OfflinePostmanServiceImplTest {
         when(hashOperations.entries(anyString())).thenReturn(configMap);
 
         Message notificationMessage = new Message();
-        notificationMessage.setServerMsgID("notification-msg-1");
-        notificationMessage.setSendID("system");
-        notificationMessage.setRecvID("user1");
+        notificationMessage.setServerMsgId("notification-msg-1");
+        notificationMessage.setSenderId("system");
+        notificationMessage.setReceiverId("user1");
         notificationMessage.setContent("Your policy was updated");
         notificationMessage.setContentType(ContentType.SYSTEM_NOTIFY.getCode());
         notificationMessage.setSessionType(SessionType.NOTIFICATION.getCode());
@@ -202,9 +202,9 @@ class OfflinePostmanServiceImplTest {
         when(hashOperations.entries(anyString())).thenReturn(configMap);
 
         Message notificationMessage = new Message();
-        notificationMessage.setServerMsgID("notification-msg-2");
-        notificationMessage.setSendID("system");
-        notificationMessage.setRecvID("user1");
+        notificationMessage.setServerMsgId("notification-msg-2");
+        notificationMessage.setSenderId("system");
+        notificationMessage.setReceiverId("user1");
         notificationMessage.setContent("   ");
         notificationMessage.setContentType(ContentType.FORCE_LOGOUT.getCode());
         notificationMessage.setSessionType(SessionType.NOTIFICATION.getCode());
@@ -236,9 +236,9 @@ class OfflinePostmanServiceImplTest {
         when(hashOperations.entries(anyString())).thenReturn(configMap);
 
         Message imageMessage = new Message();
-        imageMessage.setServerMsgID("image-msg-1");
-        imageMessage.setSendID("userA");
-        imageMessage.setRecvID("user1");
+        imageMessage.setServerMsgId("image-msg-1");
+        imageMessage.setSenderId("userA");
+        imageMessage.setReceiverId("user1");
         imageMessage.setContent("");
         imageMessage.setContentType(ContentType.IMAGE.getCode());
         imageMessage.setSessionType(SessionType.GROUP.getCode());
@@ -270,9 +270,9 @@ class OfflinePostmanServiceImplTest {
         when(hashOperations.entries(anyString())).thenReturn(configMap);
 
         Message messageWithoutSessionType = new Message();
-        messageWithoutSessionType.setServerMsgID("missing-session-type");
-        messageWithoutSessionType.setSendID("userA");
-        messageWithoutSessionType.setRecvID("user1");
+        messageWithoutSessionType.setServerMsgId("missing-session-type");
+        messageWithoutSessionType.setSenderId("userA");
+        messageWithoutSessionType.setReceiverId("user1");
         messageWithoutSessionType.setContent("hello");
         messageWithoutSessionType.setContentType(ContentType.TEXT.getCode());
         messageWithoutSessionType.setSenderNickname("userA");

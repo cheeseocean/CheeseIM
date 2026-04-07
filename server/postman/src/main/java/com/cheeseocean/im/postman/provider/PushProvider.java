@@ -1,6 +1,6 @@
 package com.cheeseocean.im.postman.provider;
 
-import com.cheeseocean.im.common.core.enums.PlatformType;
+import com.cheeseocean.im.common.api.enums.PlatformType;
 import com.cheeseocean.im.postman.entity.PushMessage;
 
 import java.util.List;

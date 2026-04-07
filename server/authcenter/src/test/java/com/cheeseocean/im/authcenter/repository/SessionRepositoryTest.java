@@ -1,6 +1,6 @@
 package com.cheeseocean.im.authcenter.repository;
 
-import com.cheeseocean.im.common.core.auth.SessionPrincipal;
+import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import com.cheeseocean.im.common.core.store.session.SessionStateStore;
 import org.junit.jupiter.api.Test;
 

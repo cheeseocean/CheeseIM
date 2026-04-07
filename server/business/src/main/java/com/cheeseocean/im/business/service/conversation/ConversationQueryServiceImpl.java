@@ -1,5 +1,8 @@
 package com.cheeseocean.im.business.service.conversation;
 
+import com.alicp.jetcache.anno.CacheInvalidate;
+import com.alicp.jetcache.anno.CacheType;
+import com.alicp.jetcache.anno.Cached;
 import com.cheeseocean.im.common.api.conversation.ConversationQueryService;
 import com.cheeseocean.im.common.api.dto.conversation.ConversationDTO;
 import com.cheeseocean.im.common.api.dto.message.ConversationLastMessageSummary;
@@ -31,18 +34,23 @@ import java.util.stream.Collectors;
 @DubboService
 public class ConversationQueryServiceImpl implements ConversationQueryService {
 
+    private static final String FIELD_CONVERSATION_RECEIVE_OPTIONS = "conversation:receive_options:";
+
     private final UserConversationRepository stateRepository;
     private final UserConversationSyncPointRepository offsetRepository;
     private final ConversationLastMessageQueryService lastMessageQueryService;
+    private final ConversationSettingsNotifier conversationSettingsNotifier;
     private final ObjectMapper objectMapper;
 
     public ConversationQueryServiceImpl(UserConversationRepository stateRepository,
                                         UserConversationSyncPointRepository offsetRepository,
                                         ConversationLastMessageQueryService lastMessageQueryService,
+                                        ConversationSettingsNotifier conversationSettingsNotifier,
                                         ObjectMapper objectMapper) {
         this.stateRepository = stateRepository;
         this.offsetRepository = offsetRepository;
         this.lastMessageQueryService = lastMessageQueryService;
+        this.conversationSettingsNotifier = conversationSettingsNotifier;
         this.objectMapper = objectMapper;
     }
 
@@ -75,6 +83,18 @@ public class ConversationQueryServiceImpl implements ConversationQueryService {
         List<String> ids = new ArrayList<>(stateRepository.findConversationIds(ownerUserId));
         ids.sort(String::compareTo);
         return (long) ids.hashCode() & 0xFFFFFFFFL;
+    }
+
+    @Override
+    @Cached(name = FIELD_CONVERSATION_RECEIVE_OPTIONS, key = "#ownerUserId + ':' + #conversationId", expire = 300, cacheType = CacheType.REMOTE)
+    public int getReceiveOption(String ownerUserId, String conversationId) {
+        return stateRepository.getRecvMsgOpt(ownerUserId, conversationId);
+    }
+
+    @Override
+    @CacheInvalidate(name = FIELD_CONVERSATION_RECEIVE_OPTIONS, key = "#ownerUserId + ':' + #conversationId")
+    public void setReceiveOption(String ownerUserId, String conversationId, int recvMsgOpt) {
+        stateRepository.setRecvMsgOpt(ownerUserId, conversationId, recvMsgOpt);
     }
 
     @Override

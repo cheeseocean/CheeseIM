@@ -4,7 +4,7 @@ import com.cheeseocean.im.common.core.business.domain.GroupMember;
 import com.cheeseocean.im.common.core.business.mongo.document.group.GroupMemberDoc;
 import com.cheeseocean.im.common.core.business.mongo.repository.GroupMemberMongoRepository;
 import com.cheeseocean.im.common.core.business.repository.GroupMemberRepository;
-import com.cheeseocean.im.common.core.enums.GroupMemberRoleEnum;
+import com.cheeseocean.im.common.api.enums.GroupMemberRoleEnum;
 
 import java.util.List;
 import java.util.Optional;

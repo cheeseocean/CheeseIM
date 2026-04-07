@@ -2,7 +2,7 @@ package com.cheeseocean.im.common.core.business.mongo.impl;
 
 import com.cheeseocean.im.common.core.business.domain.UserConversation;
 import com.cheeseocean.im.common.core.business.mongo.document.conversation.UserConversationDoc;
-import com.cheeseocean.im.common.core.enums.SessionType;
+import com.cheeseocean.im.common.api.enums.SessionType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -16,7 +16,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 class UserConversationRepositoryImplTest {
 

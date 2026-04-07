@@ -1,7 +1,7 @@
 package com.cheeseocean.im.business.service.conversation;
 
 import com.cheeseocean.im.common.api.dto.conversation.SetConversationRequest;
-import com.cheeseocean.im.common.core.enums.SessionType;
+import com.cheeseocean.im.common.api.enums.SessionType;
 import com.cheeseocean.im.common.core.business.repository.UserConversationSyncPointRepository;
 import com.cheeseocean.im.common.core.business.repository.UserConversationRepository;
 import org.junit.jupiter.api.Test;

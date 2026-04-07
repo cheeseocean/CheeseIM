@@ -1,6 +1,6 @@
 package com.cheeseocean.im.common.core.business.mongo.impl;
 
-import com.cheeseocean.im.common.core.enums.HandleResultEnum;
+import com.cheeseocean.im.common.api.enums.HandleResultEnum;
 import com.cheeseocean.im.common.core.business.domain.GroupRequest;
 import com.cheeseocean.im.common.core.business.mongo.document.group.GroupRequestDoc;
 import com.cheeseocean.im.common.core.business.mongo.repository.GroupRequestMongoRepository;

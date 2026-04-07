@@ -1,7 +1,7 @@
 package com.cheeseocean.im.common.core.util;
 
-import com.cheeseocean.im.common.core.enums.ContentType;
-import com.cheeseocean.im.common.core.enums.MessagePreviewType;
+import com.cheeseocean.im.common.api.enums.ContentType;
+import com.cheeseocean.im.common.api.enums.MessagePreviewType;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;

@@ -1,7 +1,7 @@
 package com.cheeseocean.im.common.core.store.session.rocksdb;
 
-import com.cheeseocean.im.common.core.auth.SessionPrincipal;
-import com.cheeseocean.im.common.core.auth.WsTicketPrincipal;
+import com.cheeseocean.im.common.api.session.SessionPrincipal;
+import com.cheeseocean.im.common.api.dto.user.WsTicketPrincipal;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.common.core.store.rocksdb.RocksDbSupport;
 import com.cheeseocean.im.common.core.store.session.SessionStateStore;

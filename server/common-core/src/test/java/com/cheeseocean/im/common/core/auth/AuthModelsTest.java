@@ -1,6 +1,6 @@
 package com.cheeseocean.im.common.core.auth;
 
-import com.cheeseocean.im.common.core.enums.SessionStatus;
+import com.cheeseocean.im.common.api.enums.SessionStatus;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -10,7 +10,7 @@ class AuthModelsTest {
 
     @Test
     void sessionPrincipalShouldReportActiveOnlyForActiveStatus() {
-        SessionPrincipal principal = new SessionPrincipal();
+        com.cheeseocean.im.common.api.session.SessionPrincipal principal = new com.cheeseocean.im.common.api.session.SessionPrincipal();
         principal.setStatus(SessionStatus.ACTIVE);
         assertTrue(principal.isActive());
 
@@ -26,7 +26,7 @@ class AuthModelsTest {
 
     @Test
     void wsTicketPrincipalShouldExpireAtBoundary() {
-        WsTicketPrincipal principal = new WsTicketPrincipal();
+        com.cheeseocean.im.common.api.dto.user.WsTicketPrincipal principal = new com.cheeseocean.im.common.api.dto.user.WsTicketPrincipal();
         principal.setExpireAt(100L);
 
         assertFalse(principal.isExpired(99L));

@@ -1,10 +1,9 @@
 package com.cheeseocean.im.postbox.history;
 
 import com.cheeseocean.im.common.api.dto.message.MessageOptions;
-import com.cheeseocean.im.common.api.dto.message.SequencedMessage;
 import com.cheeseocean.im.common.api.event.HistoryEvent;
-import com.cheeseocean.im.common.core.enums.ContentType;
-import com.cheeseocean.im.common.core.enums.SessionType;
+import com.cheeseocean.im.common.api.enums.ContentType;
+import com.cheeseocean.im.common.api.enums.SessionType;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
@@ -83,7 +82,7 @@ class BlockHistoryPersistenceServiceTest {
         message.setServerMsgId(serverMsgId);
         message.setClientMsgId(clientMsgId);
         message.setSenderId("u100");
-        message.setRecvId("u200");
+        message.setReceiverId("u200");
         message.setSessionType(SessionType.SINGLE.getCode());
         message.setContentType(ContentType.TEXT.getCode());
         message.setContent("hello");

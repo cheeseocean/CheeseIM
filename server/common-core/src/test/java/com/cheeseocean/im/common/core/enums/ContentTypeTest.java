@@ -9,11 +9,11 @@ class ContentTypeTest {
 
     @Test
     void fromCodeShouldResolveReadReceiptContentType() {
-        assertEquals(ContentType.READ_RECEIPT, ContentType.fromCode(ContentType.READ_RECEIPT.getCode()));
+        assertEquals(com.cheeseocean.im.common.api.enums.ContentType.READ_RECEIPT, com.cheeseocean.im.common.api.enums.ContentType.fromCode(com.cheeseocean.im.common.api.enums.ContentType.READ_RECEIPT.getCode()));
     }
 
     @Test
     void fromCodeShouldRejectUnknownContentType() {
-        assertThrows(IllegalArgumentException.class, () -> ContentType.fromCode(999999));
+        assertThrows(IllegalArgumentException.class, () -> com.cheeseocean.im.common.api.enums.ContentType.fromCode(999999));
     }
 }

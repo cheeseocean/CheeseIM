@@ -4,7 +4,7 @@ import com.cheeseocean.im.authcenter.auth.AccessTokenPrincipal;
 import com.cheeseocean.im.authcenter.auth.AccessTokenService;
 import com.cheeseocean.im.authcenter.repository.SessionRepository;
 import com.cheeseocean.im.authcenter.repository.UserSecurityRepository;
-import com.cheeseocean.im.common.core.auth.SessionPrincipal;
+import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

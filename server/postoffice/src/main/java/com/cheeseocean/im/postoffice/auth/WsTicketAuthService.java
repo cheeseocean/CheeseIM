@@ -1,6 +1,6 @@
 package com.cheeseocean.im.postoffice.auth;
 
-import com.cheeseocean.im.common.core.auth.SessionPrincipal;
+import com.cheeseocean.im.common.api.session.SessionPrincipal;
 
 public interface WsTicketAuthService {
 

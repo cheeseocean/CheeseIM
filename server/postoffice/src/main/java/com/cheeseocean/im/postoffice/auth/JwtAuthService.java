@@ -2,7 +2,7 @@ package com.cheeseocean.im.postoffice.auth;
 
 import com.cheeseocean.im.common.core.cache.MultiLevelCacheService;
 import com.cheeseocean.im.common.core.constants.MessageConstants;
-import com.cheeseocean.im.common.core.enums.PlatformType;
+import com.cheeseocean.im.common.api.enums.PlatformType;
 import com.cheeseocean.im.postoffice.config.ServerProperties;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;

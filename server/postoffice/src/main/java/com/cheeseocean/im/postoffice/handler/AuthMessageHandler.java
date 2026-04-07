@@ -1,13 +1,13 @@
 package com.cheeseocean.im.postoffice.handler;
 
 import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
+import com.cheeseocean.im.common.api.protocol.ProtoEnvelopeMapper;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
-import com.cheeseocean.im.common.core.auth.SessionPrincipal;
-import com.cheeseocean.im.common.core.enums.CommandType;
+import com.cheeseocean.im.common.api.session.SessionPrincipal;
+import com.cheeseocean.im.common.api.enums.CommandType;
 import com.cheeseocean.im.postoffice.auth.WsTicketAuthService;
 import com.cheeseocean.im.postoffice.connection.ConnectionBindService;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,9 +32,6 @@ public class AuthMessageHandler implements MessageHandler {
     @Autowired
     private ConnectionBindService connectionBindService;
     
-    @Autowired
-    private ObjectMapper objectMapper;
-    
     @Override
     public HandleResult handle(UserConnection connection, ClientEnvelope envelope) {
         try {
@@ -47,14 +44,12 @@ public class AuthMessageHandler implements MessageHandler {
             }
             
             // 解析认证数据
-            Map<String, Object> authData = parseAuthData(envelope.getBody());
-            if (authData == null) {
+            String ticket = parseTicket(envelope.getBody());
+            if (ticket == null) {
                 ServerEnvelope errorResp = ServerEnvelope.error(operationID, 400, "认证数据格式错误");
                 return HandleResult.failure("认证数据格式错误", errorResp);
             }
-            
-            String ticket = (String) authData.get("ticket");
-            
+
             // 参数验证
             if (ticket == null || ticket.trim().isEmpty()) {
                 ServerEnvelope errorResp = ServerEnvelope.error(operationID, 400, "ticket不能为空");
@@ -105,18 +100,9 @@ public class AuthMessageHandler implements MessageHandler {
     /**
      * 解析认证数据
      */
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> parseAuthData(Object data) {
+    private String parseTicket(byte[] data) {
         try {
-            if (data instanceof Map) {
-                return (Map<String, Object>) data;
-            } else if (data instanceof String) {
-                return objectMapper.readValue((String) data, Map.class);
-            } else {
-                // 尝试转换为Map
-                String jsonStr = objectMapper.writeValueAsString(data);
-                return objectMapper.readValue(jsonStr, Map.class);
-            }
+            return ProtoEnvelopeMapper.parseAuthRequest(data).getTicket();
         } catch (Exception e) {
             logger.error("Failed to parse auth data: {}", data, e);
             return null;
@@ -129,7 +115,7 @@ public class AuthMessageHandler implements MessageHandler {
     private void notifyUserOnline(UserConnection connection) {
         try {
             String userID = connection.getUserID();
-            Integer platformID = connection.getPlatformID();
+            String platformID = connection.getPlatformType() == null ? null : connection.getPlatformType().getDisplayName();
 
             // 可以在这里添加通知好友上线的逻辑
             // 例如：获取用户的好友列表，然后向在线的好友发送上线通知
@@ -138,7 +124,7 @@ public class AuthMessageHandler implements MessageHandler {
             
         } catch (Exception e) {
             logger.error("Failed to notify user online: userID={}, platformID={}", 
-                        connection.getUserID(), connection.getPlatformID(), e);
+                        connection.getUserID(), connection.getPlatformType(), e);
         }
     }
 }

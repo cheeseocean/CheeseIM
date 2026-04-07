@@ -1,7 +1,7 @@
 package com.cheeseocean.im.authcenter.repository;
 
-import com.cheeseocean.im.common.core.auth.SessionPrincipal;
-import com.cheeseocean.im.common.core.auth.WsTicketPrincipal;
+import com.cheeseocean.im.common.api.session.SessionPrincipal;
+import com.cheeseocean.im.common.api.dto.user.WsTicketPrincipal;
 import com.cheeseocean.im.common.core.store.session.SessionStateStore;
 import org.springframework.stereotype.Repository;
 

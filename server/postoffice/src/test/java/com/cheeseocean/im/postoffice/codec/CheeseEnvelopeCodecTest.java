@@ -1,9 +1,9 @@
 package com.cheeseocean.im.postoffice.codec;
 
-import com.cheeseocean.im.common.api.dto.message.ChatSendRequest;
+import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
-import com.cheeseocean.im.common.core.enums.CommandType;
+import com.cheeseocean.im.common.api.enums.CommandType;
 import com.cheeseocean.im.postoffice.client.ProtocolContractFixtures;
 import io.netty.buffer.Unpooled;
 import io.netty.buffer.ByteBuf;
@@ -29,9 +29,9 @@ class CheeseEnvelopeCodecTest {
         assertNotNull(inbound);
         ClientEnvelope envelope = assertInstanceOf(ClientEnvelope.class, inbound);
         assertEquals(CommandType.CHAT_SEND, envelope.getCommand());
-        ChatSendRequest body = assertInstanceOf(ChatSendRequest.class, envelope.getBody());
+        Message body = assertInstanceOf(Message.class, envelope.getBody());
         assertEquals(ProtocolContractFixtures.CLIENT_MSG_ID, body.getClientMsgId());
-        assertEquals(ProtocolContractFixtures.PEER_USER_ID, body.getRecvId());
+        assertEquals(ProtocolContractFixtures.PEER_USER_ID, body.getReceiverId());
     }
 
     @Test

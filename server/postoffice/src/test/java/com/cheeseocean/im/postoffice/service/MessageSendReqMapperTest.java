@@ -2,7 +2,7 @@ package com.cheeseocean.im.postoffice.service;
 
 import com.cheeseocean.im.common.api.dto.message.SendMessageReq;
 import com.cheeseocean.im.common.api.dto.message.Message;
-import com.cheeseocean.im.common.core.enums.ConnectionState;
+import com.cheeseocean.im.common.api.enums.ConnectionState;
 import com.cheeseocean.im.postoffice.connection.ConnectionContext;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import org.junit.jupiter.api.Test;
@@ -19,8 +19,8 @@ class MessageSendReqMapperTest {
         MessageSendReqMapper mapper = new MessageSendReqMapper();
         UserConnection connection = authenticatedConnection();
         Message message = new Message();
-        message.setClientMsgID("cmsg-1");
-        message.setRecvID("u200");
+        message.setClientMsgId("cmsg-1");
+        message.setReceiverId("u200");
         message.setContent("hello");
         message.setContentType(101);
         message.setSessionType(1);
@@ -44,11 +44,11 @@ class MessageSendReqMapperTest {
         MessageSendReqMapper mapper = new MessageSendReqMapper();
         UserConnection connection = new UserConnection();
         connection.setUserID("u100");
-        connection.setPlatformID(5);
+        connection.setPlatformType(5);
 
         Message message = new Message();
-        message.setClientMsgID("cmsg-2");
-        message.setGroupID("g1");
+        message.setClientMsgId("cmsg-2");
+        message.setGroupId("g1");
         message.setContent("team");
         message.setContentType(101);
         message.setSessionType(2);
@@ -63,11 +63,11 @@ class MessageSendReqMapperTest {
     private static UserConnection authenticatedConnection() {
         UserConnection connection = new UserConnection();
         connection.setUserID("u100");
-        connection.setPlatformID(5);
+        connection.setPlatformType(5);
         ConnectionContext context = new ConnectionContext();
         context.setUserId("u100");
         context.setDeviceId("device-1");
-        context.setPlatformId(5);
+        context.setPlatformCode(5);
         context.setState(ConnectionState.AUTHENTICATED);
         connection.setContext(context);
         return connection;

@@ -1,18 +1,22 @@
 package com.cheeseocean.im.common.core.util;
 
-import com.cheeseocean.im.common.core.enums.SessionType;
+import com.cheeseocean.im.common.api.dto.message.Message;
+import com.cheeseocean.im.common.api.enums.SessionType;
 
 public final class ConversationIdUtil {
 
     private ConversationIdUtil() {
     }
 
-    public static String buildConversationId(int sessionType, String senderId, String recvId, String groupId) {
-        SessionType type = SessionType.fromCode(sessionType);
-        return switch (type) {
-            case SINGLE -> single(senderId, recvId);
+    public static String buildConversationId(Message message) {
+        return buildConversationId(message.getSessionType(), message.getSenderId(), message.getReceiverId(), message.getGroupId());
+    }
+
+    public static String buildConversationId(SessionType sessionType, String senderId, String receiverId, String groupId) {
+        return switch (sessionType) {
+            case SINGLE -> single(senderId, receiverId);
             case GROUP -> group(groupId);
-            case NOTIFICATION -> notification(recvId);
+            case NOTIFICATION -> notification(receiverId);
         };
     }
 
@@ -24,14 +28,17 @@ public final class ConversationIdUtil {
      *   SINGLE / NOTIFICATION → sort(senderId, recvId) 拼接，无前缀
      *   GROUP                 → groupId，无前缀
      */
-    public static String buildQueueKey(int sessionType, String senderId, String recvId, String groupId) {
-        SessionType type = SessionType.fromCode(sessionType);
-        return switch (type) {
+    public static String buildQueueKey(SessionType sessionType, String senderId, String receiverId, String groupId) {
+        return switch (sessionType) {
             case GROUP -> groupId;
-            case SINGLE, NOTIFICATION -> senderId.compareTo(recvId) < 0
-                    ? senderId + ":" + recvId
-                    : recvId + ":" + senderId;
+            case SINGLE, NOTIFICATION -> senderId.compareTo(receiverId) < 0
+                    ? senderId + ":" + receiverId
+                    : receiverId + ":" + senderId;
         };
+    }
+
+    public static String buildNotificationConversationId(Message message) {
+        return buildNotificationConversationId(message.getSessionType(), message.getReceiverId(), message.getGroupId());
     }
 
     /**
@@ -40,11 +47,10 @@ public final class ConversationIdUtil {
      *   SINGLE / NOTIFICATION → c3:{recvId}（接收方的通知收件箱）
      *   GROUP                 → c3:{groupId}（群通知频道）
      */
-    public static String buildNotificationConversationId(int sessionType, String recvId, String groupId) {
-        SessionType type = SessionType.fromCode(sessionType);
-        return switch (type) {
-            case SINGLE, NOTIFICATION -> notification(recvId);
-            case GROUP -> "c3:" + groupId;
+    public static String buildNotificationConversationId(SessionType sessionType, String receiverId, String groupId) {
+        return switch (sessionType) {
+            case SINGLE, NOTIFICATION -> notification(receiverId);
+            case GROUP -> "ng:" + groupId;
         };
     }
 
@@ -53,20 +59,20 @@ public final class ConversationIdUtil {
             throw new IllegalArgumentException("single conversation users required");
         }
         return userA.compareTo(userB) < 0
-                ? "c1:" + userA + ":" + userB
-                : "c1:" + userB + ":" + userA;
+                ? "s:" + userA + ":" + userB
+                : "s:" + userB + ":" + userA;
     }
 
     public static String group(String groupId) {
-        return "c2:" + groupId;
+        return "g:" + groupId;
     }
 
     public static String notification(String userId) {
-        return "c3:" + userId;
+        return "n:" + userId;
     }
 
     public static String peerUser(String conversationId, String currentUserId) {
-        if (conversationId == null || currentUserId == null || !conversationId.startsWith("c1:")) {
+        if (conversationId == null || currentUserId == null || !conversationId.startsWith("s:")) {
             return null;
         }
         String[] parts = conversationId.split(":");

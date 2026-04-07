@@ -1,7 +1,7 @@
 package com.cheeseocean.im.business.auth;
 
 import com.cheeseocean.im.common.api.session.SessionQueryService;
-import com.cheeseocean.im.common.core.auth.SessionPrincipal;
+import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;

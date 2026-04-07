@@ -1,10 +1,10 @@
 package com.cheeseocean.im.postman.service.impl;
 
 import com.cheeseocean.im.common.api.dto.message.Message;
-import com.cheeseocean.im.common.core.enums.PlatformType;
+import com.cheeseocean.im.common.api.enums.PlatformType;
 import com.cheeseocean.im.common.core.constants.MessageDisplayConstants;
-import com.cheeseocean.im.common.core.enums.ContentType;
-import com.cheeseocean.im.common.core.enums.SessionType;
+import com.cheeseocean.im.common.api.enums.ContentType;
+import com.cheeseocean.im.common.api.enums.SessionType;
 import com.cheeseocean.im.postman.entity.OfflinePushConfig;
 import com.cheeseocean.im.postman.entity.OfflinePushResult;
 import com.cheeseocean.im.postman.entity.PushMessage;
@@ -17,6 +17,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,7 +64,7 @@ public class OfflinePushServiceImpl implements OfflinePushService {
             long startTime = System.currentTimeMillis();
             
             logger.info("开始离线推送: messageID={}, targetUsers={}", 
-                       message.getServerMsgID(), targetUsers.size());
+                       message.getServerMsgId(), targetUsers.size());
             
             List<String> successUsers = new ArrayList<>();
             List<String> failedUsers = new ArrayList<>();
@@ -199,14 +200,14 @@ public class OfflinePushServiceImpl implements OfflinePushService {
             result.setTotalResponseTime(totalResponseTime);
             
             logger.info("离线推送完成: messageID={}, targetUsers={}, successCount={}, failedCount={}, totalTime={}ms", 
-                       message.getServerMsgID(), targetUsers.size(), 
+                       message.getServerMsgId(), targetUsers.size(),
                        successUsers.size(), failedUsers.size(), totalResponseTime);
             
             return result;
             
         } catch (Exception e) {
             logger.error("离线推送异常: messageID={}, targetUsers={}", 
-                        message.getServerMsgID(), targetUsers.size(), e);
+                        message.getServerMsgId(), targetUsers.size(), e);
             return OfflinePushResult.failure("离线推送异常: " + e.getMessage());
         }
     }
@@ -302,10 +303,10 @@ public class OfflinePushServiceImpl implements OfflinePushService {
         if (isNotificationMessage(message)) {
             return MessageDisplayConstants.PUSH_TITLE_SYSTEM_NOTIFICATION;
         }
-        SessionType sessionType = resolveSessionType(message == null ? null : message.getSessionType());
+        SessionType sessionType = message.getSessionType();
         if (sessionType == SessionType.SINGLE) {
             // 单聊
-            return message.getSenderNickname() != null ? message.getSenderNickname() : MessageDisplayConstants.PUSH_TITLE_NEW_MESSAGE;
+            return message.getSenderNickName() != null ? message.getSenderNickName() : MessageDisplayConstants.PUSH_TITLE_NEW_MESSAGE;
         } else if (sessionType == SessionType.GROUP) {
             // 群聊
             return MessageDisplayConstants.PUSH_TITLE_GROUP_MESSAGE;
@@ -318,13 +319,13 @@ public class OfflinePushServiceImpl implements OfflinePushService {
      * 生成推送内容
      */
     private String generatePushContent(Message message) {
-        String content = message.getContent();
+        String content = Arrays.toString(message.getContent());
         if (content == null || content.trim().isEmpty()) {
             if (isNotificationMessage(message)) {
                 return MessageDisplayConstants.PUSH_CONTENT_NEW_SYSTEM_NOTIFICATION;
             }
             // 根据消息类型生成默认内容
-            ContentType contentType = resolveContentType(message.getContentType());
+            ContentType contentType = message.getContentType();
             if (contentType != null) {
                 switch (contentType) {
                     case IMAGE: return MessageDisplayConstants.PUSH_CONTENT_IMAGE;
@@ -350,10 +351,10 @@ public class OfflinePushServiceImpl implements OfflinePushService {
         if (message == null) {
             return false;
         }
-        if (resolveSessionType(message.getSessionType()) == SessionType.NOTIFICATION) {
+        if (message.getSessionType() == SessionType.NOTIFICATION) {
             return true;
         }
-        return message.getOptions() != null && Boolean.TRUE.equals(message.getOptions().get("notification"));
+        return message.getOptions() != null && message.getOptions().getNotification();
     }
 
     private List<PushMessage> createPushMessagesForUser(String userID, String title, String content, Message originalMessage) {
@@ -375,28 +376,22 @@ public class OfflinePushServiceImpl implements OfflinePushService {
             pushMessage.setPlatformID(platformID);
 
             if (originalMessage != null) {
-                SessionType sessionType = resolveSessionType(originalMessage.getSessionType());
-                pushMessage.setMessageID(originalMessage.getServerMsgID());
-                pushMessage.setSenderID(originalMessage.getSendID());
-                pushMessage.setSenderNickname(originalMessage.getSenderNickname());
-                pushMessage.setMessageType(originalMessage.getContentType());
+                SessionType sessionType = originalMessage.getSessionType();
+                pushMessage.setMessageID(originalMessage.getServerMsgId());
+                pushMessage.setSenderID(originalMessage.getSenderId());
+                pushMessage.setSenderNickname(originalMessage.getSenderNickName());
+                pushMessage.setMessageType(originalMessage.getContentType().getCode());
                 pushMessage.setConversationType(sessionType.getCode());
 
                 if (sessionType == SessionType.SINGLE) {
-                    pushMessage.setConversationID("single_" + originalMessage.getSendID() + "_" + originalMessage.getRecvID());
+                    pushMessage.setConversationID("single_" + originalMessage.getSenderId() + "_" + originalMessage.getReceiverId());
                 } else if (sessionType == SessionType.GROUP) {
-                    pushMessage.setConversationID("group_" + originalMessage.getGroupID());
+                    pushMessage.setConversationID("group_" + originalMessage.getGroupId());
                 }
 
                 Map<String, Object> extraData = new HashMap<>();
-                if (originalMessage.getAttachedInfo() != null) {
-                    extraData.put("attachedInfo", originalMessage.getAttachedInfo());
-                }
-                if (originalMessage.getEx() != null) {
-                    extraData.put("ex", originalMessage.getEx());
-                }
-                if (originalMessage.getUniqueID() != null) {
-                    extraData.put("uniqueID", originalMessage.getUniqueID());
+                if (originalMessage.getUniqueId() != null) {
+                    extraData.put("uniqueID", originalMessage.getUniqueId());
                 }
                 pushMessage.setExtras(extraData);
             }

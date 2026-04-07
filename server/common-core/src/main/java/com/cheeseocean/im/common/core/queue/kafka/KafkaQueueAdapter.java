@@ -1,5 +1,8 @@
 package com.cheeseocean.im.common.core.queue.kafka;
 
+import com.cheeseocean.im.common.api.dto.message.Message;
+import com.cheeseocean.im.common.api.protocol.ProtoEnvelopeMapper;
+import com.cheeseocean.im.common.api.protocol.ProtoMessageMapper;
 import com.cheeseocean.im.common.core.queue.KeyedMessage;
 import com.cheeseocean.im.common.core.queue.QueueAdapter;
 import com.cheeseocean.im.common.core.queue.QueueMessageHandler;
@@ -19,11 +22,11 @@ import java.util.Map;
 
 public class KafkaQueueAdapter implements QueueAdapter {
 
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final KafkaTemplate<String, byte[]> kafkaTemplate;
     private final ObjectMapper objectMapper;
     private final KafkaProperties kafkaProperties;
 
-    public KafkaQueueAdapter(KafkaTemplate<String, String> kafkaTemplate,
+    public KafkaQueueAdapter(KafkaTemplate<String, byte[]> kafkaTemplate,
                              ObjectMapper objectMapper,
                              KafkaProperties kafkaProperties) {
         this.kafkaTemplate = kafkaTemplate;
@@ -32,9 +35,9 @@ public class KafkaQueueAdapter implements QueueAdapter {
     }
 
     @Override
-    public <T> void send(String topic, String key, T message) {
+    public void send(String topic, String key, byte[] message) {
         try {
-            kafkaTemplate.send(topic, key, objectMapper.writeValueAsString(message));
+            kafkaTemplate.send(topic, key, message);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to publish Kafka queue message", e);
         }

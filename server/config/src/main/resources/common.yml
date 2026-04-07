@@ -61,8 +61,8 @@ jetcache:
         minIdle: 5
         maxIdle: 20
         maxTotal: 50
-      host: ${redis.host}
-      port: ${redis.port}
+      host: localhost
+      port: 6379
 
 # Logging is configured centrally in logback-spring.xml (config module).
 # Pattern, file appenders, and noise suppression are all handled there.

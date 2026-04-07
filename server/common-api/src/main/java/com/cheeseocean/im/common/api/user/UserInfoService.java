@@ -101,4 +101,13 @@ public interface UserInfoService {
      * 若 userId 对应的账号级别不足（非通知账号），返回 null。
      */
     UserInfoDTO getNotificationAccount(String userId);
+
+    // ── 用户设置 ──────────────────────────────────────────────────────────────
+
+    /**
+     * 返回用户的全局消息接收选项 code。
+     * 未设置时返回 {@link com.cheeseocean.im.common.api.enums.ReceiveOption#RECEIVE RECEIVE}（0）。
+     */
+    int getReceiveOptions(String userId);
+
 }

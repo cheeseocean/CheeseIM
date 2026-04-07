@@ -1,6 +1,6 @@
 package com.cheeseocean.im.postoffice.handler;
 
-import com.cheeseocean.im.common.core.enums.CommandType;
+import com.cheeseocean.im.common.api.enums.CommandType;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 

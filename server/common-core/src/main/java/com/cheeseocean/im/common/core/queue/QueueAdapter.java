@@ -1,8 +1,9 @@
 package com.cheeseocean.im.common.core.queue;
 
+
 public interface QueueAdapter {
 
-    <T> void send(String topic, String key, T message);
+    void send(String topic, String key, byte[] message);
 
     <T> Subscription subscribe(
             String topic,

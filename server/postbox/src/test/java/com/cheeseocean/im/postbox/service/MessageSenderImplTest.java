@@ -3,9 +3,8 @@ package com.cheeseocean.im.postbox.service;
 import com.cheeseocean.im.common.api.dto.message.MessageOptions;
 import com.cheeseocean.im.common.api.dto.message.SendMessageReq;
 import com.cheeseocean.im.common.api.dto.message.SendMessageResp;
-import com.cheeseocean.im.common.api.event.IngressEvent;
-import com.cheeseocean.im.common.core.enums.ContentType;
-import com.cheeseocean.im.common.core.enums.SessionType;
+import com.cheeseocean.im.common.api.enums.ContentType;
+import com.cheeseocean.im.common.api.enums.SessionType;
 import com.cheeseocean.im.common.core.queue.QueueAdapter;
 import org.junit.jupiter.api.Test;
 
@@ -21,9 +20,9 @@ class MessageSenderImplTest {
 
     @Test
     void sendMessagePublishesIngressEventWithConversationIdAndServerMsgId() {
-        QueueAdapter          queueAdapter = mock(QueueAdapter.class);
-        IngressEventPublisher publisher    = new IngressEventPublisher(queueAdapter);
-        MessageSenderImpl     service      = new MessageSenderImpl(publisher);
+        QueueAdapter            queueAdapter = mock(QueueAdapter.class);
+        IngressMessagePublisher publisher    = new IngressMessagePublisher(queueAdapter);
+        MessageSenderImpl       service      = new MessageSenderImpl(publisher);
 
         SendMessageReq req = new SendMessageReq();
         req.setRequestId("req-1");
@@ -49,9 +48,9 @@ class MessageSenderImplTest {
 
     @Test
     void sendMessageFillsDefaultOptionsWhenMissing() {
-        QueueAdapter queueAdapter = mock(QueueAdapter.class);
-        IngressEventPublisher publisher = new IngressEventPublisher(queueAdapter);
-        MessageSenderImpl     service   = new MessageSenderImpl(publisher);
+        QueueAdapter            queueAdapter = mock(QueueAdapter.class);
+        IngressMessagePublisher publisher    = new IngressMessagePublisher(queueAdapter);
+        MessageSenderImpl       service      = new MessageSenderImpl(publisher);
 
         SendMessageReq req = new SendMessageReq();
         req.setRequestId("req-2");
@@ -70,9 +69,9 @@ class MessageSenderImplTest {
 
     @Test
     void sendMessageFillsMissingOptionFieldsWithDefaults() {
-        QueueAdapter queueAdapter = mock(QueueAdapter.class);
-        IngressEventPublisher publisher = new IngressEventPublisher(queueAdapter);
-        MessageSenderImpl     service   = new MessageSenderImpl(publisher);
+        QueueAdapter            queueAdapter = mock(QueueAdapter.class);
+        IngressMessagePublisher publisher    = new IngressMessagePublisher(queueAdapter);
+        MessageSenderImpl       service      = new MessageSenderImpl(publisher);
 
         MessageOptions options = new MessageOptions();
         options.setNeedHistory(false);
@@ -173,9 +172,9 @@ class MessageSenderImplTest {
     }
 
     private IngressEvent publishEventForContentType(int sessionType, int contentType) {
-        QueueAdapter queueAdapter = mock(QueueAdapter.class);
-        IngressEventPublisher publisher = new IngressEventPublisher(queueAdapter);
-        MessageSenderImpl     service   = new MessageSenderImpl(publisher);
+        QueueAdapter            queueAdapter = mock(QueueAdapter.class);
+        IngressMessagePublisher publisher    = new IngressMessagePublisher(queueAdapter);
+        MessageSenderImpl       service      = new MessageSenderImpl(publisher);
 
         SendMessageReq req = new SendMessageReq();
         req.setRequestId("req-type-" + contentType);

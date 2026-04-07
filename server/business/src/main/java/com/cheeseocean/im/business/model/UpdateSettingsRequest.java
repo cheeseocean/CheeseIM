@@ -1,12 +1,13 @@
 package com.cheeseocean.im.business.model;
 
+import com.cheeseocean.im.common.api.enums.ReceiveOption;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 public class UpdateSettingsRequest {
 
-    /** 全局消息接收选项，取值见 {@link com.cheeseocean.im.common.core.enums.RecvMsgOpt}。 */
+    /** 全局消息接收选项，取值见 {@link ReceiveOption}。 */
     @NotNull
     @Min(0)
     @Max(2)

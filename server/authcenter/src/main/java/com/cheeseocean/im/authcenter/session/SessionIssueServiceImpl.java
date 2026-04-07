@@ -4,8 +4,8 @@ import com.cheeseocean.im.authcenter.auth.AccessTokenPrincipal;
 import com.cheeseocean.im.authcenter.auth.AccessTokenService;
 import com.cheeseocean.im.authcenter.repository.SessionRepository;
 import com.cheeseocean.im.common.api.session.SessionIssueService;
-import com.cheeseocean.im.common.core.auth.SessionPrincipal;
-import com.cheeseocean.im.common.core.auth.WsTicketPrincipal;
+import com.cheeseocean.im.common.api.session.SessionPrincipal;
+import com.cheeseocean.im.common.api.dto.user.WsTicketPrincipal;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.stereotype.Service;
 

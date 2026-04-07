@@ -1,7 +1,7 @@
 package com.cheeseocean.im.authcenter.auth;
 
 import com.cheeseocean.im.authcenter.config.AuthCenterConfig;
-import com.cheeseocean.im.common.core.enums.PlatformType;
+import com.cheeseocean.im.common.api.enums.PlatformType;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;

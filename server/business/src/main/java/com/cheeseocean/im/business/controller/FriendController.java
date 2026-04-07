@@ -1,8 +1,8 @@
 package com.cheeseocean.im.business.controller;
 
-import com.cheeseocean.im.common.core.auth.FriendRequestSummary;
-import com.cheeseocean.im.common.core.auth.FriendSummary;
-import com.cheeseocean.im.common.core.auth.SessionPrincipal;
+import com.cheeseocean.im.common.api.dto.user.FriendRequestSummary;
+import com.cheeseocean.im.common.api.dto.user.FriendSummary;
+import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import com.cheeseocean.im.business.auth.AccessTokenSessionResolver;
 import com.cheeseocean.im.business.model.AddFriendRequest;
 import com.cheeseocean.im.business.model.FriendRequestActionRequest;

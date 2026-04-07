@@ -1,8 +1,8 @@
 package com.cheeseocean.im.common.core.util;
 
 import com.cheeseocean.im.common.core.constants.MessageDisplayConstants;
-import com.cheeseocean.im.common.core.enums.ContentType;
-import com.cheeseocean.im.common.core.enums.MessagePreviewType;
+import com.cheeseocean.im.common.api.enums.ContentType;
+import com.cheeseocean.im.common.api.enums.MessagePreviewType;
 import org.springframework.util.StringUtils;
 
 import java.util.Map;

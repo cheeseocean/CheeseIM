@@ -10,9 +10,9 @@ import com.cheeseocean.im.authcenter.repository.RefreshTokenRepository;
 import com.cheeseocean.im.authcenter.repository.SessionRepository;
 import com.cheeseocean.im.authcenter.repository.UserSecurityRepository;
 import com.cheeseocean.im.common.api.session.SessionRevocationService;
-import com.cheeseocean.im.common.core.auth.SessionPrincipal;
-import com.cheeseocean.im.common.core.enums.PlatformType;
-import com.cheeseocean.im.common.core.enums.SessionStatus;
+import com.cheeseocean.im.common.api.session.SessionPrincipal;
+import com.cheeseocean.im.common.api.enums.PlatformType;
+import com.cheeseocean.im.common.api.enums.SessionStatus;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.stereotype.Service;
 

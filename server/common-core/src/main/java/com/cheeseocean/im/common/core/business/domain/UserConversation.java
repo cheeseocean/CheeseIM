@@ -1,5 +1,7 @@
 package com.cheeseocean.im.common.core.business.domain;
 
+import com.cheeseocean.im.common.api.enums.ReceiveOption;
+
 /**
  * 用户-会话业务状态领域对象（写扩散模型）。
  *
@@ -26,7 +28,7 @@ public class UserConversation {
     /**
      * 免打扰开关。
      * 0=正常接收，1=不收消息，2=收不提醒。
-     * 取值见 {@link com.cheeseocean.im.common.core.enums.RecvMsgOpt}。
+     * 取值见 {@link ReceiveOption}。
      */
     private int recvMsgOpt;
 
@@ -50,7 +52,7 @@ public class UserConversation {
 
     /**
      * 群 @ 强提醒类型。
-     * 取值见 {@link com.cheeseocean.im.common.core.enums.GroupAtTypeEnum}。
+     * 取值见 {@link com.cheeseocean.im.common.api.enums.GroupAtTypeEnum}。
      */
     private int groupAtType;
 

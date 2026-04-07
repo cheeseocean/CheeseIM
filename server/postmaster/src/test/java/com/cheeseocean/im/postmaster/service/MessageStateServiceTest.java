@@ -1,16 +1,17 @@
 package com.cheeseocean.im.postmaster.service;
 
 import com.cheeseocean.im.common.api.dto.message.ConversationLastMessageSummary;
+import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.dto.message.MessageOptions;
-import com.cheeseocean.im.common.api.dto.message.SequencedMessage;
-import com.cheeseocean.im.common.api.event.IngressEvent;
-import com.cheeseocean.im.common.core.enums.ContentType;
-import com.cheeseocean.im.common.core.enums.MessagePreviewType;
+import com.cheeseocean.im.common.api.enums.ContentType;
+import com.cheeseocean.im.common.api.enums.MessagePreviewType;
+import com.cheeseocean.im.common.api.enums.SessionType;
 import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
-import com.cheeseocean.im.postmaster.service.ConversationSyncFacade;
+import com.cheeseocean.im.postmaster.model.MessageWithTargets;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -26,17 +27,14 @@ class MessageStateServiceTest {
     @Test
     void applyShouldPersistTypedConversationLastMessageSummary() throws Exception {
         ConversationStateStore conversationStateStore = mock(ConversationStateStore.class);
+        MessageStateService service = new MessageStateService(conversationStateStore, new ObjectMapper());
 
-        MessageStateService service = new MessageStateService(conversationStateStore, new ObjectMapper(), null);
-        SequencedMessage message = message();
-
-        service.apply(message, List.of("userB"));
+        service.apply(systemNotificationMessage(9L), List.of("userB"));
 
         var valueCaptor = forClass(String.class);
-        verify(conversationStateStore).setLastMessageSummary(eq("c1:userA:userB"), valueCaptor.capture());
-        String summaryJson = valueCaptor.getValue();
+        verify(conversationStateStore).setLastMessageSummary(eq("s:userA:userB"), valueCaptor.capture());
         ConversationLastMessageSummary summary =
-                new ObjectMapper().readValue(summaryJson, ConversationLastMessageSummary.class);
+                new ObjectMapper().readValue(valueCaptor.getValue(), ConversationLastMessageSummary.class);
 
         assertEquals(9L, summary.getSeq());
         assertEquals("userA", summary.getSenderId());
@@ -50,68 +48,103 @@ class MessageStateServiceTest {
     @Test
     void applyShouldIncrementUnreadForRecipientsOnly() {
         ConversationStateStore conversationStateStore = mock(ConversationStateStore.class);
+        MessageStateService service = new MessageStateService(conversationStateStore, new ObjectMapper());
 
-        MessageStateService service = new MessageStateService(conversationStateStore, new ObjectMapper(), null);
+        service.apply(systemNotificationMessage(9L), List.of("userB"));
 
-        service.apply(message(), List.of("userB"));
-
-        verify(conversationStateStore).incrementUnread("userB", "c1:userA:userB");
+        verify(conversationStateStore).incrementUnread("userB", "s:userA:userB");
     }
 
     @Test
-    void processReadReceiptsShouldWriteReadSeqToRedisAndEnqueuePersistence() {
-        ConversationStateStore store  = mock(ConversationStateStore.class);
-        ConversationSyncFacade syncService = mock(ConversationSyncFacade.class);
-        MessageStateService service = new MessageStateService(store, new ObjectMapper(), syncService);
+    void processReadReceiptsShouldWriteReadSeqToRedis() {
+        ConversationStateStore store = mock(ConversationStateStore.class);
+        MessageStateService service = new MessageStateService(store, new ObjectMapper());
 
-        service.processReadReceipts(List.of(readReceiptEvent("userA", "c1:userA:userB",
-                "{\"receiptType\":\"READ_CURSOR\",\"seq\":42}")));
+        service.processReadReceipts(List.of(readReceiptMessage(
+                "userA", "userB", "{\"conversationId\":\"s:userA:userB\",\"seq\":42}".getBytes(StandardCharsets.UTF_8))));
 
-        verify(store).setUserReadSeq("userA", "c1:userA:userB", 42L);
-        verify(syncService).markRead("userA", "c1:userA:userB", 42L);
+        verify(store).setUserReadSeq("userA", "s:userA:userB", 42L);
     }
 
     @Test
     void processReadReceiptsShouldAggregateToMaxSeqPerUserConversation() {
-        ConversationStateStore store  = mock(ConversationStateStore.class);
-        ConversationSyncFacade syncService = mock(ConversationSyncFacade.class);
-        MessageStateService service = new MessageStateService(store, new ObjectMapper(), syncService);
+        ConversationStateStore store = mock(ConversationStateStore.class);
+        MessageStateService service = new MessageStateService(store, new ObjectMapper());
 
-        // Two receipts for same (user, conv) — only max seq should be written
         service.processReadReceipts(List.of(
-                readReceiptEvent("userA", "c1:userA:userB", "{\"receiptType\":\"READ_CURSOR\",\"seq\":10}"),
-                readReceiptEvent("userA", "c1:userA:userB", "{\"receiptType\":\"READ_CURSOR\",\"seq\":20}")));
+                readReceiptMessage("userA", "userB", "{\"conversationId\":\"s:userA:userB\",\"seq\":10}".getBytes(StandardCharsets.UTF_8)),
+                readReceiptMessage("userA", "userB", "{\"conversationId\":\"s:userA:userB\",\"seq\":20}".getBytes(StandardCharsets.UTF_8))
+        ));
 
-        verify(store).setUserReadSeq("userA", "c1:userA:userB", 20L);
-        verify(store, never()).setUserReadSeq("userA", "c1:userA:userB", 10L);
-        verify(syncService).markRead("userA", "c1:userA:userB", 20L);
+        verify(store).setUserReadSeq("userA", "s:userA:userB", 20L);
+        verify(store, never()).setUserReadSeq("userA", "s:userA:userB", 10L);
     }
 
-    private static IngressEvent readReceiptEvent(String senderId, String conversationId, String content) {
-        IngressEvent event = new IngressEvent();
-        event.setSenderId(senderId);
-        event.setConversationId(conversationId);
-        event.setContentType(ContentType.READ_RECEIPT.getCode());
-        event.setContent(content);
-        return event;
+    @Test
+    void applyBatchShouldAggregateUnreadAndReadSeq() {
+        ConversationStateStore store = mock(ConversationStateStore.class);
+        MessageStateService service = new MessageStateService(store, new ObjectMapper());
+
+        Message first = directTextMessage("userA", "userB", 5L, "hello");
+        Message second = directTextMessage("userA", "userB", 6L, "world");
+
+        service.applyBatch(List.of(
+                new MessageWithTargets(first, List.of("userB")),
+                new MessageWithTargets(second, List.of("userB"))
+        ));
+
+        verify(store).setConversationMinSeqIfAbsent("s:userA:userB", 5L);
+        verify(store).setConversationMaxSeq("s:userA:userB", 6L);
+        verify(store).setUserMaxSeq("userA", "s:userA:userB", 6L);
+        verify(store).setUserMaxSeq("userB", "s:userA:userB", 6L);
+        verify(store).setUserReadSeq("userA", "s:userA:userB", 6L);
+        verify(store).incrementUnreadBy("userB", "s:userA:userB", 2);
     }
 
-    private SequencedMessage message() {
+    private static Message systemNotificationMessage(long seq) {
         MessageOptions options = new MessageOptions();
         options.setNeedConversation(true);
         options.setNeedUnreadCount(true);
         options.setNeedLastMessage(true);
         options.setNotification(true);
 
-        SequencedMessage message = new SequencedMessage();
-        message.setConversationId("c1:userA:userB");
-        message.setSeq(9L);
+        Message message = new Message();
+        message.setSeq(seq);
         message.setSenderId("userA");
-        message.setRecvId("userB");
-        message.setContentType(ContentType.SYSTEM_NOTIFY.getCode());
-        message.setContent("hello");
+        message.setReceiverId("userB");
+        message.setSessionType(SessionType.SINGLE);
+        message.setContentType(ContentType.SYSTEM_NOTIFY);
+        message.setContent("hello".getBytes(StandardCharsets.UTF_8));
         message.setSendTime(123L);
         message.setOptions(options);
+        return message;
+    }
+
+    private static Message directTextMessage(String senderId, String receiverId, long seq, String content) {
+        MessageOptions options = new MessageOptions();
+        options.setNeedConversation(true);
+        options.setNeedUnreadCount(true);
+        options.setNeedLastMessage(true);
+
+        Message message = new Message();
+        message.setSeq(seq);
+        message.setSenderId(senderId);
+        message.setReceiverId(receiverId);
+        message.setSessionType(SessionType.SINGLE);
+        message.setContentType(ContentType.TEXT);
+        message.setContent(content.getBytes(StandardCharsets.UTF_8));
+        message.setSendTime(123L + seq);
+        message.setOptions(options);
+        return message;
+    }
+
+    private static Message readReceiptMessage(String senderId, String receiverId, byte[] content) {
+        Message message = new Message();
+        message.setSenderId(senderId);
+        message.setReceiverId(receiverId);
+        message.setSessionType(SessionType.SINGLE);
+        message.setContentType(ContentType.READ_RECEIPT);
+        message.setContent(content);
         return message;
     }
 }

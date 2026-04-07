@@ -1,34 +1,31 @@
 package com.cheeseocean.im.postman.listener;
 
 import com.cheeseocean.im.common.api.event.OfflinePushEvent;
+import com.cheeseocean.im.common.api.protocol.ProtoOfflinePushEventMapper;
 import com.cheeseocean.im.common.api.route.OnlineRouteQueryService;
 import com.cheeseocean.im.common.core.constants.TopicNames;
 import com.cheeseocean.im.common.core.queue.annotation.QueueListener;
 import com.cheeseocean.im.postman.service.impl.MessagePushServiceImpl;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.stereotype.Component;
 
 @Component
 public class OfflinePushEventListener {
 
-    private final ObjectMapper objectMapper;
     private final MessagePushServiceImpl  messagePushService;
-    private final OnlineRouteQueryService onlineRouteQueryService;
+    @DubboReference
+    private       OnlineRouteQueryService onlineRouteQueryService;
 
-    public OfflinePushEventListener(ObjectMapper objectMapper,
-                                    MessagePushServiceImpl messagePushService,
-                                    OnlineRouteQueryService onlineRouteQueryService) {
-        this.objectMapper = objectMapper;
+    public OfflinePushEventListener(MessagePushServiceImpl messagePushService) {
         this.messagePushService = messagePushService;
-        this.onlineRouteQueryService = onlineRouteQueryService;
     }
 
+
     @QueueListener(topic = TopicNames.OFFLINE_PUSH, group = "push-offline")
-    public void onMessage(String payload) {
+    public void onMessage(byte[] payload) {
         try {
-            handle(objectMapper.readValue(payload, OfflinePushEvent.class));
-        } catch (JsonProcessingException e) {
+            handle(ProtoOfflinePushEventMapper.parse(payload));
+        } catch (Exception e) {
             throw new IllegalStateException("Failed to parse offline push event payload", e);
         }
     }

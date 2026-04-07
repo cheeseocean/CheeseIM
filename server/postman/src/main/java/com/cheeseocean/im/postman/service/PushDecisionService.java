@@ -1,7 +1,7 @@
 package com.cheeseocean.im.postman.service;
 
 import com.cheeseocean.im.common.api.dto.push.OfflinePushReq;
-import com.cheeseocean.im.common.core.enums.DeliveryState;
+import com.cheeseocean.im.common.api.enums.DeliveryState;
 import com.cheeseocean.im.postman.entity.PushAttempt;
 import org.springframework.stereotype.Service;
 

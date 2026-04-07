@@ -15,6 +15,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ConversationQueryServiceImplTest {
@@ -26,6 +27,7 @@ class ConversationQueryServiceImplTest {
         UserConversationRepository stateRepository = mock(UserConversationRepository.class);
         UserConversationSyncPointRepository offsetRepository = mock(UserConversationSyncPointRepository.class);
         ConversationLastMessageQueryService lastMessageQueryService = mock(ConversationLastMessageQueryService.class);
+        ConversationSettingsNotifier conversationSettingsNotifier = mock(ConversationSettingsNotifier.class);
 
         UserConversation state = new UserConversation();
         state.setOwnerUserId("u1");
@@ -52,7 +54,7 @@ class ConversationQueryServiceImplTest {
         when(lastMessageQueryService.getLatestMessages(List.of("c1"))).thenReturn(Map.of("c1", summary));
 
         ConversationQueryServiceImpl service = new ConversationQueryServiceImpl(
-                stateRepository, offsetRepository, lastMessageQueryService, OBJECT_MAPPER
+                stateRepository, offsetRepository, lastMessageQueryService, conversationSettingsNotifier, OBJECT_MAPPER
         );
 
         var result = service.getConversations("u1", List.of("c1")).get(0);
@@ -68,6 +70,7 @@ class ConversationQueryServiceImplTest {
         UserConversationRepository stateRepository = mock(UserConversationRepository.class);
         UserConversationSyncPointRepository offsetRepository = mock(UserConversationSyncPointRepository.class);
         ConversationLastMessageQueryService lastMessageQueryService = mock(ConversationLastMessageQueryService.class);
+        ConversationSettingsNotifier conversationSettingsNotifier = mock(ConversationSettingsNotifier.class);
 
         UserConversation state = new UserConversation();
         state.setOwnerUserId("u1");
@@ -81,7 +84,7 @@ class ConversationQueryServiceImplTest {
         when(lastMessageQueryService.getLatestMessages(List.of("c1"))).thenReturn(Map.of());
 
         ConversationQueryServiceImpl service = new ConversationQueryServiceImpl(
-                stateRepository, offsetRepository, lastMessageQueryService, OBJECT_MAPPER
+                stateRepository, offsetRepository, lastMessageQueryService, conversationSettingsNotifier, OBJECT_MAPPER
         );
 
         var result = service.getConversation("u1", "c1");
@@ -90,5 +93,26 @@ class ConversationQueryServiceImplTest {
         assertEquals(3L, result.getLatestMsgSeq());
         assertEquals("{\"legacy\":true}", result.getLatestMsg());
         assertNull(result.getReadSeq());
+    }
+
+    @Test
+    void recvMsgOptMethodsShouldDelegateRepositoryAndNotify() {
+        UserConversationRepository stateRepository = mock(UserConversationRepository.class);
+        UserConversationSyncPointRepository offsetRepository = mock(UserConversationSyncPointRepository.class);
+        ConversationLastMessageQueryService lastMessageQueryService = mock(ConversationLastMessageQueryService.class);
+        ConversationSettingsNotifier conversationSettingsNotifier = mock(ConversationSettingsNotifier.class);
+
+        when(stateRepository.getRecvMsgOpt("u1", "c1")).thenReturn(2);
+
+        ConversationQueryServiceImpl service = new ConversationQueryServiceImpl(
+                stateRepository, offsetRepository, lastMessageQueryService, conversationSettingsNotifier, OBJECT_MAPPER
+        );
+
+        assertEquals(2, service.getReceiveOption("u1", "c1"));
+
+        service.setReceiveOption("u1", "c1", 1);
+
+        verify(stateRepository).setRecvMsgOpt("u1", "c1", 1);
+        verify(conversationSettingsNotifier).notifyRecvMsgOptChanged("u1", "c1", 1);
     }
 }

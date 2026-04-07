@@ -50,9 +50,9 @@ public class TcpServer implements CommandLineRunner, Server {
      */
     private ServerProperties.TcpConfig tcpConfig;
     private EventLoopGroup             bossGroup;
-    private EventLoopGroup           workerGroup;
-    private ChannelFuture            channelFuture;
-    private long                     startTime;
+    private EventLoopGroup             workerGroup;
+    private ChannelFuture              channelFuture;
+    private long                       startTime;
 
     @Override
     public void run(String... args) throws Exception {

@@ -2,9 +2,9 @@ package com.cheeseocean.im.authcenter.session;
 
 import com.cheeseocean.im.authcenter.repository.SessionRepository;
 import com.cheeseocean.im.common.api.connection.KickoffCommandService;
-import com.cheeseocean.im.common.core.auth.KickoffCommand;
-import com.cheeseocean.im.common.core.auth.SessionPrincipal;
-import com.cheeseocean.im.common.core.enums.SessionStatus;
+import com.cheeseocean.im.common.api.dto.user.KickoffCommand;
+import com.cheeseocean.im.common.api.session.SessionPrincipal;
+import com.cheeseocean.im.common.api.enums.SessionStatus;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 

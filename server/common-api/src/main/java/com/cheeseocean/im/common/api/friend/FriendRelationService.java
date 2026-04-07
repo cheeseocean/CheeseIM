@@ -1,7 +1,7 @@
 package com.cheeseocean.im.common.api.friend;
 
-import com.cheeseocean.im.common.core.auth.FriendRequestSummary;
-import com.cheeseocean.im.common.core.auth.FriendSummary;
+import com.cheeseocean.im.common.api.dto.user.FriendRequestSummary;
+import com.cheeseocean.im.common.api.dto.user.FriendSummary;
 
 import java.util.List;
 

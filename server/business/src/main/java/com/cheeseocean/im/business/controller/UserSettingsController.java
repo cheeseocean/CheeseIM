@@ -1,10 +1,10 @@
 package com.cheeseocean.im.business.controller;
 
-import com.cheeseocean.im.common.core.auth.SessionPrincipal;
+import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import com.cheeseocean.im.business.auth.AccessTokenSessionResolver;
 import com.cheeseocean.im.business.model.UpdateSettingsRequest;
 import com.cheeseocean.im.business.model.UserSettingsResponse;
-import com.cheeseocean.im.business.service.user.UserSettingsServiceImpl;
+import com.cheeseocean.im.common.api.user.UserInfoService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -23,19 +23,19 @@ import java.util.Map;
 public class UserSettingsController {
 
     private final AccessTokenSessionResolver accessTokenSessionResolver;
-    private final UserSettingsServiceImpl userSettingsService;
+    private final UserInfoService userInfoService;
 
     public UserSettingsController(AccessTokenSessionResolver accessTokenSessionResolver,
-                                  UserSettingsServiceImpl userSettingsService) {
+                                  UserInfoService userInfoService) {
         this.accessTokenSessionResolver = accessTokenSessionResolver;
-        this.userSettingsService = userSettingsService;
+        this.userInfoService = userInfoService;
     }
 
     /** 查询当前用户设置 */
     @GetMapping
     public UserSettingsResponse get(@RequestHeader("Authorization") String authorization) {
         SessionPrincipal session = accessTokenSessionResolver.resolve(authorization);
-        int opt = userSettingsService.getGlobalRecvMsgOpt(session.getUserId());
+        int opt = userInfoService.getReceiveOptions(session.getUserId());
         return new UserSettingsResponse(opt);
     }
 
@@ -45,7 +45,7 @@ public class UserSettingsController {
     public void update(@RequestHeader("Authorization") String authorization,
                        @RequestBody @Valid UpdateSettingsRequest request) {
         SessionPrincipal session = accessTokenSessionResolver.resolve(authorization);
-        userSettingsService.setGlobalRecvMsgOpt(session.getUserId(), request.getGlobalRecvMsgOpt());
+//        userInfoService.setReceiveOptions(session.getUserId(), request.getGlobalRecvMsgOpt());
     }
 
     @ExceptionHandler(IllegalStateException.class)

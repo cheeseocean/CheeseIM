@@ -1,16 +1,14 @@
 package com.cheeseocean.im.postoffice.codec;
 
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchPayload;
-import com.cheeseocean.im.common.api.dto.message.ChatSendRequest;
 import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
+import com.cheeseocean.im.common.api.protocol.ProtoEnvelopeMapper;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
-import com.cheeseocean.im.common.core.enums.CommandType;
-import com.cheeseocean.im.common.core.util.ObjectMapperFactory;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.cheeseocean.im.common.api.protocol.proto.ProtoClientEnvelope;
+import com.cheeseocean.im.common.api.enums.CommandType;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
 
 final class TcpEnvelopeCodecSupport {
 
@@ -35,24 +33,19 @@ final class TcpEnvelopeCodecSupport {
     static final byte TCP_FRIEND_INFO_CHANGE_NOTIFY = 72;
     static final byte TCP_ERROR_RESP = 90;
 
-    private static final ObjectMapper OBJECT_MAPPER = ObjectMapperFactory.createDefaultMapper();
-
     private TcpEnvelopeCodecSupport() {
     }
 
-    static ClientEnvelope decode(byte msgType, String requestId, String data) {
-        ClientEnvelope envelope = new ClientEnvelope();
-        envelope.setCommand(resolveClientCommand(msgType));
-        envelope.setRequestId(requestId);
-        envelope.setBody(resolveClientBody(msgType, data));
-        return envelope;
+    static ClientEnvelope decode(byte msgType, String requestId, byte[] data) {
+        ProtoClientEnvelope proto = decodeClientProto(msgType, requestId, data);
+        return ProtoEnvelopeMapper.fromProto(proto);
     }
 
     static byte[] encode(ServerEnvelope envelope) {
         byte msgType = resolveServerMsgType(envelope);
-        String payload = serializeBody(envelope == null ? null : envelope.getBody());
+        byte[] payload = ProtoEnvelopeMapper.toProto(envelope).toByteArray();
         long timestamp = System.currentTimeMillis();
-        byte[] dataBytes = payload == null ? new byte[0] : payload.getBytes(StandardCharsets.UTF_8);
+        byte[] dataBytes = payload == null ? new byte[0] : payload;
         byte[] requestBytes = envelope != null && envelope.getRequestId() != null
                 ? envelope.getRequestId().getBytes(StandardCharsets.UTF_8)
                 : new byte[0];
@@ -70,6 +63,23 @@ final class TcpEnvelopeCodecSupport {
         return buffer.array();
     }
 
+    private static ProtoClientEnvelope decodeClientProto(byte msgType, String requestId, byte[] data) {
+        ProtoClientEnvelope.Builder builder = ProtoClientEnvelope.newBuilder()
+                .setCommand(resolveClientCommand(msgType).getCode())
+                .setRequestId(requestId == null ? "" : requestId);
+        try {
+            switch (msgType) {
+                case TCP_AUTH_REQ -> builder.setAuth(com.cheeseocean.im.common.api.protocol.proto.ProtoAuthRequest.parseFrom(data));
+                case TCP_SEND_MSG_REQ -> builder.setChatMessage(com.cheeseocean.im.common.api.protocol.proto.ProtoMessage.parseFrom(data));
+                default -> {
+                }
+            }
+            return builder.build();
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Failed to decode TCP protobuf body", e);
+        }
+    }
+
     private static CommandType resolveClientCommand(byte msgType) {
         switch (msgType) {
             case TCP_SEND_MSG_REQ:
@@ -85,20 +95,6 @@ final class TcpEnvelopeCodecSupport {
             default:
                 return null;
         }
-    }
-
-    private static Object resolveClientBody(byte msgType, String data) {
-        if (data == null || data.isEmpty()) {
-            return null;
-        }
-        if (msgType == TCP_SEND_MSG_REQ) {
-            try {
-                return OBJECT_MAPPER.readValue(data, ChatSendRequest.class);
-            } catch (Exception e) {
-                throw new IllegalArgumentException("Failed to decode TCP body as ChatSendRequest", e);
-            }
-        }
-        return data;
     }
 
     private static byte resolveServerMsgType(ServerEnvelope envelope) {
@@ -127,11 +123,11 @@ final class TcpEnvelopeCodecSupport {
     }
 
     private static byte resolveChatRecvMsgType(Object body) {
-        DispatchPayload payload = OBJECT_MAPPER.convertValue(body, DispatchPayload.class);
-        if (payload.getExt() == null) {
+        DispatchPayload payload = new com.fasterxml.jackson.databind.ObjectMapper().convertValue(body, DispatchPayload.class);
+        if (payload.getMsg() == null || payload.getMsg().getAttributes() == null) {
             return TCP_RECV_MSG_NOTIFY;
         }
-        String notificationType = payload.getExt().get("notificationType");
+        String notificationType = payload.getMsg().getAttributes().get("notificationType");
         if ("friend_request_created".equals(notificationType)) {
             return TCP_FRIEND_APPLICATION_NOTIFY;
         }
@@ -143,19 +139,5 @@ final class TcpEnvelopeCodecSupport {
             return TCP_FRIEND_APPLICATION_PROCESSED_NOTIFY;
         }
         return TCP_RECV_MSG_NOTIFY;
-    }
-
-    private static String serializeBody(Object body) {
-        if (body == null) {
-            return null;
-        }
-        if (body instanceof String) {
-            return (String) body;
-        }
-        try {
-            return OBJECT_MAPPER.writeValueAsString(body);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Failed to encode TCP body", e);
-        }
     }
 }

@@ -44,6 +44,19 @@ public interface ConversationQueryService {
     long getConversationIdsHash(String ownerUserId);
 
     /**
+     * 返回指定会话的 recvMsgOpt code。
+     * 会话记录不存在时返回 {@link ReceiveOption#RECEIVE RECEIVE}（0）。
+     */
+    int getReceiveOption(String ownerUserId, String conversationId);
+
+    /**
+     * 持久化指定会话的 recvMsgOpt，会话记录不存在时自动创建。
+     *
+     * @param recvMsgOpt {@link ReceiveOption} 的整数 code
+     */
+    void setReceiveOption(String ownerUserId, String conversationId, int recvMsgOpt);
+
+    /**
      * 从候选用户列表中过滤出需要接收离线推送的用户 ID。
      *
      * <p>实现：从候选列表中去除对该会话设置了 NOT_RECEIVE 的用户，

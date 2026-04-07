@@ -1,315 +1,100 @@
 package com.cheeseocean.im.common.api.dto.message;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.cheeseocean.im.common.api.enums.ContentType;
+import com.cheeseocean.im.common.api.enums.MessageSource;
+import com.cheeseocean.im.common.api.enums.MessageStatus;
+import com.cheeseocean.im.common.api.enums.PlatformType;
+import com.cheeseocean.im.common.api.enums.SessionType;
+import lombok.Data;
 
 import java.io.Serializable;
 import java.util.Map;
 
+/**
+ * 消息流转中间模型。
+ *
+ * <p>用于承载消息在网关、投递、存储等链路中的通用字段，
+ * 兼容单聊、群聊和通知三类会话场景。
+ */
+@Data
 public class Message implements Serializable {
 
-    private static final long serialVersionUID = 1L;
-
-    @JsonProperty("clientMsgID")
-    private String clientMsgID;
-
-    @JsonProperty("serverMsgID")
-    private String serverMsgID;
-
-    @JsonProperty("sendID")
-    private String sendID;
-
-    @JsonProperty("recvID")
-    private String recvID;
-
-    @JsonProperty("groupID")
-    private String groupID;
-
-    @JsonProperty("content")
-    private String content;
-
-    @JsonProperty("contentType")
-    private Integer contentType;
-
-    @JsonProperty("sessionType")
-    private Integer sessionType;
-
-    @JsonProperty("sendTime")
-    private Long sendTime;
-
-    @JsonProperty("createTime")
-    private Long createTime;
-
-    @JsonProperty("status")
-    private Integer status;
-
-    @JsonProperty("seq")
-    private Long seq;
-
-    @JsonProperty("isRead")
-    private Boolean isRead;
-
-    @JsonProperty("platformID")
-    private Integer platformID;
-
-    @JsonProperty("ex")
-    private String ex;
-
-    @JsonProperty("senderNickname")
-    private String senderNickname;
-
-    @JsonProperty("senderFaceURL")
-    private String senderFaceURL;
-
-    @JsonProperty("recvNickname")
-    private String recvNickname;
-
-    @JsonProperty("recvFaceURL")
-    private String recvFaceURL;
-
-    @JsonProperty("options")
-    private Map<String, Boolean> options;
-
-    @JsonProperty("attachedInfo")
-    private String attachedInfo;
-
-    @JsonProperty("offlinePushInfo")
-    private OfflinePushInfo offlinePushInfo;
-
-    @JsonProperty("uniqueID")
-    private String uniqueID;
-
-    @JsonProperty("senderPlatformID")
-    private Integer senderPlatformID;
-
-    @JsonProperty("recvPlatformID")
-    private Integer recvPlatformID;
-
-    @JsonProperty("msgFrom")
-    private Integer msgFrom;
-
-    @JsonProperty("subType")
-    private Integer subType;
-
-    public Message() {
-        this.createTime = System.currentTimeMillis();
-        this.sendTime = System.currentTimeMillis();
-        this.status = 1;
-        this.isRead = false;
-    }
-
-    public String getClientMsgID() {
-        return clientMsgID;
-    }
-
-    public void setClientMsgID(String clientMsgID) {
-        this.clientMsgID = clientMsgID;
-    }
-
-    public String getServerMsgID() {
-        return serverMsgID;
-    }
-
-    public void setServerMsgID(String serverMsgID) {
-        this.serverMsgID = serverMsgID;
-    }
-
-    public String getSendID() {
-        return sendID;
-    }
-
-    public void setSendID(String sendID) {
-        this.sendID = sendID;
-    }
-
-    public String getRecvID() {
-        return recvID;
-    }
-
-    public void setRecvID(String recvID) {
-        this.recvID = recvID;
-    }
-
-    public String getGroupID() {
-        return groupID;
-    }
-
-    public void setGroupID(String groupID) {
-        this.groupID = groupID;
-    }
-
-    public String getContent() {
-        return content;
-    }
-
-    public void setContent(String content) {
-        this.content = content;
-    }
-
-    public Integer getContentType() {
-        return contentType;
-    }
-
-    public void setContentType(Integer contentType) {
-        this.contentType = contentType;
-    }
-
-    public Integer getSessionType() {
-        return sessionType;
-    }
-
-    public void setSessionType(Integer sessionType) {
-        this.sessionType = sessionType;
-    }
-
-    public Long getSendTime() {
-        return sendTime;
-    }
-
-    public void setSendTime(Long sendTime) {
-        this.sendTime = sendTime;
-    }
-
-    public Long getCreateTime() {
-        return createTime;
-    }
-
-    public void setCreateTime(Long createTime) {
-        this.createTime = createTime;
-    }
-
-    public Integer getStatus() {
-        return status;
-    }
-
-    public void setStatus(Integer status) {
-        this.status = status;
-    }
-
-    public Long getSeq() {
-        return seq;
-    }
-
-    public void setSeq(Long seq) {
-        this.seq = seq;
-    }
-
-    public Boolean getIsRead() {
-        return isRead;
-    }
-
-    public void setIsRead(Boolean isRead) {
-        this.isRead = isRead;
-    }
-
-    public Integer getPlatformID() {
-        return platformID;
-    }
-
-    public void setPlatformID(Integer platformID) {
-        this.platformID = platformID;
-    }
-
-    public String getEx() {
-        return ex;
-    }
-
-    public void setEx(String ex) {
-        this.ex = ex;
-    }
-
-    public String getSenderNickname() {
-        return senderNickname;
-    }
-
-    public void setSenderNickname(String senderNickname) {
-        this.senderNickname = senderNickname;
-    }
-
-    public String getSenderFaceURL() {
-        return senderFaceURL;
-    }
-
-    public void setSenderFaceURL(String senderFaceURL) {
-        this.senderFaceURL = senderFaceURL;
-    }
-
-    public String getRecvNickname() {
-        return recvNickname;
-    }
-
-    public void setRecvNickname(String recvNickname) {
-        this.recvNickname = recvNickname;
-    }
-
-    public String getRecvFaceURL() {
-        return recvFaceURL;
-    }
-
-    public void setRecvFaceURL(String recvFaceURL) {
-        this.recvFaceURL = recvFaceURL;
-    }
-
-    public Map<String, Boolean> getOptions() {
-        return options;
-    }
-
-    public void setOptions(Map<String, Boolean> options) {
-        this.options = options;
-    }
-
-    public String getAttachedInfo() {
-        return attachedInfo;
-    }
-
-    public void setAttachedInfo(String attachedInfo) {
-        this.attachedInfo = attachedInfo;
-    }
-
-    public OfflinePushInfo getOfflinePushInfo() {
-        return offlinePushInfo;
-    }
-
-    public void setOfflinePushInfo(OfflinePushInfo offlinePushInfo) {
-        this.offlinePushInfo = offlinePushInfo;
-    }
-
-    public String getUniqueID() {
-        return uniqueID;
-    }
-
-    public void setUniqueID(String uniqueID) {
-        this.uniqueID = uniqueID;
-    }
-
-    public Integer getSenderPlatformID() {
-        return senderPlatformID;
-    }
-
-    public void setSenderPlatformID(Integer senderPlatformID) {
-        this.senderPlatformID = senderPlatformID;
-    }
-
-    public Integer getRecvPlatformID() {
-        return recvPlatformID;
-    }
-
-    public void setRecvPlatformID(Integer recvPlatformID) {
-        this.recvPlatformID = recvPlatformID;
-    }
-
-    public Integer getMsgFrom() {
-        return msgFrom;
-    }
-
-    public void setMsgFrom(Integer msgFrom) {
-        this.msgFrom = msgFrom;
-    }
-
-    public Integer getSubType() {
-        return subType;
-    }
-
-    public void setSubType(Integer subType) {
-        this.subType = subType;
-    }
+    private static final long                serialVersionUID = 1L;
+    /**
+     * 客户端侧消息 ID，用于幂等去重和请求响应对齐。
+     */
+    private              String              clientMsgId;
+    /**
+     * 服务端生成的消息 ID，作为全链路唯一标识。
+     */
+    private              String              serverMsgId;
+    /**
+     * 发送者用户 ID。
+     */
+    private              String              senderId;
+    /**
+     * 发送者昵称
+     */
+    private              String              senderNickName;
+    /**
+     * 发送者头像
+     */
+    private              String              senderAvatar;
+    /**
+     * 接收者用户 ID，单聊/通知场景使用。
+     */
+    private              String              receiverId;
+    /**
+     * 群组 ID，群聊场景使用。
+     */
+    private              String              groupId;
+    /**
+     * 消息正文内容。
+     */
+    private              byte[]              content;
+    /**
+     * 消息内容类型，取值见 {@link com.cheeseocean.im.common.api.enums.ContentType}。
+     */
+    private              ContentType         contentType;
+    /**
+     * 会话类型，取值见 {@link com.cheeseocean.im.common.api.enums.SessionType}。
+     */
+    private              SessionType         sessionType;
+    /**
+     * 客户端声明的发送时间。
+     */
+    private              Long                sendTime;
+    /**
+     * 服务端创建时间。
+     */
+    private              Long                createTime;
+    /**
+     * 消息状态，取值见 {@link com.cheeseocean.im.common.api.enums.MessageStatus}。
+     */
+    private              MessageStatus       status;
+    /**
+     * 发送端平台标识，取值见 {@link com.cheeseocean.im.common.api.enums.PlatformType}。
+     */
+    private              PlatformType        platformType;
+    /**
+     * 附加信息字段，通常用于补充会话或消息元数据。
+     */
+    private              Map<String, String> attributes;
+    /**
+     * 业务唯一标识，供外部系统幂等或追踪使用。
+     */
+    private              String              uniqueId;
+    /**
+     * 消息来源标识，取值见 {@link com.cheeseocean.im.common.api.enums.MessageSource}。
+     */
+    private              MessageSource       source;
+    /**
+     * 消息选项集合，例如是否计入会话、未读或离线推送。
+     */
+    private              MessageOptions      options;
+    //-----------------服务端填充---------------------
+    /**
+     * 消息序列号，会话内严格递增、唯一
+     */
+    private              Long                seq;
 }

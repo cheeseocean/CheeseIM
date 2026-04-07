@@ -1,6 +1,6 @@
 package com.cheeseocean.im.postoffice.handler;
 
-import com.cheeseocean.im.common.core.enums.CommandType;
+import com.cheeseocean.im.common.api.enums.CommandType;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;

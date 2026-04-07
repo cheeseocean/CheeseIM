@@ -1,6 +1,6 @@
 package com.cheeseocean.im.postman.service.impl;
 
-import com.cheeseocean.im.common.core.enums.PlatformType;
+import com.cheeseocean.im.common.api.enums.PlatformType;
 import com.cheeseocean.im.postman.service.PushStatisticsService;
 import org.springframework.stereotype.Service;
 

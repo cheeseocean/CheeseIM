@@ -1,23 +1,23 @@
 package com.cheeseocean.im.postmaster.service;
 
+import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.dto.message.MessageOptions;
-import com.cheeseocean.im.common.api.event.IngressEvent;
 import org.springframework.stereotype.Component;
 
 @Component
 public class DefaultMessagePolicyEngine implements MessagePolicyEngine {
 
     @Override
-    public MessageRouteDecision decide(IngressEvent event) {
+    public MessageRouteDecision decide(Message event) {
         MessageOptions options = event == null || event.getOptions() == null ? new MessageOptions() : event.getOptions();
         return new MessageRouteDecision(
-                !Boolean.FALSE.equals(options.isNeedHistory()),
-                !Boolean.FALSE.equals(options.isNeedConversation()),
-                !Boolean.FALSE.equals(options.isNeedUnreadCount()),
-                !Boolean.FALSE.equals(options.isNeedOnlinePush()),
-                !Boolean.FALSE.equals(options.isNeedOfflinePush()),
-                Boolean.TRUE.equals(options.isSenderSync()),
-                Boolean.TRUE.equals(options.isNotification()),
-                !Boolean.FALSE.equals(options.isNeedLastMessage()));
+                !Boolean.FALSE.equals(options.getNotification()),
+                !Boolean.FALSE.equals(options.getNeedConversation()),
+                !Boolean.FALSE.equals(options.getNeedUnreadCount()),
+                !Boolean.FALSE.equals(options.getNeedOnlinePush()),
+                !Boolean.FALSE.equals(options.getNeedOfflinePush()),
+                Boolean.TRUE.equals(options.getSenderSync()),
+                Boolean.TRUE.equals(options.getNotification()),
+                !Boolean.FALSE.equals(options.getNeedLastMessage()));
     }
 }

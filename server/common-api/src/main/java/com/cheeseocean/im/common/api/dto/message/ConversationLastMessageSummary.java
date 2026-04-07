@@ -1,83 +1,28 @@
 package com.cheeseocean.im.common.api.dto.message;
 
-import com.cheeseocean.im.common.core.enums.MessagePreviewType;
+import com.cheeseocean.im.common.api.enums.MessagePreviewType;
+import lombok.Data;
 
 import java.io.Serializable;
 
+/**
+ * 会话列表使用的最新消息摘要。
+ *
+ * <p>用于承载最近一条消息的展示字段，避免会话查询时回放完整消息体。
+ *
+ * @author xxxcrel
+ */
+@Data
 public class ConversationLastMessageSummary implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private Long seq;
-    private String senderId;
-    private String content;
-    private Integer contentType;
-    private String previewText;
+    private Long               seq;
+    private String             senderId;
+    private String             content;
+    private Integer            contentType;
+    private String             previewText;
     private MessagePreviewType previewType;
-    private Long sendTime;
-    private boolean notification;
-
-    public Long getSeq() {
-        return seq;
-    }
-
-    public void setSeq(Long seq) {
-        this.seq = seq;
-    }
-
-    public String getSenderId() {
-        return senderId;
-    }
-
-    public void setSenderId(String senderId) {
-        this.senderId = senderId;
-    }
-
-    public String getContent() {
-        return content;
-    }
-
-    public void setContent(String content) {
-        this.content = content;
-    }
-
-    public Integer getContentType() {
-        return contentType;
-    }
-
-    public void setContentType(Integer contentType) {
-        this.contentType = contentType;
-    }
-
-    public String getPreviewText() {
-        return previewText;
-    }
-
-    public void setPreviewText(String previewText) {
-        this.previewText = previewText;
-    }
-
-    public MessagePreviewType getPreviewType() {
-        return previewType;
-    }
-
-    public void setPreviewType(MessagePreviewType previewType) {
-        this.previewType = previewType;
-    }
-
-    public Long getSendTime() {
-        return sendTime;
-    }
-
-    public void setSendTime(Long sendTime) {
-        this.sendTime = sendTime;
-    }
-
-    public boolean isNotification() {
-        return notification;
-    }
-
-    public void setNotification(boolean notification) {
-        this.notification = notification;
-    }
+    private Long               sendTime;
+    private boolean            notification;
 }

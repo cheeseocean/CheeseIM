@@ -1,8 +1,8 @@
 package com.cheeseocean.im.common.core.business.domain;
 
-import com.cheeseocean.im.common.core.enums.GroupStatusEnum;
-import com.cheeseocean.im.common.core.enums.GroupTypeEnum;
-import com.cheeseocean.im.common.core.enums.NeedVerificationEnum;
+import com.cheeseocean.im.common.api.enums.GroupStatusEnum;
+import com.cheeseocean.im.common.api.enums.GroupTypeEnum;
+import com.cheeseocean.im.common.api.enums.NeedVerificationEnum;
 
 /**
  * 群组领域对象。

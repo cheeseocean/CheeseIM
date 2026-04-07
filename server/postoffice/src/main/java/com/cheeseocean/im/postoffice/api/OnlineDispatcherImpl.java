@@ -69,10 +69,11 @@ public class OnlineDispatcherImpl implements OnlineDispatcher {
 
     private DispatchResult dispatch(UserConnection connection, String userId, DispatchPayload payload) {
         String connectionId = connection.getConnectionID();
-        if (!connectionManager.markDeliveryIfAbsent(payload.getServerMsgId(), userId, connectionId)) {
+        String serverMsgId = payload.getMsg() == null ? null : payload.getMsg().getServerMsgId();
+        if (!connectionManager.markDeliveryIfAbsent(serverMsgId, userId, connectionId)) {
             return new DispatchResult(connectionId, true, "DUPLICATE", "delivery already recorded");
         }
-        ServerEnvelope envelope = ServerEnvelope.chatRecv(payload.getServerMsgId(), payload);
+        ServerEnvelope envelope = ServerEnvelope.chatRecv(serverMsgId, payload);
         boolean success = connectionManager.sendMessageToConnection(
                 connection,
                 envelope);

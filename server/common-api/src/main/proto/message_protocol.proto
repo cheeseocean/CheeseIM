@@ -1,0 +1,110 @@
+syntax = "proto3";
+
+package cheeseim.protocol;
+
+option java_multiple_files = true;
+option java_package = "com.cheeseocean.im.common.api.protocol.proto";
+option java_outer_classname = "MessageProtocolProto";
+
+message ProtoMessageOptions {
+  optional bool need_history = 1;
+  optional bool need_conversation = 2;
+  optional bool need_unread_count = 3;
+  optional bool need_online_push = 4;
+  optional bool need_offline_push = 5;
+  optional bool sender_sync = 6;
+  optional bool notification = 7;
+  optional bool need_last_message = 8;
+}
+
+message ProtoMessage {
+  string client_msg_id = 1;
+  string server_msg_id = 2;
+  string sender_id = 3;
+  string receiver_id = 4;
+  string group_id = 5;
+  bytes content = 6;
+  int32 content_type = 7;
+  int32 session_type = 8;
+  int64 send_time = 9;
+  int64 create_time = 10;
+  int32 status = 11;
+  int32 platform_code = 12;
+  map<string, string> attributes = 13;
+  string unique_id = 14;
+  int32 source = 15;
+  ProtoMessageOptions options = 16;
+}
+
+message ProtoHistoryEvent {
+  string conversation_id = 1;
+  int64 last_max_seq = 2;
+  int64 begin_seq = 3;
+  int64 end_seq = 4;
+  repeated ProtoMessage messages = 5;
+}
+
+message ProtoOfflinePushEvent {
+  string user_id = 1;
+  string conversation_id = 2;
+  int64 seq = 3;
+  string server_msg_id = 4;
+  string sender_id = 5;
+  int32 session_type = 6;
+  int32 content_type = 7;
+  bool notification = 8;
+  string title = 9;
+  string content = 10;
+  map<string, string> attributes = 11;
+}
+
+message ProtoAuthRequest {
+  string ticket = 1;
+}
+
+message ProtoAuthResponse {
+  string user_id = 1;
+  string message = 2;
+}
+
+message ProtoConnectResponse {
+  string conn_id = 1;
+  string message = 2;
+}
+
+message ProtoHeartbeatResponse {
+  string message = 1;
+}
+
+message ProtoErrorResponse {
+  int32 code = 1;
+  string message = 2;
+}
+
+message ProtoChatSendAck {
+  string server_msg_id = 1;
+  string client_msg_id = 2;
+  int64 send_time = 3;
+}
+
+message ProtoClientEnvelope {
+  int32 command = 1;
+  string request_id = 2;
+  oneof payload {
+    ProtoAuthRequest auth = 10;
+    ProtoMessage chat_message = 11;
+  }
+}
+
+message ProtoServerEnvelope {
+  int32 command = 1;
+  string request_id = 2;
+  oneof payload {
+    ProtoConnectResponse connect = 9;
+    ProtoAuthResponse auth = 10;
+    ProtoHeartbeatResponse heartbeat = 11;
+    ProtoChatSendAck chat_send_ack = 12;
+    ProtoMessage chat_message = 13;
+    ProtoErrorResponse error = 14;
+  }
+}
