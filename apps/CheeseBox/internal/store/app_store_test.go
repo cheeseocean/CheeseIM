@@ -1,0 +1,30 @@
+package store
+
+import (
+	"testing"
+
+	"github.com/cheeseim/cheesebox/internal/domain"
+)
+
+func TestAppStoreUpsertConversationOrdersByLastMessageTime(t *testing.T) {
+	store := New()
+	store.UpsertConversation(domain.ConversationSummary{ConversationID: "c1", LastMessageTime: 1})
+	store.UpsertConversation(domain.ConversationSummary{ConversationID: "c2", LastMessageTime: 2})
+
+	if len(store.ConversationOrder) != 2 || store.ConversationOrder[0] != "c2" {
+		t.Fatalf("unexpected order = %#v", store.ConversationOrder)
+	}
+}
+
+func TestAppStoreAppendMessageAndToast(t *testing.T) {
+	store := New()
+	store.AppendMessage("c1", domain.MessageItem{ID: "m1"})
+	store.PushToast(domain.ToastKindError, "boom")
+
+	if len(store.MessagesByConv["c1"]) != 1 {
+		t.Fatalf("messages = %#v", store.MessagesByConv)
+	}
+	if store.Toast.Message != "boom" || store.Toast.Kind != domain.ToastKindError {
+		t.Fatalf("toast = %#v", store.Toast)
+	}
+}
