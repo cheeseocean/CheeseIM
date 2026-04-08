@@ -1,6 +1,6 @@
 module github.com/cheeseim/cheesebox
 
-go 1.23.0
+go 1.21
 
 require (
 	github.com/charmbracelet/bubbles v0.21.0
