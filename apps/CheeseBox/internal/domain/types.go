@@ -29,6 +29,7 @@ func NewConversationRefGroup(groupID string) ConversationRef {
 }
 
 type MessageItem struct {
+	ID       string
 	SenderID string
 	Content  string
 	Self     bool
@@ -77,4 +78,41 @@ type Toast struct {
 	Kind    ToastKind
 	Message string
 	At      time.Time
+}
+
+type FriendSummary struct {
+	UserID      string
+	DisplayName string
+	AvatarSeed  string
+}
+
+type GroupSummary struct {
+	GroupID   string
+	GroupName string
+	FaceURL   string
+}
+
+type ConversationSummary struct {
+	ConversationID     string
+	Title              string
+	Subtitle           string
+	Kind               ConversationKind
+	LastMessagePreview string
+	LastMessageTime    int64
+	UnreadCount        int
+}
+
+type HistoryMessage struct {
+	Sequence    int64
+	ServerMsgID string
+	SenderID    string
+	SenderName  string
+	Content     string
+	SendTime    int64
+}
+
+type WsTicket struct {
+	Ticket   string
+	ExpireAt int64
+	WSURL    string
 }
