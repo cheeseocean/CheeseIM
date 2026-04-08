@@ -6,13 +6,14 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/cheeseim/cheesebox/internal/config"
 	"github.com/cheeseim/cheesebox/internal/domain"
 	"github.com/cheeseim/cheesebox/internal/store"
 )
 
 func TestAppModelNavigationSwitching(t *testing.T) {
 	appStore := store.New()
-	model := NewAppModel(appStore)
+	model := NewAppModel(appStore, config.RuntimeConfig{})
 
 	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("f")})
 	model = updated.(AppModel)
@@ -28,7 +29,7 @@ func TestAppModelNavigationSwitching(t *testing.T) {
 }
 
 func TestAppModelTabAndEscFocus(t *testing.T) {
-	model := NewAppModel(store.New())
+	model := NewAppModel(store.New(), config.RuntimeConfig{})
 	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyTab})
 	model = updated.(AppModel)
 	if model.Focus() != 1 {
@@ -42,7 +43,7 @@ func TestAppModelTabAndEscFocus(t *testing.T) {
 }
 
 func TestAppModelHelpAndReconnect(t *testing.T) {
-	model := NewAppModel(store.New())
+	model := NewAppModel(store.New(), config.RuntimeConfig{})
 	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("?")})
 	model = updated.(AppModel)
 	if !model.ShowHelp() {
@@ -59,7 +60,7 @@ func TestAppModelHelpAndReconnect(t *testing.T) {
 func TestAppModelViewShowsStatus(t *testing.T) {
 	appStore := store.New()
 	appStore.SetConnectionStatus(domain.ConnectionStatusConnected)
-	model := NewAppModel(appStore)
+	model := NewAppModel(appStore, config.RuntimeConfig{})
 	if !strings.Contains(model.View(), "Status: connected") {
 		t.Fatalf("view = %q", model.View())
 	}

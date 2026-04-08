@@ -11,6 +11,8 @@ type AppStore struct {
 	ConnectionStatus   domain.ConnectionStatus
 	ActiveNav          domain.NavKey
 	ActiveConversation string
+	Friends            []domain.FriendSummary
+	Groups             []domain.GroupSummary
 	Conversations      map[string]domain.ConversationSummary
 	ConversationOrder  []string
 	MessagesByConv     map[string][]domain.MessageItem
@@ -36,6 +38,14 @@ func (s *AppStore) SetActiveNav(nav domain.NavKey) {
 
 func (s *AppStore) SetActiveConversation(conversationID string) {
 	s.ActiveConversation = conversationID
+}
+
+func (s *AppStore) SetFriends(items []domain.FriendSummary) {
+	s.Friends = append([]domain.FriendSummary(nil), items...)
+}
+
+func (s *AppStore) SetGroups(items []domain.GroupSummary) {
+	s.Groups = append([]domain.GroupSummary(nil), items...)
 }
 
 func (s *AppStore) UpsertConversation(item domain.ConversationSummary) {

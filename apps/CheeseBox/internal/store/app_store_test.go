@@ -18,9 +18,14 @@ func TestAppStoreUpsertConversationOrdersByLastMessageTime(t *testing.T) {
 
 func TestAppStoreAppendMessageAndToast(t *testing.T) {
 	store := New()
+	store.SetFriends([]domain.FriendSummary{{UserID: "user-1"}})
+	store.SetGroups([]domain.GroupSummary{{GroupID: "group-1"}})
 	store.AppendMessage("c1", domain.MessageItem{ID: "m1"})
 	store.PushToast(domain.ToastKindError, "boom")
 
+	if len(store.Friends) != 1 || len(store.Groups) != 1 {
+		t.Fatalf("roster = %#v %#v", store.Friends, store.Groups)
+	}
 	if len(store.MessagesByConv["c1"]) != 1 {
 		t.Fatalf("messages = %#v", store.MessagesByConv)
 	}
