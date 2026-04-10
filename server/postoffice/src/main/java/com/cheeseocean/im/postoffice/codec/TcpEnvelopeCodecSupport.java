@@ -43,7 +43,7 @@ final class TcpEnvelopeCodecSupport {
 
     static byte[] encode(ServerEnvelope envelope) {
         byte msgType = resolveServerMsgType(envelope);
-        byte[] payload = ProtoEnvelopeMapper.toProto(envelope).toByteArray();
+        byte[] payload = encodePayload(envelope, msgType);
         long timestamp = System.currentTimeMillis();
         byte[] dataBytes = payload == null ? new byte[0] : payload;
         byte[] requestBytes = envelope != null && envelope.getRequestId() != null
@@ -78,6 +78,24 @@ final class TcpEnvelopeCodecSupport {
         } catch (Exception e) {
             throw new IllegalArgumentException("Failed to decode TCP protobuf body", e);
         }
+    }
+
+    private static byte[] encodePayload(ServerEnvelope envelope, byte msgType) {
+        if (envelope == null) {
+            return new byte[0];
+        }
+        return switch (msgType) {
+            case TCP_CONNECT_SUCCESS -> ProtoEnvelopeMapper.toProto(envelope).getConnect().toByteArray();
+            case TCP_AUTH_SUCCESS -> ProtoEnvelopeMapper.toProto(envelope).getAuth().toByteArray();
+            case TCP_HEARTBEAT_RESP -> ProtoEnvelopeMapper.toProto(envelope).getHeartbeat().toByteArray();
+            case TCP_SEND_MSG_RESP -> ProtoEnvelopeMapper.toProto(envelope).getChatSendAck().toByteArray();
+            case TCP_RECV_MSG_NOTIFY,
+                    TCP_FRIEND_APPLICATION_NOTIFY,
+                    TCP_FRIEND_APPLICATION_PROCESSED_NOTIFY,
+                    TCP_FRIEND_INFO_CHANGE_NOTIFY -> ProtoEnvelopeMapper.toProto(envelope).getChatMessage().toByteArray();
+            case TCP_ERROR_RESP -> ProtoEnvelopeMapper.toProto(envelope).getError().toByteArray();
+            default -> ProtoEnvelopeMapper.toProto(envelope).toByteArray();
+        };
     }
 
     private static CommandType resolveClientCommand(byte msgType) {

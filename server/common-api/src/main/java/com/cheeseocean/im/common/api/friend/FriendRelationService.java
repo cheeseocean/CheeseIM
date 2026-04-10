@@ -1,26 +1,57 @@
 package com.cheeseocean.im.common.api.friend;
 
-import com.cheeseocean.im.common.api.dto.user.FriendRequestSummary;
-import com.cheeseocean.im.common.api.dto.user.FriendSummary;
+import com.cheeseocean.im.common.api.business.domain.FriendRequest;
+import com.cheeseocean.im.common.api.business.domain.Friendship;
 
 import java.util.List;
 
+/**
+ * 好友关系领域服务。
+ *
+ * <p>服务接口直接返回领域对象，避免在 Dubbo 合约层引入展示型摘要对象。
+ *
+ * @author xxxcrel
+ */
 public interface FriendRelationService {
 
-    List<FriendSummary> listFriends(String userId);
+    /**
+     * 查询当前用户的好友列表。
+     */
+    List<Friendship> listFriends(String userId);
 
-    List<FriendRequestSummary> listIncomingRequests(String userId);
+    /**
+     * 查询当前用户收到的待处理好友申请。
+     */
+    List<FriendRequest> listIncomingRequests(String userId);
 
-    List<FriendRequestSummary> listOutgoingRequests(String userId);
+    /**
+     * 查询当前用户发出的待处理好友申请。
+     */
+    List<FriendRequest> listOutgoingRequests(String userId);
 
-    FriendRequestSummary sendFriendRequest(String userId, String friendUserId, String requestMessage);
+    /**
+     * 发起或刷新一条好友申请。
+     */
+    FriendRequest sendFriendRequest(String userId, String friendUserId, String requestMessage);
 
-    FriendSummary acceptFriendRequest(String userId, String friendUserId);
+    /**
+     * 同意一条好友申请，并返回当前用户视角下的好友关系。
+     */
+    Friendship acceptFriendRequest(String userId, String friendUserId);
 
-    FriendRequestSummary rejectFriendRequest(String userId, String friendUserId);
+    /**
+     * 拒绝一条好友申请，并返回更新后的申请记录。
+     */
+    FriendRequest rejectFriendRequest(String userId, String friendUserId);
 
-    FriendRequestSummary cancelFriendRequest(String userId, String friendUserId);
+    /**
+     * 取消一条我发出的好友申请，并返回更新后的申请记录。
+     */
+    FriendRequest cancelFriendRequest(String userId, String friendUserId);
 
+    /**
+     * 判断双方是否已经建立好友关系。
+     */
     boolean areAcceptedFriends(String userId, String friendUserId);
 
     /**
@@ -33,5 +64,8 @@ public interface FriendRelationService {
 
     void unblockUser(String userId, String targetUserId);
 
-    java.util.List<String> listBlockedUserIds(String userId);
+    /**
+     * 查询当前用户的黑名单用户 ID 列表。
+     */
+    List<String> listBlockedUserIds(String userId);
 }

@@ -17,6 +17,16 @@ message ProtoMessageOptions {
   optional bool need_last_message = 8;
 }
 
+message ProtoOfflinePushInfo {
+  string title = 1;
+  string desc = 2;
+  string ex = 3;
+  string ios_push_sound = 4;
+  optional bool ios_badge_count = 5;
+  string signal_info = 6;
+  map<string, string> push_extras = 7;
+}
+
 message ProtoMessage {
   string client_msg_id = 1;
   string server_msg_id = 2;
@@ -34,6 +44,8 @@ message ProtoMessage {
   string unique_id = 14;
   int32 source = 15;
   ProtoMessageOptions options = 16;
+  int64 seq = 17;
+  ProtoOfflinePushInfo offline_push_info = 18;
 }
 
 message ProtoHistoryEvent {

@@ -1,5 +1,11 @@
 package com.cheeseocean.im.common.core.queue.chronicle;
 
+import com.cheeseocean.im.common.api.dto.message.Message;
+import com.cheeseocean.im.common.api.event.HistoryEvent;
+import com.cheeseocean.im.common.api.event.OfflinePushEvent;
+import com.cheeseocean.im.common.api.protocol.ProtoHistoryEventMapper;
+import com.cheeseocean.im.common.api.protocol.ProtoMessageMapper;
+import com.cheeseocean.im.common.api.protocol.ProtoOfflinePushEventMapper;
 import com.cheeseocean.im.common.core.queue.KeyedMessage;
 import com.cheeseocean.im.common.core.queue.QueueAdapter;
 import com.cheeseocean.im.common.core.queue.QueueMessageHandler;
@@ -118,10 +124,10 @@ public class ChronicleQueueAdapter implements QueueAdapter {
                 if (context.isPresent()) {
                     consumed = true;
                     String key     = context.wire().read("key").text();
-                    String payload = context.wire().read("payload").text();
+                    byte[] payload = readPayload(context);
                     workers.submit(() -> {
                         try {
-                            handler.handle(new KeyedMessage<>(key, objectMapper.readValue(payload, payloadType)));
+                            handler.handle(new KeyedMessage<>(key, deserialize(payloadType, payload)));
                         } catch (Exception e) {
                             logger.error("Failed to deserialize Chronicle queue message", e);
                             throw new IllegalStateException("Failed to deserialize Chronicle queue message", e);
@@ -148,7 +154,7 @@ public class ChronicleQueueAdapter implements QueueAdapter {
             try (DocumentContext context = tailer.readingDocument()) {
                 if (context.isPresent()) {
                     consumed = true;
-                    String payload = context.wire().read("payload").text();
+                    byte[] payload = readPayload(context);
                     workers.submit(() -> invokeHandler(payloadType, handler, payload));
                 }
             } catch (Exception e) {
@@ -161,13 +167,38 @@ public class ChronicleQueueAdapter implements QueueAdapter {
         }
     }
 
-    private <T> void invokeHandler(Class<T> payloadType, QueueMessageHandler<T> handler, String payload) {
+    private <T> void invokeHandler(Class<T> payloadType, QueueMessageHandler<T> handler, byte[] payload) {
         try {
-            handler.handle(objectMapper.readValue(payload, payloadType));
+            handler.handle(deserialize(payloadType, payload));
         } catch (Exception e) {
             logger.error("Failed to read Chronicle Queue message", e);
             throw new IllegalStateException("Failed to deserialize Chronicle queue message", e);
         }
+    }
+
+    private byte[] readPayload(DocumentContext context) {
+        byte[] payload = context.wire().read("payload").bytes();
+        return payload == null ? new byte[0] : payload;
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> T deserialize(Class<T> payloadType, byte[] payload) throws Exception {
+        if (payloadType == byte[].class) {
+            return (T) payload;
+        }
+        if (payloadType == Message.class) {
+            return (T) ProtoMessageMapper.fromProto(
+                    com.cheeseocean.im.common.api.protocol.proto.ProtoMessage.parseFrom(payload));
+        }
+        if (payloadType == HistoryEvent.class) {
+            return (T) ProtoHistoryEventMapper.fromProto(
+                    com.cheeseocean.im.common.api.protocol.proto.ProtoHistoryEvent.parseFrom(payload));
+        }
+        if (payloadType == OfflinePushEvent.class) {
+            return (T) ProtoOfflinePushEventMapper.fromProto(
+                    com.cheeseocean.im.common.api.protocol.proto.ProtoOfflinePushEvent.parseFrom(payload));
+        }
+        return objectMapper.readValue(payload, payloadType);
     }
 
     private void sleepQuietly(long millis) {

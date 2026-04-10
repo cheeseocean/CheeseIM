@@ -1,9 +1,11 @@
 package com.cheeseocean.im.common.core.business.mongo.impl;
 
-import com.cheeseocean.im.common.core.business.domain.UserConversation;
+import com.cheeseocean.im.common.api.business.domain.UserConversation;
 import com.cheeseocean.im.common.core.business.mongo.document.conversation.UserConversationDoc;
 import com.cheeseocean.im.common.core.business.repository.UserConversationRepository;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.mongodb.BulkOperationException;
+import org.springframework.data.mongodb.core.BulkOperations;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -12,7 +14,7 @@ import org.springframework.data.mongodb.core.query.Update;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.Objects;
 
 /**
  * {@link UserConversationRepository} 的 MongoDB 实现。
@@ -25,91 +27,93 @@ public class UserConversationRepositoryImpl implements UserConversationRepositor
         this.mongoTemplate = mongoTemplate;
     }
 
-    // ── 写操作 ────────────────────────────────────────────────────────────────
-
     @Override
-    public void createIfAbsent(UserConversation state) {
-        String id = docId(state.getOwnerUserId(), state.getConversationId());
+    public void createIfAbsent(UserConversation conversation) {
+        // 只在首次建会话时写入默认状态，避免覆盖用户后续的个性化配置。
+        String id = docId(conversation.getOwnerUserId(), conversation.getConversationId());
+        Instant now = now(conversation.getCreatedAt(), conversation.getUpdatedAt());
         Query query = Query.query(Criteria.where("_id").is(id));
         Update update = new Update()
-                .setOnInsert("_id",             id)
-                .setOnInsert("ownerUserId",      state.getOwnerUserId())
-                .setOnInsert("conversationId",   state.getConversationId())
-                .setOnInsert("conversationType", state.getConversationType())
-                .setOnInsert("targetId",         state.getTargetId())
-                .setOnInsert("recvMsgOpt",       state.getRecvMsgOpt())
-                .setOnInsert("unreadCount",      0)
-                .setOnInsert("pinned",           false)
-                .setOnInsert("createdAt",        Instant.now());
+                .setOnInsert("_id", id)
+                .setOnInsert("ownerUserId", conversation.getOwnerUserId())
+                .setOnInsert("conversationId", conversation.getConversationId())
+                .setOnInsert("conversationType", conversation.getConversationType())
+                .setOnInsert("targetId", conversation.getTargetId())
+                .setOnInsert("receiveOpt", conversation.getReceiveOpt())
+                .setOnInsert("unreadCount", conversation.getUnreadCount())
+                .setOnInsert("pinned", conversation.isPinned())
+                .setOnInsert("attachedInfo", conversation.getAttachedInfo())
+                .setOnInsert("groupAtType", conversation.getGroupAtType())
+                .setOnInsert("autoCleanup", conversation.isAutoCleanup())
+                .setOnInsert("autoCleanupCycle", conversation.getCleanupCycle())
+                .setOnInsert("latestCleanupTime", conversation.getLatestCleanupTime())
+                .setOnInsert("createdAt", now)
+                .setOnInsert("updatedAt", now);
         mongoTemplate.upsert(query, update, UserConversationDoc.class);
     }
 
     @Override
-    public void updateLatestMessage(String ownerUserId, String conversationId,
-                                    long latestMsgSeq, String latestMsgJson) {
-        Query query = Query.query(Criteria.where("_id").is(docId(ownerUserId, conversationId)));
-        Update update = new Update()
-                .set("latestMsgSeq", latestMsgSeq)
-                .set("latestMsg",    latestMsgJson)
-                .set("updatedAt",    Instant.now());
-        mongoTemplate.upsert(query, update, UserConversationDoc.class);
+    public void saveAll(List<UserConversation> conversations) {
+        if (conversations == null || conversations.isEmpty()) {
+            return;
+        }
+        // 用无序批量 upsert 保持批量写入的幂等性，单条冲突不会阻塞整批。
+        BulkOperations bulkOps = mongoTemplate.bulkOps(BulkOperations.BulkMode.UNORDERED, UserConversationDoc.class);
+        for (UserConversation conversation : conversations) {
+            if (conversation == null
+                    || isBlank(conversation.getOwnerUserId())
+                    || isBlank(conversation.getConversationId())) {
+                continue;
+            }
+            bulkOps.upsert(
+                    Query.query(Criteria.where("_id").is(docId(conversation.getOwnerUserId(), conversation.getConversationId()))),
+                    toUpsert(conversation)
+            );
+        }
+        try {
+            bulkOps.execute();
+        } catch (BulkOperationException ignored) {
+        }
     }
 
     @Override
-    public void incrementUnread(String ownerUserId, String conversationId, int delta) {
+    public void updateFields(String ownerUserId, String conversationId, Map<String, Object> fields) {
+        if (isBlank(ownerUserId) || isBlank(conversationId) || fields == null || fields.isEmpty()) {
+            return;
+        }
         Query query = Query.query(Criteria.where("_id").is(docId(ownerUserId, conversationId)));
-        Update update = new Update()
-                .inc("unreadCount", delta)
-                .set("updatedAt",   Instant.now());
-        mongoTemplate.upsert(query, update, UserConversationDoc.class);
-    }
-
-    @Override
-    public void clearUnread(String ownerUserId, String conversationId) {
-        Query query = Query.query(Criteria.where("_id").is(docId(ownerUserId, conversationId)));
-        Update update = new Update()
-                .set("unreadCount", 0)
-                .set("updatedAt",   Instant.now());
+        Update update = new Update();
+        fields.forEach((key, value) -> {
+            if (key != null) {
+                update.set(key, value);
+            }
+        });
+        update.set("updatedAt", Instant.now());
         mongoTemplate.updateFirst(query, update, UserConversationDoc.class);
     }
 
     @Override
-    public void setRecvMsgOpt(String ownerUserId, String conversationId, int recvMsgOpt) {
-        Query query = Query.query(Criteria.where("_id").is(docId(ownerUserId, conversationId)));
-        Update update = new Update()
-                .set("recvMsgOpt", recvMsgOpt)
-                .set("updatedAt",  Instant.now());
-        mongoTemplate.upsert(query, update, UserConversationDoc.class);
-    }
-
-    @Override
-    public void upsertFields(String ownerUserId, String conversationId,
-                             int conversationType, String targetId,
-                             Map<String, Object> fields) {
-        String id = docId(ownerUserId, conversationId);
-        Query query = Query.query(Criteria.where("_id").is(id));
-        Update update = new Update()
-                .setOnInsert("_id",             id)
-                .setOnInsert("ownerUserId",      ownerUserId)
-                .setOnInsert("conversationId",   conversationId)
-                .setOnInsert("conversationType", conversationType)
-                .setOnInsert("targetId",         targetId)
-                .setOnInsert("unreadCount",      0)
-                .setOnInsert("pinned",           false)
-                .setOnInsert("createdAt",        Instant.now());
-        fields.forEach(update::set);
+    public void updateBatchFields(List<String> ownerUserIds, String conversationId, Map<String, Object> fields) {
+        if (ownerUserIds == null || ownerUserIds.isEmpty() || isBlank(conversationId) || fields == null || fields.isEmpty()) {
+            return;
+        }
+        List<String> docIds = ownerUserIds.stream()
+                .filter(Objects::nonNull)
+                .filter(ownerUserId -> !ownerUserId.isBlank())
+                .map(ownerUserId -> docId(ownerUserId, conversationId))
+                .toList();
+        if (docIds.isEmpty()) {
+            return;
+        }
+        Query query = Query.query(Criteria.where("_id").in(docIds));
+        Update update = new Update();
+        fields.forEach((key, value) -> {
+            if (key != null) {
+                update.set(key, value);
+            }
+        });
         update.set("updatedAt", Instant.now());
-        mongoTemplate.upsert(query, update, UserConversationDoc.class);
-    }
-
-    // ── 读操作 ────────────────────────────────────────────────────────────────
-
-    @Override
-    public int getRecvMsgOpt(String ownerUserId, String conversationId) {
-        Query query = Query.query(Criteria.where("_id").is(docId(ownerUserId, conversationId)));
-        query.fields().include("recvMsgOpt");
-        UserConversationDoc doc = mongoTemplate.findOne(query, UserConversationDoc.class);
-        return doc == null ? 0 : doc.getRecvMsgOpt();
+        mongoTemplate.updateMulti(query, update, UserConversationDoc.class);
     }
 
     @Override
@@ -121,24 +125,31 @@ public class UserConversationRepositoryImpl implements UserConversationRepositor
 
     @Override
     public List<UserConversation> findAll(String ownerUserId) {
+        // 会话列表天然按最近活跃时间倒序读取。
         Query query = Query.query(Criteria.where("ownerUserId").is(ownerUserId))
                 .with(Sort.by(Sort.Direction.DESC, "updatedAt"));
-        return mongoTemplate.find(query, UserConversationDoc.class)
-                .stream().map(this::toDomain).collect(Collectors.toList());
+        return mongoTemplate.find(query, UserConversationDoc.class).stream()
+                .map(this::toDomain)
+                .toList();
     }
 
     @Override
     public List<UserConversation> findByIds(String ownerUserId, List<String> conversationIds) {
-        if (conversationIds == null || conversationIds.isEmpty()) {
+        if (isBlank(ownerUserId) || conversationIds == null || conversationIds.isEmpty()) {
             return List.of();
         }
         List<String> docIds = conversationIds.stream()
-                .map(cid -> docId(ownerUserId, cid))
-                .collect(Collectors.toList());
+                .filter(Objects::nonNull)
+                .filter(conversationId -> !conversationId.isBlank())
+                .map(conversationId -> docId(ownerUserId, conversationId))
+                .toList();
+        if (docIds.isEmpty()) {
+            return List.of();
+        }
         Query query = Query.query(Criteria.where("_id").in(docIds));
         return mongoTemplate.find(query, UserConversationDoc.class).stream()
                 .map(this::toDomain)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -147,47 +158,145 @@ public class UserConversationRepositoryImpl implements UserConversationRepositor
         query.fields().include("conversationId");
         return mongoTemplate.find(query, UserConversationDoc.class).stream()
                 .map(UserConversationDoc::getConversationId)
-                .collect(Collectors.toList());
+                .toList();
+    }
+
+    @Override
+    public List<String> findExistingOwnerUserIds(List<String> ownerUserIds, String conversationId) {
+        if (ownerUserIds == null || ownerUserIds.isEmpty() || isBlank(conversationId)) {
+            return List.of();
+        }
+        List<String> docIds = ownerUserIds.stream()
+                .filter(Objects::nonNull)
+                .filter(ownerUserId -> !ownerUserId.isBlank())
+                .map(ownerUserId -> docId(ownerUserId, conversationId))
+                .toList();
+        if (docIds.isEmpty()) {
+            return List.of();
+        }
+        Query query = Query.query(Criteria.where("_id").in(docIds));
+        query.fields().include("ownerUserId");
+        return mongoTemplate.find(query, UserConversationDoc.class).stream()
+                .map(UserConversationDoc::getOwnerUserId)
+                .toList();
     }
 
     @Override
     public List<String> findNotReceiveUserIds(String conversationId, List<String> candidateUserIds) {
-        // 批量过滤低频操作，直接查 MongoDB
-        List<String> ids = candidateUserIds.stream()
-                .map(uid -> docId(uid, conversationId)).collect(Collectors.toList());
-        Query query = Query.query(Criteria.where("_id").in(ids).and("recvMsgOpt").is(1));
+        if (isBlank(conversationId) || candidateUserIds == null || candidateUserIds.isEmpty()) {
+            return List.of();
+        }
+        List<String> docIds = candidateUserIds.stream()
+                .filter(Objects::nonNull)
+                .filter(candidateUserId -> !candidateUserId.isBlank())
+                .map(candidateUserId -> docId(candidateUserId, conversationId))
+                .toList();
+        if (docIds.isEmpty()) {
+            return List.of();
+        }
+        // 这里直接按 receiveOpt 过滤，不再额外透传领域枚举，保持批量过滤路径最轻。
+        Query query = Query.query(
+                Criteria.where("_id").in(docIds).and("receiveOpt").is(1)
+        );
         query.fields().include("ownerUserId");
         return mongoTemplate.find(query, UserConversationDoc.class).stream()
-                .map(UserConversationDoc::getOwnerUserId).collect(Collectors.toList());
+                .map(UserConversationDoc::getOwnerUserId)
+                .toList();
     }
 
-    // ── toDomain 转换 ─────────────────────────────────────────────────────────
+    @Override
+    public List<String> findAllNotReceiveUserIds(String conversationId) {
+        Query query = Query.query(
+                Criteria.where("conversationId").is(conversationId).and("receiveOpt").is(1)
+        );
+        query.fields().include("ownerUserId");
+        return mongoTemplate.find(query, UserConversationDoc.class).stream()
+                .map(UserConversationDoc::getOwnerUserId)
+                .toList();
+    }
+
+    @Override
+    public List<String> findNotNotifyConversationIds(String ownerUserId) {
+        Query query = Query.query(
+                Criteria.where("ownerUserId").is(ownerUserId).and("receiveOpt").is(2)
+        ).with(Sort.by(Sort.Direction.DESC, "updatedAt"));
+        query.fields().include("conversationId");
+        return mongoTemplate.find(query, UserConversationDoc.class).stream()
+                .map(UserConversationDoc::getConversationId)
+                .toList();
+    }
+
+    @Override
+    public List<String> findPinnedConversationIds(String ownerUserId) {
+        // 置顶列表仍按最近更新时间排序，便于直接用于客户端展示。
+        Query query = Query.query(Criteria.where("ownerUserId").is(ownerUserId).and("pinned").is(true))
+                .with(Sort.by(Sort.Direction.DESC, "updatedAt"));
+        query.fields().include("conversationId");
+        return mongoTemplate.find(query, UserConversationDoc.class).stream()
+                .map(UserConversationDoc::getConversationId)
+                .toList();
+    }
+
+    private Update toUpsert(UserConversation conversation) {
+        // createIfAbsent 负责默认初始化；这里负责完整状态回写。
+        Instant createdAt = toInstant(conversation.getCreatedAt());
+        Instant updatedAt = toInstant(conversation.getUpdatedAt());
+        Update update = new Update()
+                .set("ownerUserId", conversation.getOwnerUserId())
+                .set("conversationId", conversation.getConversationId())
+                .set("conversationType", conversation.getConversationType())
+                .set("targetId", conversation.getTargetId())
+                .set("receiveOpt", conversation.getReceiveOpt())
+                .set("unreadCount", conversation.getUnreadCount())
+                .set("pinned", conversation.isPinned())
+                .set("attachedInfo", conversation.getAttachedInfo())
+                .set("groupAtType", conversation.getGroupAtType())
+                .set("autoCleanup", conversation.isAutoCleanup())
+                .set("autoCleanupCycle", conversation.getCleanupCycle())
+                .set("latestCleanupTime", conversation.getLatestCleanupTime())
+                .set("updatedAt", updatedAt != null ? updatedAt : Instant.now());
+        if (createdAt != null) {
+            update.setOnInsert("createdAt", createdAt);
+        }
+        return update;
+    }
 
     private UserConversation toDomain(UserConversationDoc doc) {
-        UserConversation state = new UserConversation();
-        state.setOwnerUserId(doc.getOwnerUserId());
-        state.setConversationId(doc.getConversationId());
-        state.setConversationType(doc.getConversationType());
-        state.setTargetId(doc.getTargetId());
-        state.setRecvMsgOpt(doc.getRecvMsgOpt());
-        state.setUnreadCount(doc.getUnreadCount());
-        state.setLatestMsgSeq(doc.getLatestMsgSeq());
-        state.setLatestMsg(doc.getLatestMsg());
-        state.setPinned(doc.isPinned());
-        state.setDraftText(doc.getDraftText());
-        state.setAttachedInfo(doc.getAttachedInfo());
-        state.setGroupAtType(doc.getGroupAtType());
-        state.setPrivateChat(doc.isPrivateChat());
-        state.setBurnDuration(doc.getBurnDuration());
-        state.setMsgDestruct(doc.isMsgDestruct());
-        state.setMsgDestructTime(doc.getMsgDestructTime());
-        state.setLatestMsgDestructTime(doc.getLatestMsgDestructTime());
-        state.setCreatedAt(doc.getCreatedAt() != null ? doc.getCreatedAt().toEpochMilli() : 0L);
-        state.setUpdatedAt(doc.getUpdatedAt() != null ? doc.getUpdatedAt().toEpochMilli() : 0L);
-        return state;
+        UserConversation conversation = new UserConversation();
+        conversation.setOwnerUserId(doc.getOwnerUserId());
+        conversation.setConversationId(doc.getConversationId());
+        conversation.setConversationType(doc.getConversationType());
+        conversation.setTargetId(doc.getTargetId());
+        conversation.setReceiveOpt(doc.getReceiveOpt());
+        conversation.setPinned(doc.isPinned());
+        conversation.setAttachedInfo(doc.getAttachedInfo());
+        conversation.setGroupAtType(doc.getGroupAtType());
+        conversation.setAutoCleanup(doc.isAutoCleanup());
+        conversation.setCleanupCycle(doc.getAutoCleanupCycle());
+        conversation.setLatestCleanupTime(doc.getLatestCleanupTime());
+        conversation.setCreatedAt(doc.getCreatedAt() != null ? doc.getCreatedAt().toEpochMilli() : 0L);
+        conversation.setUpdatedAt(doc.getUpdatedAt() != null ? doc.getUpdatedAt().toEpochMilli() : 0L);
+        return conversation;
     }
 
     private static String docId(String ownerUserId, String conversationId) {
         return ownerUserId + ":" + conversationId;
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private static Instant toInstant(long epochMilli) {
+        return epochMilli > 0 ? Instant.ofEpochMilli(epochMilli) : null;
+    }
+
+    private static Instant now(long createdAt, long updatedAt) {
+        Instant updated = toInstant(updatedAt);
+        if (updated != null) {
+            return updated;
+        }
+        Instant created = toInstant(createdAt);
+        return created != null ? created : Instant.now();
     }
 }

@@ -1,33 +1,42 @@
 package com.cheeseocean.im.common.api.dto.message;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
 
 import java.io.Serializable;
 import java.util.Map;
 
+/**
+ * 离线推送信息
+ *
+ * @author xxxcrel
+ */
+@Data
 public class OfflinePushInfo implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @JsonProperty("title")
-    private String title;
-
-    @JsonProperty("desc")
-    private String desc;
-
-    @JsonProperty("ex")
-    private String ex;
-
-    @JsonProperty("iOSPushSound")
-    private String iOSPushSound;
-
-    @JsonProperty("iOSBadgeCount")
+    /**
+     * 标题
+     */
+    private String  title;
+    /**
+     * 标题
+     */
+    private String  desc;
+    /**
+     * 附加信息
+     */
+    private String  ex;
+    /**
+     * IOS 推送声音
+     */
+    private String  iOSPushSound;
+    /**
+     * IOS 小圆点统计
+     */
     private Boolean iOSBadgeCount;
+    private String  signalInfo;
 
-    @JsonProperty("signalInfo")
-    private String signalInfo;
-
-    @JsonProperty("pushExtras")
     private Map<String, Object> pushExtras;
 
     public OfflinePushInfo() {
@@ -39,61 +48,5 @@ public class OfflinePushInfo implements Serializable {
         this();
         this.title = title;
         this.desc = desc;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
-    }
-
-    public String getDesc() {
-        return desc;
-    }
-
-    public void setDesc(String desc) {
-        this.desc = desc;
-    }
-
-    public String getEx() {
-        return ex;
-    }
-
-    public void setEx(String ex) {
-        this.ex = ex;
-    }
-
-    public String getiOSPushSound() {
-        return iOSPushSound;
-    }
-
-    public void setiOSPushSound(String iOSPushSound) {
-        this.iOSPushSound = iOSPushSound;
-    }
-
-    public Boolean getiOSBadgeCount() {
-        return iOSBadgeCount;
-    }
-
-    public void setiOSBadgeCount(Boolean iOSBadgeCount) {
-        this.iOSBadgeCount = iOSBadgeCount;
-    }
-
-    public String getSignalInfo() {
-        return signalInfo;
-    }
-
-    public void setSignalInfo(String signalInfo) {
-        this.signalInfo = signalInfo;
-    }
-
-    public Map<String, Object> getPushExtras() {
-        return pushExtras;
-    }
-
-    public void setPushExtras(Map<String, Object> pushExtras) {
-        this.pushExtras = pushExtras;
     }
 }

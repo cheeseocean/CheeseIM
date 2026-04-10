@@ -8,6 +8,7 @@ import com.cheeseocean.im.common.api.enums.SessionStatus;
 import com.cheeseocean.im.postbox.api.HistoryMessageResponse;
 import com.cheeseocean.im.postbox.history.MessageBlockDoc;
 import com.cheeseocean.im.postbox.history.MessageSlot;
+import org.apache.dubbo.rpc.RpcException;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.mongodb.core.MongoTemplate;
 
@@ -67,6 +68,26 @@ class HistoryQueryServiceTest {
         assertEquals(MessagePreviewType.REVOKE, messages.get(1).getPreviewType());
         assertEquals("[已读回执]", messages.get(2).getContent());
         assertEquals(MessagePreviewType.READ_RECEIPT, messages.get(2).getPreviewType());
+    }
+
+    @Test
+    void getConversationMessagesShouldFallbackWhenPermissionProviderIsUnavailable() {
+        MongoTemplate mongoTemplate = mock(MongoTemplate.class);
+        when(mongoTemplate.find(any(), org.mockito.ArgumentMatchers.eq(MessageBlockDoc.class)))
+                .thenReturn(List.of(block(1L, messages(
+                        slot(101L, "s-101", "c-101", "userA", "userB", "hello 101")
+                ))));
+
+        var permissionService = mock(com.cheeseocean.im.common.api.permission.ConversationPermissionDubboService.class);
+        when(permissionService.check(any())).thenThrow(new RpcException("no provider"));
+
+        HistoryQueryService service = new HistoryQueryService(mongoTemplate, new MessagePreviewResolver());
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "conversationPermissionDubboService", permissionService);
+
+        List<HistoryMessageResponse> messages = service.getConversationMessages(session("userB"), "single:userA:userB", 1);
+
+        assertEquals(1, messages.size());
+        assertEquals("s-101", messages.get(0).getServerMsgId());
     }
 
     private static SessionPrincipal session(String userId) {

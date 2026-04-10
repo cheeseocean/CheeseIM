@@ -5,8 +5,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-
-	"github.com/cheeseim/cheesebox/internal/config"
 )
 
 type LoginModel struct {
@@ -14,18 +12,19 @@ type LoginModel struct {
 	focus  int
 }
 
-func NewLoginModel(cfg config.RuntimeConfig) LoginModel {
+func NewLoginModel() LoginModel {
 	placeholders := []string{
-		cfg.APIBaseURL,
-		cfg.TCPAddr,
-		"",
-		cfg.DeviceID,
-		cfg.Platform,
+		"User ID",
+		"Password",
 	}
 	inputs := make([]textinput.Model, len(placeholders))
 	for i, placeholder := range placeholders {
 		input := textinput.New()
 		input.Placeholder = placeholder
+		if i == 1 {
+			input.EchoMode = textinput.EchoPassword
+			input.EchoCharacter = '*'
+		}
 		if i == 0 {
 			input.Focus()
 		}
@@ -64,24 +63,20 @@ func (m LoginModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m LoginModel) View() string {
 	lines := []string{
-		titleStyle.Render("CheeseBox Login"),
+		titleStyle.Render("Login"),
 		"",
 	}
 	for _, input := range m.inputs {
 		lines = append(lines, input.View())
 	}
 	lines = append(lines, "", "Enter submit, Tab switch field")
-	return strings.Join(lines, "\n")
+	return panelStyle.Width(48).Render(strings.Join(lines, "\n"))
 }
 
 func (m LoginModel) Values() []string {
 	values := make([]string, len(m.inputs))
 	for i := range m.inputs {
-		if value := m.inputs[i].Value(); value != "" {
-			values[i] = value
-		} else {
-			values[i] = m.inputs[i].Placeholder
-		}
+		values[i] = strings.TrimSpace(m.inputs[i].Value())
 	}
 	return values
 }

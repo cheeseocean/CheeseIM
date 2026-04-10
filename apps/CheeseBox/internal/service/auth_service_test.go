@@ -9,16 +9,20 @@ import (
 )
 
 func TestAuthServiceLogin(t *testing.T) {
+	tokenIssuer := &fakeAccessTokenIssuer{token: "token-1"}
 	issuer := &fakeTicketIssuer{ticket: domain.WsTicket{Ticket: "ticket-1"}}
-	connector := &fakeAuthConnector{}
+	connector := &fakeAuthConnector{userID: "user-1"}
 
-	service := NewAuthService(issuer, connector)
-	ticket, err := service.Login(context.Background(), "token-1", "device-1", "desktop", "127.0.0.1:9000")
+	service := NewAuthService(tokenIssuer, issuer, connector)
+	session, err := service.Login(context.Background(), "user-1", "secret", "device-1", "desktop", "127.0.0.1:9000")
 	if err != nil {
 		t.Fatalf("Login() error = %v", err)
 	}
-	if ticket.Ticket != "ticket-1" {
-		t.Fatalf("ticket = %#v", ticket)
+	if session.AccessToken != "token-1" || session.Ticket.Ticket != "ticket-1" || session.UserID != "user-1" {
+		t.Fatalf("session = %#v", session)
+	}
+	if tokenIssuer.userID != "user-1" || tokenIssuer.password != "secret" {
+		t.Fatalf("token issuer = %#v", tokenIssuer)
 	}
 	if connector.ticket != "ticket-1" || connector.address != "127.0.0.1:9000" {
 		t.Fatalf("connector = %#v", connector)
@@ -26,10 +30,23 @@ func TestAuthServiceLogin(t *testing.T) {
 }
 
 func TestAuthServiceLoginReturnsTicketError(t *testing.T) {
-	service := NewAuthService(&fakeTicketIssuer{err: errors.New("boom")}, &fakeAuthConnector{})
-	if _, err := service.Login(context.Background(), "token-1", "device-1", "desktop", "127.0.0.1:9000"); err == nil {
+	service := NewAuthService(&fakeAccessTokenIssuer{token: "token-1"}, &fakeTicketIssuer{err: errors.New("boom")}, &fakeAuthConnector{})
+	if _, err := service.Login(context.Background(), "user-1", "secret", "device-1", "desktop", "127.0.0.1:9000"); err == nil {
 		t.Fatal("Login() error = nil, want non-nil")
 	}
+}
+
+type fakeAccessTokenIssuer struct {
+	userID   string
+	password string
+	token    string
+	err      error
+}
+
+func (f *fakeAccessTokenIssuer) Login(_ context.Context, userID, password string, _ int, _ string, _ string) (string, error) {
+	f.userID = userID
+	f.password = password
+	return f.token, f.err
 }
 
 type fakeTicketIssuer struct {
@@ -44,11 +61,12 @@ func (f *fakeTicketIssuer) IssueWsTicket(context.Context, string, string, string
 type fakeAuthConnector struct {
 	address string
 	ticket  string
+	userID  string
 	err     error
 }
 
-func (f *fakeAuthConnector) Connect(_ context.Context, address, ticket string) error {
+func (f *fakeAuthConnector) Connect(_ context.Context, address, ticket string) (string, error) {
 	f.address = address
 	f.ticket = ticket
-	return f.err
+	return f.userID, f.err
 }

@@ -62,16 +62,24 @@ public final class ProtoEnvelopeMapper {
     private static ProtoAuthResponse toAuthResponse(Object body) {
         Map<?, ?> map = OBJECT_MAPPER.convertValue(body, Map.class);
         return ProtoAuthResponse.newBuilder()
-                .setUserId(stringValue(map.get("userID")))
+                .setUserId(stringValue(firstNonNull(map.get("userID"), map.get("userId"))))
                 .setMessage(stringValue(map.get("message")))
                 .build();
     }
 
     private static ProtoConnectResponse toConnectResponse(Object body) {
+        if (body == null) {
+            return ProtoConnectResponse.getDefaultInstance();
+        }
+        if (body instanceof String message) {
+            return ProtoConnectResponse.newBuilder()
+                    .setMessage(message)
+                    .build();
+        }
         Map<?, ?> map = OBJECT_MAPPER.convertValue(body, Map.class);
         return ProtoConnectResponse.newBuilder()
-                .setConnId(stringValue(map.get("connId")))
-                .setMessage(stringValue(map.get("message")))
+                .setConnId(stringValue(firstNonNull(map.get("connId"), map.get("connID"))))
+                .setMessage(stringValue(firstNonNull(map.get("message"), map.get("msg"))))
                 .build();
     }
 

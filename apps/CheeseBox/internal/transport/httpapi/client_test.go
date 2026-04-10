@@ -38,6 +38,35 @@ func TestClientIssueWsTicket(t *testing.T) {
 	}
 }
 
+func TestClientLogin(t *testing.T) {
+	client := New("https://example.invalid", time.Second)
+	client.httpClient.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Path != "/api/auth/login" {
+			t.Fatalf("path = %q", r.URL.Path)
+		}
+		if got := r.Header.Get("Authorization"); got != "" {
+			t.Fatalf("Authorization = %q, want empty", got)
+		}
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("Decode() error = %v", err)
+		}
+		if body["userId"] != "user-1" || int(body["platformId"].(float64)) != 1 || body["deviceId"] != "device-1" {
+			t.Fatalf("unexpected body = %#v", body)
+		}
+		return jsonResponse(map[string]any{
+			"accessToken": "token-1",
+		}), nil
+	})
+	token, err := client.Login(context.Background(), "user-1", "password", 1, "device-1", "CheeseBox/dev")
+	if err != nil {
+		t.Fatalf("Login() error = %v", err)
+	}
+	if token != "token-1" {
+		t.Fatalf("token = %q, want token-1", token)
+	}
+}
+
 func TestClientListFriends(t *testing.T) {
 	client := New("https://example.invalid", time.Second)
 	client.httpClient.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {

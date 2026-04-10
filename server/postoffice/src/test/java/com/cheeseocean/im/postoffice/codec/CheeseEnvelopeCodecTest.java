@@ -3,6 +3,7 @@ package com.cheeseocean.im.postoffice.codec;
 import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
+import com.cheeseocean.im.common.api.protocol.proto.ProtoChatSendAck;
 import com.cheeseocean.im.common.api.enums.CommandType;
 import com.cheeseocean.im.postoffice.client.ProtocolContractFixtures;
 import io.netty.buffer.Unpooled;
@@ -10,6 +11,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
 
+import java.nio.ByteBuffer;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -54,6 +56,12 @@ class CheeseEnvelopeCodecTest {
         ProtocolContractFixtures.RawTcpFrame frame = ProtocolContractFixtures.decodeTcpFrame(bytes);
         assertEquals(ProtocolContractFixtures.TCP_SEND_MSG_RESP, frame.msgType());
         assertEquals("op-send-1", frame.requestId());
-        assertTrue(frame.data().contains("\"serverMsgID\":\"server-1\""));
+        ByteBuffer buffer = ByteBuffer.wrap(bytes);
+        buffer.position(ProtocolContractFixtures.TCP_HEADER_LENGTH);
+        byte[] payload = new byte[bytes.length - ProtocolContractFixtures.TCP_HEADER_LENGTH];
+        buffer.get(payload);
+        ProtoChatSendAck ack = ProtoChatSendAck.parseFrom(payload);
+        assertEquals("server-1", ack.getServerMsgId());
+        assertEquals("client-1", ack.getClientMsgId());
     }
 }

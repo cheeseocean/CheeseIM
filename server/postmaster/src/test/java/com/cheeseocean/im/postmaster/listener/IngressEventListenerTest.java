@@ -13,7 +13,6 @@ import com.cheeseocean.im.common.core.store.sequence.SequenceRange;
 import com.cheeseocean.im.postmaster.sender.HistoryEventProducer;
 import com.cheeseocean.im.postmaster.sender.MessageProducer;
 import com.cheeseocean.im.postmaster.service.ConversationSeqService;
-import com.cheeseocean.im.postmaster.service.ConversationWriteFacade;
 import com.cheeseocean.im.postmaster.service.DefaultMessagePolicyEngine;
 import com.cheeseocean.im.postmaster.service.GroupMembershipFacade;
 import org.junit.jupiter.api.Test;
@@ -42,11 +41,10 @@ class IngressEventListenerTest {
         QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
-        ConversationWriteFacade conversationWriteFacade = mock(ConversationWriteFacade.class);
         when(conversationSeqService.allocateBatch("s:userA:userB", 1)).thenReturn(seqBatch(1001L, 1001L));
 
         IngressEventListener listener = listener(
-                queueAdapter, groupMembershipFacade, conversationSeqService, conversationWriteFacade);
+                queueAdapter, groupMembershipFacade, conversationSeqService);
 
         listener.handle(List.of(singleMessage()));
 
@@ -72,11 +70,10 @@ class IngressEventListenerTest {
         QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
-        ConversationWriteFacade conversationWriteFacade = mock(ConversationWriteFacade.class);
         when(conversationSeqService.allocateBatch("s:userA:userB", 2)).thenReturn(seqBatch(10L, 11L));
 
         IngressEventListener listener = listener(
-                queueAdapter, groupMembershipFacade, conversationSeqService, conversationWriteFacade);
+                queueAdapter, groupMembershipFacade, conversationSeqService);
 
         listener.handle(List.of(singleMessage(), singleMessage()));
 
@@ -98,11 +95,10 @@ class IngressEventListenerTest {
         QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
-        ConversationWriteFacade conversationWriteFacade = mock(ConversationWriteFacade.class);
         when(conversationSeqService.allocateBatch("g:crew", 1)).thenReturn(seqBatch(2002L, 2002L));
 
         IngressEventListener listener = listener(
-                queueAdapter, groupMembershipFacade, conversationSeqService, conversationWriteFacade);
+                queueAdapter, groupMembershipFacade, conversationSeqService);
 
         listener.handle(List.of(groupMessage()));
 
@@ -115,11 +111,10 @@ class IngressEventListenerTest {
         QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
-        ConversationWriteFacade conversationWriteFacade = mock(ConversationWriteFacade.class);
         when(conversationSeqService.allocateBatch("s:userA:userB", 1)).thenReturn(seqBatch(1001L, 1001L));
 
         IngressEventListener listener = listener(
-                queueAdapter, groupMembershipFacade, conversationSeqService, conversationWriteFacade);
+                queueAdapter, groupMembershipFacade, conversationSeqService);
 
         Message message = singleMessage();
         message.getOptions().setNeedOnlinePush(false);
@@ -135,16 +130,12 @@ class IngressEventListenerTest {
         QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
-        ConversationWriteFacade conversationWriteFacade = mock(ConversationWriteFacade.class);
         when(conversationSeqService.allocateBatch("s:userA:userB", 1)).thenReturn(seqBatch(1L, 1L));
 
         IngressEventListener listener = listener(
-                queueAdapter, groupMembershipFacade, conversationSeqService, conversationWriteFacade);
+                queueAdapter, groupMembershipFacade, conversationSeqService);
 
         listener.handle(List.of(singleMessage()));
-
-        verify(conversationWriteFacade).createSingleChatConversation(
-                "userA", "userB", "s:userA:userB", SessionType.SINGLE.getCode());
     }
 
     @Test
@@ -152,17 +143,15 @@ class IngressEventListenerTest {
         QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
-        ConversationWriteFacade conversationWriteFacade = mock(ConversationWriteFacade.class);
         when(groupMembershipFacade.loadGroupMembers("crew")).thenReturn(List.of("u1", "u2", "u3"));
         when(conversationSeqService.allocateBatch("g:crew", 1)).thenReturn(seqBatch(1L, 1L));
 
         IngressEventListener listener = listener(
-                queueAdapter, groupMembershipFacade, conversationSeqService, conversationWriteFacade);
+                queueAdapter, groupMembershipFacade, conversationSeqService);
 
         listener.handle(List.of(groupMessage()));
 
         verify(groupMembershipFacade).loadGroupMembers("crew");
-        verify(conversationWriteFacade).createGroupChatConversations("crew", "g:crew", List.of("u1", "u2", "u3"));
     }
 
     @Test
@@ -170,19 +159,16 @@ class IngressEventListenerTest {
         QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
-        ConversationWriteFacade conversationWriteFacade = mock(ConversationWriteFacade.class);
         when(conversationSeqService.allocateBatch("n:userB", 1)).thenReturn(seqBatch(1L, 1L));
 
         IngressEventListener listener = listener(
-                queueAdapter, groupMembershipFacade, conversationSeqService, conversationWriteFacade);
+                queueAdapter, groupMembershipFacade, conversationSeqService);
 
         listener.handle(List.of(notificationMessage()));
 
         var historyCaptor = forClass(byte[].class);
         verify(queueAdapter).send(eq(TopicNames.HISTORY), eq("n:userB"), historyCaptor.capture());
         verify(queueAdapter).send(eq(TopicNames.DELIVERY), eq("n:userB"), org.mockito.ArgumentMatchers.any(byte[].class));
-        verify(conversationWriteFacade).createSingleChatConversation(
-                "system", "userB", "n:userB", SessionType.NOTIFICATION.getCode());
 
         HistoryEvent history = ProtoHistoryEventMapper.parse(historyCaptor.getValue());
         assertEquals("n:userB", history.getConversationId());
@@ -194,10 +180,9 @@ class IngressEventListenerTest {
         QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
-        ConversationWriteFacade conversationWriteFacade = mock(ConversationWriteFacade.class);
 
         IngressEventListener listener = listener(
-                queueAdapter, groupMembershipFacade, conversationSeqService, conversationWriteFacade);
+                queueAdapter, groupMembershipFacade, conversationSeqService);
 
         Message message = readReceiptMessage();
         message.getOptions().setNeedHistory(false);
@@ -215,11 +200,10 @@ class IngressEventListenerTest {
         QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
-        ConversationWriteFacade conversationWriteFacade = mock(ConversationWriteFacade.class);
         when(conversationSeqService.allocateBatch("s:userA:userB", 1)).thenReturn(seqBatch(77L, 77L));
 
         IngressEventListener listener = listener(
-                queueAdapter, groupMembershipFacade, conversationSeqService, conversationWriteFacade);
+                queueAdapter, groupMembershipFacade, conversationSeqService);
 
         Message message = singleMessage();
         listener.handle(List.of(message));
@@ -235,15 +219,13 @@ class IngressEventListenerTest {
 
     private static IngressEventListener listener(QueueAdapter queueAdapter,
                                                  GroupMembershipFacade groupMembershipFacade,
-                                                 ConversationSeqService conversationSeqService,
-                                                 ConversationWriteFacade conversationWriteFacade) {
+                                                 ConversationSeqService conversationSeqService) {
         return new IngressEventListener(
                 new MessageProducer(queueAdapter),
                 new HistoryEventProducer(queueAdapter),
                 groupMembershipFacade,
                 conversationSeqService,
-                new DefaultMessagePolicyEngine(),
-                conversationWriteFacade
+                new DefaultMessagePolicyEngine()
         );
     }
 

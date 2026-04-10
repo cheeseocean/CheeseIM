@@ -17,10 +17,11 @@ func main() {
 	cfg := config.LoadRuntimeConfig()
 	httpClient := httpapi.New(cfg.APIBaseURL, 10*time.Second)
 	tcpClient := tcpim.NewClient(nil, 30*time.Second)
-	authService := service.NewAuthService(httpClient, tcpClient)
+	authService := service.NewAuthService(httpClient, httpClient, tcpClient)
 	rosterService := service.NewRosterService(httpClient)
 	chatService := service.NewChatService(tcpClient, httpClient)
-	program := tea.NewProgram(ui.NewRootModel(cfg, authService, rosterService, chatService))
+	contactService := service.NewContactService(httpClient)
+	program := tea.NewProgram(ui.NewRootModel(cfg, authService, rosterService, chatService, contactService))
 	if _, err := program.Run(); err != nil {
 		log.Fatal(err)
 	}

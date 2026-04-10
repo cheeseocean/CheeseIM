@@ -109,7 +109,7 @@ public class ReadSeqPersistenceWriter {
                 // 更新偏移量表的 readSeq
                 offsetRepository.updateReadSeq(e.userId(), e.conversationId(), e.readSeq());
                 // 重置业务表的未读计数
-                stateRepository.clearUnread(e.userId(), e.conversationId());
+                stateRepository.updateFields(e.userId(), e.conversationId(), Map.of("unreadCount", 0));
             } catch (Exception ex) {
                 log.error("readSeq 持久化失败：userId={} convId={} seq={}",
                         e.userId(), e.conversationId(), e.readSeq(), ex);

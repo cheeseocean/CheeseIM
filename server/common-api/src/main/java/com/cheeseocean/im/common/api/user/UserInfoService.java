@@ -2,7 +2,7 @@ package com.cheeseocean.im.common.api.user;
 
 import com.cheeseocean.im.common.api.dto.user.RegisterUserRequest;
 import com.cheeseocean.im.common.api.dto.user.UpdateUserInfoRequest;
-import com.cheeseocean.im.common.api.dto.user.UserInfoDTO;
+import com.cheeseocean.im.common.api.business.domain.User;
 
 import java.util.List;
 
@@ -20,13 +20,13 @@ public interface UserInfoService {
      * 批量查询用户基础信息。
      * 结果顺序与入参 userIds 一致，不存在的用户跳过。
      */
-    List<UserInfoDTO> getUsersInfo(List<String> userIds);
+    List<User> getUsersInfo(List<String> userIds);
 
     /**
      * 查询单个用户基础信息。
      * 用户不存在时返回 null。
      */
-    UserInfoDTO getUserInfo(String userId);
+    User getUserInfo(String userId);
 
     /**
      * 分页查询用户列表。
@@ -36,7 +36,7 @@ public interface UserInfoService {
      * @param pageSize 每页条数
      * @param keyword  搜索关键词，null 表示不过滤
      */
-    List<UserInfoDTO> pageQueryUsers(int pageNum, int pageSize, String keyword);
+    List<User> pageQueryUsers(int pageNum, int pageSize, String keyword);
 
     /**
      * 统计用户总数。
@@ -94,13 +94,13 @@ public interface UserInfoService {
      *
      * @param appManagerLevel 按管理员级别过滤，null 表示不过滤
      */
-    List<UserInfoDTO> searchNotificationAccounts(String keyword, Integer appManagerLevel, int pageNum, int pageSize);
+    List<User> searchNotificationAccounts(String keyword, Integer appManagerLevel, int pageNum, int pageSize);
 
     /**
      * 查询单个通知账号信息。
      * 若 userId 对应的账号级别不足（非通知账号），返回 null。
      */
-    UserInfoDTO getNotificationAccount(String userId);
+    User getNotificationAccount(String userId);
 
     // ── 用户设置 ──────────────────────────────────────────────────────────────
 

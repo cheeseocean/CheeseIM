@@ -2,9 +2,9 @@ package com.cheeseocean.im.postbox.facade;
 
 import com.alicp.jetcache.anno.CacheType;
 import com.alicp.jetcache.anno.Cached;
+import com.cheeseocean.im.common.api.business.domain.User;
 import com.cheeseocean.im.common.api.dto.user.RegisterUserRequest;
 import com.cheeseocean.im.common.api.dto.user.UpdateUserInfoRequest;
-import com.cheeseocean.im.common.api.dto.user.UserInfoDTO;
 import com.cheeseocean.im.common.api.user.UserInfoService;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
 import org.apache.dubbo.config.annotation.DubboReference;
@@ -23,17 +23,17 @@ public class UserServiceFacade {
     private UserInfoService userInfoService;
 
     /** 透传批量用户信息查询。 */
-    public List<UserInfoDTO> getUsersInfo(List<String> userIds) {
+    public List<User> getUsersInfo(List<String> userIds) {
         return userInfoService.getUsersInfo(userIds);
     }
 
     /** 透传单用户信息查询。 */
-    public UserInfoDTO getUserInfo(String userId) {
+    public User getUserInfo(String userId) {
         return userInfoService.getUserInfo(userId);
     }
 
     /** 透传分页用户查询。 */
-    public List<UserInfoDTO> pageQueryUsers(int pageNum, int pageSize, String keyword) {
+    public List<User> pageQueryUsers(int pageNum, int pageSize, String keyword) {
         return userInfoService.pageQueryUsers(pageNum, pageSize, keyword);
     }
 
@@ -73,17 +73,17 @@ public class UserServiceFacade {
     }
 
     /** 透传通知账号搜索。 */
-    public List<UserInfoDTO> searchNotificationAccounts(String keyword, Integer appManagerLevel, int pageNum, int pageSize) {
+    public List<User> searchNotificationAccounts(String keyword, Integer appManagerLevel, int pageNum, int pageSize) {
         return userInfoService.searchNotificationAccounts(keyword, appManagerLevel, pageNum, pageSize);
     }
 
     /** 透传单个通知账号查询。 */
-    public UserInfoDTO getNotificationAccount(String userId) {
+    public User getNotificationAccount(String userId) {
         return userInfoService.getNotificationAccount(userId);
     }
 
     /** 对全局接收选项做 facade 级缓存，避免消息链路重复远程查询。 */
-    @Cached(name = RedisKeys.FIELD_GLOBAL_RECEIVE_OPTIONS, key = "#userId", expire = 300, cacheType = CacheType.REMOTE)
+    @Cached(name = RedisKeys.USER_RECEIVE_OPTIONS_PREFIX, key = "#userId", expire = 300, cacheType = CacheType.REMOTE)
     public int getReceiveOptions(String userId) {
         return userInfoService.getReceiveOptions(userId);
     }

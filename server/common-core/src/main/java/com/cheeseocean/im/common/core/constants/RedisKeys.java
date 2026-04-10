@@ -4,7 +4,8 @@ public final class RedisKeys {
 
     private static final String AUTH_PREFIX = "cheese_im";
 
-    public static final String FIELD_GLOBAL_RECEIVE_OPTIONS = "user:receive_options:";
+    public static final String USER_RECEIVE_OPTIONS_PREFIX = "user:receive_options:";
+    public static final String USER_INFO_PREFIX = "user:info:";
 
     private RedisKeys() {
     }

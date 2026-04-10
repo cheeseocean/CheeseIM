@@ -2,7 +2,7 @@ spring:
   config:
     import:
       - classpath:common.yml
-      - classpath:module-push.yml
+      - classpath:module-postman.yml
 
 app:
   runtime:

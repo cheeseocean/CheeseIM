@@ -1,8 +1,9 @@
 package com.cheeseocean.im.common.core.business.repository;
 
-import com.cheeseocean.im.common.core.business.domain.UserConversationSyncPoint;
+import com.cheeseocean.im.common.api.business.domain.UserConversationSyncPoint;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -18,16 +19,13 @@ import java.util.Optional;
 public interface UserConversationSyncPointRepository {
 
     /**
-     * 若记录不存在则插入，已存在则忽略（幂等）。
-     * 通常在会话首次激活时调用，为后续 maxSeq / readSeq 更新做准备。
-     */
-    void createIfAbsent(String userId, String conversationId);
-
-    /**
      * 更新用户已读水位线（readSeq）。
      * 由 ReadSeqPersistenceWriter 异步批量调用。
      */
     void updateReadSeq(String userId, String conversationId, long readSeq);
+
+    /** 查询用户在指定会话中的已同步最大序列号。 */
+    long getMaxSeq(String userId, String conversationId);
 
     /**
      * 更新服务端最大序列号（maxSeq）。
@@ -35,11 +33,23 @@ public interface UserConversationSyncPointRepository {
      */
     void updateMaxSeq(String userId, String conversationId, long maxSeq);
 
+    /** 查询用户在指定会话中的最小可见序列号。 */
+    long getMinSeq(String userId, String conversationId);
+
     /**
      * 更新历史消息可见下界（minSeq）。
      * 由消息清理任务调用，推进不可见水位线。
      */
     void updateMinSeq(String userId, String conversationId, long minSeq);
+
+    /** 查询用户在指定会话中的已读序列号。 */
+    long getReadSeq(String userId, String conversationId);
+
+    /**
+     * 查询用户在指定会话集合中的已读序列号映射。
+     * 缺失的会话以 0L 填充。
+     */
+    Map<String, Long> getReadSeqMap(String userId, List<String> conversationIds);
 
     /**
      * 查询单条偏移量记录，不存在时返回 empty。

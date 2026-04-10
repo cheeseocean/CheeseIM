@@ -9,6 +9,7 @@ import (
 
 type AppStore struct {
 	ConnectionStatus   domain.ConnectionStatus
+	CurrentUserID      string
 	ActiveNav          domain.NavKey
 	ActiveConversation string
 	Friends            []domain.FriendSummary
@@ -30,6 +31,10 @@ func New() *AppStore {
 
 func (s *AppStore) SetConnectionStatus(status domain.ConnectionStatus) {
 	s.ConnectionStatus = status
+}
+
+func (s *AppStore) SetCurrentUserID(userID string) {
+	s.CurrentUserID = userID
 }
 
 func (s *AppStore) SetActiveNav(nav domain.NavKey) {

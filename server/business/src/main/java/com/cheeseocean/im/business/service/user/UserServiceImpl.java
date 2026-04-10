@@ -1,13 +1,13 @@
 package com.cheeseocean.im.business.service.user;
 
-import com.alicp.jetcache.anno.CacheInvalidate;
+import com.alicp.jetcache.Cache;
+import com.alicp.jetcache.CacheManager;
 import com.alicp.jetcache.anno.CacheType;
-import com.alicp.jetcache.anno.Cached;
+import com.alicp.jetcache.template.QuickConfig;
+import com.cheeseocean.im.common.api.business.domain.User;
 import com.cheeseocean.im.common.api.dto.user.RegisterUserRequest;
 import com.cheeseocean.im.common.api.dto.user.UpdateUserInfoRequest;
-import com.cheeseocean.im.common.api.dto.user.UserInfoDTO;
 import com.cheeseocean.im.common.api.user.UserInfoService;
-import com.cheeseocean.im.common.core.business.domain.User;
 import com.cheeseocean.im.common.core.business.repository.UserRepository;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.apache.dubbo.config.annotation.DubboService;
@@ -15,125 +15,172 @@ import org.slf4j.Logger;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static com.cheeseocean.im.common.core.constants.RedisKeys.FIELD_GLOBAL_RECEIVE_OPTIONS;
+import static com.cheeseocean.im.common.core.constants.RedisKeys.USER_INFO_PREFIX;
+import static com.cheeseocean.im.common.core.constants.RedisKeys.USER_RECEIVE_OPTIONS_PREFIX;
 
 /**
  * 用户基础信息服务实现。
  *
- * <p>通过 {@link UserRepository} 完成持久化，不直接依赖 MongoDB 实现类。
- * 注册、更新、查询均委托仓储处理，保持服务层专注于业务流程编排。
+ * <p>服务层直接返回 {@link User} 领域对象，
+ * 并通过 JetCache 维护用户资料缓存和全局接收选项缓存。
  */
 @Service
 @DubboService
 public class UserServiceImpl implements UserInfoService {
 
     private static final Logger log = CommonLoggers.SOCIAL;
-
-    /**
-     * 通知账号最低管理员级别
-     */
     private static final int NOTIFICATION_ACCOUNT_MIN_LEVEL = 2;
-
+    private static final int USER_CACHE_EXPIRE_SECONDS = 60 * 5;
+    private static final int USER_CACHE_LOCAL_EXPIRE_SECONDS = 60;
+    private static final int USER_CACHE_LOCAL_LIMIT = 1_000;
 
     private final UserRepository userRepository;
+    private final Cache<String, User> userInfoCache;
+    private final Cache<String, Integer> userReceiveOptCache;
 
-    public UserServiceImpl(UserRepository userRepository) {
+    public UserServiceImpl(UserRepository userRepository, CacheManager cacheManager) {
         this.userRepository = userRepository;
+        this.userInfoCache = cacheManager.getOrCreateCache(
+                QuickConfig.newBuilder(USER_INFO_PREFIX)
+                        .expire(Duration.ofSeconds(USER_CACHE_EXPIRE_SECONDS))
+                        .localExpire(Duration.ofSeconds(USER_CACHE_LOCAL_EXPIRE_SECONDS))
+                        .cacheType(CacheType.BOTH)
+                        .localLimit(USER_CACHE_LOCAL_LIMIT)
+                        .build()
+        );
+        this.userReceiveOptCache = cacheManager.getOrCreateCache(
+                QuickConfig.newBuilder(USER_RECEIVE_OPTIONS_PREFIX)
+                        .expire(Duration.ofSeconds(USER_CACHE_EXPIRE_SECONDS))
+                        .cacheType(CacheType.REMOTE)
+                        .build()
+        );
     }
 
-    // ── 查询 ──────────────────────────────────────────────────────────────────
-
-    /**
-     * 将 Redis 缓存值转换为 int，兼容 Integer / Long / String 等类型。
-     */
-    private static int toInt(Object value) {
-        if (value instanceof Number n) {
-            return n.intValue();
+    @Override
+    public List<User> getUsersInfo(List<String> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return List.of();
         }
-        try {
-            return Integer.parseInt(String.valueOf(value));
-        } catch (NumberFormatException e) {
-            return 0;
+        List<String> dedupedUserIds = userIds.stream()
+                .filter(StringUtils::hasText)
+                .distinct()
+                .toList();
+        if (dedupedUserIds.isEmpty()) {
+            return List.of();
         }
+
+        Map<String, User> cached = userInfoCache.getAll(new LinkedHashSet<>(dedupedUserIds));
+        Map<String, User> resolved = new LinkedHashMap<>();
+        if (cached != null) {
+            resolved.putAll(cached);
+        }
+
+        List<String> misses = dedupedUserIds.stream()
+                .filter(userId -> !resolved.containsKey(userId))
+                .toList();
+        if (!misses.isEmpty()) {
+            List<User> loaded = userRepository.findByIds(misses);
+            Map<String, User> loadedMap = loaded.stream()
+                    .collect(Collectors.toMap(
+                            User::getUserId,
+                            user -> user,
+                            (left, right) -> left,
+                            LinkedHashMap::new
+                    ));
+            if (!loadedMap.isEmpty()) {
+                userInfoCache.putAll(loadedMap);
+                resolved.putAll(loadedMap);
+            }
+        }
+
+        return dedupedUserIds.stream()
+                .map(resolved::get)
+                .filter(user -> user != null)
+                .map(this::copyUser)
+                .toList();
     }
 
     @Override
-    public List<UserInfoDTO> getUsersInfo(List<String> userIds) {
-        return userRepository.findByIds(userIds).stream()
-                .map(this::toDTO).collect(Collectors.toList());
+    public User getUserInfo(String userId) {
+        if (!StringUtils.hasText(userId)) {
+            return null;
+        }
+        User cached = userInfoCache.computeIfAbsent(userId, key -> userRepository.findById(key).orElse(null));
+        return copyUser(cached);
     }
 
     @Override
-    @Cached(name = "business:user:info:", key = "#userId", expire = 300, cacheType = CacheType.BOTH)
-    public UserInfoDTO getUserInfo(String userId) {
-        return userRepository.findById(userId).map(this::toDTO).orElse(null);
-    }
-
-    @Override
-    public List<UserInfoDTO> pageQueryUsers(int pageNum, int pageSize, String keyword) {
-        return userRepository.queryUsers(keyword, pageNum, pageSize).stream()
-                .map(this::toDTO).collect(Collectors.toList());
+    public List<User> pageQueryUsers(int pageNum, int pageSize, String keyword) {
+        int offset = Math.max(0, (pageNum - 1) * pageSize);
+        return StringUtils.hasText(keyword)
+                ? userRepository.pageByKeyword(keyword, pageSize, offset)
+                : userRepository.pageAll(pageSize, offset);
     }
 
     @Override
     public long countUsers(String keyword) {
-        return userRepository.countUsers(keyword);
+        return StringUtils.hasText(keyword)
+                ? userRepository.countByKeyword(keyword)
+                : userRepository.countAll();
     }
 
     @Override
     public List<String> getAllUserIds(int pageNum, int pageSize) {
-        return userRepository.findAllUserIds(pageNum, pageSize);
+        int offset = Math.max(0, (pageNum - 1) * pageSize);
+        return userRepository.findAllUserIds(pageSize, offset);
     }
-
-    // ── 注册与更新 ────────────────────────────────────────────────────────────
 
     @Override
     public List<String> filterExistingUserIds(List<String> userIds) {
-        return userRepository.filterExistingIds(userIds);
+        return userRepository.findExistingUserIds(userIds);
     }
 
     @Override
     public void registerUsers(List<RegisterUserRequest> requests) {
         List<String> userIds = requests.stream()
-                .map(RegisterUserRequest::getUserId).collect(Collectors.toList());
-        // 检查是否已有重复注册
-        Set<String> existing = userRepository.filterExistingIds(userIds).stream()
-                .collect(Collectors.toSet());
+                .map(RegisterUserRequest::getUserId)
+                .filter(StringUtils::hasText)
+                .toList();
+        Set<String> existing = new HashSet<>(userRepository.findExistingUserIds(userIds));
         if (!existing.isEmpty()) {
             throw new IllegalArgumentException("以下 userId 已注册：" + existing);
         }
         long now = System.currentTimeMillis();
-        List<User> users = requests.stream().map(req -> {
-            User user = new User();
-            user.setUserId(req.getUserId());
-            user.setNickname(req.getNickname());
-            user.setFaceUrl(req.getFaceUrl());
-            user.setEx(req.getEx());
-            user.setAppManagerLevel(req.getAppManagerLevel());
-            user.setCreateTime(now);
-            return user;
-        }).collect(Collectors.toList());
+        List<User> users = requests.stream()
+                .map(req -> {
+                    User user = new User();
+                    user.setUserId(req.getUserId());
+                    user.setNickname(req.getNickname());
+                    user.setAvatarUrl(req.getFaceUrl());
+                    user.setEx(req.getEx());
+                    user.setAppManagerLevel(req.getAppManagerLevel());
+                    user.setCreateTime(now);
+                    return user;
+                })
+                .toList();
         userRepository.saveAll(users);
+        evictUsersInfoCache(users.stream().map(User::getUserId).toList());
         log.info("批量注册用户成功，数量={}", users.size());
     }
 
-    // ── 通知系统账号管理 ──────────────────────────────────────────────────────
-
     @Override
-    @CacheInvalidate(name = "business:user:info:", key = "#userId")
     public void updateUserInfo(String userId, UpdateUserInfoRequest request) {
         Map<String, Object> fields = new HashMap<>();
         if (request.getNickname() != null) {
             fields.put("nickname", request.getNickname());
         }
         if (request.getFaceUrl() != null) {
-            fields.put("faceUrl", request.getFaceUrl());
+            fields.put("avatarUrl", request.getFaceUrl());
         }
         if (request.getEx() != null) {
             fields.put("ex", request.getEx());
@@ -142,6 +189,7 @@ public class UserServiceImpl implements UserInfoService {
             return;
         }
         userRepository.updateFields(userId, fields);
+        evictUserCaches(userId, false);
         log.info("更新用户信息成功，userId={}", userId);
     }
 
@@ -151,75 +199,97 @@ public class UserServiceImpl implements UserInfoService {
             throw new IllegalArgumentException("appManagerLevel 须 >= " + NOTIFICATION_ACCOUNT_MIN_LEVEL);
         }
         String actualUserId = StringUtils.hasText(userId) ? userId : generateUserId();
-        if (userRepository.existsById(actualUserId)) {
+        if (userRepository.exists(actualUserId)) {
             throw new IllegalArgumentException("userId 已被占用：" + actualUserId);
         }
         User user = new User();
         user.setUserId(actualUserId);
         user.setNickname(nickname);
-        user.setFaceUrl(faceUrl);
+        user.setAvatarUrl(faceUrl);
         user.setAppManagerLevel(appManagerLevel);
         user.setCreateTime(System.currentTimeMillis());
-        userRepository.save(user);
+        userRepository.saveAll(List.of(user));
+        evictUsersInfoCache(List.of(actualUserId));
         log.info("注册通知账号成功，userId={}，level={}", actualUserId, appManagerLevel);
         return actualUserId;
     }
 
     @Override
-    @CacheInvalidate(name = "business:user:info:", key = "#userId")
     public void updateNotificationAccount(String userId, String nickname, String faceUrl) {
         Map<String, Object> fields = new HashMap<>();
         if (StringUtils.hasText(nickname)) {
             fields.put("nickname", nickname);
         }
         if (StringUtils.hasText(faceUrl)) {
-            fields.put("faceUrl", faceUrl);
+            fields.put("avatarUrl", faceUrl);
         }
-        if (!fields.isEmpty()) {
-            userRepository.updateFields(userId, fields);
+        if (fields.isEmpty()) {
+            return;
         }
+        userRepository.updateFields(userId, fields);
+        evictUserCaches(userId, false);
     }
 
     @Override
-    public List<UserInfoDTO> searchNotificationAccounts(String keyword, Integer appManagerLevel,
-                                                        int pageNum, int pageSize) {
-        return userRepository.queryNotificationAccounts(keyword, appManagerLevel, pageNum, pageSize)
-                .stream().map(this::toDTO).collect(Collectors.toList());
+    public List<User> searchNotificationAccounts(String keyword, Integer appManagerLevel, int pageNum, int pageSize) {
+        int offset = Math.max(0, (pageNum - 1) * pageSize);
+        return userRepository.pageNotificationAccounts(keyword, appManagerLevel, pageSize, offset);
     }
 
-    // ── 用户设置 ──────────────────────────────────────────────────────────────
-
     @Override
-    @Cached(name = "business:user:notification:", key = "#userId", expire = 300, cacheType = CacheType.REMOTE)
-    public UserInfoDTO getNotificationAccount(String userId) {
-        return userRepository.findById(userId)
-                .filter(User::isNotificationAccount)
-                .map(this::toDTO)
-                .orElse(null);
+    public User getNotificationAccount(String userId) {
+        User user = getUserInfo(userId);
+        if (user == null || !user.isNotificationAccount()) {
+            return null;
+        }
+        return user;
     }
 
-    // ── 私有工具方法 ──────────────────────────────────────────────────────────
-
     @Override
-    @Cached(name = FIELD_GLOBAL_RECEIVE_OPTIONS, key = "#userId", expire = 300, cacheType = CacheType.REMOTE)
     public int getReceiveOptions(String userId) {
-        return userRepository.findById(userId)
-                .map(User::getGlobalRecvMsgOpt)
-                .orElse(0);
+        if (!StringUtils.hasText(userId)) {
+            return 0;
+        }
+        Integer opt = userReceiveOptCache.computeIfAbsent(userId, userRepository::getGlobalReceiveOption);
+        return opt == null ? 0 : opt;
     }
 
     /**
-     * 将领域对象转换为 DTO。
+     * 批量失效用户资料缓存。
      */
-    private UserInfoDTO toDTO(User user) {
-        UserInfoDTO dto = new UserInfoDTO();
-        dto.setUserId(user.getUserId());
-        dto.setNickname(user.getNickname());
-        dto.setFaceUrl(user.getFaceUrl());
-        dto.setEx(user.getEx());
-        dto.setAppManagerLevel(user.getAppManagerLevel());
-        dto.setCreateTime(user.getCreateTime());
-        return dto;
+    private void evictUsersInfoCache(List<String> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return;
+        }
+        userInfoCache.removeAll(new LinkedHashSet<>(userIds));
+    }
+
+    /**
+     * 失效单用户资料和接收选项缓存。
+     */
+    private void evictUserCaches(String userId, boolean receiveOptChanged) {
+        userInfoCache.remove(userId);
+        if (receiveOptChanged) {
+            userReceiveOptCache.remove(userId);
+        }
+    }
+
+    /**
+     * 返回防御性副本，避免外部代码修改缓存对象。
+     */
+    private User copyUser(User user) {
+        if (user == null) {
+            return null;
+        }
+        User copy = new User();
+        copy.setUserId(user.getUserId());
+        copy.setNickname(user.getNickname());
+        copy.setAvatarUrl(user.getAvatarUrl());
+        copy.setEx(user.getEx());
+        copy.setAppManagerLevel(user.getAppManagerLevel());
+        copy.setReceiveOpt(user.getReceiveOpt());
+        copy.setCreateTime(user.getCreateTime());
+        return copy;
     }
 
     /**

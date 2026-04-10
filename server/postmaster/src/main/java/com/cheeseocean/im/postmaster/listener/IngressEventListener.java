@@ -1,5 +1,6 @@
 package com.cheeseocean.im.postmaster.listener;
 
+import com.cheeseocean.im.common.api.conversation.ConversationService;
 import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.enums.ContentType;
 import com.cheeseocean.im.common.api.enums.SessionType;
@@ -11,10 +12,10 @@ import com.cheeseocean.im.common.core.util.ConversationIdUtil;
 import com.cheeseocean.im.postmaster.sender.HistoryEventProducer;
 import com.cheeseocean.im.postmaster.sender.MessageProducer;
 import com.cheeseocean.im.postmaster.service.ConversationSeqService;
-import com.cheeseocean.im.postmaster.service.ConversationWriteFacade;
 import com.cheeseocean.im.postmaster.service.GroupMembershipFacade;
 import com.cheeseocean.im.postmaster.service.MessagePolicyEngine;
 import com.cheeseocean.im.postmaster.service.MessageRouteDecision;
+import org.apache.dubbo.config.annotation.DubboReference;
 import org.slf4j.Logger;
 import org.springframework.stereotype.Component;
 
@@ -25,26 +26,25 @@ import java.util.stream.Collectors;
 @Component
 public class IngressEventListener {
 
-    private static final Logger                  log = CommonLoggers.POSTMASTER;
-    private final        MessageProducer         messageProducer;
-    private final        HistoryEventProducer    historyEventProducer;
-    private final        GroupMembershipFacade   groupMembershipFacade;
-    private final        ConversationSeqService  conversationSeqService;
-    private final        MessagePolicyEngine     messagePolicyEngine;
-    private final        ConversationWriteFacade conversationWriteService;
+    private static final Logger                 log = CommonLoggers.POSTMASTER;
+    private final        MessageProducer        messageProducer;
+    private final        HistoryEventProducer   historyEventProducer;
+    private final        GroupMembershipFacade  groupMembershipFacade;
+    private final        ConversationSeqService conversationSeqService;
+    private final        MessagePolicyEngine    messagePolicyEngine;
+    @DubboReference
+    private              ConversationService    conversationService;
 
     public IngressEventListener(MessageProducer messageProducer,
                                 HistoryEventProducer historyEventProducer,
                                 GroupMembershipFacade groupMembershipFacade,
                                 ConversationSeqService conversationSeqService,
-                                MessagePolicyEngine messagePolicyEngine,
-                                ConversationWriteFacade conversationWriteService) {
+                                MessagePolicyEngine messagePolicyEngine) {
         this.messageProducer = messageProducer;
         this.historyEventProducer = historyEventProducer;
         this.groupMembershipFacade = groupMembershipFacade;
         this.conversationSeqService = conversationSeqService;
         this.messagePolicyEngine = messagePolicyEngine;
-        this.conversationWriteService = conversationWriteService;
     }
 
     // 消费 INGRESS 队列，批量接收同一会话的消息
@@ -111,10 +111,10 @@ public class IngressEventListener {
 
         // 处理通知消息
         if (!storageNotificationList.isEmpty()) {
-            EventCtx notificationSample = storageMsgList.get(0);
+            EventCtx notificationSample = storageNotificationList.get(0);
             notificationSeqBatch =
                     conversationSeqService.allocateBatch(notificationSample.convId(), storageNotificationList.size());
-            bindSeqs(storageNotificationList, seqBatch.range().startInclusive());
+            bindSeqs(storageNotificationList, notificationSeqBatch.range().startInclusive());
         }
 
 
@@ -177,10 +177,10 @@ public class IngressEventListener {
         }
         if (sample.getSessionType() != null && sample.getSessionType() == SessionType.GROUP) {
             List<String> userIds = groupMembershipFacade.loadGroupMembers(sample.getGroupId());
-            conversationWriteService.createGroupChatConversations(sample.getGroupId(), conversationId, userIds);
+            conversationService.createGroupChatConversations(sample.getGroupId(), conversationId, userIds);
             return;
         }
-        conversationWriteService.createSingleChatConversation(
+        conversationService.createSingleChatConversation(
                 sample.getSenderId(),
                 sample.getReceiverId(),
                 conversationId,

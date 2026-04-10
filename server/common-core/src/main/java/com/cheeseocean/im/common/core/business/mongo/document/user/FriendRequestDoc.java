@@ -25,29 +25,42 @@ public class FriendRequestDoc {
 
     @Indexed
     private String fromUserId;
-
-    /** 接收申请的用户 ID。 */
+    /**
+     * 接收申请的用户 ID。
+     */
     @Indexed
     private String toUserId;
-
     /**
-     * 0=待处理，1=已同意，-1=已拒绝
+     * 处理结果
      */
-    private int handleResult;
-
-    /** 申请附言。 */
+    private int    handleResult;
+    /**
+     * 请求消息
+     */
     private String reqMsg;
-    /** 实际处理人用户 ID。 */
+    /**
+     * 处理用户ID
+     */
     private String handlerUserId;
-    /** 处理说明。 */
+    /**
+     * 处理说明。
+     */
     private String handleMsg;
-    /** 处理时间。 */
+    /**
+     * 处理时间。
+     */
     private long   handleTime;
-    /** 扩展信息 JSON。 */
+    /**
+     * 扩展信息 JSON。
+     */
     private String ex;
-    /** 申请创建时间。 */
+    /**
+     * 申请创建时间。
+     */
     private long   createTime;
-    /** 最近更新时间。 */
+    /**
+     * 最近更新时间。
+     */
     private long   updatedAt;
 
 }

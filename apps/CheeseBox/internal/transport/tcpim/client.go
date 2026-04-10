@@ -62,25 +62,31 @@ func (c *Client) Events() <-chan Event {
 	return c.events
 }
 
-func (c *Client) Connect(ctx context.Context, address, ticket string) error {
+func (c *Client) Connect(ctx context.Context, address, ticket string) (string, error) {
 	conn, err := c.dial(ctx, "tcp", address)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	authPayload, err := gproto.Marshal(&pb.ProtoAuthRequest{Ticket: ticket})
 	if err != nil {
 		_ = conn.Close()
-		return fmt.Errorf("marshal auth request: %w", err)
+		return "", fmt.Errorf("marshal auth request: %w", err)
 	}
 	frame, err := EncodeFrame(TCPAuthReq, "auth", time.Now().UnixMilli(), authPayload)
 	if err != nil {
 		_ = conn.Close()
-		return err
+		return "", err
 	}
 	if _, err := conn.Write(frame); err != nil {
 		_ = conn.Close()
-		return fmt.Errorf("write auth frame: %w", err)
+		return "", fmt.Errorf("write auth frame: %w", err)
+	}
+
+	authMessage, err := c.awaitAuth(ctx, conn)
+	if err != nil {
+		_ = conn.Close()
+		return "", err
 	}
 
 	c.mu.Lock()
@@ -90,7 +96,8 @@ func (c *Client) Connect(ctx context.Context, address, ticket string) error {
 
 	go c.readLoop(conn)
 	go c.heartbeatLoop(conn)
-	return nil
+	c.emit(Event{Kind: EventAuthSuccess, RequestID: "auth", UserID: authMessage.GetUserId()})
+	return authMessage.GetUserId(), nil
 }
 
 func (c *Client) SendChatMessage(requestID string, message *pb.ProtoMessage) error {
@@ -232,4 +239,49 @@ func (c *Client) emit(event Event) {
 func defaultDial(ctx context.Context, network, address string) (net.Conn, error) {
 	var dialer net.Dialer
 	return dialer.DialContext(ctx, network, address)
+}
+
+func (c *Client) awaitAuth(ctx context.Context, conn net.Conn) (*pb.ProtoAuthResponse, error) {
+	if deadline, ok := ctx.Deadline(); ok {
+		if err := conn.SetDeadline(deadline); err != nil {
+			return nil, err
+		}
+		defer func() {
+			_ = conn.SetDeadline(time.Time{})
+		}()
+	}
+
+	for {
+		header := make([]byte, HeaderLength)
+		if _, err := io.ReadFull(conn, header); err != nil {
+			return nil, fmt.Errorf("read auth header: %w", err)
+		}
+		payloadLength := int(uint32(header[4])<<24 | uint32(header[5])<<16 | uint32(header[6])<<8 | uint32(header[7]))
+		raw := header
+		if payloadLength > 0 {
+			payload := make([]byte, payloadLength)
+			if _, err := io.ReadFull(conn, payload); err != nil {
+				return nil, fmt.Errorf("read auth payload: %w", err)
+			}
+			raw = append(raw, payload...)
+		}
+		frame, err := DecodeFrame(raw)
+		if err != nil {
+			return nil, err
+		}
+		switch frame.MsgType {
+		case TCPConnectSuccess:
+			continue
+		case TCPAuthSuccess:
+			var message pb.ProtoAuthResponse
+			if err := gproto.Unmarshal(frame.Payload, &message); err != nil {
+				return nil, err
+			}
+			return &message, nil
+		case TCPErrorResp:
+			return nil, errors.New(string(frame.Payload))
+		default:
+			return nil, fmt.Errorf("unexpected auth frame type: %d", frame.MsgType)
+		}
+	}
 }

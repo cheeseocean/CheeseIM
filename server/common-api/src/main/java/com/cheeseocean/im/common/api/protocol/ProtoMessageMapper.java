@@ -2,8 +2,10 @@ package com.cheeseocean.im.common.api.protocol;
 
 import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.dto.message.MessageOptions;
+import com.cheeseocean.im.common.api.dto.message.OfflinePushInfo;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoMessage;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoMessageOptions;
+import com.cheeseocean.im.common.api.protocol.proto.ProtoOfflinePushInfo;
 import com.cheeseocean.im.common.api.enums.ContentType;
 import com.cheeseocean.im.common.api.enums.MessageSource;
 import com.cheeseocean.im.common.api.enums.MessageStatus;
@@ -74,6 +76,12 @@ public final class ProtoMessageMapper {
         if (message.getOptions() != null) {
             builder.setOptions(toProtoOptions(message.getOptions()));
         }
+        if (message.getSeq() != null) {
+            builder.setSeq(message.getSeq());
+        }
+        if (message.getOfflinePushInfo() != null) {
+            builder.setOfflinePushInfo(toProtoOfflinePushInfo(message.getOfflinePushInfo()));
+        }
         return builder.build();
     }
 
@@ -115,6 +123,12 @@ public final class ProtoMessageMapper {
         }
         if (proto.hasOptions()) {
             message.setOptions(fromProtoOptions(proto.getOptions()));
+        }
+        if (proto.getSeq() != 0L) {
+            message.setSeq(proto.getSeq());
+        }
+        if (proto.hasOfflinePushInfo()) {
+            message.setOfflinePushInfo(fromProtoOfflinePushInfo(proto.getOfflinePushInfo()));
         }
         return message;
     }
@@ -175,6 +189,52 @@ public final class ProtoMessageMapper {
             options.setNeedLastMessage(proto.getNeedLastMessage());
         }
         return options;
+    }
+
+    private static ProtoOfflinePushInfo toProtoOfflinePushInfo(OfflinePushInfo info) {
+        ProtoOfflinePushInfo.Builder builder = ProtoOfflinePushInfo.newBuilder();
+        if (info.getTitle() != null) {
+            builder.setTitle(info.getTitle());
+        }
+        if (info.getDesc() != null) {
+            builder.setDesc(info.getDesc());
+        }
+        if (info.getEx() != null) {
+            builder.setEx(info.getEx());
+        }
+        if (info.getIOSPushSound() != null) {
+            builder.setIosPushSound(info.getIOSPushSound());
+        }
+        if (info.getIOSBadgeCount() != null) {
+            builder.setIosBadgeCount(info.getIOSBadgeCount());
+        }
+        if (info.getSignalInfo() != null) {
+            builder.setSignalInfo(info.getSignalInfo());
+        }
+        if (info.getPushExtras() != null) {
+            info.getPushExtras().forEach((key, value) -> {
+                if (key != null && value != null) {
+                    builder.putPushExtras(key, String.valueOf(value));
+                }
+            });
+        }
+        return builder.build();
+    }
+
+    private static OfflinePushInfo fromProtoOfflinePushInfo(ProtoOfflinePushInfo proto) {
+        OfflinePushInfo info = new OfflinePushInfo();
+        info.setTitle(emptyToNull(proto.getTitle()));
+        info.setDesc(emptyToNull(proto.getDesc()));
+        info.setEx(emptyToNull(proto.getEx()));
+        info.setIOSPushSound(emptyToNull(proto.getIosPushSound()));
+        if (proto.hasIosBadgeCount()) {
+            info.setIOSBadgeCount(proto.getIosBadgeCount());
+        }
+        info.setSignalInfo(emptyToNull(proto.getSignalInfo()));
+        if (!proto.getPushExtrasMap().isEmpty()) {
+            info.setPushExtras(new LinkedHashMap<>(proto.getPushExtrasMap()));
+        }
+        return info;
     }
 
     private static String emptyToNull(String value) {

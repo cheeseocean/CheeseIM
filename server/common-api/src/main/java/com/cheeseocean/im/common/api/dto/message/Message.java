@@ -92,6 +92,10 @@ public class Message implements Serializable {
      * 消息选项集合，例如是否计入会话、未读或离线推送。
      */
     private              MessageOptions      options;
+    /**
+     * 离线推送附加信息，用于指定推送标题、文案和扩展透传字段。
+     */
+    private              OfflinePushInfo     offlinePushInfo;
     //-----------------服务端填充---------------------
     /**
      * 消息序列号，会话内严格递增、唯一

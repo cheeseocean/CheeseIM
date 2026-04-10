@@ -568,7 +568,7 @@ return DeliveryResult.acceptedAck(ack.getServerMsgId());
 
 - [ ] **Step 7: Run receipt and query tests**
 
-Run: `./gradlew :postoffice:test --tests "com.cheeseocean.im.postoffice.handler.ReceiptMessageHandlerTest" :postman:test --tests "com.cheeseocean.im.postmaster.listener.ReceiptEventListenerTest" :postbox:test --tests "com.cheeseocean.im.postbox.service.ConversationQueryServiceTest"`
+Run: `./gradlew :postoffice:test --tests "com.cheeseocean.im.postoffice.handler.ReceiptMessageHandlerTest" :postman:test --tests "com.cheeseocean.im.postmaster.listener.ReceiptEventListenerTest" :postbox:test --tests "com.cheeseocean.im.postbox.service.ConversationServiceTest"`
 Expected: PASS
 
 - [ ] **Step 8: Commit**

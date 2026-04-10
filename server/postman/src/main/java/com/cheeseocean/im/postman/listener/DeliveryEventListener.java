@@ -5,7 +5,7 @@ import com.cheeseocean.im.common.api.dto.dispatch.DispatchMessageResp;
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchPayload;
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchResult;
 import com.cheeseocean.im.common.api.dto.message.Message;
-import com.cheeseocean.im.common.api.event.DeliveryEvent;
+import com.cheeseocean.im.common.api.enums.SessionType;
 import com.cheeseocean.im.common.api.event.OfflinePushEvent;
 import com.cheeseocean.im.common.api.protocol.ProtoOfflinePushEventMapper;
 import com.cheeseocean.im.common.api.route.OnlineRouteQueryService;
@@ -38,21 +38,32 @@ public class DeliveryEventListener {
     }
 
     @QueueListener(topic = TopicNames.DELIVERY, group = "push-delivery")
-    public void onMessage(DeliveryEvent event) {
+    public void onMessage(Message message) {
         try {
-            handle(event);
+            handle(message);
         } catch (Exception e) {
-            log.error("Failed to handle ingress event: {}", event, e);
+            log.error("Failed to handle delivery message: {}", message, e);
         }
     }
 
-    void handle(DeliveryEvent event) {
-        if (event == null || event.getMessage() == null || event.getTargetUserIds() == null) {
+    void handle(Message message) {
+        if (message == null) {
             return;
         }
-        for (String userId : event.getTargetUserIds()) {
-            deliverToUser(userId, event.getMessage());
+        for (String userId : resolveTargets(message)) {
+            deliverToUser(userId, message);
         }
+    }
+
+    private List<String> resolveTargets(Message message) {
+        if (message.getSessionType() == SessionType.GROUP) {
+            log.warn("Skipping group delivery because target fanout data is not attached to message: groupId={}", message.getGroupId());
+            return List.of();
+        }
+        if (message.getReceiverId() == null || message.getReceiverId().isBlank()) {
+            return List.of();
+        }
+        return List.of(message.getReceiverId());
     }
 
     private void deliverToUser(String userId, Message message) {

@@ -5,7 +5,7 @@ import lombok.Data;
 
 /**
  * 会话配置更新请求。
- * 用于 {@link com.cheeseocean.im.common.api.conversation.ConversationWriteService#setConversations}。
+ * 用于 {@link com.cheeseocean.im.common.api.conversation.ConversationService#setConversations}。
  *
  * <p>创建会话时 conversationId / conversationType / targetId 必填；
  * 更新配置时仅需填写要变更的可选字段，null 表示不修改。

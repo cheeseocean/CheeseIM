@@ -1,6 +1,6 @@
 package com.cheeseocean.im.common.core.business.repository;
 
-import com.cheeseocean.im.common.core.business.domain.UserConversation;
+import com.cheeseocean.im.common.api.business.domain.UserConversation;
 
 import java.util.List;
 import java.util.Map;
@@ -19,41 +19,25 @@ public interface UserConversationRepository {
      */
     void createIfAbsent(UserConversation conversation);
 
+    /** 批量保存会话业务状态。 */
+    void saveAll(List<UserConversation> conversations);
+
     /**
-     * 更新最新消息摘要和序列号。
+     * 按字段更新单条会话。
      *
-     * <p>当前查询链已优先从消息域读取 latest summary；
-     * 该接口保留给兼容旧数据或回滚场景使用。
+     * @param fields key 为 BSON 字段名，value 为新值
      */
-    void updateLatestMessage(String ownerUserId, String conversationId,
-                             long latestMsgSeq, String latestMsgJson);
+    void updateFields(String ownerUserId, String conversationId, Map<String, Object> fields);
 
     /**
-     * 原子递增未读计数。
+     * 按字段批量更新同一会话 ID 的多个用户会话记录。
      *
-     * <p>当前查询链已优先通过 {@code maxSeq - readSeq} 计算未读；
-     * 该接口保留给兼容旧数据或回滚场景使用。
+     * @param ownerUserIds 目标用户 ID 列表
+     * @param fields       key 为 BSON 字段名，value 为新值
      */
-    void incrementUnread(String ownerUserId, String conversationId, int delta);
+    void updateBatchFields(List<String> ownerUserIds, String conversationId, Map<String, Object> fields);
 
-    /**
-     * 重置未读计数为 0。
-     * 由标记已读流程触发，用于兼容旧字段；readSeq 的持久化由
-     * {@link UserConversationSyncPointRepository#updateReadSeq} 负责。
-     */
-    void clearUnread(String ownerUserId, String conversationId);
-
-    /**
-     * 查询指定会话的 recvMsgOpt，记录不存在时返回 0（正常接收）。
-     */
-    int getRecvMsgOpt(String ownerUserId, String conversationId);
-
-    /**
-     * 覆写指定会话的 recvMsgOpt。
-     */
-    void setRecvMsgOpt(String ownerUserId, String conversationId, int recvMsgOpt);
-
-    /** 查询单条会话业务状态，不存在时返回 null */
+    /** 查询单条会话业务状态，不存在时返回 null。 */
     UserConversation findOne(String ownerUserId, String conversationId);
 
     /** 查询用户全部会话，按 updatedAt 倒序 */
@@ -66,17 +50,28 @@ public interface UserConversationRepository {
     List<String> findConversationIds(String ownerUserId);
 
     /**
+     * 查询指定用户集合中，已经存在该会话记录的用户 ID。
+     */
+    List<String> findExistingOwnerUserIds(List<String> ownerUserIds, String conversationId);
+
+    /**
      * 从候选用户中找出对该会话设置了 NOT_RECEIVE 的用户 ID。
      * 离线推送过滤时使用。
      */
     List<String> findNotReceiveUserIds(String conversationId, List<String> candidateUserIds);
 
     /**
-     * Upsert 更新会话的指定字段（createIfAbsent + 字段级更新）。
-     *
-     * @param fields key 为 BSON 字段名，value 为新值
+     * 查询会话下全部设置为 NOT_RECEIVE 的用户 ID。
      */
-    void upsertFields(String ownerUserId, String conversationId,
-                      int conversationType, String targetId,
-                      Map<String, Object> fields);
+    List<String> findAllNotReceiveUserIds(String conversationId);
+
+    /**
+     * 查询用户所有设置为 RECEIVE_NOT_NOTIFY 的会话 ID。
+     */
+    List<String> findNotNotifyConversationIds(String ownerUserId);
+
+    /**
+     * 查询用户置顶会话 ID 列表。
+     */
+    List<String> findPinnedConversationIds(String ownerUserId);
 }

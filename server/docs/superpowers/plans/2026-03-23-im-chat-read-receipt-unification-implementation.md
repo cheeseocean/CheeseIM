@@ -173,7 +173,7 @@ void resolvePreviewShouldSupportReadReceiptViaEnumCode() {
 
 - [ ] **Step 2: Run the utility and query-side tests**
 
-Run: `./gradlew :common-core:test --tests "com.cheeseocean.im.common.core.util.MessagePreviewUtilTest" :postbox:test --tests "com.cheeseocean.im.postbox.service.ConversationQueryServiceTest" --tests "com.cheeseocean.im.postbox.service.HistoryQueryServiceTest"`
+Run: `./gradlew :common-core:test --tests "com.cheeseocean.im.common.core.util.MessagePreviewUtilTest" :postbox:test --tests "com.cheeseocean.im.postbox.service.ConversationServiceTest" --tests "com.cheeseocean.im.postbox.service.HistoryQueryServiceTest"`
 Expected: FAIL until preview resolution stops depending on removed `MessageConstants` content-type values.
 
 - [ ] **Step 3: Update preview utilities and resolvers to convert codes through `ContentType`**
@@ -196,7 +196,7 @@ assertEquals(MessagePreviewType.READ_RECEIPT, conversations.get(0).getLastMessag
 
 - [ ] **Step 5: Run the targeted tests**
 
-Run: `./gradlew :common-core:test --tests "com.cheeseocean.im.common.core.util.MessagePreviewUtilTest" :postbox:test --tests "com.cheeseocean.im.postbox.service.ConversationQueryServiceTest" --tests "com.cheeseocean.im.postbox.service.HistoryQueryServiceTest"`
+Run: `./gradlew :common-core:test --tests "com.cheeseocean.im.common.core.util.MessagePreviewUtilTest" :postbox:test --tests "com.cheeseocean.im.postbox.service.ConversationServiceTest" --tests "com.cheeseocean.im.postbox.service.HistoryQueryServiceTest"`
 Expected: PASS with receipt preview behavior preserved.
 
 - [ ] **Step 6: Commit**
@@ -591,7 +591,7 @@ void chatReadReceiptShouldUpdateReadSeqWithoutCreatingHistoryMessage() {
 
 - [ ] **Step 2: Run the smoke and regression suite**
 
-Run: `./gradlew :postoffice:test --tests "com.cheeseocean.im.postoffice.ImFlowSmokeTest" :postman:test --tests "com.cheeseocean.im.postmaster.listener.IngressEventListenerTest" :postbox:test --tests "com.cheeseocean.im.postbox.service.ConversationQueryServiceTest" --tests "com.cheeseocean.im.postbox.service.HistoryQueryServiceTest"`
+Run: `./gradlew :postoffice:test --tests "com.cheeseocean.im.postoffice.ImFlowSmokeTest" :postman:test --tests "com.cheeseocean.im.postmaster.listener.IngressEventListenerTest" :postbox:test --tests "com.cheeseocean.im.postbox.service.ConversationServiceTest" --tests "com.cheeseocean.im.postbox.service.HistoryQueryServiceTest"`
 Expected: FAIL until the new path is fully wired and old receipt persistence side effects are gone.
 
 - [ ] **Step 3: Fill any remaining gaps in transport mapping, enum serialization, or read-state application**

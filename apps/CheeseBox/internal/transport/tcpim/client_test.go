@@ -26,8 +26,12 @@ func TestClientConnectEmitsAuthSuccess(t *testing.T) {
 		writeFrame(t, serverConn, TCPAuthSuccess, "auth", authPayload)
 	}()
 
-	if err := client.Connect(context.Background(), "ignored", "ticket-1"); err != nil {
+	userID, err := client.Connect(context.Background(), "ignored", "ticket-1")
+	if err != nil {
 		t.Fatalf("Connect() error = %v", err)
+	}
+	if userID != "user-1" {
+		t.Fatalf("userID = %q, want user-1", userID)
 	}
 
 	event := waitEvent(t, client.Events())
@@ -56,7 +60,7 @@ func TestClientSendChatMessageEmitsAck(t *testing.T) {
 		}))
 	}()
 
-	if err := client.Connect(context.Background(), "ignored", "ticket-1"); err != nil {
+	if _, err := client.Connect(context.Background(), "ignored", "ticket-1"); err != nil {
 		t.Fatalf("Connect() error = %v", err)
 	}
 	_ = waitEvent(t, client.Events())
@@ -86,7 +90,7 @@ func TestClientReceivesInboundMessage(t *testing.T) {
 		}))
 	}()
 
-	if err := client.Connect(context.Background(), "ignored", "ticket-1"); err != nil {
+	if _, err := client.Connect(context.Background(), "ignored", "ticket-1"); err != nil {
 		t.Fatalf("Connect() error = %v", err)
 	}
 	_ = waitEvent(t, client.Events())
@@ -107,7 +111,7 @@ func TestClientSurfacesDisconnectAndErrors(t *testing.T) {
 			_ = serverConn.Close()
 		}()
 
-		if err := client.Connect(context.Background(), "ignored", "ticket-1"); err != nil {
+		if _, err := client.Connect(context.Background(), "ignored", "ticket-1"); err != nil {
 			t.Fatalf("Connect() error = %v", err)
 		}
 		_ = waitEvent(t, client.Events())
@@ -126,12 +130,8 @@ func TestClientSurfacesDisconnectAndErrors(t *testing.T) {
 			_, _ = serverConn.Write([]byte("bad"))
 			_ = serverConn.Close()
 		}()
-		if err := client.Connect(context.Background(), "ignored", "ticket-1"); err == nil {
-			// connect may succeed before the read loop reports the error
-		}
-		event := waitEvent(t, client.Events())
-		if event.Kind != EventError {
-			t.Fatalf("event = %#v, want error", event)
+		if _, err := client.Connect(context.Background(), "ignored", "ticket-1"); err == nil {
+			t.Fatal("Connect() error = nil, want non-nil")
 		}
 		_ = client.Close()
 	})

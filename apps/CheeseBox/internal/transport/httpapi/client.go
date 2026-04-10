@@ -50,6 +50,22 @@ func (c *Client) IssueWsTicket(ctx context.Context, accessToken, deviceID, platf
 	}, nil
 }
 
+func (c *Client) Login(ctx context.Context, userID, password string, platformID int, deviceID, clientVersion string) (string, error) {
+	body := map[string]any{
+		"userId":        userID,
+		"platformId":    platformID,
+		"deviceId":      deviceID,
+		"clientVersion": clientVersion,
+	}
+	var response struct {
+		AccessToken string `json:"accessToken"`
+	}
+	if err := c.doJSON(ctx, http.MethodPost, "/api/auth/login", "", body, &response); err != nil {
+		return "", err
+	}
+	return response.AccessToken, nil
+}
+
 func (c *Client) ListFriends(ctx context.Context, accessToken string) ([]domain.FriendSummary, error) {
 	var response []domain.FriendSummary
 	if err := c.doJSON(ctx, http.MethodGet, "/api/im/friends", accessToken, nil, &response); err != nil {

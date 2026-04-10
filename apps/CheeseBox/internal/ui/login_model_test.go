@@ -5,20 +5,13 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
-
-	"github.com/cheeseim/cheesebox/internal/config"
 )
 
 func TestLoginModelDefaultsAndSubmit(t *testing.T) {
-	model := NewLoginModel(config.RuntimeConfig{
-		APIBaseURL: "http://127.0.0.1:8080",
-		TCPAddr:    "127.0.0.1:9000",
-		DeviceID:   "device-1",
-		Platform:   "desktop",
-	})
+	model := NewLoginModel()
 
 	values := model.Values()
-	if values[0] != "http://127.0.0.1:8080" || values[1] != "127.0.0.1:9000" {
+	if values[0] != "" || values[1] != "" {
 		t.Fatalf("unexpected values = %#v", values)
 	}
 
@@ -30,7 +23,7 @@ func TestLoginModelDefaultsAndSubmit(t *testing.T) {
 }
 
 func TestLoginModelTabCyclesFocus(t *testing.T) {
-	model := NewLoginModel(config.RuntimeConfig{})
+	model := NewLoginModel()
 	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyTab})
 	model = updated.(LoginModel)
 	if model.Focus() != 1 {
@@ -39,8 +32,8 @@ func TestLoginModelTabCyclesFocus(t *testing.T) {
 }
 
 func TestLoginModelViewContainsTitle(t *testing.T) {
-	model := NewLoginModel(config.RuntimeConfig{})
-	if !strings.Contains(model.View(), "CheeseBox Login") {
+	model := NewLoginModel()
+	if !strings.Contains(model.View(), "Login") {
 		t.Fatalf("view = %q", model.View())
 	}
 }

@@ -21,23 +21,36 @@ public class FriendshipDoc {
     private String id;
 
     @Indexed
-    private String ownerUserId;
+    private String userId;
 
-    /** 好友用户 ID。 */
+    /**
+     * 好友用户 ID。
+     */
     @Indexed
-    private String friendUserId;
-
-    /** 好友备注。 */
+    private String  friendId;
+    /**
+     * 好友备注。
+     */
     private String  remark;
-    /** 加好友来源编码。 */
+    /**
+     * 加好友来源编码。
+     */
     private int     addSource;
-    /** 操作者用户 ID。 */
-    private String  operatorUserId;
-    /** 是否置顶该好友关系。 */
+    /**
+     * 操作者用户 ID。
+     */
+    private String  operatorId;
+    /**
+     * 是否置顶该好友关系。
+     */
     private boolean isPinned;
-    /** 扩展信息 JSON。 */
+    /**
+     * 扩展信息 JSON。
+     */
     private String  ex;
-    /** 创建时间。 */
+    /**
+     * 创建时间。
+     */
     private Long    createdAt;
 
 }

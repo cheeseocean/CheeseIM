@@ -28,26 +28,46 @@ public class GroupMemberDoc {
     @Indexed
     private String groupId;
 
-    /** 成员用户 ID。 */
+    /**
+     * 成员用户 ID。
+     */
     @Indexed
     private String userId;
 
-    /** 群内昵称。 */
+    /**
+     * 群内昵称。
+     */
     private String nickname;
-    /** 群内头像地址。 */
-    private String faceUrl;
-    /** 成员角色等级编码。 */
+    /**
+     * 群内头像地址。
+     */
+    private String avatarUrl;
+    /**
+     * 成员角色等级编码。
+     */
     private int    roleLevel;
-    /** 入群来源编码。 */
+    /**
+     * 入群来源编码。
+     */
     private int    joinSource;
-    /** 邀请人用户 ID。 */
+    /**
+     * 邀请人用户 ID。
+     */
     private String inviterUserId;
-    /** 操作者用户 ID。 */
+    /**
+     * 操作者用户 ID。
+     */
     private String operatorUserId;
-    /** 禁言结束时间戳。 */
+    /**
+     * 禁言结束时间戳。
+     */
     private long   muteEndTime;
-    /** 扩展信息 JSON。 */
+    /**
+     * 扩展信息 JSON。
+     */
     private String ex;
-    /** 入群时间。 */
+    /**
+     * 入群时间。
+     */
     private long   joinTime;
 }

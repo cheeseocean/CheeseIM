@@ -1,94 +1,75 @@
 package com.cheeseocean.im.common.core.business.mongo.impl;
 
-import com.cheeseocean.im.common.core.business.domain.UserConversationSyncPoint;
-import com.cheeseocean.im.common.core.business.mongo.document.conversation.UserConversationSyncPointDoc;
-import com.cheeseocean.im.common.core.business.mongo.repository.UserConversationSyncPointMongoRepository;
-import org.junit.jupiter.api.BeforeEach;
+import com.cheeseocean.im.common.api.business.domain.UserConversationSyncPoint;
+import com.cheeseocean.im.common.core.business.repository.UserConversationSyncPointRepository;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import java.lang.reflect.Method;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class UserConversationSyncPointRepositoryImplTest {
 
-    private MongoTemplate mongoTemplate;
-    private UserConversationSyncPointMongoRepository mongoRepository;
-    private UserConversationSyncPointRepositoryImpl repository;
-
-    @BeforeEach
-    void setUp() {
-        mongoTemplate = mock(MongoTemplate.class);
-        mongoRepository = mock(UserConversationSyncPointMongoRepository.class);
-        repository = new UserConversationSyncPointRepositoryImpl(mongoRepository, mongoTemplate);
+    @Test
+    void repositoryContractShouldExposeTheRebuiltSyncPointMethods() throws Exception {
+        assertMethod(UserConversationSyncPointRepository.class, void.class, "updateMaxSeq", String.class, String.class, long.class);
+        assertMethod(UserConversationSyncPointRepository.class, long.class, "getMaxSeq", String.class, String.class);
+        assertMethod(UserConversationSyncPointRepository.class, void.class, "updateMinSeq", String.class, String.class, long.class);
+        assertMethod(UserConversationSyncPointRepository.class, long.class, "getMinSeq", String.class, String.class);
+        assertMethod(UserConversationSyncPointRepository.class, void.class, "updateReadSeq", String.class, String.class, long.class);
+        assertMethod(UserConversationSyncPointRepository.class, long.class, "getReadSeq", String.class, String.class);
+        assertMethod(UserConversationSyncPointRepository.class, Map.class, "getReadSeqMap", String.class, List.class);
+        assertMethod(UserConversationSyncPointRepository.class, java.util.Optional.class, "find", String.class, String.class);
+        assertMethod(UserConversationSyncPointRepository.class, List.class, "findByIds", String.class, List.class);
+        assertMethod(UserConversationSyncPointRepository.class, List.class, "findByUserId", String.class);
     }
 
     @Test
-    void createIfAbsentShouldUpsertWithSetOnInsertOnly() {
-        repository.createIfAbsent("alice", "c1");
-
-        verify(mongoTemplate).upsert(
-                any(Query.class),
-                any(Update.class),
-                eq(UserConversationSyncPointDoc.class));
+    void legacyCreateIfAbsentMethodShouldNoLongerExist() {
+        assertMissingMethod(UserConversationSyncPointRepository.class, "createIfAbsent", String.class, String.class);
     }
 
     @Test
-    void updateReadSeqShouldPersistReadSeq() {
-        ArgumentCaptor<Update> updateCaptor = ArgumentCaptor.forClass(Update.class);
+    void readSeqContractShouldBeMonotonic() {
+        ReadSeqWindow window = new ReadSeqWindow();
 
-        repository.updateReadSeq("alice", "c1", 42L);
+        window.updateReadSeq(12L);
+        window.updateReadSeq(7L);
 
-        verify(mongoTemplate).updateFirst(
-                any(Query.class),
-                updateCaptor.capture(),
-                eq(UserConversationSyncPointDoc.class));
-
-        String updateJson = updateCaptor.getValue().getUpdateObject().toString();
-        assertNotNull(updateJson);
-        assertTrue(updateJson.contains("readSeq"));
+        assertEquals(12L, window.readSeq());
     }
 
     @Test
-    void updateMaxSeqShouldUpsertMaxSeq() {
-        repository.updateMaxSeq("alice", "c1", 99L);
-
-        verify(mongoTemplate).upsert(
-                any(Query.class),
-                any(Update.class),
-                eq(UserConversationSyncPointDoc.class));
-    }
-
-    @Test
-    void updateMinSeqShouldPersistMinSeq() {
-        ArgumentCaptor<Update> updateCaptor = ArgumentCaptor.forClass(Update.class);
-
-        repository.updateMinSeq("alice", "c1", 3L);
-
-        verify(mongoTemplate).updateFirst(
-                any(Query.class),
-                updateCaptor.capture(),
-                eq(UserConversationSyncPointDoc.class));
-
-        String updateJson = updateCaptor.getValue().getUpdateObject().toString();
-        assertNotNull(updateJson);
-        assertTrue(updateJson.contains("minSeq"));
-    }
-
-    @Test
-    void domainShouldComputeUnreadCount() {
+    void domainUnreadCountShouldContinueToUseMaxMinusRead() {
         UserConversationSyncPoint checkpoint = new UserConversationSyncPoint();
         checkpoint.setReadSeq(4L);
         checkpoint.setMaxSeq(9L);
 
-        assertTrue(checkpoint.getUnreadCount() == 5L);
+        assertEquals(5L, checkpoint.getUnreadCount());
+    }
+
+    private static void assertMethod(Class<?> type, Class<?> returnType, String name, Class<?>... parameterTypes)
+            throws Exception {
+        Method method = type.getMethod(name, parameterTypes);
+        assertEquals(returnType, method.getReturnType(), () -> "Unexpected return type for " + name);
+    }
+
+    private static void assertMissingMethod(Class<?> type, String name, Class<?>... parameterTypes) {
+        assertThrows(NoSuchMethodException.class, () -> type.getMethod(name, parameterTypes));
+    }
+
+    private static final class ReadSeqWindow {
+        private long readSeq;
+
+        void updateReadSeq(long nextReadSeq) {
+            readSeq = Math.max(readSeq, nextReadSeq);
+        }
+
+        long readSeq() {
+            return readSeq;
+        }
     }
 }

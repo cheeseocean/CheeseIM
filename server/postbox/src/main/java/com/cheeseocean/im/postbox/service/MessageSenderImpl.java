@@ -4,13 +4,13 @@ import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.dto.message.MessageOptions;
 import com.cheeseocean.im.common.api.dto.message.SendMessageReq;
 import com.cheeseocean.im.common.api.dto.message.SendMessageResp;
+import com.cheeseocean.im.common.api.conversation.ConversationService;
 import com.cheeseocean.im.common.api.friend.FriendRelationService;
 import com.cheeseocean.im.common.api.rpc.MessageSender;
 import com.cheeseocean.im.common.api.enums.ReceiveOption;
 import com.cheeseocean.im.common.api.enums.SessionType;
 import com.cheeseocean.im.common.core.util.ConversationIdUtil;
 import com.cheeseocean.im.common.core.util.IdGenerator;
-import com.cheeseocean.im.postbox.facade.ConversationServiceFacade;
 import com.cheeseocean.im.postbox.facade.UserServiceFacade;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.apache.dubbo.config.annotation.DubboService;
@@ -26,8 +26,8 @@ public class MessageSenderImpl implements MessageSender {
     @DubboReference
     private FriendRelationService friendRelationService;
 
-    @Autowired
-    private ConversationServiceFacade conversationServiceFacade;
+    @DubboReference
+    private ConversationService conversationService;
 
     @Autowired
     private UserServiceFacade userServiceFacade;
@@ -120,7 +120,7 @@ public class MessageSenderImpl implements MessageSender {
         }
 
         // 3. 会话级接收配置
-        ReceiveOption convOpt = ReceiveOption.fromCode(conversationServiceFacade.getReceiveOption(receiverId, conversationId));
+        ReceiveOption convOpt = ReceiveOption.fromCode(conversationService.getReceiveOption(receiverId, conversationId));
         if (convOpt == ReceiveOption.BLOCK) {
             // 已读回执绕过会话级屏蔽
             if (!MessageOptionPolicy.isReadReceipt(req.getContentType())) {

@@ -1,6 +1,7 @@
 package com.cheeseocean.im.common.core.queue.chronicle;
 
-import com.cheeseocean.im.common.core.queue.QueueMessageHandler;
+import com.cheeseocean.im.common.api.dto.message.Message;
+import com.cheeseocean.im.common.api.protocol.ProtoMessageMapper;
 import com.cheeseocean.im.common.core.queue.config.QueueProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import net.openhft.chronicle.queue.ChronicleQueue;
@@ -25,7 +26,7 @@ class ChronicleQueueAdapterTest {
         List<String> received = new CopyOnWriteArrayList<>();
 
         adapter.subscribe("ingress", "g1", 1, DemoPayload.class, payload -> received.add(payload.value()));
-        adapter.send("ingress", "key1", new DemoPayload("ok"));
+        adapter.send("ingress", "key1", objectMapper.writeValueAsBytes(new DemoPayload("ok")));
 
         awaitAtMost(Duration.ofSeconds(3), () -> assertThat(received).containsExactly("ok"));
     }
@@ -35,10 +36,30 @@ class ChronicleQueueAdapterTest {
         ObjectMapper objectMapper = new ObjectMapper();
         CountingChronicleQueueAdapter adapter = new CountingChronicleQueueAdapter(objectMapper, queueProperties(tempDir));
 
-        adapter.send("ingress", "key1", new DemoPayload("one"));
-        adapter.send("ingress", "key2", new DemoPayload("two"));
+        adapter.send("ingress", "key1", objectMapper.writeValueAsBytes(new DemoPayload("one")));
+        adapter.send("ingress", "key2", objectMapper.writeValueAsBytes(new DemoPayload("two")));
 
         assertThat(adapter.createAppenderCalls()).isEqualTo(1);
+    }
+
+    @Test
+    void shouldDeliverProtoMessagePayloadToSubscriber(@TempDir Path tempDir) throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        ChronicleQueueAdapter adapter = new ChronicleQueueAdapter(objectMapper, queueProperties(tempDir));
+        List<Message> received = new CopyOnWriteArrayList<>();
+
+        adapter.subscribe("ingress", "g1", 1, Message.class, received::add);
+        Message message = new Message();
+        message.setClientMsgId("client-1");
+        message.setSenderId("u100");
+        message.setReceiverId("u200");
+        message.setContent("hello".getBytes());
+        adapter.send("ingress", "key1", ProtoMessageMapper.toProto(message).toByteArray());
+
+        awaitAtMost(Duration.ofSeconds(3), () -> {
+            assertThat(received).hasSize(1);
+            assertThat(received.get(0).getSenderId()).isEqualTo("u100");
+        });
     }
 
     private static void awaitAtMost(Duration duration, AssertionRunnable assertion) throws Exception {
