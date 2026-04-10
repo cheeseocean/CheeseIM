@@ -17,10 +17,10 @@ import java.util.Map;
         "com.cheeseocean.im.common"
 })
 @EnableDubbo
-public class ApiServerApplication {
+public class ApiServer {
 
     public static void main(String[] args) {
-        SpringApplication application = new SpringApplication(ApiServerApplication.class);
+        SpringApplication application = new SpringApplication(ApiServer.class);
         application.setDefaultProperties(Map.of("spring.config.name", "api-server"));
         application.run(args);
     }

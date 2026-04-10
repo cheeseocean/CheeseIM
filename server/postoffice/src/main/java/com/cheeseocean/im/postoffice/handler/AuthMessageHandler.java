@@ -4,11 +4,12 @@ import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
 import com.cheeseocean.im.common.api.protocol.ProtoEnvelopeMapper;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
+import com.cheeseocean.im.common.api.session.ConnectionAuthService;
 import com.cheeseocean.im.common.api.enums.CommandType;
-import com.cheeseocean.im.postoffice.auth.WsTicketAuthService;
 import com.cheeseocean.im.postoffice.connection.ConnectionBindService;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
+import org.apache.dubbo.config.annotation.DubboReference;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -26,8 +27,8 @@ public class AuthMessageHandler implements MessageHandler {
     
     private static final Logger logger = CommonLoggers.POSTOFFICE;
     
-    @Autowired
-    private WsTicketAuthService wsTicketAuthService;
+    @DubboReference(check = false)
+    private ConnectionAuthService connectionAuthService;
 
     @Autowired
     private ConnectionBindService connectionBindService;
@@ -56,7 +57,7 @@ public class AuthMessageHandler implements MessageHandler {
                 return HandleResult.failure("ticket不能为空", errorResp);
             }
             
-            SessionPrincipal session = wsTicketAuthService.authenticate(ticket);
+            SessionPrincipal session = connectionAuthService.authenticateWsTicket(ticket);
             
             boolean added = connectionBindService.bindAuthenticated(connection, session);
             if (!added) {

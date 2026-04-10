@@ -12,7 +12,10 @@ public class ConnectionSessionGuard {
     @DubboReference(check = false)
     private SessionQueryService sessionQueryDubboService;
 
-    public void ensureValid(UserConnection connection) {
+    /**
+     * 仅校验连接本地状态是否已完成认证且上下文完整。
+     */
+    public void ensureAuthenticated(UserConnection connection) {
         if (connection == null || !connection.isAuthenticated()) {
             throw new IllegalStateException("connection unauthenticated");
         }
@@ -21,7 +24,17 @@ public class ConnectionSessionGuard {
         if (context == null || context.getSessionId() == null || context.getSessionId().isBlank()) {
             throw new IllegalStateException("connection context invalid");
         }
+        if (!context.isAuthenticated()) {
+            throw new IllegalStateException("connection context invalid");
+        }
+    }
 
+    /**
+     * 校验连接绑定的 session 在服务端是否仍然有效。
+     */
+    public void ensureSessionActive(UserConnection connection) {
+        ensureAuthenticated(connection);
+        ConnectionContext context = connection.getContext();
         if (!sessionQueryDubboService.isSessionValid(context.getSessionId())) {
             throw new IllegalStateException("session invalid");
         }

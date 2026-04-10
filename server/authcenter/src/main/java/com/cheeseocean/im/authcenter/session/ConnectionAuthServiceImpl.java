@@ -1,29 +1,36 @@
-package com.cheeseocean.im.postoffice.auth;
+package com.cheeseocean.im.authcenter.session;
 
-import com.cheeseocean.im.common.api.session.SessionIssueService;
-import com.cheeseocean.im.common.api.session.SessionQueryService;
-import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import com.cheeseocean.im.common.api.dto.user.WsTicketPrincipal;
-import org.apache.dubbo.config.annotation.DubboReference;
+import com.cheeseocean.im.common.api.session.ConnectionAuthService;
+import com.cheeseocean.im.common.api.session.SessionIssueService;
+import com.cheeseocean.im.common.api.session.SessionPrincipal;
+import com.cheeseocean.im.common.api.session.SessionQueryService;
+import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.stereotype.Service;
 
+/**
+ * authcenter 侧的长连接认证实现。
+ *
+ * @author xxxcrel
+ */
 @Service
-public class WsTicketAuthServiceImpl implements WsTicketAuthService {
+@DubboService
+public class ConnectionAuthServiceImpl implements ConnectionAuthService {
 
-    @DubboReference(check = false)
-    private SessionIssueService sessionIssueService;
-
-    @DubboReference(check = false)
-    private SessionQueryService sessionQueryService;
-
+    private final SessionIssueService sessionIssueService;
+    private final SessionQueryService sessionQueryService;
     private final SessionStateValidator sessionStateValidator;
 
-    public WsTicketAuthServiceImpl(SessionStateValidator sessionStateValidator) {
+    public ConnectionAuthServiceImpl(SessionIssueService sessionIssueService,
+                                     SessionQueryService sessionQueryService,
+                                     SessionStateValidator sessionStateValidator) {
+        this.sessionIssueService = sessionIssueService;
+        this.sessionQueryService = sessionQueryService;
         this.sessionStateValidator = sessionStateValidator;
     }
 
     @Override
-    public SessionPrincipal authenticate(String ticket) {
+    public SessionPrincipal authenticateWsTicket(String ticket) {
         if (ticket == null || ticket.isBlank()) {
             throw new IllegalStateException("ticket invalid");
         }

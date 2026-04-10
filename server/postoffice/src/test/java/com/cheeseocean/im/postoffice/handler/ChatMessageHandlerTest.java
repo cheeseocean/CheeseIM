@@ -32,7 +32,7 @@ class ChatMessageHandlerTest {
     void normalChatSendShouldReturnChatSendEnvelope() {
         MessageSender messageSender = mock(MessageSender.class);
         ConnectionSessionGuard guard = mock(ConnectionSessionGuard.class);
-        doNothing().when(guard).ensureValid(any(UserConnection.class));
+        doNothing().when(guard).ensureAuthenticated(any(UserConnection.class));
         when(messageSender.sendMessage(any())).thenAnswer(invocation -> {
             SendMessageResp resp = new SendMessageResp();
             resp.setAccepted(true);
@@ -59,7 +59,7 @@ class ChatMessageHandlerTest {
     void invalidSessionShouldReturnErrorEnvelopeWithoutCallingMessageSender() {
         MessageSender messageSender = mock(MessageSender.class);
         ConnectionSessionGuard guard = mock(ConnectionSessionGuard.class);
-        doNothing().when(guard).ensureValid(any(UserConnection.class));
+        doNothing().when(guard).ensureAuthenticated(any(UserConnection.class));
 
         ChatMessageHandler handler = new ChatMessageHandler();
         ReflectionTestUtils.setField(handler, "messageSender", messageSender);

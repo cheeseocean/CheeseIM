@@ -36,7 +36,7 @@ public class HeartbeatMessageHandler implements MessageHandler {
                 return HandleResult.failure("连接未认证", errorResp);
             }
 
-            connectionSessionGuard.ensureValid(connection);
+            connectionSessionGuard.ensureSessionActive(connection);
 
             // 更新连接的最后活跃时间
             connection.incrementHeartbeat();

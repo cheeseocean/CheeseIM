@@ -3,6 +3,7 @@ package com.cheeseocean.im.postoffice.handler;
 import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
+import com.cheeseocean.im.common.api.session.ConnectionAuthService;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import com.cheeseocean.im.common.api.enums.CommandType;
 import com.cheeseocean.im.common.api.enums.ConnectionState;
@@ -12,7 +13,6 @@ import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.common.api.dto.message.SendMessageReq;
 import com.cheeseocean.im.common.api.dto.message.SendMessageResp;
 import com.cheeseocean.im.common.api.rpc.MessageSender;
-import com.cheeseocean.im.postoffice.auth.WsTicketAuthService;
 import com.cheeseocean.im.postoffice.connection.ConnectionBindService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -34,13 +34,13 @@ class MessageHandlerContractTest {
 
     @Test
     void authHandlerShouldConsumeClientEnvelopeBody() {
-        WsTicketAuthService authService = mock(WsTicketAuthService.class);
+        ConnectionAuthService authService = mock(ConnectionAuthService.class);
         ConnectionBindService bindService = mock(ConnectionBindService.class);
-        when(authService.authenticate("ticket-1")).thenReturn(session("user-1"));
+        when(authService.authenticateWsTicket("ticket-1")).thenReturn(session("user-1"));
         when(bindService.bindAuthenticated(any(UserConnection.class), any(SessionPrincipal.class))).thenReturn(true);
 
         AuthMessageHandler handler = new AuthMessageHandler();
-        ReflectionTestUtils.setField(handler, "wsTicketAuthService", authService);
+        ReflectionTestUtils.setField(handler, "connectionAuthService", authService);
         ReflectionTestUtils.setField(handler, "connectionBindService", bindService);
         ReflectionTestUtils.setField(handler, "objectMapper", new ObjectMapper());
 
@@ -53,14 +53,14 @@ class MessageHandlerContractTest {
         assertTrue(result.isSuccess());
         assertNotNull(result.getResponseEnvelope());
         assertEquals(CommandType.AUTH, result.getResponseEnvelope().getCommand());
-        verify(authService).authenticate("ticket-1");
+        verify(authService).authenticateWsTicket("ticket-1");
         verify(bindService).bindAuthenticated(any(UserConnection.class), any(SessionPrincipal.class));
     }
 
     @Test
     void heartbeatHandlerShouldConsumeClientEnvelope() {
         ConnectionSessionGuard guard = mock(ConnectionSessionGuard.class);
-        doNothing().when(guard).ensureValid(any(UserConnection.class));
+        doNothing().when(guard).ensureSessionActive(any(UserConnection.class));
 
         HeartbeatMessageHandler handler = new HeartbeatMessageHandler();
         ReflectionTestUtils.setField(handler, "connectionSessionGuard", guard);
@@ -80,7 +80,7 @@ class MessageHandlerContractTest {
     void chatHandlerShouldConsumeChatSendEnvelopeBody() {
         MessageSender          messageSender = mock(MessageSender.class);
         ConnectionSessionGuard guard         = mock(ConnectionSessionGuard.class);
-        doNothing().when(guard).ensureValid(any(UserConnection.class));
+        doNothing().when(guard).ensureAuthenticated(any(UserConnection.class));
         when(messageSender.sendMessage(any(SendMessageReq.class))).thenAnswer(invocation -> {
             SendMessageResp resp = new SendMessageResp();
             resp.setAccepted(true);

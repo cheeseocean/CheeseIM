@@ -52,7 +52,7 @@ public class ChatMessageHandler implements MessageHandler {
                 return HandleResult.failure("连接上下文无效", errorResp);
             }
 
-            connectionSessionGuard.ensureValid(connection);
+            connectionSessionGuard.ensureAuthenticated(connection);
 
             // 检查消息数据
             if (envelope.getBody() == null) {

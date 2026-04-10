@@ -1,6 +1,6 @@
 package com.cheeseocean.im.bootstrap.all;
 
-import com.cheeseocean.im.apiserver.ApiServerApplication;
+import com.cheeseocean.im.apiserver.ApiServer;
 import com.cheeseocean.im.authcenter.AuthCenter;
 import com.cheeseocean.im.postbox.Postbox;
 import com.cheeseocean.im.postman.Postman;
@@ -36,7 +36,7 @@ import java.util.Map;
                 @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = Postman.class),
                 @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = AuthCenter.class),
                 @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = Business.class),
-                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = ApiServerApplication.class),
+                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = ApiServer.class),
         }
 )
 @EnableDubbo(scanBasePackages = {
