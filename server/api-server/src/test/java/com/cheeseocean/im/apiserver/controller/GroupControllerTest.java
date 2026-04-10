@@ -1,6 +1,7 @@
 package com.cheeseocean.im.apiserver.controller;
 
 import com.cheeseocean.im.apiserver.auth.AccessTokenSessionResolver;
+import com.cheeseocean.im.apiserver.auth.CurrentPrincipalArgumentResolver;
 import com.cheeseocean.im.common.api.business.domain.Group;
 import com.cheeseocean.im.common.api.business.domain.UserConversation;
 import com.cheeseocean.im.common.api.conversation.ConversationService;
@@ -30,20 +31,22 @@ class GroupControllerTest {
 
     @Test
     void listShouldReturnCurrentUsersGroups() throws Exception {
-        AccessTokenSessionResolver accessTokenSessionResolver = mock(AccessTokenSessionResolver.class);
         ConversationService conversationService = mock(ConversationService.class);
         GroupMembershipQueryService groupMembershipQueryService = mock(GroupMembershipQueryService.class);
         GroupRepository groupRepository = mock(GroupRepository.class);
-        when(accessTokenSessionResolver.resolve("Bearer token")).thenReturn(session("userB"));
         when(conversationService.getAllConversations("userB"))
                 .thenReturn(List.of(groupConversation("crew"), groupConversation("design")));
         when(groupMembershipQueryService.isGroupMember("crew", "userB")).thenReturn(true);
         when(groupMembershipQueryService.isGroupMember("design", "userB")).thenReturn(false);
         when(groupRepository.findById("crew")).thenReturn(Optional.of(group("crew", "Crew")));
 
-        GroupController controller = new GroupController(accessTokenSessionResolver, groupMembershipQueryService, groupRepository);
+        GroupController controller = new GroupController(groupMembershipQueryService, groupRepository);
         ReflectionTestUtils.setField(controller, "conversationService", conversationService);
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+        AccessTokenSessionResolver resolver = mock(AccessTokenSessionResolver.class);
+        when(resolver.resolve("Bearer token")).thenReturn(session("userB"));
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setCustomArgumentResolvers(new CurrentPrincipalArgumentResolver(resolver))
+                .build();
 
         mockMvc.perform(get("/api/im/groups")
                         .header("Authorization", "Bearer token"))

@@ -1,6 +1,7 @@
 package com.cheeseocean.im.apiserver.controller;
 
 import com.cheeseocean.im.apiserver.auth.AccessTokenSessionResolver;
+import com.cheeseocean.im.apiserver.auth.CurrentPrincipalArgumentResolver;
 import com.cheeseocean.im.business.model.BlacklistActionRequest;
 import com.cheeseocean.im.business.service.friend.FriendRelationServiceImpl;
 import com.cheeseocean.im.common.api.enums.SessionStatus;
@@ -25,14 +26,10 @@ class BlacklistControllerTest {
 
     @Test
     void listShouldReturnBlockedUserIds() throws Exception {
-        AccessTokenSessionResolver resolver = mock(AccessTokenSessionResolver.class);
         FriendRelationServiceImpl service = mock(FriendRelationServiceImpl.class);
-        when(resolver.resolve("Bearer token")).thenReturn(session("u100"));
         when(service.listBlockedUserIds("u100")).thenReturn(List.of("u200"));
 
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new BlacklistController(resolver, service))
-                .setControllerAdvice(new ApiExceptionHandler())
-                .build();
+        MockMvc mockMvc = mockMvc(service);
 
         mockMvc.perform(get("/api/im/blacklist").header("Authorization", "Bearer token"))
                 .andExpect(status().isOk())
@@ -41,15 +38,11 @@ class BlacklistControllerTest {
 
     @Test
     void blockShouldReturnCreated() throws Exception {
-        AccessTokenSessionResolver resolver = mock(AccessTokenSessionResolver.class);
         FriendRelationServiceImpl service = mock(FriendRelationServiceImpl.class);
-        when(resolver.resolve("Bearer token")).thenReturn(session("u100"));
         BlacklistActionRequest request = new BlacklistActionRequest();
         request.setTargetUserId("u200");
 
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new BlacklistController(resolver, service))
-                .setControllerAdvice(new ApiExceptionHandler())
-                .build();
+        MockMvc mockMvc = mockMvc(service);
 
         mockMvc.perform(post("/api/im/blacklist")
                         .header("Authorization", "Bearer token")
@@ -62,13 +55,9 @@ class BlacklistControllerTest {
 
     @Test
     void unblockShouldReturnNoContent() throws Exception {
-        AccessTokenSessionResolver resolver = mock(AccessTokenSessionResolver.class);
         FriendRelationServiceImpl service = mock(FriendRelationServiceImpl.class);
-        when(resolver.resolve("Bearer token")).thenReturn(session("u100"));
 
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new BlacklistController(resolver, service))
-                .setControllerAdvice(new ApiExceptionHandler())
-                .build();
+        MockMvc mockMvc = mockMvc(service);
 
         mockMvc.perform(delete("/api/im/blacklist/u200").header("Authorization", "Bearer token"))
                 .andExpect(status().isNoContent());
@@ -81,5 +70,14 @@ class BlacklistControllerTest {
         session.setUserId(userId);
         session.setStatus(SessionStatus.ACTIVE);
         return session;
+    }
+
+    private static MockMvc mockMvc(FriendRelationServiceImpl service) {
+        AccessTokenSessionResolver resolver = mock(AccessTokenSessionResolver.class);
+        when(resolver.resolve("Bearer token")).thenReturn(session("u100"));
+        return MockMvcBuilders.standaloneSetup(new BlacklistController(service))
+                .setCustomArgumentResolvers(new CurrentPrincipalArgumentResolver(resolver))
+                .setControllerAdvice(new ApiExceptionHandler())
+                .build();
     }
 }

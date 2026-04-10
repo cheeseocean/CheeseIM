@@ -1,6 +1,5 @@
 package com.cheeseocean.im.apiserver.controller;
 
-import com.cheeseocean.im.apiserver.auth.AccessTokenSessionResolver;
 import com.cheeseocean.im.common.api.business.domain.Group;
 import com.cheeseocean.im.common.api.business.domain.UserConversation;
 import com.cheeseocean.im.common.api.conversation.ConversationService;
@@ -9,7 +8,6 @@ import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import com.cheeseocean.im.common.core.business.repository.GroupRepository;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -21,24 +19,20 @@ import java.util.Optional;
 @RequestMapping("/api/im/groups")
 public class GroupController {
 
-    private final AccessTokenSessionResolver accessTokenSessionResolver;
     private final GroupMembershipQueryService groupMembershipQueryService;
     private final GroupRepository groupRepository;
 
     @DubboReference
     private ConversationService conversationService;
 
-    public GroupController(AccessTokenSessionResolver accessTokenSessionResolver,
-                           GroupMembershipQueryService groupMembershipQueryService,
+    public GroupController(GroupMembershipQueryService groupMembershipQueryService,
                            GroupRepository groupRepository) {
-        this.accessTokenSessionResolver = accessTokenSessionResolver;
         this.groupMembershipQueryService = groupMembershipQueryService;
         this.groupRepository = groupRepository;
     }
 
     @GetMapping
-    public List<GroupSummaryResponse> list(@RequestHeader("Authorization") String authorization) {
-        SessionPrincipal session = accessTokenSessionResolver.resolve(authorization);
+    public List<GroupSummaryResponse> list(SessionPrincipal session) {
         List<GroupSummaryResponse> responses = new ArrayList<>();
         try {
             for (UserConversation conversation : conversationService.getAllConversations(session.getUserId())) {

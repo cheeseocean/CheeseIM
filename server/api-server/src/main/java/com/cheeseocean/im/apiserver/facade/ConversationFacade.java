@@ -1,15 +1,28 @@
 package com.cheeseocean.im.apiserver.facade;
 
-import com.cheeseocean.im.apiserver.auth.AccessTokenSessionResolver;
+import com.cheeseocean.im.apiserver.model.request.BatchGetConversationsRequest;
+import com.cheeseocean.im.apiserver.model.request.GetConversationRequest;
+import com.cheeseocean.im.apiserver.model.request.ListConversationMessagesRequest;
+import com.cheeseocean.im.apiserver.model.request.ListConversationsRequest;
+import com.cheeseocean.im.apiserver.model.request.SetConversationsRequest;
+import com.cheeseocean.im.apiserver.model.response.ConversationIdsHashResponse;
+import com.cheeseocean.im.apiserver.model.response.ConversationIdsResponse;
+import com.cheeseocean.im.apiserver.model.response.ConversationResponse;
+import com.cheeseocean.im.apiserver.model.response.HistoryMessageResponse;
+import com.cheeseocean.im.common.api.business.domain.User;
 import com.cheeseocean.im.common.api.business.domain.UserConversation;
 import com.cheeseocean.im.common.api.conversation.ConversationService;
-import com.cheeseocean.im.common.api.dto.conversation.SetConversationRequest;
+import com.cheeseocean.im.common.api.enums.ConversationKind;
+import com.cheeseocean.im.common.api.permission.ConversationPermissionRequest;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
-import com.cheeseocean.im.postbox.api.ConversationSummaryResponse;
-import com.cheeseocean.im.postbox.api.HistoryMessageResponse;
+import com.cheeseocean.im.common.api.user.UserInfoService;
+import com.cheeseocean.im.common.core.auth.PermissionCheckResult;
 import com.cheeseocean.im.postbox.service.HistoryQueryService;
+import com.cheeseocean.im.postbox.service.ConversationPermissionService;
+import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.stereotype.Service;
 
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -18,70 +31,184 @@ import java.util.List;
 @Service
 public class ConversationFacade {
 
-    private final AccessTokenSessionResolver accessTokenSessionResolver;
     private final ConversationService conversationService;
-    private final com.cheeseocean.im.postbox.service.ConversationService conversationCardService;
+    private final ConversationPermissionService permissionService;
     private final HistoryQueryService historyQueryService;
 
-    public ConversationFacade(AccessTokenSessionResolver accessTokenSessionResolver,
-                              ConversationService conversationService,
-                              com.cheeseocean.im.postbox.service.ConversationService conversationCardService,
+    @DubboReference(check = false)
+    private UserInfoService userInfoService;
+
+    public ConversationFacade(ConversationService conversationService,
+                              ConversationPermissionService permissionService,
                               HistoryQueryService historyQueryService) {
-        this.accessTokenSessionResolver = accessTokenSessionResolver;
         this.conversationService = conversationService;
-        this.conversationCardService = conversationCardService;
+        this.permissionService = permissionService;
         this.historyQueryService = historyQueryService;
     }
 
-    public List<ConversationSummaryResponse> listConversations(String authorization, int limit) {
-        SessionPrincipal session = accessTokenSessionResolver.resolve(authorization);
-        return conversationCardService.listConversations(session, limit);
+    public List<ConversationResponse> listConversations(SessionPrincipal session, ListConversationsRequest request) {
+        int effectiveLimit = Math.max(1, request.getLimit());
+        return conversationService.getAllConversations(session.getUserId()).stream()
+                .filter(conversation -> conversation != null && conversation.getConversationId() != null)
+                .filter(conversation -> allow(session, conversation.getConversationId()))
+                .sorted(Comparator.comparingLong(ConversationFacade::sortTime).reversed())
+                .limit(effectiveLimit)
+                .map(this::toConversationResponse)
+                .filter(response -> response != null)
+                .toList();
     }
 
-    public List<UserConversation> getAllConversations(String authorization) {
-        SessionPrincipal session = accessTokenSessionResolver.resolve(authorization);
-        return conversationService.getAllConversations(session.getUserId());
+    public List<ConversationResponse> getAllConversations(SessionPrincipal session) {
+        return conversationService.getAllConversations(session.getUserId()).stream()
+                .map(this::toConversationResponse)
+                .toList();
     }
 
-    public UserConversation getConversation(String authorization, String conversationId) {
-        SessionPrincipal session = accessTokenSessionResolver.resolve(authorization);
-        return conversationService.getConversation(session.getUserId(), conversationId);
+    public ConversationResponse getConversation(SessionPrincipal session, GetConversationRequest request) {
+        return toConversationResponse(conversationService.getConversation(session.getUserId(), request.getConversationId()));
     }
 
-    public List<UserConversation> getConversations(String authorization, List<String> conversationIds) {
-        SessionPrincipal session = accessTokenSessionResolver.resolve(authorization);
-        return conversationService.getConversations(session.getUserId(), conversationIds);
+    public List<ConversationResponse> getConversations(SessionPrincipal session, BatchGetConversationsRequest request) {
+        return conversationService.getConversations(session.getUserId(), request.getConversationIds()).stream()
+                .map(this::toConversationResponse)
+                .toList();
     }
 
-    public List<String> getConversationIds(String authorization) {
-        SessionPrincipal session = accessTokenSessionResolver.resolve(authorization);
-        return conversationService.getConversationIds(session.getUserId());
+    public ConversationIdsResponse getConversationIds(SessionPrincipal session) {
+        ConversationIdsResponse response = new ConversationIdsResponse();
+        response.setConversationIds(conversationService.getConversationIds(session.getUserId()));
+        return response;
     }
 
-    public long getConversationIdsHash(String authorization) {
-        SessionPrincipal session = accessTokenSessionResolver.resolve(authorization);
-        return conversationService.getConversationIdsHash(session.getUserId());
+    public ConversationIdsHashResponse getConversationIdsHash(SessionPrincipal session) {
+        ConversationIdsHashResponse response = new ConversationIdsHashResponse();
+        response.setHash(conversationService.getConversationIdsHash(session.getUserId()));
+        return response;
     }
 
-    public List<String> getNotNotifyConversationIds(String authorization) {
-        SessionPrincipal session = accessTokenSessionResolver.resolve(authorization);
-        return conversationService.getNotNotifyConversationIds(session.getUserId());
+    public ConversationIdsResponse getNotNotifyConversationIds(SessionPrincipal session) {
+        ConversationIdsResponse response = new ConversationIdsResponse();
+        response.setConversationIds(conversationService.getNotNotifyConversationIds(session.getUserId()));
+        return response;
     }
 
-    public List<String> getPinnedConversationIds(String authorization) {
-        SessionPrincipal session = accessTokenSessionResolver.resolve(authorization);
-        return conversationService.getPinnedConversationIds(session.getUserId());
+    public ConversationIdsResponse getPinnedConversationIds(SessionPrincipal session) {
+        ConversationIdsResponse response = new ConversationIdsResponse();
+        response.setConversationIds(conversationService.getPinnedConversationIds(session.getUserId()));
+        return response;
     }
 
-    public void setConversations(String authorization, SetConversationRequest request) {
-        SessionPrincipal session = accessTokenSessionResolver.resolve(authorization);
-        conversationService.setConversations(List.of(session.getUserId()), request);
+    public void setConversations(SessionPrincipal session, SetConversationsRequest request) {
+        conversationService.setConversations(List.of(session.getUserId()), request.getPayload());
     }
 
-    public List<HistoryMessageResponse> getConversationMessages(String authorization,
-                                                                String conversationId,
-                                                                int limit) {
-        SessionPrincipal session = accessTokenSessionResolver.resolve(authorization);
-        return historyQueryService.getConversationMessages(session, conversationId, limit);
+    public List<HistoryMessageResponse> getConversationMessages(SessionPrincipal session, ListConversationMessagesRequest request) {
+        return historyQueryService.getConversationMessages(session, request.getConversationId(), request.getLimit()).stream()
+                .map(message -> {
+                    HistoryMessageResponse response = new HistoryMessageResponse();
+                    response.setSequence(message.getSequence());
+                    response.setServerMsgId(message.getServerMsgId());
+                    response.setSenderId(message.getSenderId());
+                    response.setSenderName(message.getSenderName());
+                    response.setContent(message.getContent());
+                    response.setPreviewType(message.getPreviewType());
+                    response.setSendTime(message.getSendTime());
+                    return response;
+                })
+                .toList();
+    }
+
+    private ConversationResponse toConversationResponse(UserConversation conversation) {
+        if (conversation == null) {
+            return null;
+        }
+        ConversationResponse response = new ConversationResponse();
+        response.setOwnerUserId(conversation.getOwnerUserId());
+        response.setConversationId(conversation.getConversationId());
+        response.setConversationType(conversation.getConversationType());
+        response.setTargetId(conversation.getTargetId());
+        response.setReceiveOpt(conversation.getReceiveOpt());
+        response.setUnreadCount(conversation.getUnreadCount());
+        response.setPinned(conversation.isPinned());
+        response.setAttachedInfo(conversation.getAttachedInfo());
+        response.setGroupAtType(conversation.getGroupAtType());
+        response.setAutoCleanup(conversation.isAutoCleanup());
+        response.setCleanupCycle(conversation.getCleanupCycle());
+        response.setLatestCleanupTime(conversation.getLatestCleanupTime());
+        response.setCreatedAt(conversation.getCreatedAt());
+        response.setUpdatedAt(conversation.getUpdatedAt());
+        response.setKind(resolveKind(conversation));
+        response.setTitle(resolveTitle(conversation));
+        response.setSubtitle(resolveSubtitle(conversation));
+        response.setNotification(resolveKind(conversation) == ConversationKind.NOTIFICATION);
+        return response;
+    }
+
+    private ConversationKind resolveKind(UserConversation conversation) {
+        return switch (conversation.getConversationType()) {
+            case 2 -> ConversationKind.GROUP;
+            case 3 -> ConversationKind.NOTIFICATION;
+            default -> ConversationKind.DIRECT;
+        };
+    }
+
+    private String resolveTitle(UserConversation conversation) {
+        return switch (resolveKind(conversation)) {
+            case GROUP -> defaultValue(conversation.getTargetId(), conversation.getConversationId());
+            case NOTIFICATION -> "System notifications";
+            case CHANNEL -> defaultValue(conversation.getTargetId(), conversation.getConversationId());
+            case DIRECT -> resolveDirectTitle(conversation.getTargetId(), conversation.getConversationId());
+        };
+    }
+
+    private String resolveSubtitle(UserConversation conversation) {
+        return switch (resolveKind(conversation)) {
+            case GROUP -> "Group conversation";
+            case NOTIFICATION -> "Notification conversation";
+            case CHANNEL -> "Channel conversation";
+            case DIRECT -> "Direct conversation";
+        };
+    }
+
+    private String resolveDirectTitle(String targetId, String fallback) {
+        String userId = defaultValue(targetId, fallback);
+        if (userId == null || userId.isBlank() || userInfoService == null) {
+            return userId;
+        }
+        try {
+            User user = userInfoService.getUserInfo(userId);
+            if (user != null && user.getNickname() != null && !user.getNickname().isBlank()) {
+                return user.getNickname();
+            }
+        } catch (Exception ignored) {
+            // 用户资料服务异常时降级展示 targetId，避免会话列表整体失败。
+        }
+        return userId;
+    }
+
+    private String defaultValue(String preferred, String fallback) {
+        if (preferred != null && !preferred.isBlank()) {
+            return preferred;
+        }
+        return fallback == null ? "" : fallback;
+    }
+
+    private boolean allow(SessionPrincipal session, String conversationId) {
+        if (permissionService == null) {
+            return true;
+        }
+        ConversationPermissionRequest request = new ConversationPermissionRequest();
+        request.setTenantId(session.getTenantId());
+        request.setUserId(session.getUserId());
+        request.setConversationId(conversationId);
+        PermissionCheckResult result = permissionService.check(request);
+        return result == null || result.isAllowed();
+    }
+
+    private static long sortTime(UserConversation conversation) {
+        if (conversation == null) {
+            return Long.MIN_VALUE;
+        }
+        return conversation.getUpdatedAt();
     }
 }

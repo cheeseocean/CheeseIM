@@ -5,7 +5,7 @@ import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import com.cheeseocean.im.common.api.enums.ContentType;
 import com.cheeseocean.im.common.api.enums.MessagePreviewType;
 import com.cheeseocean.im.common.api.enums.SessionStatus;
-import com.cheeseocean.im.postbox.api.HistoryMessageResponse;
+import com.cheeseocean.im.postbox.model.HistoryMessage;
 import com.cheeseocean.im.postbox.history.MessageBlockDoc;
 import com.cheeseocean.im.postbox.history.MessageSlot;
 import org.apache.dubbo.rpc.RpcException;
@@ -36,7 +36,7 @@ class HistoryQueryServiceTest {
         HistoryQueryService service = new HistoryQueryService(mongoTemplate, new MessagePreviewResolver());
         org.springframework.test.util.ReflectionTestUtils.setField(service, "conversationPermissionDubboService", permissionService);
 
-        List<HistoryMessageResponse> messages = service.getConversationMessages(session("userB"), "single:userA:userB", 2);
+        List<HistoryMessage> messages = service.getConversationMessages(session("userB"), "single:userA:userB", 2);
 
         assertEquals(2, messages.size());
         assertEquals(102L, messages.get(0).getSequence());
@@ -60,7 +60,7 @@ class HistoryQueryServiceTest {
         HistoryQueryService service = new HistoryQueryService(mongoTemplate, new MessagePreviewResolver());
         org.springframework.test.util.ReflectionTestUtils.setField(service, "conversationPermissionDubboService", permissionService);
 
-        List<HistoryMessageResponse> messages = service.getConversationMessages(session("userB"), "single:userA:userB", 3);
+        List<HistoryMessage> messages = service.getConversationMessages(session("userB"), "single:userA:userB", 3);
 
         assertEquals("系统通知", messages.get(0).getContent());
         assertEquals(MessagePreviewType.SYSTEM, messages.get(0).getPreviewType());
@@ -84,7 +84,7 @@ class HistoryQueryServiceTest {
         HistoryQueryService service = new HistoryQueryService(mongoTemplate, new MessagePreviewResolver());
         org.springframework.test.util.ReflectionTestUtils.setField(service, "conversationPermissionDubboService", permissionService);
 
-        List<HistoryMessageResponse> messages = service.getConversationMessages(session("userB"), "single:userA:userB", 1);
+        List<HistoryMessage> messages = service.getConversationMessages(session("userB"), "single:userA:userB", 1);
 
         assertEquals(1, messages.size());
         assertEquals("s-101", messages.get(0).getServerMsgId());

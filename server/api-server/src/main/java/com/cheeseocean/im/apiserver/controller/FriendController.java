@@ -1,16 +1,14 @@
 package com.cheeseocean.im.apiserver.controller;
 
-import com.cheeseocean.im.apiserver.auth.AccessTokenSessionResolver;
-import com.cheeseocean.im.business.model.AddFriendRequest;
-import com.cheeseocean.im.business.model.FriendRequestActionRequest;
-import com.cheeseocean.im.business.service.friend.FriendRelationServiceImpl;
-import com.cheeseocean.im.common.api.business.domain.FriendRequest;
-import com.cheeseocean.im.common.api.business.domain.Friendship;
+import com.cheeseocean.im.apiserver.facade.FriendFacade;
+import com.cheeseocean.im.apiserver.model.request.HandleFriendRequestRequest;
+import com.cheeseocean.im.apiserver.model.request.SendFriendRequestRequest;
+import com.cheeseocean.im.apiserver.model.response.FriendRequestResponse;
+import com.cheeseocean.im.apiserver.model.response.FriendshipResponse;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
@@ -19,71 +17,48 @@ import java.util.List;
 @RequestMapping("/api/im/friends")
 public class FriendController {
 
-    private final AccessTokenSessionResolver accessTokenSessionResolver;
-    private final FriendRelationServiceImpl friendRelationServiceImpl;
+    private final FriendFacade friendFacade;
 
-    public FriendController(AccessTokenSessionResolver accessTokenSessionResolver,
-                            FriendRelationServiceImpl friendRelationServiceImpl) {
-        this.accessTokenSessionResolver = accessTokenSessionResolver;
-        this.friendRelationServiceImpl = friendRelationServiceImpl;
+    public FriendController(FriendFacade friendFacade) {
+        this.friendFacade = friendFacade;
     }
 
     @GetMapping
-    public List<Friendship> list(@RequestHeader("Authorization") String authorization) {
-        SessionPrincipal session = accessTokenSessionResolver.resolve(authorization);
-        return friendRelationServiceImpl.listFriends(session.getUserId());
+    public List<FriendshipResponse> list(SessionPrincipal session) {
+        return friendFacade.listFriends(session);
     }
 
     @GetMapping("/requests/incoming")
-    public List<FriendRequest> incoming(@RequestHeader("Authorization") String authorization) {
-        SessionPrincipal session = accessTokenSessionResolver.resolve(authorization);
-        return friendRelationServiceImpl.listIncomingRequests(session.getUserId());
+    public List<FriendRequestResponse> incoming(SessionPrincipal session) {
+        return friendFacade.listIncomingRequests(session);
     }
 
     @GetMapping("/requests/outgoing")
-    public List<FriendRequest> outgoing(@RequestHeader("Authorization") String authorization) {
-        SessionPrincipal session = accessTokenSessionResolver.resolve(authorization);
-        return friendRelationServiceImpl.listOutgoingRequests(session.getUserId());
+    public List<FriendRequestResponse> outgoing(SessionPrincipal session) {
+        return friendFacade.listOutgoingRequests(session);
     }
 
     @PostMapping("/requests")
-    public FriendRequest add(@RequestHeader("Authorization") String authorization,
-                             @RequestBody AddFriendRequest request) {
-        SessionPrincipal session = accessTokenSessionResolver.resolve(authorization);
-        return friendRelationServiceImpl.sendFriendRequest(
-                session.getUserId(),
-                request == null ? null : request.getFriendUserId(),
-                request == null ? null : request.getRequestMessage()
-        );
+    public FriendRequestResponse add(SessionPrincipal session,
+                                     @RequestBody SendFriendRequestRequest request) {
+        return friendFacade.sendFriendRequest(session, request);
     }
 
     @PostMapping("/requests/accept")
-    public Friendship accept(@RequestHeader("Authorization") String authorization,
-                             @RequestBody FriendRequestActionRequest request) {
-        SessionPrincipal session = accessTokenSessionResolver.resolve(authorization);
-        return friendRelationServiceImpl.acceptFriendRequest(
-                session.getUserId(),
-                request == null ? null : request.getFriendUserId()
-        );
+    public FriendshipResponse accept(SessionPrincipal session,
+                                     @RequestBody HandleFriendRequestRequest request) {
+        return friendFacade.acceptFriendRequest(session, request);
     }
 
     @PostMapping("/requests/reject")
-    public FriendRequest reject(@RequestHeader("Authorization") String authorization,
-                                @RequestBody FriendRequestActionRequest request) {
-        SessionPrincipal session = accessTokenSessionResolver.resolve(authorization);
-        return friendRelationServiceImpl.rejectFriendRequest(
-                session.getUserId(),
-                request == null ? null : request.getFriendUserId()
-        );
+    public FriendRequestResponse reject(SessionPrincipal session,
+                                        @RequestBody HandleFriendRequestRequest request) {
+        return friendFacade.rejectFriendRequest(session, request);
     }
 
     @PostMapping("/requests/cancel")
-    public FriendRequest cancel(@RequestHeader("Authorization") String authorization,
-                                @RequestBody FriendRequestActionRequest request) {
-        SessionPrincipal session = accessTokenSessionResolver.resolve(authorization);
-        return friendRelationServiceImpl.cancelFriendRequest(
-                session.getUserId(),
-                request == null ? null : request.getFriendUserId()
-        );
+    public FriendRequestResponse cancel(SessionPrincipal session,
+                                        @RequestBody HandleFriendRequestRequest request) {
+        return friendFacade.cancelFriendRequest(session, request);
     }
 }

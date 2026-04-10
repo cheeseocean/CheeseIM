@@ -1,6 +1,5 @@
 package com.cheeseocean.im.apiserver.controller;
 
-import com.cheeseocean.im.apiserver.auth.AccessTokenSessionResolver;
 import com.cheeseocean.im.business.model.BlacklistActionRequest;
 import com.cheeseocean.im.business.service.friend.FriendRelationServiceImpl;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
@@ -20,34 +19,26 @@ import java.util.List;
 @RequestMapping("/api/im/blacklist")
 public class BlacklistController {
 
-    private final AccessTokenSessionResolver accessTokenSessionResolver;
     private final FriendRelationServiceImpl friendRelationServiceImpl;
 
-    public BlacklistController(AccessTokenSessionResolver accessTokenSessionResolver,
-                               FriendRelationServiceImpl friendRelationServiceImpl) {
-        this.accessTokenSessionResolver = accessTokenSessionResolver;
+    public BlacklistController(FriendRelationServiceImpl friendRelationServiceImpl) {
         this.friendRelationServiceImpl = friendRelationServiceImpl;
     }
 
     @GetMapping
-    public List<String> list(@RequestHeader("Authorization") String authorization) {
-        SessionPrincipal session = accessTokenSessionResolver.resolve(authorization);
+    public List<String> list(SessionPrincipal session) {
         return friendRelationServiceImpl.listBlockedUserIds(session.getUserId());
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public void block(@RequestHeader("Authorization") String authorization,
-                      @RequestBody BlacklistActionRequest request) {
-        SessionPrincipal session = accessTokenSessionResolver.resolve(authorization);
+    public void block(SessionPrincipal session, @RequestBody BlacklistActionRequest request) {
         friendRelationServiceImpl.blockUser(session.getUserId(), request.getTargetUserId());
     }
 
     @DeleteMapping("/{targetUserId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void unblock(@RequestHeader("Authorization") String authorization,
-                        @PathVariable String targetUserId) {
-        SessionPrincipal session = accessTokenSessionResolver.resolve(authorization);
+    public void unblock(SessionPrincipal session, @PathVariable String targetUserId) {
         friendRelationServiceImpl.unblockUser(session.getUserId(), targetUserId);
     }
 }

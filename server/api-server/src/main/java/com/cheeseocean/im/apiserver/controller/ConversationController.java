@@ -1,15 +1,21 @@
 package com.cheeseocean.im.apiserver.controller;
 
 import com.cheeseocean.im.apiserver.facade.ConversationFacade;
-import com.cheeseocean.im.common.api.business.domain.UserConversation;
+import com.cheeseocean.im.apiserver.model.request.BatchGetConversationsRequest;
+import com.cheeseocean.im.apiserver.model.request.GetConversationRequest;
+import com.cheeseocean.im.apiserver.model.request.ListConversationMessagesRequest;
+import com.cheeseocean.im.apiserver.model.request.ListConversationsRequest;
+import com.cheeseocean.im.apiserver.model.request.SetConversationsRequest;
+import com.cheeseocean.im.apiserver.model.response.ConversationIdsHashResponse;
+import com.cheeseocean.im.apiserver.model.response.ConversationIdsResponse;
+import com.cheeseocean.im.apiserver.model.response.ConversationResponse;
+import com.cheeseocean.im.apiserver.model.response.HistoryMessageResponse;
 import com.cheeseocean.im.common.api.dto.conversation.SetConversationRequest;
-import com.cheeseocean.im.postbox.api.ConversationSummaryResponse;
-import com.cheeseocean.im.postbox.api.HistoryMessageResponse;
+import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,58 +36,66 @@ public class ConversationController {
     }
 
     @GetMapping
-    public List<ConversationSummaryResponse> list(@RequestHeader("Authorization") String authorization,
-                                                  @RequestParam(defaultValue = "20") int limit) {
-        return conversationFacade.listConversations(authorization, limit);
+    public List<ConversationResponse> list(SessionPrincipal session, ListConversationsRequest request) {
+        return conversationFacade.listConversations(session, request);
     }
 
     @GetMapping("/all")
-    public List<UserConversation> all(@RequestHeader("Authorization") String authorization) {
-        return conversationFacade.getAllConversations(authorization);
+    public List<ConversationResponse> all(SessionPrincipal session) {
+        return conversationFacade.getAllConversations(session);
     }
 
     @GetMapping("/{conversationId}")
-    public UserConversation getConversation(@RequestHeader("Authorization") String authorization,
-                                            @PathVariable String conversationId) {
-        return conversationFacade.getConversation(authorization, conversationId);
+    public ConversationResponse getConversation(SessionPrincipal session,
+                                                @PathVariable String conversationId) {
+        GetConversationRequest request = new GetConversationRequest();
+        request.setConversationId(conversationId);
+        return conversationFacade.getConversation(session, request);
     }
 
     @GetMapping("/batch")
-    public List<UserConversation> getConversations(@RequestHeader("Authorization") String authorization,
-                                                   @RequestParam List<String> conversationIds) {
-        return conversationFacade.getConversations(authorization, conversationIds);
+    public List<ConversationResponse> getConversations(SessionPrincipal session,
+                                                       @RequestParam List<String> conversationIds) {
+        BatchGetConversationsRequest request = new BatchGetConversationsRequest();
+        request.setConversationIds(conversationIds);
+        return conversationFacade.getConversations(session, request);
     }
 
     @GetMapping("/ids")
-    public List<String> getConversationIds(@RequestHeader("Authorization") String authorization) {
-        return conversationFacade.getConversationIds(authorization);
+    public ConversationIdsResponse getConversationIds(SessionPrincipal session) {
+        return conversationFacade.getConversationIds(session);
     }
 
     @GetMapping("/ids/hash")
-    public long getConversationIdsHash(@RequestHeader("Authorization") String authorization) {
-        return conversationFacade.getConversationIdsHash(authorization);
+    public ConversationIdsHashResponse getConversationIdsHash(SessionPrincipal session) {
+        return conversationFacade.getConversationIdsHash(session);
     }
 
     @GetMapping("/not-notify")
-    public List<String> getNotNotifyConversationIds(@RequestHeader("Authorization") String authorization) {
-        return conversationFacade.getNotNotifyConversationIds(authorization);
+    public ConversationIdsResponse getNotNotifyConversationIds(SessionPrincipal session) {
+        return conversationFacade.getNotNotifyConversationIds(session);
     }
 
     @GetMapping("/pinned")
-    public List<String> getPinnedConversationIds(@RequestHeader("Authorization") String authorization) {
-        return conversationFacade.getPinnedConversationIds(authorization);
+    public ConversationIdsResponse getPinnedConversationIds(SessionPrincipal session) {
+        return conversationFacade.getPinnedConversationIds(session);
     }
 
     @PutMapping
-    public void setConversations(@RequestHeader("Authorization") String authorization,
-                                 @RequestBody SetConversationRequest request) {
-        conversationFacade.setConversations(authorization, request);
+    public void setConversations(SessionPrincipal session,
+                                 @RequestBody SetConversationRequest payload) {
+        SetConversationsRequest request = new SetConversationsRequest();
+        request.setPayload(payload);
+        conversationFacade.setConversations(session, request);
     }
 
     @GetMapping("/{conversationId}/messages")
-    public List<HistoryMessageResponse> messages(@RequestHeader("Authorization") String authorization,
+    public List<HistoryMessageResponse> messages(SessionPrincipal session,
                                                  @PathVariable String conversationId,
                                                  @RequestParam(defaultValue = "50") int limit) {
-        return conversationFacade.getConversationMessages(authorization, conversationId, limit);
+        ListConversationMessagesRequest request = new ListConversationMessagesRequest();
+        request.setConversationId(conversationId);
+        request.setLimit(limit);
+        return conversationFacade.getConversationMessages(session, request);
     }
 }

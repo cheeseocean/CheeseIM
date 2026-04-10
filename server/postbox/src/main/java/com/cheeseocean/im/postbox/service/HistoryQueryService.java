@@ -4,9 +4,9 @@ import com.cheeseocean.im.common.api.permission.ConversationPermissionDubboServi
 import com.cheeseocean.im.common.api.permission.ConversationPermissionRequest;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import com.cheeseocean.im.common.core.auth.PermissionCheckResult;
-import com.cheeseocean.im.postbox.api.HistoryMessageResponse;
 import com.cheeseocean.im.postbox.history.MessageBlockDoc;
 import com.cheeseocean.im.postbox.history.MessageSlot;
+import com.cheeseocean.im.postbox.model.HistoryMessage;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.apache.dubbo.rpc.RpcException;
 import org.springframework.data.domain.Sort;
@@ -41,7 +41,7 @@ public class HistoryQueryService {
     /**
      * 读取最近一页历史消息。
      */
-    public List<HistoryMessageResponse> getConversationMessages(SessionPrincipal session, String conversationId, int limit) {
+    public List<HistoryMessage> getConversationMessages(SessionPrincipal session, String conversationId, int limit) {
         if (!allow(session, conversationId)) {
             return List.of();
         }
@@ -62,7 +62,7 @@ public class HistoryQueryService {
         }
         slots.sort(Comparator.comparing(MessageSlot::getSeq, Comparator.nullsLast(Long::compareTo)).reversed());
 
-        List<HistoryMessageResponse> responses = new ArrayList<>();
+        List<HistoryMessage> responses = new ArrayList<>();
         for (MessageSlot slot : slots) {
             responses.add(toHistoryMessage(slot, session.getUserId()));
             if (responses.size() >= limit) {
@@ -72,9 +72,9 @@ public class HistoryQueryService {
         return responses;
     }
 
-    private HistoryMessageResponse toHistoryMessage(MessageSlot slot, String viewerUserId) {
+    private HistoryMessage toHistoryMessage(MessageSlot slot, String viewerUserId) {
         MessagePreviewResolver.Preview preview = messagePreviewResolver.resolve(slot, viewerUserId);
-        HistoryMessageResponse response = new HistoryMessageResponse();
+        HistoryMessage response = new HistoryMessage();
         response.setSequence(slot.getSeq());
         response.setServerMsgId(slot.getServerMsgId());
         response.setSenderId(slot.getSenderId());
