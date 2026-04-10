@@ -1,17 +1,10 @@
-tasks.named('bootRun') {
-    jvmArgs += chronicleJvmArgs
-}
 dependencies {
-    implementation project(':common-core')
     implementation project(':common-api')
+    implementation project(':common-core')
     implementation project(':config')
-    implementation project(':api-server')
     implementation project(':authcenter')
     implementation project(':business')
-    implementation project(':postoffice')
-    implementation project(':postman')
     implementation project(':postbox')
-    implementation project(':postmaster')
 
     implementation 'org.springframework.boot:spring-boot-starter-web'
 }

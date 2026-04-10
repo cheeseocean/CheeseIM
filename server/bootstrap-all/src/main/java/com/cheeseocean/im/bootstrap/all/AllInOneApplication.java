@@ -1,5 +1,6 @@
 package com.cheeseocean.im.bootstrap.all;
 
+import com.cheeseocean.im.apiserver.ApiServerApplication;
 import com.cheeseocean.im.authcenter.AuthCenter;
 import com.cheeseocean.im.postbox.Postbox;
 import com.cheeseocean.im.postman.Postman;
@@ -20,6 +21,7 @@ import java.util.Map;
 @ComponentScan(
         basePackages = {
                 "com.cheeseocean.im.common",
+                "com.cheeseocean.im.apiserver",
                 "com.cheeseocean.im.authcenter",
                 "com.cheeseocean.im.business",
                 "com.cheeseocean.im.postoffice",
@@ -34,16 +36,18 @@ import java.util.Map;
                 @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = Postman.class),
                 @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = AuthCenter.class),
                 @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = Business.class),
+                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = ApiServerApplication.class),
         }
 )
 @EnableDubbo(scanBasePackages = {
         "com.cheeseocean.im.common",
+        "com.cheeseocean.im.apiserver",
         "com.cheeseocean.im.authcenter",
-        "com.cheeseocean.im.social",
+        "com.cheeseocean.im.business",
         "com.cheeseocean.im.postoffice",
+        "com.cheeseocean.im.postmaster",
         "com.cheeseocean.im.postman",
-        "com.cheeseocean.im.postbox",
-        "com.cheeseocean.im.push"
+        "com.cheeseocean.im.postbox"
 })
 @EnableScheduling
 @EnableMongoRepositories(basePackages = {

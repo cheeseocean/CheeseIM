@@ -1,11 +1,14 @@
-package com.cheeseocean.im.business.auth;
+package com.cheeseocean.im.apiserver.auth;
 
-import com.cheeseocean.im.common.api.session.SessionQueryService;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
+import com.cheeseocean.im.common.api.session.SessionQueryService;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+/**
+ * 解析 HTTP Bearer access token，并映射成当前会话主体。
+ */
 @Component("socialAccessTokenSessionResolver")
 public class AccessTokenSessionResolver {
 

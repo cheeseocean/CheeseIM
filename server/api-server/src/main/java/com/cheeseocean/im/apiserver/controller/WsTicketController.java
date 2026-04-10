@@ -1,20 +1,20 @@
-package com.cheeseocean.im.authcenter.controller;
+package com.cheeseocean.im.apiserver.controller;
 
 import com.cheeseocean.im.authcenter.session.SessionIssueServiceImpl;
 import com.cheeseocean.im.common.api.dto.user.WsTicketPrincipal;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
+/**
+ * 长连接票据签发入口。
+ */
 @RestController
 @RequestMapping("/api/im")
 public class WsTicketController {
@@ -35,12 +35,6 @@ public class WsTicketController {
                 "expire_at", ticket.getExpireAt(),
                 "ws_url", "/ws"
         );
-    }
-
-    @ExceptionHandler(IllegalStateException.class)
-    @ResponseStatus(HttpStatus.UNAUTHORIZED)
-    public Map<String, Object> handleIllegalState(IllegalStateException e) {
-        return Map.of("code", 40101, "message", e.getMessage());
     }
 
     private String extractBearerToken(String authorization) {
