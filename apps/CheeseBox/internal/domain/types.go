@@ -29,10 +29,11 @@ func NewConversationRefGroup(groupID string) ConversationRef {
 }
 
 type MessageItem struct {
-	ID       string
-	SenderID string
-	Content  string
-	Self     bool
+	ID          string
+	SenderID    string
+	SenderLabel string
+	Content     string
+	Self        bool
 }
 
 func NewMessageItem(senderID, content string) MessageItem {

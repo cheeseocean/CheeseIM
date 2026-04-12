@@ -6,5 +6,5 @@ import lombok.Data;
 @Data
 public class UpdateUserSettingsRequest {
     @NotNull
-    private Integer globalRecvMsgOpt;
+    private Integer receiveOpt;
 }

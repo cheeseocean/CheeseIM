@@ -4,5 +4,5 @@ import lombok.Data;
 
 @Data
 public class UserSettingsResponse {
-    private int globalRecvMsgOpt;
+    private int receiveOpt;
 }

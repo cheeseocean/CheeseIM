@@ -28,11 +28,14 @@ public class MessageStateService {
 
     private final ConversationStateStore conversationStateStore;
     private final ObjectMapper objectMapper;
+    private final UserMaxSeqPersistenceWriter userMaxSeqPersistenceWriter;
 
     public MessageStateService(ConversationStateStore conversationStateStore,
-                               ObjectMapper objectMapper) {
+                               ObjectMapper objectMapper,
+                               UserMaxSeqPersistenceWriter userMaxSeqPersistenceWriter) {
         this.conversationStateStore = conversationStateStore;
         this.objectMapper = objectMapper;
+        this.userMaxSeqPersistenceWriter = userMaxSeqPersistenceWriter;
     }
 
     public void apply(Message message, List<String> targetUserIds) {
@@ -53,6 +56,7 @@ public class MessageStateService {
         if (decision.updateConversation()) {
             for (String userId : participants) {
                 conversationStateStore.setUserMaxSeq(userId, conversationId, message.getSeq());
+                userMaxSeqPersistenceWriter.enqueue(userId, conversationId, message.getSeq());
             }
             if (message.getSenderId() != null) {
                 conversationStateStore.setUserReadSeq(message.getSenderId(), conversationId, message.getSeq());
@@ -175,6 +179,7 @@ public class MessageStateService {
         if (anyUpdateConversation) {
             for (String uid : allParticipants) {
                 conversationStateStore.setUserMaxSeq(uid, conversationId, lastMsg.getSeq());
+                userMaxSeqPersistenceWriter.enqueue(uid, conversationId, lastMsg.getSeq());
             }
             for (Map.Entry<String, Long> e : senderMaxSeq.entrySet()) {
                 conversationStateStore.setUserReadSeq(e.getKey(), conversationId, e.getValue());

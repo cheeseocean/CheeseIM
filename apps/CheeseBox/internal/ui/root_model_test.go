@@ -2,31 +2,32 @@ package ui
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/cheeseim/cheesebox/internal/config"
 	"github.com/cheeseim/cheesebox/internal/domain"
-	pb "github.com/cheeseim/cheesebox/internal/proto"
-	"github.com/cheeseim/cheesebox/internal/service"
-	"github.com/cheeseim/cheesebox/internal/transport/tcpim"
+	sdktypes "github.com/cheeseim/cheeseim-go-sdk/types"
 )
 
 func TestRootModelLoginSuccessTransitionsToApp(t *testing.T) {
-	auth := service.NewAuthService(&rootAccessTokenIssuer{token: "token-1"}, &rootTicketIssuer{ticket: domain.WsTicket{Ticket: "ticket-1"}}, &rootConnector{userID: "user-1"})
-	roster := service.NewRosterService(&rootRosterClient{
-		friends:       []domain.FriendSummary{{UserID: "user-1", DisplayName: "Alice"}},
-		groups:        []domain.GroupSummary{{GroupID: "group-1", GroupName: "Crew"}},
-		conversations: []domain.ConversationSummary{{ConversationID: "c1:user-1:user-2", Title: "Alice", LastMessageTime: 1}},
-	})
-	chat := service.NewChatService(&rootChatSender{}, &rootRosterClient{})
-	contacts := service.NewContactService(&rootFriendRequester{})
+	client := &fakeIMClient{
+		currentUserID: "user-1",
+		loginData: sdktypes.BootstrapData{
+			Friends:       []sdktypes.Friend{{UserID: "user-1", DisplayName: "Alice"}},
+			Groups:        []sdktypes.Group{{GroupID: "group-1", GroupName: "Crew"}},
+			Conversations: []sdktypes.Conversation{{ConversationID: "s:user-1:user-2", Title: "Alice", LastMessageTime: 1}},
+		},
+		events: make(chan sdktypes.Event, 1),
+	}
 	model := NewRootModel(config.RuntimeConfig{
 		APIBaseURL: "http://127.0.0.1:8080",
 		TCPAddr:    "127.0.0.1:9000",
 		DeviceID:   "device-1",
 		Platform:   "desktop",
-	}, auth, roster, chat, contacts)
+	}, client)
 	model.login.inputs[0].SetValue("user-1")
 	model.login.inputs[1].SetValue("secret")
 
@@ -45,16 +46,11 @@ func TestRootModelLoginSuccessTransitionsToApp(t *testing.T) {
 	if model.appStore.CurrentUserID != "user-1" {
 		t.Fatalf("current user = %q", model.appStore.CurrentUserID)
 	}
-	if model.token != "token-1" {
-		t.Fatalf("token = %q, want token-1", model.token)
-	}
 }
 
 func TestRootModelLoginErrorShowsToast(t *testing.T) {
-	auth := service.NewAuthService(&rootAccessTokenIssuer{}, &rootTicketIssuer{}, &rootConnector{err: context.DeadlineExceeded})
-	roster := service.NewRosterService(&rootRosterClient{})
-	chat := service.NewChatService(&rootChatSender{}, &rootRosterClient{})
-	model := NewRootModel(config.RuntimeConfig{}, auth, roster, chat, service.NewContactService(&rootFriendRequester{}))
+	client := &fakeIMClient{loginErr: context.DeadlineExceeded}
+	model := NewRootModel(config.RuntimeConfig{}, client)
 	model.login.inputs[0].SetValue("user-1")
 
 	updated, cmd := model.Update(LoginSubmittedMsg{})
@@ -69,16 +65,13 @@ func TestRootModelLoginErrorShowsToast(t *testing.T) {
 }
 
 func TestRootModelReconnectCommand(t *testing.T) {
-	auth := service.NewAuthService(&rootAccessTokenIssuer{token: "token-1"}, &rootTicketIssuer{ticket: domain.WsTicket{Ticket: "ticket-1"}}, &rootConnector{userID: "user-1"})
-	roster := service.NewRosterService(&rootRosterClient{})
-	chat := service.NewChatService(&rootChatSender{}, &rootRosterClient{})
-	contacts := service.NewContactService(&rootFriendRequester{})
-	model := NewRootModel(config.RuntimeConfig{
-		TCPAddr:  "127.0.0.1:9000",
-		DeviceID: "device-1",
-		Platform: "desktop",
-	}, auth, roster, chat, contacts)
-	model.token = "token-1"
+	client := &fakeIMClient{
+		currentUserID: "user-1",
+		events:        make(chan sdktypes.Event, 1),
+	}
+	model := NewRootModel(config.RuntimeConfig{}, client)
+	model.appStore.SetCurrentUserID("user-1")
+	model.appStore.SetConnectionStatus(domain.ConnectionStatusConnected)
 
 	updated, cmd := model.Update(ReconnectMsg{})
 	model = updated.(RootModel)
@@ -88,36 +81,44 @@ func TestRootModelReconnectCommand(t *testing.T) {
 }
 
 func TestRootModelOpenConversationLoadsHistory(t *testing.T) {
-	auth := service.NewAuthService(&rootAccessTokenIssuer{token: "token-1"}, &rootTicketIssuer{ticket: domain.WsTicket{Ticket: "ticket-1"}}, &rootConnector{userID: "user-1"})
-	historyClient := &rootRosterClient{
-		history: []domain.HistoryMessage{{ServerMsgID: "server-1", SenderID: "user-2", Content: "hello"}},
+	client := &fakeIMClient{
+		currentUserID: "user-1",
+		history: []sdktypes.Message{{
+			Sequence:    11,
+			ServerMsgID: "server-1",
+			SenderID:    "user-2",
+			Content:     []byte("hello"),
+		}},
+		events: make(chan sdktypes.Event, 1),
 	}
-	roster := service.NewRosterService(historyClient)
-	chat := service.NewChatService(&rootChatSender{}, historyClient)
-	model := NewRootModel(config.RuntimeConfig{}, auth, roster, chat, service.NewContactService(&rootFriendRequester{}))
-	model.token = "token-1"
+	model := NewRootModel(config.RuntimeConfig{}, client)
+	model.appStore.SetCurrentUserID("user-1")
 	model.appStore.SetConnectionStatus(domain.ConnectionStatusConnected)
 
-	updated, cmd := model.Update(OpenConversationMsg{ConversationID: "c1:user-1:user-2"})
+	updated, cmd := model.Update(OpenConversationMsg{ConversationID: "s:user-1:user-2"})
 	model = updated.(RootModel)
 	msg := cmd()
 	updated, _ = model.Update(msg)
 	model = updated.(RootModel)
 
-	if model.appStore.ActiveConversation != "c1:user-1:user-2" {
+	if model.appStore.ActiveConversation != "s:user-1:user-2" {
 		t.Fatalf("active conversation = %q", model.appStore.ActiveConversation)
 	}
-	if len(model.appStore.MessagesByConv["c1:user-1:user-2"]) != 1 {
+	if len(model.appStore.MessagesByConv["s:user-1:user-2"]) != 1 {
 		t.Fatalf("messages = %#v", model.appStore.MessagesByConv)
+	}
+	if client.markReadConversation != "s:user-1:user-2" || client.markReadSeq != 11 {
+		t.Fatalf("mark read = %q %d", client.markReadConversation, client.markReadSeq)
 	}
 }
 
 func TestRootModelOpenConversationErrorDoesNotReturnToLogin(t *testing.T) {
-	auth := service.NewAuthService(&rootAccessTokenIssuer{token: "token-1"}, &rootTicketIssuer{ticket: domain.WsTicket{Ticket: "ticket-1"}}, &rootConnector{userID: "user-1"})
-	roster := service.NewRosterService(&rootRosterClient{})
-	chat := service.NewChatService(&rootChatSender{}, &errorHistoryClient{err: context.DeadlineExceeded})
-	model := NewRootModel(config.RuntimeConfig{}, auth, roster, chat, service.NewContactService(&rootFriendRequester{}))
-	model.token = "token-1"
+	client := &fakeIMClient{
+		currentUserID: "user-1",
+		openErr:       context.DeadlineExceeded,
+		events:        make(chan sdktypes.Event, 1),
+	}
+	model := NewRootModel(config.RuntimeConfig{}, client)
 	model.appStore.SetCurrentUserID("user-1")
 	model.appStore.SetConnectionStatus(domain.ConnectionStatusConnected)
 
@@ -146,13 +147,18 @@ func TestNewRequestIDStaysWithinTcpLimit(t *testing.T) {
 }
 
 func TestRootModelSubmitInputSendsMessage(t *testing.T) {
-	chatSender := &rootChatSender{}
-	chat := service.NewChatService(chatSender, &rootRosterClient{})
-	model := NewRootModel(config.RuntimeConfig{}, service.NewAuthService(&rootAccessTokenIssuer{}, &rootTicketIssuer{}, &rootConnector{}), service.NewRosterService(&rootRosterClient{}), chat, service.NewContactService(&rootFriendRequester{}))
+	client := &fakeIMClient{
+		currentUserID: "user-1",
+		sendResult: sdktypes.Message{
+			ClientMsgID: "client-1",
+			SenderID:    "user-1",
+			Content:     []byte("hello"),
+		},
+	}
+	model := NewRootModel(config.RuntimeConfig{}, client)
 	model.appStore.SetCurrentUserID("user-1")
 	model.appStore.SetActiveConversation("s:user-1:user-2")
 	model.appStore.SetConnectionStatus(domain.ConnectionStatusConnected)
-	model.token = "token-1"
 
 	updated, cmd := model.Update(SubmitInputMsg{Text: "hello"})
 	model = updated.(RootModel)
@@ -163,15 +169,15 @@ func TestRootModelSubmitInputSendsMessage(t *testing.T) {
 	if len(model.appStore.MessagesByConv["s:user-1:user-2"]) != 1 {
 		t.Fatalf("messages = %#v", model.appStore.MessagesByConv)
 	}
-	if chatSender.message == nil || chatSender.message.GetReceiverId() != "user-2" || string(chatSender.message.GetContent()) != "hello" {
-		t.Fatalf("outbound message = %#v", chatSender.message)
+	if client.sentConversationID != "s:user-1:user-2" || string(client.sentText) != "hello" {
+		t.Fatalf("send = %#v", client)
 	}
 }
 
 func TestRootModelSubmitInputAddFriend(t *testing.T) {
-	requester := &rootFriendRequester{}
-	model := NewRootModel(config.RuntimeConfig{}, service.NewAuthService(&rootAccessTokenIssuer{}, &rootTicketIssuer{}, &rootConnector{}), service.NewRosterService(&rootRosterClient{}), service.NewChatService(&rootChatSender{}, &rootRosterClient{}), service.NewContactService(requester))
-	model.token = "token-1"
+	client := &fakeIMClient{}
+	model := NewRootModel(config.RuntimeConfig{}, client)
+	model.appStore.SetCurrentUserID("user-1")
 	model.appStore.SetConnectionStatus(domain.ConnectionStatusConnected)
 
 	updated, cmd := model.Update(SubmitInputMsg{Text: "/addfriend user-2 hi there"})
@@ -180,8 +186,8 @@ func TestRootModelSubmitInputAddFriend(t *testing.T) {
 	updated, _ = model.Update(msg)
 	model = updated.(RootModel)
 
-	if requester.friendUserID != "user-2" || requester.message != "hi there" || requester.accessToken != "token-1" {
-		t.Fatalf("requester = %#v", requester)
+	if client.addFriendUserID != "user-2" || client.addFriendMessage != "hi there" {
+		t.Fatalf("client = %#v", client)
 	}
 	if model.appStore.Toast.Kind != domain.ToastKindSuccess {
 		t.Fatalf("toast = %#v", model.appStore.Toast)
@@ -189,21 +195,17 @@ func TestRootModelSubmitInputAddFriend(t *testing.T) {
 }
 
 func TestRootModelRealtimeMessageAppendsToConversation(t *testing.T) {
-	connector := &rootConnector{events: make(chan tcpim.Event, 1)}
-	auth := service.NewAuthService(&rootAccessTokenIssuer{}, &rootTicketIssuer{}, connector)
-	chat := service.NewChatService(&rootChatSender{}, &rootRosterClient{})
-	model := NewRootModel(config.RuntimeConfig{}, auth, service.NewRosterService(&rootRosterClient{}), chat, service.NewContactService(&rootFriendRequester{}))
-	model.token = "token-1"
+	client := &fakeIMClient{}
+	model := NewRootModel(config.RuntimeConfig{}, client)
 	model.appStore.SetCurrentUserID("user-1")
 	model.appStore.SetConnectionStatus(domain.ConnectionStatusConnected)
 
-	updated, _ := model.Update(realtimeEventMsg{event: tcpim.Event{
-		Kind: tcpim.EventMessage,
-		Message: &pb.ProtoMessage{
-			ServerMsgId: "server-1",
-			SenderId:    "user-2",
-			ReceiverId:  "user-1",
-			SessionType: 1,
+	updated, _ := model.Update(realtimeEventMsg{event: sdktypes.Event{
+		Kind:           sdktypes.EventKindRealtime,
+		ConversationID: "s:user-1:user-2",
+		Message: &sdktypes.Message{
+			ServerMsgID: "server-1",
+			SenderID:    "user-2",
 			Content:     []byte("hello"),
 		},
 	}})
@@ -219,113 +221,140 @@ func TestRootModelRealtimeMessageAppendsToConversation(t *testing.T) {
 }
 
 func TestRootModelLoginSuccessStartsRealtimeListener(t *testing.T) {
-	events := make(chan tcpim.Event, 1)
-	auth := service.NewAuthService(&rootAccessTokenIssuer{}, &rootTicketIssuer{}, &rootConnector{events: events})
-	model := NewRootModel(config.RuntimeConfig{}, auth, service.NewRosterService(&rootRosterClient{}), service.NewChatService(&rootChatSender{}, &rootRosterClient{}), service.NewContactService(&rootFriendRequester{}))
+	events := make(chan sdktypes.Event, 1)
+	client := &fakeIMClient{
+		currentUserID: "user-1",
+		events:        events,
+	}
+	model := NewRootModel(config.RuntimeConfig{}, client)
 
 	updated, cmd := model.Update(loginSuccessMsg{
-		userID: "user-1",
-		token:  "token-1",
-		data:   service.InitialData{},
+		data: sdktypes.BootstrapData{},
 	})
 	model = updated.(RootModel)
 	if cmd == nil {
 		t.Fatal("login success cmd is nil")
 	}
 
-	events <- tcpim.Event{Kind: tcpim.EventDisconnect}
+	events <- sdktypes.Event{Kind: sdktypes.EventKindDisconnected}
 	msg := cmd()
 	realtime, ok := msg.(realtimeEventMsg)
-	if !ok || realtime.event.Kind != tcpim.EventDisconnect {
+	if !ok || realtime.event.Kind != sdktypes.EventKindDisconnected {
 		t.Fatalf("msg = %#v, want realtime disconnect", msg)
 	}
 }
 
-type rootTicketIssuer struct {
-	ticket domain.WsTicket
-	err    error
+type fakeIMClient struct {
+	currentUserID       string
+	loginData           sdktypes.BootstrapData
+	loginErr            error
+	reconnectData       sdktypes.BootstrapData
+	reconnectErr        error
+	history             []sdktypes.Message
+	openErr             error
+	sendResult          sdktypes.Message
+	sendErr             error
+	sentConversationID  string
+	sentText            string
+	addFriendUserID     string
+	addFriendMessage    string
+	addFriendErr        error
+	markReadConversation string
+	markReadSeq         int64
+	markReadErr         error
+	events              chan sdktypes.Event
 }
 
-func (r *rootTicketIssuer) IssueWsTicket(context.Context, string, string, string) (domain.WsTicket, error) {
-	return r.ticket, r.err
+func (f *fakeIMClient) Login(context.Context, string, string) (sdktypes.BootstrapData, error) {
+	return f.loginData, f.loginErr
 }
 
-type rootAccessTokenIssuer struct {
-	token string
-	err   error
+func (f *fakeIMClient) Reconnect(context.Context) (sdktypes.BootstrapData, error) {
+	return f.reconnectData, f.reconnectErr
 }
 
-func (r *rootAccessTokenIssuer) Login(context.Context, string, string, int, string, string) (string, error) {
-	return r.token, r.err
+func (f *fakeIMClient) OpenConversation(context.Context, string, int) ([]sdktypes.Message, error) {
+	if f.openErr != nil {
+		return nil, f.openErr
+	}
+	return f.history, nil
 }
 
-type rootConnector struct {
-	userID string
-	err    error
-	events chan tcpim.Event
+func (f *fakeIMClient) SendText(_ string, conversationID, text string) (sdktypes.Message, error) {
+	f.sentConversationID = conversationID
+	f.sentText = text
+	return f.sendResult, f.sendErr
 }
 
-func (r *rootConnector) Connect(context.Context, string, string) (string, error) {
-	return r.userID, r.err
+func (f *fakeIMClient) AddFriend(_ context.Context, friendUserID, message string) error {
+	f.addFriendUserID = friendUserID
+	f.addFriendMessage = message
+	return f.addFriendErr
 }
 
-func (r *rootConnector) Events() <-chan tcpim.Event {
-	return r.events
+func (f *fakeIMClient) MarkRead(_ context.Context, conversationID string, readSeq int64) (sdktypes.ReadSnapshot, error) {
+	f.markReadConversation = conversationID
+	f.markReadSeq = readSeq
+	return sdktypes.ReadSnapshot{ConversationID: conversationID, ReadSeq: readSeq}, f.markReadErr
 }
 
-type rootRosterClient struct {
-	friends       []domain.FriendSummary
-	groups        []domain.GroupSummary
-	conversations []domain.ConversationSummary
-	history       []domain.HistoryMessage
+func (f *fakeIMClient) Events() <-chan sdktypes.Event {
+	return f.events
 }
 
-func (r *rootRosterClient) ListFriends(context.Context, string) ([]domain.FriendSummary, error) {
-	return r.friends, nil
+func (f *fakeIMClient) CurrentUserID() string {
+	return f.currentUserID
 }
 
-func (r *rootRosterClient) ListGroups(context.Context, string) ([]domain.GroupSummary, error) {
-	return r.groups, nil
+var _ IMClient = (*fakeIMClient)(nil)
+
+func TestRootModelHandlesRealtimeError(t *testing.T) {
+	client := &fakeIMClient{}
+	model := NewRootModel(config.RuntimeConfig{}, client)
+	model.appStore.SetCurrentUserID("user-1")
+	model.appStore.SetConnectionStatus(domain.ConnectionStatusConnected)
+
+	updated, _ := model.Update(realtimeEventMsg{event: sdktypes.Event{
+		Kind: sdktypes.EventKindError,
+		Err:  errors.New("boom"),
+	}})
+	model = updated.(RootModel)
+
+	if model.appStore.Toast.Message != "boom" {
+		t.Fatalf("toast = %#v", model.appStore.Toast)
+	}
 }
 
-func (r *rootRosterClient) ListConversations(context.Context, string) ([]domain.ConversationSummary, error) {
-	return r.conversations, nil
+func TestRootModelDisconnectDoesNotReturnToLogin(t *testing.T) {
+	client := &fakeIMClient{currentUserID: "user-1"}
+	model := NewRootModel(config.RuntimeConfig{}, client)
+	model.appStore.SetCurrentUserID("user-1")
+	model.appStore.SetConnectionStatus(domain.ConnectionStatusConnected)
+
+	updated, _ := model.Update(realtimeEventMsg{event: sdktypes.Event{
+		Kind: sdktypes.EventKindDisconnected,
+	}})
+	model = updated.(RootModel)
+
+	if model.appStore.ConnectionStatus != domain.ConnectionStatusDisconnected {
+		t.Fatalf("status = %q, want disconnected", model.appStore.ConnectionStatus)
+	}
+	if strings.Contains(model.View(), "User ID") {
+		t.Fatalf("view = %q, want app without login panel", model.View())
+	}
+	if !strings.Contains(model.View(), "状态: disconnected") {
+		t.Fatalf("view = %q, want disconnected status", model.View())
+	}
 }
 
-func (r *rootRosterClient) LoadHistoryPage(context.Context, string, string, int) ([]domain.HistoryMessage, error) {
-	return r.history, nil
-}
-
-type rootChatSender struct {
-	requestID string
-	message   *pb.ProtoMessage
-	err       error
-}
-
-func (r *rootChatSender) SendChatMessage(requestID string, message *pb.ProtoMessage) error {
-	r.requestID = requestID
-	r.message = message
-	return r.err
-}
-
-type rootFriendRequester struct {
-	accessToken  string
-	friendUserID string
-	message      string
-	err          error
-}
-
-func (r *rootFriendRequester) AddFriend(_ context.Context, accessToken, friendUserID, message string) error {
-	r.accessToken = accessToken
-	r.friendUserID = friendUserID
-	r.message = message
-	return r.err
-}
-
-type errorHistoryClient struct {
-	err error
-}
-
-func (e *errorHistoryClient) LoadHistoryPage(context.Context, string, string, int) ([]domain.HistoryMessage, error) {
-	return nil, e.err
+func TestRootModelLoginInputReceivesTypedCharacters(t *testing.T) {
+	// t/l 等字母在登录态应直接录入输入框，而非触发全局快捷键
+	model := NewRootModel(config.RuntimeConfig{}, &fakeIMClient{})
+	for _, ch := range []rune{'l', 't'} {
+		updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
+		model = updated.(RootModel)
+	}
+	if model.login.inputs[0].Value() != "lt" {
+		t.Fatalf("input = %q, want \"lt\"", model.login.inputs[0].Value())
+	}
 }

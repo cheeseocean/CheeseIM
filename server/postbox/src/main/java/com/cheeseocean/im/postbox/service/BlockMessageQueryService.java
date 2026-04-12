@@ -59,7 +59,7 @@ public class BlockMessageQueryService {
      */
     public List<AttachmentMessageCandidate> findAttachmentCandidates(String attachmentId, int limit) {
         if (attachmentId == null || attachmentId.isBlank()) {
-            return List.of();
+            return new ArrayList<>();
         }
         Query query = new Query()
                 .addCriteria(Criteria.where("content").regex(attachmentId))

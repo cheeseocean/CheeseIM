@@ -10,6 +10,7 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -100,7 +101,7 @@ public class FriendshipRepositoryImpl implements FriendshipRepository {
     @Override
     public List<Friendship> findFriends(String ownerUserId, List<String> friendUserIds) {
         if (isBlank(ownerUserId) || friendUserIds == null || friendUserIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         Query query = Query.query(
                 Criteria.where("ownerUserId").is(ownerUserId).and("friendUserId").in(friendUserIds)
@@ -113,7 +114,7 @@ public class FriendshipRepositoryImpl implements FriendshipRepository {
     @Override
     public List<Friendship> findReverseFriends(String friendUserId, List<String> ownerUserIds) {
         if (isBlank(friendUserId) || ownerUserIds == null || ownerUserIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         Query query = Query.query(
                 Criteria.where("friendUserId").is(friendUserId).and("ownerUserId").in(ownerUserIds)

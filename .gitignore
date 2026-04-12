@@ -10,6 +10,7 @@ server/build/
 server/.idea/
 server/out/
 server/target/
+server/bootstrap-all/data
 */build
 */*/build
 */*/out

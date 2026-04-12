@@ -2,6 +2,7 @@ package com.cheeseocean.im.apiserver.controller;
 
 import com.cheeseocean.im.apiserver.auth.AccessTokenSessionResolver;
 import com.cheeseocean.im.apiserver.auth.CurrentPrincipalArgumentResolver;
+import com.cheeseocean.im.apiserver.exception.ApiExceptionHandler;
 import com.cheeseocean.im.apiserver.facade.FriendFacade;
 import com.cheeseocean.im.apiserver.model.request.HandleFriendRequestRequest;
 import com.cheeseocean.im.apiserver.model.request.SendFriendRequestRequest;

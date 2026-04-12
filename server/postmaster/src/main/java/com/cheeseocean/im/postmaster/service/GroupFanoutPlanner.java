@@ -22,7 +22,7 @@ public class GroupFanoutPlanner {
         }
         for (int start = 0; start < memberIds.size(); start += batchSize) {
             int end = Math.min(start + batchSize, memberIds.size());
-            batches.add(List.copyOf(memberIds.subList(start, end)));
+            batches.add(new ArrayList<>(memberIds.subList(start, end)));
         }
         return batches;
     }

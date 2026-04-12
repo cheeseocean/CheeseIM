@@ -97,9 +97,9 @@ public class RocksDbSupport implements Closeable {
     public synchronized Set<String> members(String key) {
         SetValue setValue = get(key, SetValue.class);
         if (setValue == null || setValue.members() == null) {
-            return Set.of();
+            return new LinkedHashSet<>();
         }
-        return Set.copyOf(setValue.members());
+        return new LinkedHashSet<>(setValue.members());
     }
 
     @Override

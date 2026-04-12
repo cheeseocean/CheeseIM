@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -37,10 +38,10 @@ public class ConversationLastMessageQueryServiceImpl implements ConversationLast
             }
         }
         if (dedupedIds.isEmpty()) {
-            return Map.of();
+            return new LinkedHashMap<>();
         }
 
-        Map<String, String> rawSummaries = conversationStateStore.getLastMessageSummaries(List.copyOf(dedupedIds));
+        Map<String, String> rawSummaries = conversationStateStore.getLastMessageSummaries(new ArrayList<>(dedupedIds));
         Map<String, ConversationLastMessageSummary> result = new LinkedHashMap<>();
         for (Map.Entry<String, String> entry : rawSummaries.entrySet()) {
             if (entry.getValue() == null || entry.getValue().isBlank()) {

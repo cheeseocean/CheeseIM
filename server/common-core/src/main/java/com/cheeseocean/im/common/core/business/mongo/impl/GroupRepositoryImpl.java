@@ -15,6 +15,8 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -39,7 +41,7 @@ public class GroupRepositoryImpl implements GroupRepository {
     @Override
     public List<Group> findByIds(List<String> groupIds) {
         if (groupIds == null || groupIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         Query query = Query.query(Criteria.where("_id").in(groupIds));
         return mongoTemplate.find(query, GroupDoc.class).stream().map(this::toDomain).toList();
@@ -91,7 +93,9 @@ public class GroupRepositoryImpl implements GroupRepository {
 
     @Override
     public void updateStatus(String groupId, int status) {
-        updateFields(groupId, Map.of("status", status));
+        Map<String, Object> fields = new LinkedHashMap<>();
+        fields.put("status", status);
+        updateFields(groupId, fields);
     }
 
     @Override
@@ -110,7 +114,7 @@ public class GroupRepositoryImpl implements GroupRepository {
     @Override
     public List<String> findJoinSortedGroupIds(List<String> groupIds) {
         if (groupIds == null || groupIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         // 已加入群列表按群名 + 创建时间稳定排序，方便客户端复用。
         Query query = buildSearchQuery(null, groupIds)
@@ -122,7 +126,7 @@ public class GroupRepositoryImpl implements GroupRepository {
     @Override
     public List<Group> pageJoinedGroups(List<String> groupIds, String keyword, int limit, int offset) {
         if (groupIds == null || groupIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         Query query = buildSearchQuery(keyword, groupIds)
                 .with(PageRequest.of(Math.max(0, offset) / pageSize(limit), pageSize(limit),

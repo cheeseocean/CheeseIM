@@ -24,10 +24,14 @@ import static org.mockito.Mockito.verify;
 
 class MessageStateServiceTest {
 
+    private static MessageStateService newService(ConversationStateStore store) {
+        return new MessageStateService(store, new ObjectMapper(), mock(UserMaxSeqPersistenceWriter.class));
+    }
+
     @Test
     void applyShouldPersistTypedConversationLastMessageSummary() throws Exception {
         ConversationStateStore conversationStateStore = mock(ConversationStateStore.class);
-        MessageStateService service = new MessageStateService(conversationStateStore, new ObjectMapper());
+        MessageStateService service = newService(conversationStateStore);
 
         service.apply(systemNotificationMessage(9L), List.of("userB"));
 
@@ -48,7 +52,7 @@ class MessageStateServiceTest {
     @Test
     void applyShouldIncrementUnreadForRecipientsOnly() {
         ConversationStateStore conversationStateStore = mock(ConversationStateStore.class);
-        MessageStateService service = new MessageStateService(conversationStateStore, new ObjectMapper());
+        MessageStateService service = newService(conversationStateStore);
 
         service.apply(systemNotificationMessage(9L), List.of("userB"));
 
@@ -58,7 +62,7 @@ class MessageStateServiceTest {
     @Test
     void processReadReceiptsShouldWriteReadSeqToRedis() {
         ConversationStateStore store = mock(ConversationStateStore.class);
-        MessageStateService service = new MessageStateService(store, new ObjectMapper());
+        MessageStateService service = newService(store);
 
         service.processReadReceipts(List.of(readReceiptMessage(
                 "userA", "userB", "{\"conversationId\":\"s:userA:userB\",\"seq\":42}".getBytes(StandardCharsets.UTF_8))));
@@ -69,7 +73,7 @@ class MessageStateServiceTest {
     @Test
     void processReadReceiptsShouldAggregateToMaxSeqPerUserConversation() {
         ConversationStateStore store = mock(ConversationStateStore.class);
-        MessageStateService service = new MessageStateService(store, new ObjectMapper());
+        MessageStateService service = newService(store);
 
         service.processReadReceipts(List.of(
                 readReceiptMessage("userA", "userB", "{\"conversationId\":\"s:userA:userB\",\"seq\":10}".getBytes(StandardCharsets.UTF_8)),
@@ -83,7 +87,7 @@ class MessageStateServiceTest {
     @Test
     void applyBatchShouldAggregateUnreadAndReadSeq() {
         ConversationStateStore store = mock(ConversationStateStore.class);
-        MessageStateService service = new MessageStateService(store, new ObjectMapper());
+        MessageStateService service = newService(store);
 
         Message first = directTextMessage("userA", "userB", 5L, "hello");
         Message second = directTextMessage("userA", "userB", 6L, "world");

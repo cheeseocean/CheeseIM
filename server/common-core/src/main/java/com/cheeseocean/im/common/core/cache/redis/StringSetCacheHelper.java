@@ -29,7 +29,7 @@ public final class StringSetCacheHelper {
             return cached.stream().map(String::valueOf).toList();
         }
         if (Boolean.TRUE.equals(redisTemplate.hasKey(loadedKey))) {
-            return List.of();
+            return new ArrayList<>();
         }
 
         List<String> loaded = new ArrayList<>(dbLoader.get());

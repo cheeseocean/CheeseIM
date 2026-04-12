@@ -42,7 +42,7 @@ public class RedisSessionStateStore implements SessionStateStore {
     public List<SessionPrincipal> findByUserId(String userId) {
         Set<Object> sessionIds = redisTemplate.opsForSet().members(RedisKeys.userSessions(userId));
         if (sessionIds == null || sessionIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         List<SessionPrincipal> sessions = new ArrayList<>();
         for (Object sessionId : sessionIds) {

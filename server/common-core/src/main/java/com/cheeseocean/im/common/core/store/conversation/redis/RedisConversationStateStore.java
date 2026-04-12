@@ -40,8 +40,18 @@ public class RedisConversationStateStore implements ConversationStateStore {
     }
 
     @Override
+    public Long getUserMaxSeq(String userId, String conversationId) {
+        return parseLong(redisTemplate.opsForValue().get(RedisKeys.userMaxSeq(userId, conversationId)));
+    }
+
+    @Override
     public void setUserReadSeq(String userId, String conversationId, long seq) {
         redisTemplate.opsForValue().set(RedisKeys.userReadSeq(userId, conversationId), String.valueOf(seq));
+    }
+
+    @Override
+    public Long getUserReadSeq(String userId, String conversationId) {
+        return parseLong(redisTemplate.opsForValue().get(RedisKeys.userReadSeq(userId, conversationId)));
     }
 
     @Override
@@ -62,6 +72,14 @@ public class RedisConversationStateStore implements ConversationStateStore {
     }
 
     @Override
+    public void setUnread(String userId, String conversationId, int unreadCount) {
+        redisTemplate.opsForValue().set(
+                RedisKeys.userUnread(userId, conversationId),
+                String.valueOf(Math.max(unreadCount, 0))
+        );
+    }
+
+    @Override
     public void setLastMessageSummary(String conversationId, String summary) {
         redisTemplate.opsForValue().set(RedisKeys.convLastMsg(conversationId), summary);
     }
@@ -74,7 +92,7 @@ public class RedisConversationStateStore implements ConversationStateStore {
     @Override
     public Map<String, String> getLastMessageSummaries(List<String> conversationIds) {
         if (conversationIds == null || conversationIds.isEmpty()) {
-            return Map.of();
+            return new LinkedHashMap<>();
         }
         List<String> ids = new ArrayList<>();
         for (String conversationId : conversationIds) {
@@ -83,7 +101,7 @@ public class RedisConversationStateStore implements ConversationStateStore {
             }
         }
         if (ids.isEmpty()) {
-            return Map.of();
+            return new LinkedHashMap<>();
         }
         List<String> keys = ids.stream().map(RedisKeys::convLastMsg).toList();
         List<String> values = redisTemplate.opsForValue().multiGet(keys);

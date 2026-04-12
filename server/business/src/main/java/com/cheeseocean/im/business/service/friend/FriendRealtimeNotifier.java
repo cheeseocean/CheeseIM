@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -70,16 +71,16 @@ public class FriendRealtimeNotifier {
         for (String recipientUserId : targets) {
             FriendRelationEvent event = buildEvent(recipientUserId, notificationType, actorUserId, targetUserId, now);
             try {
+                Map<String, String> attributes = new LinkedHashMap<>();
+                attributes.put("actorUserId", actorUserId);
+                attributes.put("peerUserId", event.getPeerUserId());
                 notificationSender.sendToUser(
                         actorUserId,
                         recipientUserId,
                         ContentType.SYSTEM_NOTIFY,
                         notificationType,
                         event,
-                        Map.of(
-                                "actorUserId", actorUserId,
-                                "peerUserId", event.getPeerUserId()
-                        )
+                        attributes
                 );
             } catch (RuntimeException ex) {
                 log.warn(

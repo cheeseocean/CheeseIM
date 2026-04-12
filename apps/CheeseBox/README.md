@@ -1,5 +1,12 @@
 # CheeseBox
 
-CheeseBox is the Go TUI client for CheeseIM.
+CheeseBox is the Bubble Tea TUI client for CheeseIM.
 
-This task bootstraps the module, shared config, and domain model only.
+It now consumes the reusable Go IM SDK in `sdks/go` for:
+- login and ws-ticket auth
+- TCP realtime messaging
+- seq-based history sync
+- reconnect sync and gap repair
+- friend/group/conversation queries
+
+CheeseBox itself only keeps app-specific state and UI rendering.

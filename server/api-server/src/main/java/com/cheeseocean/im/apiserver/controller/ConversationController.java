@@ -2,18 +2,24 @@ package com.cheeseocean.im.apiserver.controller;
 
 import com.cheeseocean.im.apiserver.facade.ConversationFacade;
 import com.cheeseocean.im.apiserver.model.request.BatchGetConversationsRequest;
+import com.cheeseocean.im.apiserver.model.request.AckReadSeqRequest;
 import com.cheeseocean.im.apiserver.model.request.GetConversationRequest;
 import com.cheeseocean.im.apiserver.model.request.ListConversationMessagesRequest;
 import com.cheeseocean.im.apiserver.model.request.ListConversationsRequest;
+import com.cheeseocean.im.apiserver.model.request.PullMessagesRequest;
 import com.cheeseocean.im.apiserver.model.request.SetConversationsRequest;
 import com.cheeseocean.im.apiserver.model.response.ConversationIdsHashResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationIdsResponse;
+import com.cheeseocean.im.apiserver.model.response.ConversationMaxSeqResponse;
+import com.cheeseocean.im.apiserver.model.response.ConversationReadSnapshotResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationResponse;
 import com.cheeseocean.im.apiserver.model.response.HistoryMessageResponse;
+import com.cheeseocean.im.apiserver.model.response.PullMessagesResponse;
 import com.cheeseocean.im.common.api.dto.conversation.SetConversationRequest;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -71,6 +77,18 @@ public class ConversationController {
         return conversationFacade.getConversationIdsHash(session);
     }
 
+    @GetMapping("/max-seqs")
+    public List<ConversationMaxSeqResponse> getConversationMaxSeqs(SessionPrincipal session,
+                                                                   @RequestParam(required = false) List<String> conversationIds) {
+        return conversationFacade.getConversationMaxSeqs(session, conversationIds);
+    }
+
+    @GetMapping("/read-snapshots")
+    public List<ConversationReadSnapshotResponse> getConversationReadSnapshots(SessionPrincipal session,
+                                                                               @RequestParam(required = false) List<String> conversationIds) {
+        return conversationFacade.getConversationReadSnapshots(session, conversationIds);
+    }
+
     @GetMapping("/not-notify")
     public ConversationIdsResponse getNotNotifyConversationIds(SessionPrincipal session) {
         return conversationFacade.getNotNotifyConversationIds(session);
@@ -87,6 +105,19 @@ public class ConversationController {
         SetConversationsRequest request = new SetConversationsRequest();
         request.setPayload(payload);
         conversationFacade.setConversations(session, request);
+    }
+
+    @PostMapping("/sync/pull")
+    public PullMessagesResponse pullMessages(SessionPrincipal session,
+                                             @RequestBody PullMessagesRequest request) {
+        return conversationFacade.pullMessages(session, request);
+    }
+
+    @PutMapping("/{conversationId}/read-seq")
+    public void ackReadSeq(SessionPrincipal session,
+                           @PathVariable String conversationId,
+                           @RequestBody AckReadSeqRequest request) {
+        conversationFacade.ackReadSeq(session, conversationId, request);
     }
 
     @GetMapping("/{conversationId}/messages")

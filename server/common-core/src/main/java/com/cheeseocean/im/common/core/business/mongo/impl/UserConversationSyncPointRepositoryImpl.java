@@ -83,11 +83,11 @@ public class UserConversationSyncPointRepositoryImpl implements UserConversation
     @Override
     public Map<String, Long> getReadSeqMap(String userId, List<String> conversationIds) {
         if (conversationIds == null || conversationIds.isEmpty()) {
-            return Map.of();
+            return new LinkedHashMap<>();
         }
         List<String> dedupedIds = dedupeConversationIds(conversationIds);
         if (dedupedIds.isEmpty()) {
-            return Map.of();
+            return new LinkedHashMap<>();
         }
         // 缺失记录按 0L 填充，调用方不需要再自己补默认值。
         Map<String, Long> readSeqMap = dedupedIds.stream()
@@ -113,11 +113,11 @@ public class UserConversationSyncPointRepositoryImpl implements UserConversation
     @Override
     public List<UserConversationSyncPoint> findByIds(String userId, List<String> conversationIds) {
         if (conversationIds == null || conversationIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         List<String> dedupedIds = dedupeConversationIds(conversationIds);
         if (dedupedIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         // 保留入参顺序，便于上层按原会话列表回填未读/水位信息。
         Query query = Query.query(Criteria.where("userId").is(userId).and("conversationId").in(dedupedIds));
@@ -133,7 +133,7 @@ public class UserConversationSyncPointRepositoryImpl implements UserConversation
         return dedupedIds.stream()
                 .map(syncPointMap::get)
                 .filter(Objects::nonNull)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override
@@ -141,7 +141,7 @@ public class UserConversationSyncPointRepositoryImpl implements UserConversation
         Query query = Query.query(Criteria.where("userId").is(userId));
         return mongoTemplate.find(query, UserConversationSyncPointDoc.class).stream()
                 .map(this::toDomain)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     private void upsertSeqField(

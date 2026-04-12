@@ -1,5 +1,6 @@
 package com.cheeseocean.im.apiserver.controller;
 
+import com.cheeseocean.im.apiserver.exception.ApiExceptionHandler;
 import com.cheeseocean.im.authcenter.model.AuthLoginRequest;
 import com.cheeseocean.im.authcenter.model.AuthRefreshRequest;
 import com.cheeseocean.im.authcenter.model.AuthResponse;

@@ -1,5 +1,6 @@
 package com.cheeseocean.im.apiserver.controller;
 
+import com.cheeseocean.im.apiserver.exception.ApiExceptionHandler;
 import com.cheeseocean.im.authcenter.session.SessionIssueServiceImpl;
 import com.cheeseocean.im.common.api.dto.user.WsTicketPrincipal;
 import org.junit.jupiter.api.BeforeEach;

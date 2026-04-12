@@ -14,7 +14,11 @@ public interface ConversationStateStore {
 
     void setUserMaxSeq(String userId, String conversationId, long seq);
 
+    Long getUserMaxSeq(String userId, String conversationId);
+
     void setUserReadSeq(String userId, String conversationId, long seq);
+
+    Long getUserReadSeq(String userId, String conversationId);
 
     void incrementUnread(String userId, String conversationId);
 
@@ -27,13 +31,15 @@ public interface ConversationStateStore {
 
     int getUnread(String userId, String conversationId);
 
+    void setUnread(String userId, String conversationId, int unreadCount);
+
     void setLastMessageSummary(String conversationId, String summary);
 
     String getLastMessageSummary(String conversationId);
 
     default Map<String, String> getLastMessageSummaries(List<String> conversationIds) {
         if (conversationIds == null || conversationIds.isEmpty()) {
-            return Map.of();
+            return new LinkedHashMap<>();
         }
         Map<String, String> result = new LinkedHashMap<>();
         for (String conversationId : conversationIds) {

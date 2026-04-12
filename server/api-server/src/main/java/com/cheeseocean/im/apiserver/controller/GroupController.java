@@ -69,6 +69,6 @@ public class GroupController {
         return null;
     }
 
-    public record GroupSummaryResponse(String groupId, String groupName, String faceUrl) {
+    public record GroupSummaryResponse(String groupId, String groupName, String avatarUrl) {
     }
 }

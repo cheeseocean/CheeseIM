@@ -11,10 +11,12 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 
+import java.util.ArrayList;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * {@link UserConversationRepository} 的 MongoDB 实现。
@@ -101,7 +103,7 @@ public class UserConversationRepositoryImpl implements UserConversationRepositor
                 .filter(Objects::nonNull)
                 .filter(ownerUserId -> !ownerUserId.isBlank())
                 .map(ownerUserId -> docId(ownerUserId, conversationId))
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
         if (docIds.isEmpty()) {
             return;
         }
@@ -130,26 +132,26 @@ public class UserConversationRepositoryImpl implements UserConversationRepositor
                 .with(Sort.by(Sort.Direction.DESC, "updatedAt"));
         return mongoTemplate.find(query, UserConversationDoc.class).stream()
                 .map(this::toDomain)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override
     public List<UserConversation> findByIds(String ownerUserId, List<String> conversationIds) {
         if (isBlank(ownerUserId) || conversationIds == null || conversationIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         List<String> docIds = conversationIds.stream()
                 .filter(Objects::nonNull)
                 .filter(conversationId -> !conversationId.isBlank())
                 .map(conversationId -> docId(ownerUserId, conversationId))
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
         if (docIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         Query query = Query.query(Criteria.where("_id").in(docIds));
         return mongoTemplate.find(query, UserConversationDoc.class).stream()
                 .map(this::toDomain)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override
@@ -158,41 +160,41 @@ public class UserConversationRepositoryImpl implements UserConversationRepositor
         query.fields().include("conversationId");
         return mongoTemplate.find(query, UserConversationDoc.class).stream()
                 .map(UserConversationDoc::getConversationId)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override
     public List<String> findExistingOwnerUserIds(List<String> ownerUserIds, String conversationId) {
         if (ownerUserIds == null || ownerUserIds.isEmpty() || isBlank(conversationId)) {
-            return List.of();
+            return new ArrayList<>();
         }
         List<String> docIds = ownerUserIds.stream()
                 .filter(Objects::nonNull)
                 .filter(ownerUserId -> !ownerUserId.isBlank())
                 .map(ownerUserId -> docId(ownerUserId, conversationId))
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
         if (docIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         Query query = Query.query(Criteria.where("_id").in(docIds));
         query.fields().include("ownerUserId");
         return mongoTemplate.find(query, UserConversationDoc.class).stream()
                 .map(UserConversationDoc::getOwnerUserId)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override
     public List<String> findNotReceiveUserIds(String conversationId, List<String> candidateUserIds) {
         if (isBlank(conversationId) || candidateUserIds == null || candidateUserIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         List<String> docIds = candidateUserIds.stream()
                 .filter(Objects::nonNull)
                 .filter(candidateUserId -> !candidateUserId.isBlank())
                 .map(candidateUserId -> docId(candidateUserId, conversationId))
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
         if (docIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         // 这里直接按 receiveOpt 过滤，不再额外透传领域枚举，保持批量过滤路径最轻。
         Query query = Query.query(
@@ -201,7 +203,7 @@ public class UserConversationRepositoryImpl implements UserConversationRepositor
         query.fields().include("ownerUserId");
         return mongoTemplate.find(query, UserConversationDoc.class).stream()
                 .map(UserConversationDoc::getOwnerUserId)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override
@@ -212,7 +214,7 @@ public class UserConversationRepositoryImpl implements UserConversationRepositor
         query.fields().include("ownerUserId");
         return mongoTemplate.find(query, UserConversationDoc.class).stream()
                 .map(UserConversationDoc::getOwnerUserId)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override
@@ -223,7 +225,7 @@ public class UserConversationRepositoryImpl implements UserConversationRepositor
         query.fields().include("conversationId");
         return mongoTemplate.find(query, UserConversationDoc.class).stream()
                 .map(UserConversationDoc::getConversationId)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override
@@ -234,7 +236,7 @@ public class UserConversationRepositoryImpl implements UserConversationRepositor
         query.fields().include("conversationId");
         return mongoTemplate.find(query, UserConversationDoc.class).stream()
                 .map(UserConversationDoc::getConversationId)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     private Update toUpsert(UserConversation conversation) {

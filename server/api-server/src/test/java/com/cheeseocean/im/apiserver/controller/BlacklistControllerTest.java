@@ -2,6 +2,7 @@ package com.cheeseocean.im.apiserver.controller;
 
 import com.cheeseocean.im.apiserver.auth.AccessTokenSessionResolver;
 import com.cheeseocean.im.apiserver.auth.CurrentPrincipalArgumentResolver;
+import com.cheeseocean.im.apiserver.exception.ApiExceptionHandler;
 import com.cheeseocean.im.business.model.BlacklistActionRequest;
 import com.cheeseocean.im.business.service.friend.FriendRelationServiceImpl;
 import com.cheeseocean.im.common.api.enums.SessionStatus;

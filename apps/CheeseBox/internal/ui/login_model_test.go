@@ -33,7 +33,7 @@ func TestLoginModelTabCyclesFocus(t *testing.T) {
 
 func TestLoginModelViewContainsTitle(t *testing.T) {
 	model := NewLoginModel()
-	if !strings.Contains(model.View(), "Login") {
+	if !strings.Contains(model.View(), "登录") {
 		t.Fatalf("view = %q", model.View())
 	}
 }

@@ -13,6 +13,8 @@ import org.springframework.data.mongodb.core.query.Update;
 
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 /**
  * {@link FriendRequestRepository} 的 MongoDB 实现。
@@ -97,7 +99,7 @@ public class FriendRequestRepositoryImpl implements FriendRequestRepository {
         )).with(Sort.by(Sort.Direction.DESC, "updatedAt"));
         return mongoTemplate.find(query, FriendRequestDoc.class).stream()
                 .map(this::toDomain)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override
@@ -139,7 +141,7 @@ public class FriendRequestRepositoryImpl implements FriendRequestRepository {
         }
         return mongoTemplate.find(query, FriendRequestDoc.class).stream()
                 .map(this::toDomain)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     private Update toUpdate(FriendRequest request) {

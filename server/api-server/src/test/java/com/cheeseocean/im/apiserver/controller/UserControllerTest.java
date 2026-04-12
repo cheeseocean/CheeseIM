@@ -23,7 +23,7 @@ class UserControllerTest {
     void getShouldReturnCurrentSettings() throws Exception {
         UserFacade userFacade = mock(UserFacade.class);
         UserSettingsResponse response = new UserSettingsResponse();
-        response.setGlobalRecvMsgOpt(2);
+        response.setReceiveOpt(2);
         when(userFacade.getUserSettings(any(SessionPrincipal.class))).thenReturn(response);
 
         AccessTokenSessionResolver resolver = mock(AccessTokenSessionResolver.class);

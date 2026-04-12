@@ -1,0 +1,843 @@
+2026-04-12 17:25:30.325 [main] INFO  cheese-im-postoffice - Registered command handler: AUTH -> AuthMessageHandler
+2026-04-12 17:25:30.327 [main] INFO  cheese-im-postoffice - Registered command handler: CHAT_SEND -> ChatMessageHandler
+2026-04-12 17:25:30.327 [main] INFO  cheese-im-postoffice - Registered command handler: HEARTBEAT -> HeartbeatMessageHandler
+2026-04-12 17:25:30.327 [main] INFO  cheese-im-postoffice - MessageHandlerFactory initialized with 3 handlers
+2026-04-12 17:25:32.747 [main] INFO  cheese-im-postoffice - Starting TCP Server on port: 5148
+2026-04-12 17:25:32.747 [main] INFO  cheese-im-postoffice - TCP SSL is disabled
+2026-04-12 17:25:32.748 [main] INFO  cheese-im-postoffice - TCP Server started successfully on port: 5148
+2026-04-12 17:25:32.748 [main] INFO  cheese-im-postoffice - TCP Server configuration: bossThreads=1, workerThreads=16, backlog=1024
+2026-04-12 17:25:32.748 [main] INFO  cheese-im-postoffice - Starting WebSocket Server with config: ServerProperties.WebSocketConfig(enabled=true, path=/ws)
+2026-04-12 17:25:32.749 [main] INFO  cheese-im-postoffice - ConnectionManager initialized, multiLoginStrategy: 同终端踢下线, timeoutMs: 300000
+2026-04-12 17:25:32.750 [main] INFO  cheese-im-postoffice - WebSocket Server started successfully on port 5147
+2026-04-12 17:25:32.750 [main] INFO  cheese-im-postoffice - WebSocket endpoint: ws://localhost:5147/ws
+2026-04-12 17:25:32.750 [main] INFO  cheese-im-postoffice - Server configuration: bossThreads=1, workerThreads=16, maxConnections=10000
+2026-04-12 17:25:43.153 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:60908
+2026-04-12 17:25:43.153 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Pending connection registered: connectionID=32964980e2004f47be752674b22db770, remoteAddress=/127.0.0.1:60908
+2026-04-12 17:25:43.153 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection created: connectionID=32964980e2004f47be752674b22db770, clientIP=127.0.0.1
+2026-04-12 17:25:43.229 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=32964980e2004f47be752674b22db770, platform=Unknown, total=1
+2026-04-12 17:25:43.229 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=32964980e2004f47be752674b22db770
+2026-04-12 17:26:07.298 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - Shutting down WebSocket Server...
+2026-04-12 17:26:07.299 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - ConnectionManager destroyed
+2026-04-12 17:26:07.299 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - WebSocket Server shutdown completed
+2026-04-12 17:26:07.299 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - Shutting down TCP Server...
+2026-04-12 17:26:07.300 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:60908
+2026-04-12 17:26:07.300 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - TCP Server shutdown completed
+2026-04-12 17:27:16.245 [main] INFO  cheese-im-postoffice - Registered command handler: AUTH -> AuthMessageHandler
+2026-04-12 17:27:16.245 [main] INFO  cheese-im-postoffice - Registered command handler: CHAT_SEND -> ChatMessageHandler
+2026-04-12 17:27:16.245 [main] INFO  cheese-im-postoffice - Registered command handler: HEARTBEAT -> HeartbeatMessageHandler
+2026-04-12 17:27:16.245 [main] INFO  cheese-im-postoffice - MessageHandlerFactory initialized with 3 handlers
+2026-04-12 17:27:19.253 [main] INFO  cheese-im-postoffice - Starting TCP Server on port: 5148
+2026-04-12 17:27:19.254 [main] INFO  cheese-im-postoffice - TCP SSL is disabled
+2026-04-12 17:27:19.255 [main] INFO  cheese-im-postoffice - TCP Server started successfully on port: 5148
+2026-04-12 17:27:19.255 [main] INFO  cheese-im-postoffice - TCP Server configuration: bossThreads=1, workerThreads=16, backlog=1024
+2026-04-12 17:27:19.256 [main] INFO  cheese-im-postoffice - Starting WebSocket Server with config: ServerProperties.WebSocketConfig(enabled=true, path=/ws)
+2026-04-12 17:27:19.258 [main] INFO  cheese-im-postoffice - ConnectionManager initialized, multiLoginStrategy: 同终端踢下线, timeoutMs: 300000
+2026-04-12 17:27:19.259 [main] INFO  cheese-im-postoffice - WebSocket Server started successfully on port 5147
+2026-04-12 17:27:19.260 [main] INFO  cheese-im-postoffice - WebSocket endpoint: ws://localhost:5147/ws
+2026-04-12 17:27:19.260 [main] INFO  cheese-im-postoffice - Server configuration: bossThreads=1, workerThreads=16, maxConnections=10000
+2026-04-12 17:27:22.284 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:61448
+2026-04-12 17:27:22.285 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Pending connection registered: connectionID=0cb5c72d6b9b4c119e02342a0bc57de0, remoteAddress=/127.0.0.1:61448
+2026-04-12 17:27:22.285 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection created: connectionID=0cb5c72d6b9b4c119e02342a0bc57de0, clientIP=127.0.0.1
+2026-04-12 17:27:22.356 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=0cb5c72d6b9b4c119e02342a0bc57de0, platform=Unknown, total=1
+2026-04-12 17:27:22.356 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=0cb5c72d6b9b4c119e02342a0bc57de0
+2026-04-12 17:40:34.803 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - Shutting down WebSocket Server...
+2026-04-12 17:40:34.804 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - ConnectionManager destroyed
+2026-04-12 17:40:34.806 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - WebSocket Server shutdown completed
+2026-04-12 17:40:34.806 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - Shutting down TCP Server...
+2026-04-12 17:40:34.806 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:61448
+2026-04-12 17:40:34.807 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - TCP Server shutdown completed
+2026-04-12 17:40:40.603 [main] INFO  cheese-im-postoffice - Registered command handler: AUTH -> AuthMessageHandler
+2026-04-12 17:40:40.604 [main] INFO  cheese-im-postoffice - Registered command handler: CHAT_SEND -> ChatMessageHandler
+2026-04-12 17:40:40.604 [main] INFO  cheese-im-postoffice - Registered command handler: HEARTBEAT -> HeartbeatMessageHandler
+2026-04-12 17:40:40.604 [main] INFO  cheese-im-postoffice - MessageHandlerFactory initialized with 3 handlers
+2026-04-12 17:40:42.809 [main] INFO  cheese-im-postoffice - Starting TCP Server on port: 5148
+2026-04-12 17:40:42.809 [main] INFO  cheese-im-postoffice - TCP SSL is disabled
+2026-04-12 17:40:42.810 [main] INFO  cheese-im-postoffice - TCP Server started successfully on port: 5148
+2026-04-12 17:40:42.810 [main] INFO  cheese-im-postoffice - TCP Server configuration: bossThreads=1, workerThreads=16, backlog=1024
+2026-04-12 17:40:42.810 [main] INFO  cheese-im-postoffice - Starting WebSocket Server with config: ServerProperties.WebSocketConfig(enabled=true, path=/ws)
+2026-04-12 17:40:42.811 [main] INFO  cheese-im-postoffice - ConnectionManager initialized, multiLoginStrategy: 同终端踢下线, timeoutMs: 300000
+2026-04-12 17:40:42.812 [main] INFO  cheese-im-postoffice - WebSocket Server started successfully on port 5147
+2026-04-12 17:40:42.812 [main] INFO  cheese-im-postoffice - WebSocket endpoint: ws://localhost:5147/ws
+2026-04-12 17:40:42.812 [main] INFO  cheese-im-postoffice - Server configuration: bossThreads=1, workerThreads=16, maxConnections=10000
+2026-04-12 17:41:36.671 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:49471
+2026-04-12 17:41:36.673 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Pending connection registered: connectionID=b8cf436e815443099bd8164062a7ee57, remoteAddress=/127.0.0.1:49471
+2026-04-12 17:41:36.673 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection created: connectionID=b8cf436e815443099bd8164062a7ee57, clientIP=127.0.0.1
+2026-04-12 17:41:36.824 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=b8cf436e815443099bd8164062a7ee57, platform=Unknown, total=1
+2026-04-12 17:41:36.824 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=b8cf436e815443099bd8164062a7ee57
+2026-04-12 17:44:44.648 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - Shutting down WebSocket Server...
+2026-04-12 17:44:44.649 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - ConnectionManager destroyed
+2026-04-12 17:44:44.650 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - WebSocket Server shutdown completed
+2026-04-12 17:44:44.650 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - Shutting down TCP Server...
+2026-04-12 17:44:44.651 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:49471
+2026-04-12 17:44:44.651 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - TCP Server shutdown completed
+2026-04-12 17:44:49.912 [main] INFO  cheese-im-postoffice - Registered command handler: AUTH -> AuthMessageHandler
+2026-04-12 17:44:49.912 [main] INFO  cheese-im-postoffice - Registered command handler: CHAT_SEND -> ChatMessageHandler
+2026-04-12 17:44:49.912 [main] INFO  cheese-im-postoffice - Registered command handler: HEARTBEAT -> HeartbeatMessageHandler
+2026-04-12 17:44:49.912 [main] INFO  cheese-im-postoffice - MessageHandlerFactory initialized with 3 handlers
+2026-04-12 17:44:52.466 [main] INFO  cheese-im-postoffice - Starting TCP Server on port: 5148
+2026-04-12 17:44:52.467 [main] INFO  cheese-im-postoffice - TCP SSL is disabled
+2026-04-12 17:44:52.468 [main] INFO  cheese-im-postoffice - TCP Server started successfully on port: 5148
+2026-04-12 17:44:52.469 [main] INFO  cheese-im-postoffice - TCP Server configuration: bossThreads=1, workerThreads=16, backlog=1024
+2026-04-12 17:44:52.469 [main] INFO  cheese-im-postoffice - Starting WebSocket Server with config: ServerProperties.WebSocketConfig(enabled=true, path=/ws)
+2026-04-12 17:44:52.470 [main] INFO  cheese-im-postoffice - ConnectionManager initialized, multiLoginStrategy: 同终端踢下线, timeoutMs: 300000
+2026-04-12 17:44:52.472 [main] INFO  cheese-im-postoffice - WebSocket Server started successfully on port 5147
+2026-04-12 17:44:52.472 [main] INFO  cheese-im-postoffice - WebSocket endpoint: ws://localhost:5147/ws
+2026-04-12 17:44:52.472 [main] INFO  cheese-im-postoffice - Server configuration: bossThreads=1, workerThreads=16, maxConnections=10000
+2026-04-12 17:44:55.976 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:50515
+2026-04-12 17:44:55.976 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Pending connection registered: connectionID=f13b6e38ae19478abf4b3e2b8ce95507, remoteAddress=/127.0.0.1:50515
+2026-04-12 17:44:55.976 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection created: connectionID=f13b6e38ae19478abf4b3e2b8ce95507, clientIP=127.0.0.1
+2026-04-12 17:44:56.049 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=f13b6e38ae19478abf4b3e2b8ce95507, platform=Unknown, total=1
+2026-04-12 17:44:56.049 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=f13b6e38ae19478abf4b3e2b8ce95507
+2026-04-12 17:50:17.152 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:52152
+2026-04-12 17:50:17.153 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Pending connection registered: connectionID=c9716297b3ad4da7982f786f9ecf98ce, remoteAddress=/127.0.0.1:52152
+2026-04-12 17:50:17.153 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - TCP connection created: connectionID=c9716297b3ad4da7982f786f9ecf98ce, clientIP=127.0.0.1
+2026-04-12 17:50:17.158 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=f13b6e38ae19478abf4b3e2b8ce95507, platform=Unknown, total=1
+2026-04-12 17:50:17.158 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Connection kicked: userID=xxxcrel, connectionID=f13b6e38ae19478abf4b3e2b8ce95507, reason=新设备登录，当前连接被踢下线
+2026-04-12 17:50:17.158 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=c9716297b3ad4da7982f786f9ecf98ce, platform=Unknown, total=1
+2026-04-12 17:50:17.158 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=c9716297b3ad4da7982f786f9ecf98ce
+2026-04-12 17:50:17.159 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:50515
+2026-04-12 17:50:26.976 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - Shutting down WebSocket Server...
+2026-04-12 17:50:26.977 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - ConnectionManager destroyed
+2026-04-12 17:50:26.978 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - WebSocket Server shutdown completed
+2026-04-12 17:50:26.978 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - Shutting down TCP Server...
+2026-04-12 17:50:26.978 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:52152
+2026-04-12 17:50:26.978 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - TCP Server shutdown completed
+2026-04-12 17:50:31.941 [main] INFO  cheese-im-postoffice - Registered command handler: AUTH -> AuthMessageHandler
+2026-04-12 17:50:31.941 [main] INFO  cheese-im-postoffice - Registered command handler: CHAT_SEND -> ChatMessageHandler
+2026-04-12 17:50:31.941 [main] INFO  cheese-im-postoffice - Registered command handler: HEARTBEAT -> HeartbeatMessageHandler
+2026-04-12 17:50:31.941 [main] INFO  cheese-im-postoffice - MessageHandlerFactory initialized with 3 handlers
+2026-04-12 17:50:34.091 [main] INFO  cheese-im-postoffice - Starting TCP Server on port: 5148
+2026-04-12 17:50:34.092 [main] INFO  cheese-im-postoffice - TCP SSL is disabled
+2026-04-12 17:50:34.093 [main] INFO  cheese-im-postoffice - TCP Server started successfully on port: 5148
+2026-04-12 17:50:34.093 [main] INFO  cheese-im-postoffice - TCP Server configuration: bossThreads=1, workerThreads=16, backlog=1024
+2026-04-12 17:50:34.093 [main] INFO  cheese-im-postoffice - Starting WebSocket Server with config: ServerProperties.WebSocketConfig(enabled=true, path=/ws)
+2026-04-12 17:50:34.094 [main] INFO  cheese-im-postoffice - ConnectionManager initialized, multiLoginStrategy: 同终端踢下线, timeoutMs: 300000
+2026-04-12 17:50:34.094 [main] INFO  cheese-im-postoffice - WebSocket Server started successfully on port 5147
+2026-04-12 17:50:34.094 [main] INFO  cheese-im-postoffice - WebSocket endpoint: ws://localhost:5147/ws
+2026-04-12 17:50:34.094 [main] INFO  cheese-im-postoffice - Server configuration: bossThreads=1, workerThreads=16, maxConnections=10000
+2026-04-12 17:50:40.377 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:52294
+2026-04-12 17:50:40.378 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Pending connection registered: connectionID=efd864d8694947c0894bedada05c4ecb, remoteAddress=/127.0.0.1:52294
+2026-04-12 17:50:40.378 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection created: connectionID=efd864d8694947c0894bedada05c4ecb, clientIP=127.0.0.1
+2026-04-12 17:50:40.455 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=efd864d8694947c0894bedada05c4ecb, platform=Unknown, total=1
+2026-04-12 17:50:40.455 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=efd864d8694947c0894bedada05c4ecb
+2026-04-12 17:55:20.753 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - Shutting down WebSocket Server...
+2026-04-12 17:55:20.754 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - ConnectionManager destroyed
+2026-04-12 17:55:20.755 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - WebSocket Server shutdown completed
+2026-04-12 17:55:20.755 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - Shutting down TCP Server...
+2026-04-12 17:55:20.755 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:52294
+2026-04-12 17:55:20.756 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - TCP Server shutdown completed
+2026-04-12 17:55:25.648 [main] INFO  cheese-im-postoffice - Registered command handler: AUTH -> AuthMessageHandler
+2026-04-12 17:55:25.648 [main] INFO  cheese-im-postoffice - Registered command handler: CHAT_SEND -> ChatMessageHandler
+2026-04-12 17:55:25.648 [main] INFO  cheese-im-postoffice - Registered command handler: HEARTBEAT -> HeartbeatMessageHandler
+2026-04-12 17:55:25.648 [main] INFO  cheese-im-postoffice - MessageHandlerFactory initialized with 3 handlers
+2026-04-12 17:55:27.954 [main] INFO  cheese-im-postoffice - Starting TCP Server on port: 5148
+2026-04-12 17:55:27.955 [main] INFO  cheese-im-postoffice - TCP SSL is disabled
+2026-04-12 17:55:27.956 [main] INFO  cheese-im-postoffice - TCP Server started successfully on port: 5148
+2026-04-12 17:55:27.956 [main] INFO  cheese-im-postoffice - TCP Server configuration: bossThreads=1, workerThreads=16, backlog=1024
+2026-04-12 17:55:27.956 [main] INFO  cheese-im-postoffice - Starting WebSocket Server with config: ServerProperties.WebSocketConfig(enabled=true, path=/ws)
+2026-04-12 17:55:27.957 [main] INFO  cheese-im-postoffice - ConnectionManager initialized, multiLoginStrategy: 同终端踢下线, timeoutMs: 300000
+2026-04-12 17:55:27.958 [main] INFO  cheese-im-postoffice - WebSocket Server started successfully on port 5147
+2026-04-12 17:55:27.958 [main] INFO  cheese-im-postoffice - WebSocket endpoint: ws://localhost:5147/ws
+2026-04-12 17:55:27.958 [main] INFO  cheese-im-postoffice - Server configuration: bossThreads=1, workerThreads=16, maxConnections=10000
+2026-04-12 17:55:31.024 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:53808
+2026-04-12 17:55:31.024 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Pending connection registered: connectionID=b6f0ac64c7d94abda6b2653e1330aa7d, remoteAddress=/127.0.0.1:53808
+2026-04-12 17:55:31.024 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection created: connectionID=b6f0ac64c7d94abda6b2653e1330aa7d, clientIP=127.0.0.1
+2026-04-12 17:55:31.092 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=b6f0ac64c7d94abda6b2653e1330aa7d, platform=Unknown, total=1
+2026-04-12 17:55:31.092 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=b6f0ac64c7d94abda6b2653e1330aa7d
+2026-04-12 17:55:32.901 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:53825
+2026-04-12 17:55:32.901 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Pending connection registered: connectionID=a009bec4bf1041d7b9f248e633aa6c04, remoteAddress=/127.0.0.1:53825
+2026-04-12 17:55:32.901 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - TCP connection created: connectionID=a009bec4bf1041d7b9f248e633aa6c04, clientIP=127.0.0.1
+2026-04-12 17:55:32.905 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=b6f0ac64c7d94abda6b2653e1330aa7d, platform=Unknown, total=1
+2026-04-12 17:55:32.905 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Connection kicked: userID=xxxcrel, connectionID=b6f0ac64c7d94abda6b2653e1330aa7d, reason=新设备登录，当前连接被踢下线
+2026-04-12 17:55:32.905 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=a009bec4bf1041d7b9f248e633aa6c04, platform=Unknown, total=1
+2026-04-12 17:55:32.905 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=a009bec4bf1041d7b9f248e633aa6c04
+2026-04-12 17:55:32.907 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:53808
+2026-04-12 17:55:33.697 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:53836
+2026-04-12 17:55:33.698 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Pending connection registered: connectionID=5836983c65b54954bab44d492ee15536, remoteAddress=/127.0.0.1:53836
+2026-04-12 17:55:33.698 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - TCP connection created: connectionID=5836983c65b54954bab44d492ee15536, clientIP=127.0.0.1
+2026-04-12 17:55:33.701 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=a009bec4bf1041d7b9f248e633aa6c04, platform=Unknown, total=1
+2026-04-12 17:55:33.701 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Connection kicked: userID=xxxcrel, connectionID=a009bec4bf1041d7b9f248e633aa6c04, reason=新设备登录，当前连接被踢下线
+2026-04-12 17:55:33.701 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:53825
+2026-04-12 17:55:33.701 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=5836983c65b54954bab44d492ee15536, platform=Unknown, total=1
+2026-04-12 17:55:33.701 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=5836983c65b54954bab44d492ee15536
+2026-04-12 17:55:34.115 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:53845
+2026-04-12 17:55:34.115 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Pending connection registered: connectionID=56b82bd6ee184e838b5e120d5baed932, remoteAddress=/127.0.0.1:53845
+2026-04-12 17:55:34.115 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - TCP connection created: connectionID=56b82bd6ee184e838b5e120d5baed932, clientIP=127.0.0.1
+2026-04-12 17:55:34.118 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=5836983c65b54954bab44d492ee15536, platform=Unknown, total=1
+2026-04-12 17:55:34.118 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Connection kicked: userID=xxxcrel, connectionID=5836983c65b54954bab44d492ee15536, reason=新设备登录，当前连接被踢下线
+2026-04-12 17:55:34.118 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:53836
+2026-04-12 17:55:34.118 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=56b82bd6ee184e838b5e120d5baed932, platform=Unknown, total=1
+2026-04-12 17:55:34.118 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=56b82bd6ee184e838b5e120d5baed932
+2026-04-12 17:55:34.580 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:53856
+2026-04-12 17:55:34.580 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - Pending connection registered: connectionID=a378f7143bdf46e7929a961c90712d9b, remoteAddress=/127.0.0.1:53856
+2026-04-12 17:55:34.580 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - TCP connection created: connectionID=a378f7143bdf46e7929a961c90712d9b, clientIP=127.0.0.1
+2026-04-12 17:55:34.583 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=56b82bd6ee184e838b5e120d5baed932, platform=Unknown, total=1
+2026-04-12 17:55:34.583 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - Connection kicked: userID=xxxcrel, connectionID=56b82bd6ee184e838b5e120d5baed932, reason=新设备登录，当前连接被踢下线
+2026-04-12 17:55:34.583 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:53845
+2026-04-12 17:55:34.584 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=a378f7143bdf46e7929a961c90712d9b, platform=Unknown, total=1
+2026-04-12 17:55:34.584 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=a378f7143bdf46e7929a961c90712d9b
+2026-04-12 17:55:34.746 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:53864
+2026-04-12 17:55:34.746 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Pending connection registered: connectionID=3bc7c7f90feb45739f9e1d01a28deee7, remoteAddress=/127.0.0.1:53864
+2026-04-12 17:55:34.746 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - TCP connection created: connectionID=3bc7c7f90feb45739f9e1d01a28deee7, clientIP=127.0.0.1
+2026-04-12 17:55:34.749 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=a378f7143bdf46e7929a961c90712d9b, platform=Unknown, total=1
+2026-04-12 17:55:34.749 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Connection kicked: userID=xxxcrel, connectionID=a378f7143bdf46e7929a961c90712d9b, reason=新设备登录，当前连接被踢下线
+2026-04-12 17:55:34.749 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:53856
+2026-04-12 17:55:34.749 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=3bc7c7f90feb45739f9e1d01a28deee7, platform=Unknown, total=1
+2026-04-12 17:55:34.749 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=3bc7c7f90feb45739f9e1d01a28deee7
+2026-04-12 17:55:34.913 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:53872
+2026-04-12 17:55:34.913 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Pending connection registered: connectionID=01354ac01e2c40c48687b0fe39a25eed, remoteAddress=/127.0.0.1:53872
+2026-04-12 17:55:34.913 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - TCP connection created: connectionID=01354ac01e2c40c48687b0fe39a25eed, clientIP=127.0.0.1
+2026-04-12 17:55:34.916 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=3bc7c7f90feb45739f9e1d01a28deee7, platform=Unknown, total=1
+2026-04-12 17:55:34.916 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Connection kicked: userID=xxxcrel, connectionID=3bc7c7f90feb45739f9e1d01a28deee7, reason=新设备登录，当前连接被踢下线
+2026-04-12 17:55:34.916 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:53864
+2026-04-12 17:55:34.916 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=01354ac01e2c40c48687b0fe39a25eed, platform=Unknown, total=1
+2026-04-12 17:55:34.916 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=01354ac01e2c40c48687b0fe39a25eed
+2026-04-12 17:55:35.063 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:53880
+2026-04-12 17:55:35.063 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Pending connection registered: connectionID=64e3e7406ad347f6abf4aed795ee1339, remoteAddress=/127.0.0.1:53880
+2026-04-12 17:55:35.063 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - TCP connection created: connectionID=64e3e7406ad347f6abf4aed795ee1339, clientIP=127.0.0.1
+2026-04-12 17:55:35.067 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=01354ac01e2c40c48687b0fe39a25eed, platform=Unknown, total=1
+2026-04-12 17:55:35.067 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Connection kicked: userID=xxxcrel, connectionID=01354ac01e2c40c48687b0fe39a25eed, reason=新设备登录，当前连接被踢下线
+2026-04-12 17:55:35.067 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:53872
+2026-04-12 17:55:35.068 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=64e3e7406ad347f6abf4aed795ee1339, platform=Unknown, total=1
+2026-04-12 17:55:35.068 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=64e3e7406ad347f6abf4aed795ee1339
+2026-04-12 17:55:59.241 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:54022
+2026-04-12 17:55:59.241 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - Pending connection registered: connectionID=627ed2f2bdcc45c0aca01fd60ae58f14, remoteAddress=/127.0.0.1:54022
+2026-04-12 17:55:59.241 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - TCP connection created: connectionID=627ed2f2bdcc45c0aca01fd60ae58f14, clientIP=127.0.0.1
+2026-04-12 17:55:59.244 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=64e3e7406ad347f6abf4aed795ee1339, platform=Unknown, total=1
+2026-04-12 17:55:59.244 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:53880
+2026-04-12 17:55:59.244 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - Connection kicked: userID=xxxcrel, connectionID=64e3e7406ad347f6abf4aed795ee1339, reason=新设备登录，当前连接被踢下线
+2026-04-12 17:55:59.244 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=627ed2f2bdcc45c0aca01fd60ae58f14, platform=Unknown, total=1
+2026-04-12 17:55:59.244 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=627ed2f2bdcc45c0aca01fd60ae58f14
+2026-04-12 17:55:59.938 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:54033
+2026-04-12 17:55:59.938 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - Pending connection registered: connectionID=4e4f88ceed3144eba8f5b9d3f608133a, remoteAddress=/127.0.0.1:54033
+2026-04-12 17:55:59.938 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - TCP connection created: connectionID=4e4f88ceed3144eba8f5b9d3f608133a, clientIP=127.0.0.1
+2026-04-12 17:55:59.941 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=627ed2f2bdcc45c0aca01fd60ae58f14, platform=Unknown, total=1
+2026-04-12 17:55:59.941 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:54022
+2026-04-12 17:55:59.941 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - Connection kicked: userID=xxxcrel, connectionID=627ed2f2bdcc45c0aca01fd60ae58f14, reason=新设备登录，当前连接被踢下线
+2026-04-12 17:55:59.941 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=4e4f88ceed3144eba8f5b9d3f608133a, platform=Unknown, total=1
+2026-04-12 17:55:59.941 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=4e4f88ceed3144eba8f5b9d3f608133a
+2026-04-12 17:56:00.096 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:54041
+2026-04-12 17:56:00.096 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Pending connection registered: connectionID=4c1f8debdf924cd696f5f7d07a5d3620, remoteAddress=/127.0.0.1:54041
+2026-04-12 17:56:00.096 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - TCP connection created: connectionID=4c1f8debdf924cd696f5f7d07a5d3620, clientIP=127.0.0.1
+2026-04-12 17:56:00.098 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=4e4f88ceed3144eba8f5b9d3f608133a, platform=Unknown, total=1
+2026-04-12 17:56:00.098 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Connection kicked: userID=xxxcrel, connectionID=4e4f88ceed3144eba8f5b9d3f608133a, reason=新设备登录，当前连接被踢下线
+2026-04-12 17:56:00.098 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:54033
+2026-04-12 17:56:00.098 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=4c1f8debdf924cd696f5f7d07a5d3620, platform=Unknown, total=1
+2026-04-12 17:56:00.098 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=4c1f8debdf924cd696f5f7d07a5d3620
+2026-04-12 17:56:00.244 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:54049
+2026-04-12 17:56:00.244 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Pending connection registered: connectionID=72ef5dbf7d7849be94bd27c2ee4ea9fa, remoteAddress=/127.0.0.1:54049
+2026-04-12 17:56:00.244 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - TCP connection created: connectionID=72ef5dbf7d7849be94bd27c2ee4ea9fa, clientIP=127.0.0.1
+2026-04-12 17:56:00.246 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=4c1f8debdf924cd696f5f7d07a5d3620, platform=Unknown, total=1
+2026-04-12 17:56:00.246 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Connection kicked: userID=xxxcrel, connectionID=4c1f8debdf924cd696f5f7d07a5d3620, reason=新设备登录，当前连接被踢下线
+2026-04-12 17:56:00.247 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=72ef5dbf7d7849be94bd27c2ee4ea9fa, platform=Unknown, total=1
+2026-04-12 17:56:00.247 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:54041
+2026-04-12 17:56:00.247 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=72ef5dbf7d7849be94bd27c2ee4ea9fa
+2026-04-12 17:56:00.377 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:54057
+2026-04-12 17:56:00.377 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - Pending connection registered: connectionID=28dd05ef65bb4a23af4712521a2d5f02, remoteAddress=/127.0.0.1:54057
+2026-04-12 17:56:00.377 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - TCP connection created: connectionID=28dd05ef65bb4a23af4712521a2d5f02, clientIP=127.0.0.1
+2026-04-12 17:56:00.380 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=72ef5dbf7d7849be94bd27c2ee4ea9fa, platform=Unknown, total=1
+2026-04-12 17:56:00.380 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - Connection kicked: userID=xxxcrel, connectionID=72ef5dbf7d7849be94bd27c2ee4ea9fa, reason=新设备登录，当前连接被踢下线
+2026-04-12 17:56:00.380 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:54049
+2026-04-12 17:56:00.380 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=28dd05ef65bb4a23af4712521a2d5f02, platform=Unknown, total=1
+2026-04-12 17:56:00.380 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=28dd05ef65bb4a23af4712521a2d5f02
+2026-04-12 17:56:00.528 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:54065
+2026-04-12 17:56:00.528 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - Pending connection registered: connectionID=c12354ca029e449da3adb35957b53257, remoteAddress=/127.0.0.1:54065
+2026-04-12 17:56:00.528 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - TCP connection created: connectionID=c12354ca029e449da3adb35957b53257, clientIP=127.0.0.1
+2026-04-12 17:56:00.530 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=28dd05ef65bb4a23af4712521a2d5f02, platform=Unknown, total=1
+2026-04-12 17:56:00.530 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - Connection kicked: userID=xxxcrel, connectionID=28dd05ef65bb4a23af4712521a2d5f02, reason=新设备登录，当前连接被踢下线
+2026-04-12 17:56:00.530 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:54057
+2026-04-12 17:56:00.530 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=c12354ca029e449da3adb35957b53257, platform=Unknown, total=1
+2026-04-12 17:56:00.530 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=c12354ca029e449da3adb35957b53257
+2026-04-12 17:56:00.707 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:54073
+2026-04-12 17:56:00.707 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - Pending connection registered: connectionID=6d005d94cd474ff99761809d490d162c, remoteAddress=/127.0.0.1:54073
+2026-04-12 17:56:00.707 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - TCP connection created: connectionID=6d005d94cd474ff99761809d490d162c, clientIP=127.0.0.1
+2026-04-12 17:56:00.709 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=c12354ca029e449da3adb35957b53257, platform=Unknown, total=1
+2026-04-12 17:56:00.709 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - Connection kicked: userID=xxxcrel, connectionID=c12354ca029e449da3adb35957b53257, reason=新设备登录，当前连接被踢下线
+2026-04-12 17:56:00.709 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:54065
+2026-04-12 17:56:00.709 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=6d005d94cd474ff99761809d490d162c, platform=Unknown, total=1
+2026-04-12 17:56:00.709 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=6d005d94cd474ff99761809d490d162c
+2026-04-12 17:56:00.858 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:54081
+2026-04-12 17:56:00.859 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - Pending connection registered: connectionID=0ff8dee7552c4d2f87d714c84202ea98, remoteAddress=/127.0.0.1:54081
+2026-04-12 17:56:00.859 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - TCP connection created: connectionID=0ff8dee7552c4d2f87d714c84202ea98, clientIP=127.0.0.1
+2026-04-12 17:56:00.861 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=6d005d94cd474ff99761809d490d162c, platform=Unknown, total=1
+2026-04-12 17:56:00.861 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - Connection kicked: userID=xxxcrel, connectionID=6d005d94cd474ff99761809d490d162c, reason=新设备登录，当前连接被踢下线
+2026-04-12 17:56:00.861 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:54073
+2026-04-12 17:56:00.861 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=0ff8dee7552c4d2f87d714c84202ea98, platform=Unknown, total=1
+2026-04-12 17:56:00.861 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=0ff8dee7552c4d2f87d714c84202ea98
+2026-04-12 17:56:01.007 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:54092
+2026-04-12 17:56:01.007 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Pending connection registered: connectionID=ff40c58892c9413a9f83754feb312640, remoteAddress=/127.0.0.1:54092
+2026-04-12 17:56:01.007 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection created: connectionID=ff40c58892c9413a9f83754feb312640, clientIP=127.0.0.1
+2026-04-12 17:56:01.008 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=0ff8dee7552c4d2f87d714c84202ea98, platform=Unknown, total=1
+2026-04-12 17:56:01.008 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Connection kicked: userID=xxxcrel, connectionID=0ff8dee7552c4d2f87d714c84202ea98, reason=新设备登录，当前连接被踢下线
+2026-04-12 17:56:01.008 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:54081
+2026-04-12 17:56:01.008 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=ff40c58892c9413a9f83754feb312640, platform=Unknown, total=1
+2026-04-12 17:56:01.009 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=ff40c58892c9413a9f83754feb312640
+2026-04-12 17:56:01.158 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:54100
+2026-04-12 17:56:01.158 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Pending connection registered: connectionID=614b284d96aa4dfca4b19aec0dfca403, remoteAddress=/127.0.0.1:54100
+2026-04-12 17:56:01.158 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - TCP connection created: connectionID=614b284d96aa4dfca4b19aec0dfca403, clientIP=127.0.0.1
+2026-04-12 17:56:01.160 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=ff40c58892c9413a9f83754feb312640, platform=Unknown, total=1
+2026-04-12 17:56:01.160 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Connection kicked: userID=xxxcrel, connectionID=ff40c58892c9413a9f83754feb312640, reason=新设备登录，当前连接被踢下线
+2026-04-12 17:56:01.160 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:54092
+2026-04-12 17:56:01.160 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=614b284d96aa4dfca4b19aec0dfca403, platform=Unknown, total=1
+2026-04-12 17:56:01.160 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=614b284d96aa4dfca4b19aec0dfca403
+2026-04-12 17:56:04.510 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:54100
+2026-04-12 17:56:04.510 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=614b284d96aa4dfca4b19aec0dfca403, platform=Unknown, total=0
+2026-04-12 17:56:04.510 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - TCP connection removed: connectionID=614b284d96aa4dfca4b19aec0dfca403, userID=xxxcrel
+2026-04-12 17:56:59.299 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:54400
+2026-04-12 17:56:59.299 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Pending connection registered: connectionID=768d4d4708064a429b802471869396ed, remoteAddress=/127.0.0.1:54400
+2026-04-12 17:56:59.299 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - TCP connection created: connectionID=768d4d4708064a429b802471869396ed, clientIP=127.0.0.1
+2026-04-12 17:56:59.301 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=768d4d4708064a429b802471869396ed, platform=Unknown, total=1
+2026-04-12 17:56:59.301 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=768d4d4708064a429b802471869396ed
+2026-04-12 17:57:44.715 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:54633
+2026-04-12 17:57:44.715 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Pending connection registered: connectionID=bebaee4c6cfa43608572d7719ae38de9, remoteAddress=/127.0.0.1:54633
+2026-04-12 17:57:44.715 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - TCP connection created: connectionID=bebaee4c6cfa43608572d7719ae38de9, clientIP=127.0.0.1
+2026-04-12 17:57:44.717 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Connection added: userID=wuxuecheng, connectionID=bebaee4c6cfa43608572d7719ae38de9, platform=Unknown, total=2
+2026-04-12 17:57:44.717 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Authentication success: userID=wuxuecheng, sessionID=sess:wuxuecheng:cheesebox-dev, deviceID=cheesebox-dev, connectionID=bebaee4c6cfa43608572d7719ae38de9
+2026-04-12 17:57:49.044 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5938ea68dce18, serverMsgID=msg_1775987869033_1
+2026-04-12 17:58:05.462 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a593927e257cd8, serverMsgID=msg_1775987885461_2
+2026-04-12 17:58:06.781 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a59392ccb91698, serverMsgID=msg_1775987886780_3
+2026-04-12 17:59:14.793 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a593a2a2a1f9f0, serverMsgID=msg_1775987954793_4
+2026-04-12 17:59:36.838 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:54633
+2026-04-12 17:59:36.838 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Connection removed: userID=wuxuecheng, connectionID=bebaee4c6cfa43608572d7719ae38de9, platform=Unknown, total=1
+2026-04-12 17:59:36.838 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - TCP connection removed: connectionID=bebaee4c6cfa43608572d7719ae38de9, userID=wuxuecheng
+2026-04-12 17:59:42.346 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:55232
+2026-04-12 17:59:42.347 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - Pending connection registered: connectionID=2b411806c7d545dab1a4ff004f2a9ba5, remoteAddress=/127.0.0.1:55232
+2026-04-12 17:59:42.347 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - TCP connection created: connectionID=2b411806c7d545dab1a4ff004f2a9ba5, clientIP=127.0.0.1
+2026-04-12 17:59:42.348 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - Connection added: userID=xuecheng, connectionID=2b411806c7d545dab1a4ff004f2a9ba5, platform=Unknown, total=2
+2026-04-12 17:59:42.348 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - Authentication success: userID=xuecheng, sessionID=sess:xuecheng:cheesebox-dev, deviceID=cheesebox-dev, connectionID=2b411806c7d545dab1a4ff004f2a9ba5
+2026-04-12 17:59:45.961 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a593a9e4217250, serverMsgID=msg_1775987985958_5
+2026-04-12 17:59:54.074 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a593abc7f47878, serverMsgID=msg_1775987994074_6
+2026-04-12 17:59:57.150 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a593ac7f41b7c0, serverMsgID=msg_1775987997150_7
+2026-04-12 18:03:50.383 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:54400
+2026-04-12 18:03:50.384 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=768d4d4708064a429b802471869396ed, platform=Unknown, total=1
+2026-04-12 18:03:50.384 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - TCP connection removed: connectionID=768d4d4708064a429b802471869396ed, userID=xxxcrel
+2026-04-12 18:03:57.750 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:56543
+2026-04-12 18:03:57.750 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Pending connection registered: connectionID=c65346c61a57434fa436c83a75768d19, remoteAddress=/127.0.0.1:56543
+2026-04-12 18:03:57.750 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - TCP connection created: connectionID=c65346c61a57434fa436c83a75768d19, clientIP=127.0.0.1
+2026-04-12 18:03:57.751 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=c65346c61a57434fa436c83a75768d19, platform=Unknown, total=2
+2026-04-12 18:03:57.752 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=c65346c61a57434fa436c83a75768d19
+2026-04-12 18:04:05.523 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a593e653311358, serverMsgID=msg_1775988245520_8
+2026-04-12 18:04:10.623 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:55232
+2026-04-12 18:04:10.624 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - Connection removed: userID=xuecheng, connectionID=2b411806c7d545dab1a4ff004f2a9ba5, platform=Unknown, total=1
+2026-04-12 18:04:10.625 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - TCP connection removed: connectionID=2b411806c7d545dab1a4ff004f2a9ba5, userID=xuecheng
+2026-04-12 18:04:16.108 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:56640
+2026-04-12 18:04:16.108 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Pending connection registered: connectionID=f063023765b54d00ba64b303c9f7b648, remoteAddress=/127.0.0.1:56640
+2026-04-12 18:04:16.108 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - TCP connection created: connectionID=f063023765b54d00ba64b303c9f7b648, clientIP=127.0.0.1
+2026-04-12 18:04:16.109 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Connection added: userID=xuecheng, connectionID=f063023765b54d00ba64b303c9f7b648, platform=Unknown, total=2
+2026-04-12 18:04:16.109 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Authentication success: userID=xuecheng, sessionID=sess:xuecheng:cheesebox-dev, deviceID=cheesebox-dev, connectionID=f063023765b54d00ba64b303c9f7b648
+2026-04-12 18:04:18.763 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a593e96897f1a0, serverMsgID=msg_1775988258762_9
+2026-04-12 18:04:22.705 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a593ea539bfdb8, serverMsgID=msg_1775988262705_10
+2026-04-12 18:04:24.882 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a593ead5558a40, serverMsgID=msg_1775988264881_11
+2026-04-12 18:04:26.442 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a593eb32555ef0, serverMsgID=msg_1775988266442_12
+2026-04-12 18:04:28.783 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a593ebbde87330, serverMsgID=msg_1775988268783_13
+2026-04-12 18:04:31.147 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a593ec4ac46ea8, serverMsgID=msg_1775988271147_14
+2026-04-12 19:03:23.225 [pool-3-thread-1] WARN  cheese-im-postoffice - Connection timeout, removing: userID=xuecheng, connectionID=f063023765b54d00ba64b303c9f7b648, lastActive=Sun Apr 12 18:47:36 CST 2026
+2026-04-12 19:03:23.239 [pool-3-thread-1] INFO  cheese-im-postoffice - Connection removed: userID=xuecheng, connectionID=f063023765b54d00ba64b303c9f7b648, platform=Unknown, total=1
+2026-04-12 19:03:23.240 [pool-3-thread-1] INFO  cheese-im-postoffice - Connection kicked: userID=xuecheng, connectionID=f063023765b54d00ba64b303c9f7b648, reason=连接超时
+2026-04-12 19:03:23.240 [pool-3-thread-1] INFO  cheese-im-postoffice - Cleaned up 1 timeout connections
+2026-04-12 19:03:23.240 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:56640
+2026-04-12 21:07:15.917 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:56543
+2026-04-12 21:07:15.919 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=c65346c61a57434fa436c83a75768d19, platform=Unknown, total=0
+2026-04-12 21:07:15.919 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - TCP connection removed: connectionID=c65346c61a57434fa436c83a75768d19, userID=xxxcrel
+2026-04-12 21:07:47.015 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:54805
+2026-04-12 21:07:47.015 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Pending connection registered: connectionID=a345aee9be1a4d2eb1dfdc60684ee11a, remoteAddress=/127.0.0.1:54805
+2026-04-12 21:07:47.015 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - TCP connection created: connectionID=a345aee9be1a4d2eb1dfdc60684ee11a, clientIP=127.0.0.1
+2026-04-12 21:07:47.017 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Connection added: userID=xuecheng, connectionID=a345aee9be1a4d2eb1dfdc60684ee11a, platform=Unknown, total=1
+2026-04-12 21:07:47.017 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Authentication success: userID=xuecheng, sessionID=sess:xuecheng:cheesebox-dev, deviceID=cheesebox-dev, connectionID=a345aee9be1a4d2eb1dfdc60684ee11a
+2026-04-12 21:08:31.343 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:54805
+2026-04-12 21:08:31.343 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Connection removed: userID=xuecheng, connectionID=a345aee9be1a4d2eb1dfdc60684ee11a, platform=Unknown, total=0
+2026-04-12 21:08:31.343 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - TCP connection removed: connectionID=a345aee9be1a4d2eb1dfdc60684ee11a, userID=xuecheng
+2026-04-12 21:26:37.921 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:61458
+2026-04-12 21:26:37.922 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - Pending connection registered: connectionID=3917d61c11ae44f9a5ddb6f238ead8ea, remoteAddress=/127.0.0.1:61458
+2026-04-12 21:26:37.922 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - TCP connection created: connectionID=3917d61c11ae44f9a5ddb6f238ead8ea, clientIP=127.0.0.1
+2026-04-12 21:26:37.925 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - Connection added: userID=xxxcre, connectionID=3917d61c11ae44f9a5ddb6f238ead8ea, platform=Unknown, total=1
+2026-04-12 21:26:37.925 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - Authentication success: userID=xxxcre, sessionID=sess:xxxcre:cheesebox-dev, deviceID=cheesebox-dev, connectionID=3917d61c11ae44f9a5ddb6f238ead8ea
+2026-04-12 21:26:42.211 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:61458
+2026-04-12 21:26:42.211 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - Connection removed: userID=xxxcre, connectionID=3917d61c11ae44f9a5ddb6f238ead8ea, platform=Unknown, total=0
+2026-04-12 21:26:42.211 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - TCP connection removed: connectionID=3917d61c11ae44f9a5ddb6f238ead8ea, userID=xxxcre
+2026-04-12 21:40:52.641 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:50509
+2026-04-12 21:40:52.642 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - Pending connection registered: connectionID=b0394f0e0c7a455a823c15e972787a91, remoteAddress=/127.0.0.1:50509
+2026-04-12 21:40:52.642 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - TCP connection created: connectionID=b0394f0e0c7a455a823c15e972787a91, clientIP=127.0.0.1
+2026-04-12 21:40:52.645 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=b0394f0e0c7a455a823c15e972787a91, platform=Unknown, total=1
+2026-04-12 21:40:52.645 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=b0394f0e0c7a455a823c15e972787a91
+2026-04-12 21:41:30.540 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:50714
+2026-04-12 21:41:30.540 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Pending connection registered: connectionID=88c4c69e211c4e51b6cbc3501533f71d, remoteAddress=/127.0.0.1:50714
+2026-04-12 21:41:30.540 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - TCP connection created: connectionID=88c4c69e211c4e51b6cbc3501533f71d, clientIP=127.0.0.1
+2026-04-12 21:41:30.542 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Connection added: userID=xuecheng, connectionID=88c4c69e211c4e51b6cbc3501533f71d, platform=Unknown, total=2
+2026-04-12 21:41:30.542 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Authentication success: userID=xuecheng, sessionID=sess:xuecheng:cheesebox-dev, deviceID=cheesebox-dev, connectionID=88c4c69e211c4e51b6cbc3501533f71d
+2026-04-12 21:41:35.096 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a59fc4aa2e82f0, serverMsgID=msg_1776001295092_15
+2026-04-12 21:41:38.493 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a59fc574e5f168, serverMsgID=msg_1776001298491_16
+2026-04-12 21:53:13.034 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:50509
+2026-04-12 21:53:13.037 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=b0394f0e0c7a455a823c15e972787a91, platform=Unknown, total=1
+2026-04-12 21:53:13.037 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - TCP connection removed: connectionID=b0394f0e0c7a455a823c15e972787a91, userID=xxxcrel
+2026-04-12 21:55:37.612 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:55063
+2026-04-12 21:55:37.613 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Pending connection registered: connectionID=4490f40f6ee84f0daba535b349cb1b2d, remoteAddress=/127.0.0.1:55063
+2026-04-12 21:55:37.613 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - TCP connection created: connectionID=4490f40f6ee84f0daba535b349cb1b2d, clientIP=127.0.0.1
+2026-04-12 21:55:37.616 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=4490f40f6ee84f0daba535b349cb1b2d, platform=Unknown, total=2
+2026-04-12 21:55:37.616 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=4490f40f6ee84f0daba535b349cb1b2d
+2026-04-12 21:55:52.574 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a08c4fe4e820, serverMsgID=msg_1776002152568_17
+2026-04-12 21:55:55.625 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a08d0625dfb8, serverMsgID=msg_1776002155625_18
+2026-04-12 22:08:43.560 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:55063
+2026-04-12 22:08:43.561 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=4490f40f6ee84f0daba535b349cb1b2d, platform=Unknown, total=1
+2026-04-12 22:08:43.561 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - TCP connection removed: connectionID=4490f40f6ee84f0daba535b349cb1b2d, userID=xxxcrel
+2026-04-12 22:08:50.179 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:58989
+2026-04-12 22:08:50.179 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - Pending connection registered: connectionID=bb5dce17f9134c5aadd2ffd4a5f6c3d9, remoteAddress=/127.0.0.1:58989
+2026-04-12 22:08:50.179 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - TCP connection created: connectionID=bb5dce17f9134c5aadd2ffd4a5f6c3d9, clientIP=127.0.0.1
+2026-04-12 22:08:50.180 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=bb5dce17f9134c5aadd2ffd4a5f6c3d9, platform=Unknown, total=2
+2026-04-12 22:08:50.180 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=bb5dce17f9134c5aadd2ffd4a5f6c3d9
+2026-04-12 22:08:53.786 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:58989
+2026-04-12 22:08:53.786 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=bb5dce17f9134c5aadd2ffd4a5f6c3d9, platform=Unknown, total=1
+2026-04-12 22:08:53.786 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - TCP connection removed: connectionID=bb5dce17f9134c5aadd2ffd4a5f6c3d9, userID=xxxcrel
+2026-04-12 22:10:32.307 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:59519
+2026-04-12 22:10:32.307 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - Pending connection registered: connectionID=ee57b4c74b4b4032bf08b7d7cc20d136, remoteAddress=/127.0.0.1:59519
+2026-04-12 22:10:32.307 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - TCP connection created: connectionID=ee57b4c74b4b4032bf08b7d7cc20d136, clientIP=127.0.0.1
+2026-04-12 22:10:32.308 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=ee57b4c74b4b4032bf08b7d7cc20d136, platform=Unknown, total=2
+2026-04-12 22:10:32.308 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=ee57b4c74b4b4032bf08b7d7cc20d136
+2026-04-12 22:10:39.169 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a15abd1e64d8, serverMsgID=msg_1776003039165_19
+2026-04-12 22:10:43.812 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a15bd239b5b0, serverMsgID=msg_1776003043812_20
+2026-04-12 22:10:46.570 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a15c76b01c88, serverMsgID=msg_1776003046570_21
+2026-04-12 22:11:03.423 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:59519
+2026-04-12 22:11:03.423 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=ee57b4c74b4b4032bf08b7d7cc20d136, platform=Unknown, total=1
+2026-04-12 22:11:03.423 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - TCP connection removed: connectionID=ee57b4c74b4b4032bf08b7d7cc20d136, userID=xxxcrel
+2026-04-12 22:13:19.541 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:60381
+2026-04-12 22:13:19.541 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - Pending connection registered: connectionID=fb3bd0f511d24721829da4316e0faa71, remoteAddress=/127.0.0.1:60381
+2026-04-12 22:13:19.541 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - TCP connection created: connectionID=fb3bd0f511d24721829da4316e0faa71, clientIP=127.0.0.1
+2026-04-12 22:13:19.542 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=fb3bd0f511d24721829da4316e0faa71, platform=Unknown, total=2
+2026-04-12 22:13:19.542 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=fb3bd0f511d24721829da4316e0faa71
+2026-04-12 22:16:44.624 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:60381
+2026-04-12 22:16:44.625 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=fb3bd0f511d24721829da4316e0faa71, platform=Unknown, total=1
+2026-04-12 22:16:44.626 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - TCP connection removed: connectionID=fb3bd0f511d24721829da4316e0faa71, userID=xxxcrel
+2026-04-12 22:20:13.145 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a1e0605a98a8, serverMsgID=msg_1776003613144_22
+2026-04-12 22:20:14.722 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:50714
+2026-04-12 22:20:14.723 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Connection removed: userID=xuecheng, connectionID=88c4c69e211c4e51b6cbc3501533f71d, platform=Unknown, total=0
+2026-04-12 22:20:14.723 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - TCP connection removed: connectionID=88c4c69e211c4e51b6cbc3501533f71d, userID=xuecheng
+2026-04-12 22:20:22.294 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:62523
+2026-04-12 22:20:22.295 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - Pending connection registered: connectionID=f79b0d917b3a47fd9c067781a40ad99b, remoteAddress=/127.0.0.1:62523
+2026-04-12 22:20:22.295 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - TCP connection created: connectionID=f79b0d917b3a47fd9c067781a40ad99b, clientIP=127.0.0.1
+2026-04-12 22:20:22.296 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=f79b0d917b3a47fd9c067781a40ad99b, platform=Unknown, total=1
+2026-04-12 22:20:22.296 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=f79b0d917b3a47fd9c067781a40ad99b
+2026-04-12 22:26:30.824 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:62523
+2026-04-12 22:26:30.826 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=f79b0d917b3a47fd9c067781a40ad99b, platform=Unknown, total=0
+2026-04-12 22:26:30.826 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - TCP connection removed: connectionID=f79b0d917b3a47fd9c067781a40ad99b, userID=xxxcrel
+2026-04-12 22:26:37.835 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:64446
+2026-04-12 22:26:37.836 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Pending connection registered: connectionID=0662ff0c67fb4f7fa2c5c3bdf793306b, remoteAddress=/127.0.0.1:64446
+2026-04-12 22:26:37.836 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection created: connectionID=0662ff0c67fb4f7fa2c5c3bdf793306b, clientIP=127.0.0.1
+2026-04-12 22:26:37.837 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=0662ff0c67fb4f7fa2c5c3bdf793306b, platform=Unknown, total=1
+2026-04-12 22:26:37.837 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=0662ff0c67fb4f7fa2c5c3bdf793306b
+2026-04-12 22:26:45.009 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a23b9d45f6f8, serverMsgID=msg_1776004005003_23
+2026-04-12 22:26:52.557 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:64446
+2026-04-12 22:26:52.558 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=0662ff0c67fb4f7fa2c5c3bdf793306b, platform=Unknown, total=0
+2026-04-12 22:26:52.558 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection removed: connectionID=0662ff0c67fb4f7fa2c5c3bdf793306b, userID=xxxcrel
+2026-04-12 22:27:10.615 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:64622
+2026-04-12 22:27:10.615 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Pending connection registered: connectionID=b39eb682471a46798eb510a0e256b71f, remoteAddress=/127.0.0.1:64622
+2026-04-12 22:27:10.616 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - TCP connection created: connectionID=b39eb682471a46798eb510a0e256b71f, clientIP=127.0.0.1
+2026-04-12 22:27:10.617 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=b39eb682471a46798eb510a0e256b71f, platform=Unknown, total=1
+2026-04-12 22:27:10.617 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=b39eb682471a46798eb510a0e256b71f
+2026-04-12 22:27:40.209 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:64622
+2026-04-12 22:27:40.210 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=b39eb682471a46798eb510a0e256b71f, platform=Unknown, total=0
+2026-04-12 22:27:40.210 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - TCP connection removed: connectionID=b39eb682471a46798eb510a0e256b71f, userID=xxxcrel
+2026-04-12 22:27:47.044 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:64809
+2026-04-12 22:27:47.044 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Pending connection registered: connectionID=d0c5c45ffd644808ab0fb06efa1d984d, remoteAddress=/127.0.0.1:64809
+2026-04-12 22:27:47.044 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - TCP connection created: connectionID=d0c5c45ffd644808ab0fb06efa1d984d, clientIP=127.0.0.1
+2026-04-12 22:27:47.045 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=d0c5c45ffd644808ab0fb06efa1d984d, platform=Unknown, total=1
+2026-04-12 22:27:47.045 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=d0c5c45ffd644808ab0fb06efa1d984d
+2026-04-12 22:28:01.186 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a24d5a8cc0a0, serverMsgID=msg_1776004081186_24
+2026-04-12 22:28:03.181 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a24dd1725810, serverMsgID=msg_1776004083181_25
+2026-04-12 22:28:06.067 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:64809
+2026-04-12 22:28:06.069 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=d0c5c45ffd644808ab0fb06efa1d984d, platform=Unknown, total=0
+2026-04-12 22:28:06.069 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - TCP connection removed: connectionID=d0c5c45ffd644808ab0fb06efa1d984d, userID=xxxcrel
+2026-04-12 22:28:39.776 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:65077
+2026-04-12 22:28:39.776 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Pending connection registered: connectionID=1592729e2b7e4421a7b1734417fed51c, remoteAddress=/127.0.0.1:65077
+2026-04-12 22:28:39.776 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - TCP connection created: connectionID=1592729e2b7e4421a7b1734417fed51c, clientIP=127.0.0.1
+2026-04-12 22:28:39.778 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=1592729e2b7e4421a7b1734417fed51c, platform=Unknown, total=1
+2026-04-12 22:28:39.778 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=1592729e2b7e4421a7b1734417fed51c
+2026-04-12 22:28:44.509 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a2577095b6b8, serverMsgID=msg_1776004124507_26
+2026-04-12 22:28:46.240 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a257d8018f20, serverMsgID=msg_1776004126240_27
+2026-04-12 22:28:48.059 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a25844715af0, serverMsgID=msg_1776004128059_28
+2026-04-12 22:28:48.867 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a2587492fec8, serverMsgID=msg_1776004128867_29
+2026-04-12 22:28:59.978 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:65077
+2026-04-12 22:28:59.979 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=1592729e2b7e4421a7b1734417fed51c, platform=Unknown, total=0
+2026-04-12 22:28:59.979 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - TCP connection removed: connectionID=1592729e2b7e4421a7b1734417fed51c, userID=xxxcrel
+2026-04-12 22:30:07.766 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:65524
+2026-04-12 22:30:07.766 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - Pending connection registered: connectionID=3a9ecdd9b55b48eaaf618df6cc9c8cc9, remoteAddress=/127.0.0.1:65524
+2026-04-12 22:30:07.766 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - TCP connection created: connectionID=3a9ecdd9b55b48eaaf618df6cc9c8cc9, clientIP=127.0.0.1
+2026-04-12 22:30:07.768 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=3a9ecdd9b55b48eaaf618df6cc9c8cc9, platform=Unknown, total=1
+2026-04-12 22:30:07.768 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=3a9ecdd9b55b48eaaf618df6cc9c8cc9
+2026-04-12 22:30:11.932 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:65524
+2026-04-12 22:30:11.932 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=3a9ecdd9b55b48eaaf618df6cc9c8cc9, platform=Unknown, total=0
+2026-04-12 22:30:11.932 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - TCP connection removed: connectionID=3a9ecdd9b55b48eaaf618df6cc9c8cc9, userID=xxxcrel
+2026-04-12 22:30:18.448 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:49207
+2026-04-12 22:30:18.449 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Pending connection registered: connectionID=63dd58108e93497f8c2f56fc17158cfb, remoteAddress=/127.0.0.1:49207
+2026-04-12 22:30:18.449 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - TCP connection created: connectionID=63dd58108e93497f8c2f56fc17158cfb, clientIP=127.0.0.1
+2026-04-12 22:30:18.450 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=63dd58108e93497f8c2f56fc17158cfb, platform=Unknown, total=1
+2026-04-12 22:30:18.450 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=63dd58108e93497f8c2f56fc17158cfb
+2026-04-12 22:30:29.970 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a26ffeb1a408, serverMsgID=msg_1776004229970_30
+2026-04-12 22:30:32.621 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a2709cd1be48, serverMsgID=msg_1776004232621_31
+2026-04-12 22:30:33.328 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a270c6f16f48, serverMsgID=msg_1776004233328_32
+2026-04-12 22:38:18.858 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:49207
+2026-04-12 22:38:18.860 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=63dd58108e93497f8c2f56fc17158cfb, platform=Unknown, total=0
+2026-04-12 22:38:18.860 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - TCP connection removed: connectionID=63dd58108e93497f8c2f56fc17158cfb, userID=xxxcrel
+2026-04-12 22:42:15.483 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:52863
+2026-04-12 22:42:15.484 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Pending connection registered: connectionID=950539f89a5b4d83a3aef7484a86a69c, remoteAddress=/127.0.0.1:52863
+2026-04-12 22:42:15.484 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - TCP connection created: connectionID=950539f89a5b4d83a3aef7484a86a69c, clientIP=127.0.0.1
+2026-04-12 22:42:15.487 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=950539f89a5b4d83a3aef7484a86a69c, platform=Unknown, total=1
+2026-04-12 22:42:15.487 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=950539f89a5b4d83a3aef7484a86a69c
+2026-04-12 22:42:22.273 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a315d72f1f18, serverMsgID=msg_1776004942272_33
+2026-04-12 22:42:24.881 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a31672c5fa50, serverMsgID=msg_1776004944880_34
+2026-04-12 22:43:17.853 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:52863
+2026-04-12 22:43:17.854 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=950539f89a5b4d83a3aef7484a86a69c, platform=Unknown, total=0
+2026-04-12 22:43:17.854 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - TCP connection removed: connectionID=950539f89a5b4d83a3aef7484a86a69c, userID=xxxcrel
+2026-04-12 22:43:23.632 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:53213
+2026-04-12 22:43:23.632 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Pending connection registered: connectionID=89e4f60507734c10a0da3a93549b8568, remoteAddress=/127.0.0.1:53213
+2026-04-12 22:43:23.632 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - TCP connection created: connectionID=89e4f60507734c10a0da3a93549b8568, clientIP=127.0.0.1
+2026-04-12 22:43:23.633 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=89e4f60507734c10a0da3a93549b8568, platform=Unknown, total=1
+2026-04-12 22:43:23.633 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=89e4f60507734c10a0da3a93549b8568
+2026-04-12 22:43:34.935 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:53213
+2026-04-12 22:43:34.935 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=89e4f60507734c10a0da3a93549b8568, platform=Unknown, total=0
+2026-04-12 22:43:34.935 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - TCP connection removed: connectionID=89e4f60507734c10a0da3a93549b8568, userID=xxxcrel
+2026-04-12 22:44:40.410 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:53603
+2026-04-12 22:44:40.410 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - Pending connection registered: connectionID=9c7a6bbfedb84b689b37c53e7511fd3a, remoteAddress=/127.0.0.1:53603
+2026-04-12 22:44:40.410 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - TCP connection created: connectionID=9c7a6bbfedb84b689b37c53e7511fd3a, clientIP=127.0.0.1
+2026-04-12 22:44:40.412 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=9c7a6bbfedb84b689b37c53e7511fd3a, platform=Unknown, total=1
+2026-04-12 22:44:40.412 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=9c7a6bbfedb84b689b37c53e7511fd3a
+2026-04-12 22:44:43.284 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a336ac1111d0, serverMsgID=msg_1776005083281_35
+2026-04-12 22:44:44.756 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a33703f26e08, serverMsgID=msg_1776005084756_36
+2026-04-12 22:44:49.154 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:53603
+2026-04-12 22:44:49.154 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=9c7a6bbfedb84b689b37c53e7511fd3a, platform=Unknown, total=0
+2026-04-12 22:44:49.154 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - TCP connection removed: connectionID=9c7a6bbfedb84b689b37c53e7511fd3a, userID=xxxcrel
+2026-04-12 22:45:18.190 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:53807
+2026-04-12 22:45:18.190 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - Pending connection registered: connectionID=bc4e9111c42c4105a9426f84a4c4acfb, remoteAddress=/127.0.0.1:53807
+2026-04-12 22:45:18.190 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - TCP connection created: connectionID=bc4e9111c42c4105a9426f84a4c4acfb, clientIP=127.0.0.1
+2026-04-12 22:45:18.191 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=bc4e9111c42c4105a9426f84a4c4acfb, platform=Unknown, total=1
+2026-04-12 22:45:18.191 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=bc4e9111c42c4105a9426f84a4c4acfb
+2026-04-12 22:47:02.663 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:54336
+2026-04-12 22:47:02.663 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Pending connection registered: connectionID=1a0f7de89d24481280f7cadc59afe4fe, remoteAddress=/127.0.0.1:54336
+2026-04-12 22:47:02.663 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - TCP connection created: connectionID=1a0f7de89d24481280f7cadc59afe4fe, clientIP=127.0.0.1
+2026-04-12 22:47:02.664 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Connection added: userID=xuecheng, connectionID=1a0f7de89d24481280f7cadc59afe4fe, platform=Unknown, total=2
+2026-04-12 22:47:02.664 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Authentication success: userID=xuecheng, sessionID=sess:xuecheng:cheesebox-dev, deviceID=cheesebox-dev, connectionID=1a0f7de89d24481280f7cadc59afe4fe
+2026-04-12 22:47:06.501 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a35804984028, serverMsgID=msg_1776005226501_37
+2026-04-12 22:47:11.044 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a35913751610, serverMsgID=msg_1776005231044_38
+2026-04-12 22:47:22.849 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a35bd30da558, serverMsgID=msg_1776005242848_39
+2026-04-12 22:47:33.833 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a35e61bc7e08, serverMsgID=msg_1776005253833_40
+2026-04-12 22:47:36.992 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a35f1e149e28, serverMsgID=msg_1776005256992_41
+2026-04-12 22:47:38.208 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a35f6690d0e0, serverMsgID=msg_1776005258208_42
+2026-04-12 22:48:00.618 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:53807
+2026-04-12 22:48:00.619 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=bc4e9111c42c4105a9426f84a4c4acfb, platform=Unknown, total=1
+2026-04-12 22:48:00.619 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - TCP connection removed: connectionID=bc4e9111c42c4105a9426f84a4c4acfb, userID=xxxcrel
+2026-04-12 22:48:05.794 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:54663
+2026-04-12 22:48:05.794 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Pending connection registered: connectionID=1d8a51f4e73448f3adde9c0401c975c7, remoteAddress=/127.0.0.1:54663
+2026-04-12 22:48:05.794 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - TCP connection created: connectionID=1d8a51f4e73448f3adde9c0401c975c7, clientIP=127.0.0.1
+2026-04-12 22:48:05.795 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=1d8a51f4e73448f3adde9c0401c975c7, platform=Unknown, total=2
+2026-04-12 22:48:05.795 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=1d8a51f4e73448f3adde9c0401c975c7
+2026-04-12 22:54:21.100 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:54336
+2026-04-12 22:54:21.101 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Connection removed: userID=xuecheng, connectionID=1a0f7de89d24481280f7cadc59afe4fe, platform=Unknown, total=1
+2026-04-12 22:54:21.101 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - TCP connection removed: connectionID=1a0f7de89d24481280f7cadc59afe4fe, userID=xuecheng
+2026-04-12 22:54:27.643 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:56599
+2026-04-12 22:54:27.643 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - Pending connection registered: connectionID=e3b51d46c8034c38837427211fde92d8, remoteAddress=/127.0.0.1:56599
+2026-04-12 22:54:27.643 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - TCP connection created: connectionID=e3b51d46c8034c38837427211fde92d8, clientIP=127.0.0.1
+2026-04-12 22:54:27.644 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - Connection added: userID=xuecheng, connectionID=e3b51d46c8034c38837427211fde92d8, platform=Unknown, total=2
+2026-04-12 22:54:27.644 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - Authentication success: userID=xuecheng, sessionID=sess:xuecheng:cheesebox-dev, deviceID=cheesebox-dev, connectionID=e3b51d46c8034c38837427211fde92d8
+2026-04-12 22:57:12.265 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a3e50ed59b98, serverMsgID=msg_1776005832264_43
+2026-04-12 22:58:14.564 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:54663
+2026-04-12 22:58:14.565 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=1d8a51f4e73448f3adde9c0401c975c7, platform=Unknown, total=1
+2026-04-12 22:58:14.565 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - TCP connection removed: connectionID=1d8a51f4e73448f3adde9c0401c975c7, userID=xxxcrel
+2026-04-12 22:58:21.415 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:57767
+2026-04-12 22:58:21.415 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - Pending connection registered: connectionID=24b7d5549fed4014b1025b61c51c9c8f, remoteAddress=/127.0.0.1:57767
+2026-04-12 22:58:21.415 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - TCP connection created: connectionID=24b7d5549fed4014b1025b61c51c9c8f, clientIP=127.0.0.1
+2026-04-12 22:58:21.417 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=24b7d5549fed4014b1025b61c51c9c8f, platform=Unknown, total=2
+2026-04-12 22:58:21.417 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=24b7d5549fed4014b1025b61c51c9c8f
+2026-04-12 22:58:27.141 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:57767
+2026-04-12 22:58:27.141 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=24b7d5549fed4014b1025b61c51c9c8f, platform=Unknown, total=1
+2026-04-12 22:58:27.141 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - TCP connection removed: connectionID=24b7d5549fed4014b1025b61c51c9c8f, userID=xxxcrel
+2026-04-12 23:00:27.155 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:58411
+2026-04-12 23:00:27.155 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - Pending connection registered: connectionID=21213984a60345b8bb42d525c408e0f6, remoteAddress=/127.0.0.1:58411
+2026-04-12 23:00:27.155 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - TCP connection created: connectionID=21213984a60345b8bb42d525c408e0f6, clientIP=127.0.0.1
+2026-04-12 23:00:27.156 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=21213984a60345b8bb42d525c408e0f6, platform=Unknown, total=2
+2026-04-12 23:00:27.156 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=21213984a60345b8bb42d525c408e0f6
+2026-04-12 23:00:33.211 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a413d814cb40, serverMsgID=msg_1776006033207_44
+2026-04-12 23:00:34.626 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a4142cad6900, serverMsgID=msg_1776006034626_45
+2026-04-12 23:01:13.658 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:58411
+2026-04-12 23:01:13.658 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=21213984a60345b8bb42d525c408e0f6, platform=Unknown, total=1
+2026-04-12 23:01:13.658 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - TCP connection removed: connectionID=21213984a60345b8bb42d525c408e0f6, userID=xxxcrel
+2026-04-12 23:01:18.972 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:58675
+2026-04-12 23:01:18.972 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - Pending connection registered: connectionID=d8e0817bfd2f4ba28ff4c6383142eccc, remoteAddress=/127.0.0.1:58675
+2026-04-12 23:01:18.972 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - TCP connection created: connectionID=d8e0817bfd2f4ba28ff4c6383142eccc, clientIP=127.0.0.1
+2026-04-12 23:01:18.973 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=d8e0817bfd2f4ba28ff4c6383142eccc, platform=Unknown, total=2
+2026-04-12 23:01:18.973 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=d8e0817bfd2f4ba28ff4c6383142eccc
+2026-04-12 23:01:28.719 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a420c4d20e50, serverMsgID=msg_1776006088718_46
+2026-04-12 23:01:30.672 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a42139453a78, serverMsgID=msg_1776006090672_47
+2026-04-12 23:01:32.509 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a421a63a7e40, serverMsgID=msg_1776006092509_48
+2026-04-12 23:01:35.419 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:56599
+2026-04-12 23:01:35.419 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - Connection removed: userID=xuecheng, connectionID=e3b51d46c8034c38837427211fde92d8, platform=Unknown, total=1
+2026-04-12 23:01:35.419 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - TCP connection removed: connectionID=e3b51d46c8034c38837427211fde92d8, userID=xuecheng
+2026-04-12 23:01:40.291 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:58790
+2026-04-12 23:01:40.291 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Pending connection registered: connectionID=cd417c0269be4d21b187d1b2bd41527e, remoteAddress=/127.0.0.1:58790
+2026-04-12 23:01:40.291 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection created: connectionID=cd417c0269be4d21b187d1b2bd41527e, clientIP=127.0.0.1
+2026-04-12 23:01:40.292 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=d8e0817bfd2f4ba28ff4c6383142eccc, platform=Unknown, total=1
+2026-04-12 23:01:40.292 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Connection kicked: userID=xxxcrel, connectionID=d8e0817bfd2f4ba28ff4c6383142eccc, reason=新设备登录，当前连接被踢下线
+2026-04-12 23:01:40.292 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=cd417c0269be4d21b187d1b2bd41527e, platform=Unknown, total=1
+2026-04-12 23:01:40.292 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=cd417c0269be4d21b187d1b2bd41527e
+2026-04-12 23:01:40.292 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:58675
+2026-04-12 23:01:44.007 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a42454057370, serverMsgID=msg_1776006104007_49
+2026-04-12 23:01:45.652 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:58790
+2026-04-12 23:01:45.652 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=cd417c0269be4d21b187d1b2bd41527e, platform=Unknown, total=0
+2026-04-12 23:01:45.652 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection removed: connectionID=cd417c0269be4d21b187d1b2bd41527e, userID=xxxcrel
+2026-04-12 23:01:49.635 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:58845
+2026-04-12 23:01:49.635 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Pending connection registered: connectionID=11fdb686204046328b334f7534ea2992, remoteAddress=/127.0.0.1:58845
+2026-04-12 23:01:49.635 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - TCP connection created: connectionID=11fdb686204046328b334f7534ea2992, clientIP=127.0.0.1
+2026-04-12 23:01:49.635 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Connection added: userID=xuecheng, connectionID=11fdb686204046328b334f7534ea2992, platform=Unknown, total=1
+2026-04-12 23:01:49.635 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Authentication success: userID=xuecheng, sessionID=sess:xuecheng:cheesebox-dev, deviceID=cheesebox-dev, connectionID=11fdb686204046328b334f7534ea2992
+2026-04-12 23:01:52.257 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a4263fbb80b0, serverMsgID=msg_1776006112256_50
+2026-04-12 23:02:02.545 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:58914
+2026-04-12 23:02:02.545 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Pending connection registered: connectionID=f750b7811b1249a7b881bb8b173c5852, remoteAddress=/127.0.0.1:58914
+2026-04-12 23:02:02.545 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - TCP connection created: connectionID=f750b7811b1249a7b881bb8b173c5852, clientIP=127.0.0.1
+2026-04-12 23:02:02.546 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=f750b7811b1249a7b881bb8b173c5852, platform=Unknown, total=2
+2026-04-12 23:02:02.546 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=f750b7811b1249a7b881bb8b173c5852
+2026-04-12 23:02:05.139 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a4293fb10d58, serverMsgID=msg_1776006125139_51
+2026-04-12 23:02:07.825 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a429dfbe97e8, serverMsgID=msg_1776006127825_52
+2026-04-12 23:02:09.206 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a42a321d2fe0, serverMsgID=msg_1776006129206_53
+2026-04-12 23:02:12.387 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a42aefa4eaa8, serverMsgID=msg_1776006132387_54
+2026-04-12 23:02:14.846 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a42b8243ff20, serverMsgID=msg_1776006134846_55
+2026-04-12 23:02:21.953 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a42d29d56458, serverMsgID=msg_1776006141952_56
+2026-04-12 23:02:32.716 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a42fab60c240, serverMsgID=msg_1776006152716_57
+2026-04-12 23:02:38.200 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a430f23a6b48, serverMsgID=msg_1776006158199_58
+2026-04-12 23:02:39.462 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a4313d7af9d8, serverMsgID=msg_1776006159462_59
+2026-04-12 23:02:41.350 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a431adfe0010, serverMsgID=msg_1776006161350_60
+2026-04-12 23:02:43.255 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a4321f92acf8, serverMsgID=msg_1776006163255_61
+2026-04-12 23:02:45.009 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a43288213370, serverMsgID=msg_1776006165009_62
+2026-04-12 23:02:47.156 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a433080c5ce0, serverMsgID=msg_1776006167156_63
+2026-04-12 23:02:47.769 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a4332c94d740, serverMsgID=msg_1776006167768_64
+2026-04-12 23:02:48.760 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a43367a95270, serverMsgID=msg_1776006168759_65
+2026-04-12 23:02:49.870 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a433a9d1e040, serverMsgID=msg_1776006169870_66
+2026-04-12 23:02:50.786 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a433e06dcf88, serverMsgID=msg_1776006170786_67
+2026-04-12 23:02:51.825 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a4341e4c1d00, serverMsgID=msg_1776006171825_68
+2026-04-12 23:02:55.330 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a434ef443cd0, serverMsgID=msg_1776006175330_69
+2026-04-12 23:05:01.115 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:58914
+2026-04-12 23:05:01.116 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=f750b7811b1249a7b881bb8b173c5852, platform=Unknown, total=1
+2026-04-12 23:05:01.116 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - TCP connection removed: connectionID=f750b7811b1249a7b881bb8b173c5852, userID=xxxcrel
+2026-04-12 23:05:06.840 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:59866
+2026-04-12 23:05:06.840 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Pending connection registered: connectionID=0cac36ca95f943388963d74345e45eeb, remoteAddress=/127.0.0.1:59866
+2026-04-12 23:05:06.840 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - TCP connection created: connectionID=0cac36ca95f943388963d74345e45eeb, clientIP=127.0.0.1
+2026-04-12 23:05:06.840 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=0cac36ca95f943388963d74345e45eeb, platform=Unknown, total=2
+2026-04-12 23:05:06.840 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=0cac36ca95f943388963d74345e45eeb
+2026-04-12 23:05:17.566 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:59866
+2026-04-12 23:05:17.566 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=0cac36ca95f943388963d74345e45eeb, platform=Unknown, total=1
+2026-04-12 23:05:17.566 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - TCP connection removed: connectionID=0cac36ca95f943388963d74345e45eeb, userID=xxxcrel
+2026-04-12 23:05:22.026 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:59952
+2026-04-12 23:05:22.027 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - Pending connection registered: connectionID=17fc421a077f491ab1fc01097dd6af4d, remoteAddress=/127.0.0.1:59952
+2026-04-12 23:05:22.027 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - TCP connection created: connectionID=17fc421a077f491ab1fc01097dd6af4d, clientIP=127.0.0.1
+2026-04-12 23:05:22.027 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=17fc421a077f491ab1fc01097dd6af4d, platform=Unknown, total=2
+2026-04-12 23:05:22.027 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=17fc421a077f491ab1fc01097dd6af4d
+2026-04-12 23:05:55.083 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:59952
+2026-04-12 23:05:55.084 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=17fc421a077f491ab1fc01097dd6af4d, platform=Unknown, total=1
+2026-04-12 23:05:55.084 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - TCP connection removed: connectionID=17fc421a077f491ab1fc01097dd6af4d, userID=xxxcrel
+2026-04-12 23:05:59.111 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:60146
+2026-04-12 23:05:59.111 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Pending connection registered: connectionID=65f3902ce12c4f57a57ad12a74a750bc, remoteAddress=/127.0.0.1:60146
+2026-04-12 23:05:59.111 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - TCP connection created: connectionID=65f3902ce12c4f57a57ad12a74a750bc, clientIP=127.0.0.1
+2026-04-12 23:05:59.112 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=65f3902ce12c4f57a57ad12a74a750bc, platform=Unknown, total=2
+2026-04-12 23:05:59.112 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=65f3902ce12c4f57a57ad12a74a750bc
+2026-04-12 23:06:00.782 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:60146
+2026-04-12 23:06:00.783 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=65f3902ce12c4f57a57ad12a74a750bc, platform=Unknown, total=1
+2026-04-12 23:06:00.783 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - TCP connection removed: connectionID=65f3902ce12c4f57a57ad12a74a750bc, userID=xxxcrel
+2026-04-12 23:06:32.426 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:60327
+2026-04-12 23:06:32.426 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Pending connection registered: connectionID=ec15d284359e493faa6ebd985c111147, remoteAddress=/127.0.0.1:60327
+2026-04-12 23:06:32.426 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - TCP connection created: connectionID=ec15d284359e493faa6ebd985c111147, clientIP=127.0.0.1
+2026-04-12 23:06:32.427 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=ec15d284359e493faa6ebd985c111147, platform=Unknown, total=2
+2026-04-12 23:06:32.427 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=ec15d284359e493faa6ebd985c111147
+2026-04-12 23:06:50.689 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:60327
+2026-04-12 23:06:50.691 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=ec15d284359e493faa6ebd985c111147, platform=Unknown, total=1
+2026-04-12 23:06:50.691 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - TCP connection removed: connectionID=ec15d284359e493faa6ebd985c111147, userID=xxxcrel
+2026-04-12 23:06:54.507 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:60442
+2026-04-12 23:06:54.507 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Pending connection registered: connectionID=d77cb8ec0e4a4b24bd89fac14b6ccb16, remoteAddress=/127.0.0.1:60442
+2026-04-12 23:06:54.507 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - TCP connection created: connectionID=d77cb8ec0e4a4b24bd89fac14b6ccb16, clientIP=127.0.0.1
+2026-04-12 23:06:54.508 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Connection added: userID=xxxxcrel, connectionID=d77cb8ec0e4a4b24bd89fac14b6ccb16, platform=Unknown, total=2
+2026-04-12 23:06:54.508 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Authentication success: userID=xxxxcrel, sessionID=sess:xxxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=d77cb8ec0e4a4b24bd89fac14b6ccb16
+2026-04-12 23:06:55.937 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:60442
+2026-04-12 23:06:55.938 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Connection removed: userID=xxxxcrel, connectionID=d77cb8ec0e4a4b24bd89fac14b6ccb16, platform=Unknown, total=1
+2026-04-12 23:06:55.938 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - TCP connection removed: connectionID=d77cb8ec0e4a4b24bd89fac14b6ccb16, userID=xxxxcrel
+2026-04-12 23:07:06.312 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:60505
+2026-04-12 23:07:06.312 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - Pending connection registered: connectionID=b492ed9cdf47432b934764d2ddabc7fa, remoteAddress=/127.0.0.1:60505
+2026-04-12 23:07:06.312 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - TCP connection created: connectionID=b492ed9cdf47432b934764d2ddabc7fa, clientIP=127.0.0.1
+2026-04-12 23:07:06.313 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - Connection added: userID=xxx, connectionID=b492ed9cdf47432b934764d2ddabc7fa, platform=Unknown, total=2
+2026-04-12 23:07:06.313 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - Authentication success: userID=xxx, sessionID=sess:xxx:cheesebox-dev, deviceID=cheesebox-dev, connectionID=b492ed9cdf47432b934764d2ddabc7fa
+2026-04-12 23:07:07.458 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:60505
+2026-04-12 23:07:07.458 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - Connection removed: userID=xxx, connectionID=b492ed9cdf47432b934764d2ddabc7fa, platform=Unknown, total=1
+2026-04-12 23:07:07.458 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - TCP connection removed: connectionID=b492ed9cdf47432b934764d2ddabc7fa, userID=xxx
+2026-04-12 23:07:25.394 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:60607
+2026-04-12 23:07:25.394 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - Pending connection registered: connectionID=c80d8d85508e4e66b6672036bb0dab58, remoteAddress=/127.0.0.1:60607
+2026-04-12 23:07:25.394 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - TCP connection created: connectionID=c80d8d85508e4e66b6672036bb0dab58, clientIP=127.0.0.1
+2026-04-12 23:07:25.395 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=c80d8d85508e4e66b6672036bb0dab58, platform=Unknown, total=2
+2026-04-12 23:07:25.395 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=c80d8d85508e4e66b6672036bb0dab58
+2026-04-12 23:07:30.065 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:60607
+2026-04-12 23:07:30.065 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=c80d8d85508e4e66b6672036bb0dab58, platform=Unknown, total=1
+2026-04-12 23:07:30.065 [nioEventLoopGroup-8-10] INFO  cheese-im-postoffice - TCP connection removed: connectionID=c80d8d85508e4e66b6672036bb0dab58, userID=xxxcrel
+2026-04-12 23:07:59.766 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:60787
+2026-04-12 23:07:59.766 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Pending connection registered: connectionID=121867ba6e674ab4bf7f3c1d9993404f, remoteAddress=/127.0.0.1:60787
+2026-04-12 23:07:59.766 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - TCP connection created: connectionID=121867ba6e674ab4bf7f3c1d9993404f, clientIP=127.0.0.1
+2026-04-12 23:07:59.767 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=121867ba6e674ab4bf7f3c1d9993404f, platform=Unknown, total=2
+2026-04-12 23:07:59.767 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=121867ba6e674ab4bf7f3c1d9993404f
+2026-04-12 23:08:11.502 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a47e8c85d7a8, serverMsgID=msg_1776006491502_70
+2026-04-12 23:08:13.137 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a47eedfd3e40, serverMsgID=msg_1776006493137_71
+2026-04-12 23:08:17.036 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a47fd65792d0, serverMsgID=msg_1776006497036_72
+2026-04-12 23:08:18.297 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a4802195eaf8, serverMsgID=msg_1776006498296_73
+2026-04-12 23:08:23.303 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a4814c06a100, serverMsgID=msg_1776006503303_74
+2026-04-12 23:08:27.598 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a4824bf127c0, serverMsgID=msg_1776006507598_75
+2026-04-12 23:12:35.685 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:60787
+2026-04-12 23:12:35.686 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=121867ba6e674ab4bf7f3c1d9993404f, platform=Unknown, total=1
+2026-04-12 23:12:35.686 [nioEventLoopGroup-8-11] INFO  cheese-im-postoffice - TCP connection removed: connectionID=121867ba6e674ab4bf7f3c1d9993404f, userID=xxxcrel
+2026-04-12 23:12:48.522 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:62306
+2026-04-12 23:12:48.522 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Pending connection registered: connectionID=5edfb1e3751b455ea115db6f0c56fe32, remoteAddress=/127.0.0.1:62306
+2026-04-12 23:12:48.522 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - TCP connection created: connectionID=5edfb1e3751b455ea115db6f0c56fe32, clientIP=127.0.0.1
+2026-04-12 23:12:48.523 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=5edfb1e3751b455ea115db6f0c56fe32, platform=Unknown, total=2
+2026-04-12 23:12:48.523 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=5edfb1e3751b455ea115db6f0c56fe32
+2026-04-12 23:12:52.821 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a4c00c861a80, serverMsgID=msg_1776006772821_76
+2026-04-12 23:13:07.587 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a4c37ca9aba8, serverMsgID=msg_1776006787587_77
+2026-04-12 23:13:10.552 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a4c42d6458a8, serverMsgID=msg_1776006790552_78
+2026-04-12 23:13:19.304 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a4c63707f930, serverMsgID=msg_1776006799304_79
+2026-04-12 23:13:25.509 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a4c7a8d6d378, serverMsgID=msg_1776006805509_80
+2026-04-12 23:15:43.731 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a4e7d76efee8, serverMsgID=msg_1776006943731_81
+2026-04-12 23:15:47.886 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a4e8cf35faf0, serverMsgID=msg_1776006947886_82
+2026-04-12 23:15:49.877 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a4e945e6caa8, serverMsgID=msg_1776006949877_83
+2026-04-12 23:15:51.979 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a4e9c32a1920, serverMsgID=msg_1776006951979_84
+2026-04-12 23:17:07.204 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a4fb46f21710, serverMsgID=msg_1776007027204_85
+2026-04-12 23:17:10.325 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a4fc00f016a8, serverMsgID=msg_1776007030324_86
+2026-04-12 23:17:39.060 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a502b162ea00, serverMsgID=msg_1776007059060_87
+2026-04-12 23:17:42.683 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a503899745b0, serverMsgID=msg_1776007062682_88
+2026-04-12 23:17:48.035 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a504c8a73048, serverMsgID=msg_1776007068035_89
+2026-04-12 23:17:51.395 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a50590f19660, serverMsgID=msg_1776007071395_90
+2026-04-12 23:17:55.428 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a50681552748, serverMsgID=msg_1776007075428_91
+2026-04-12 23:18:39.356 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:62306
+2026-04-12 23:18:39.357 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=5edfb1e3751b455ea115db6f0c56fe32, platform=Unknown, total=1
+2026-04-12 23:18:39.357 [nioEventLoopGroup-8-12] INFO  cheese-im-postoffice - TCP connection removed: connectionID=5edfb1e3751b455ea115db6f0c56fe32, userID=xxxcrel
+2026-04-12 23:18:41.425 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:58845
+2026-04-12 23:18:41.426 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Connection removed: userID=xuecheng, connectionID=11fdb686204046328b334f7534ea2992, platform=Unknown, total=0
+2026-04-12 23:18:41.426 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - TCP connection removed: connectionID=11fdb686204046328b334f7534ea2992, userID=xuecheng
+2026-04-12 23:18:49.850 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:64150
+2026-04-12 23:18:49.850 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - Pending connection registered: connectionID=3db1fba49b354d2d8d823284389dbb19, remoteAddress=/127.0.0.1:64150
+2026-04-12 23:18:49.850 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - TCP connection created: connectionID=3db1fba49b354d2d8d823284389dbb19, clientIP=127.0.0.1
+2026-04-12 23:18:49.851 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=3db1fba49b354d2d8d823284389dbb19, platform=Unknown, total=1
+2026-04-12 23:18:49.851 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=3db1fba49b354d2d8d823284389dbb19
+2026-04-12 23:18:56.342 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:64189
+2026-04-12 23:18:56.342 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - Pending connection registered: connectionID=c71b7c260928499db6e72d71774a03c7, remoteAddress=/127.0.0.1:64189
+2026-04-12 23:18:56.342 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - TCP connection created: connectionID=c71b7c260928499db6e72d71774a03c7, clientIP=127.0.0.1
+2026-04-12 23:18:56.343 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - Connection added: userID=xuecheng, connectionID=c71b7c260928499db6e72d71774a03c7, platform=Unknown, total=2
+2026-04-12 23:18:56.343 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - Authentication success: userID=xuecheng, sessionID=sess:xuecheng:cheesebox-dev, deviceID=cheesebox-dev, connectionID=c71b7c260928499db6e72d71774a03c7
+2026-04-12 23:19:00.951 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a515c295dbd0, serverMsgID=msg_1776007140951_92
+2026-04-12 23:19:05.843 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a516e61c94a8, serverMsgID=msg_1776007145839_93
+2026-04-12 23:19:08.028 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a517689faaf0, serverMsgID=msg_1776007148028_94
+2026-04-12 23:19:11.990 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a51854bf8748, serverMsgID=msg_1776007151990_95
+2026-04-12 23:21:02.157 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:64150
+2026-04-12 23:21:02.158 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=3db1fba49b354d2d8d823284389dbb19, platform=Unknown, total=1
+2026-04-12 23:21:02.158 [nioEventLoopGroup-8-13] INFO  cheese-im-postoffice - TCP connection removed: connectionID=3db1fba49b354d2d8d823284389dbb19, userID=xxxcrel
+2026-04-12 23:21:08.091 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:64866
+2026-04-12 23:21:08.091 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - Pending connection registered: connectionID=61412f145d4d47f4bad469622ce680a1, remoteAddress=/127.0.0.1:64866
+2026-04-12 23:21:08.091 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - TCP connection created: connectionID=61412f145d4d47f4bad469622ce680a1, clientIP=127.0.0.1
+2026-04-12 23:21:08.091 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=61412f145d4d47f4bad469622ce680a1, platform=Unknown, total=2
+2026-04-12 23:21:08.091 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=61412f145d4d47f4bad469622ce680a1
+2026-04-12 23:21:10.369 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:64189
+2026-04-12 23:21:10.369 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - Connection removed: userID=xuecheng, connectionID=c71b7c260928499db6e72d71774a03c7, platform=Unknown, total=1
+2026-04-12 23:21:10.369 [nioEventLoopGroup-8-14] INFO  cheese-im-postoffice - TCP connection removed: connectionID=c71b7c260928499db6e72d71774a03c7, userID=xuecheng
+2026-04-12 23:21:13.445 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:64897
+2026-04-12 23:21:13.446 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - Pending connection registered: connectionID=1f4cb283156d41d08cc1ffc17fe04920, remoteAddress=/127.0.0.1:64897
+2026-04-12 23:21:13.446 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - TCP connection created: connectionID=1f4cb283156d41d08cc1ffc17fe04920, clientIP=127.0.0.1
+2026-04-12 23:21:13.446 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - Connection added: userID=xuecheng, connectionID=1f4cb283156d41d08cc1ffc17fe04920, platform=Unknown, total=2
+2026-04-12 23:21:13.446 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - Authentication success: userID=xuecheng, sessionID=sess:xuecheng:cheesebox-dev, deviceID=cheesebox-dev, connectionID=1f4cb283156d41d08cc1ffc17fe04920
+2026-04-12 23:21:18.033 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a535ad7dc418, serverMsgID=msg_1776007278033_96
+2026-04-12 23:21:40.084 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a53acfdd49e8, serverMsgID=msg_1776007300084_97
+2026-04-12 23:21:51.738 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a53d8674e2e0, serverMsgID=msg_1776007311737_98
+2026-04-12 23:22:16.981 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:64866
+2026-04-12 23:22:16.983 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=61412f145d4d47f4bad469622ce680a1, platform=Unknown, total=1
+2026-04-12 23:22:16.983 [nioEventLoopGroup-8-15] INFO  cheese-im-postoffice - TCP connection removed: connectionID=61412f145d4d47f4bad469622ce680a1, userID=xxxcrel
+2026-04-12 23:22:19.197 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:64897
+2026-04-12 23:22:19.197 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - Connection removed: userID=xuecheng, connectionID=1f4cb283156d41d08cc1ffc17fe04920, platform=Unknown, total=0
+2026-04-12 23:22:19.197 [nioEventLoopGroup-8-16] INFO  cheese-im-postoffice - TCP connection removed: connectionID=1f4cb283156d41d08cc1ffc17fe04920, userID=xuecheng
+2026-04-12 23:23:40.452 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:49261
+2026-04-12 23:23:40.452 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Pending connection registered: connectionID=77ab074e8cda455fbc23c15b6c9837c9, remoteAddress=/127.0.0.1:49261
+2026-04-12 23:23:40.452 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection created: connectionID=77ab074e8cda455fbc23c15b6c9837c9, clientIP=127.0.0.1
+2026-04-12 23:23:40.453 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Connection added: userID=xuecheng, connectionID=77ab074e8cda455fbc23c15b6c9837c9, platform=Unknown, total=1
+2026-04-12 23:23:40.453 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Authentication success: userID=xuecheng, sessionID=sess:xuecheng:cheesebox-dev, deviceID=cheesebox-dev, connectionID=77ab074e8cda455fbc23c15b6c9837c9
+2026-04-12 23:23:47.328 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a558701c6980, serverMsgID=msg_1776007427328_99
+2026-04-12 23:23:54.438 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:49341
+2026-04-12 23:23:54.438 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Pending connection registered: connectionID=52f43ed5346e40c68a535efeda61d16f, remoteAddress=/127.0.0.1:49341
+2026-04-12 23:23:54.438 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - TCP connection created: connectionID=52f43ed5346e40c68a535efeda61d16f, clientIP=127.0.0.1
+2026-04-12 23:23:54.439 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Connection removed: userID=xuecheng, connectionID=77ab074e8cda455fbc23c15b6c9837c9, platform=Unknown, total=1
+2026-04-12 23:23:54.439 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Connection kicked: userID=xuecheng, connectionID=77ab074e8cda455fbc23c15b6c9837c9, reason=新设备登录，当前连接被踢下线
+2026-04-12 23:23:54.439 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Connection added: userID=xuecheng, connectionID=52f43ed5346e40c68a535efeda61d16f, platform=Unknown, total=1
+2026-04-12 23:23:54.439 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Authentication success: userID=xuecheng, sessionID=sess:xuecheng:cheesebox-dev, deviceID=cheesebox-dev, connectionID=52f43ed5346e40c68a535efeda61d16f
+2026-04-12 23:23:54.439 [nioEventLoopGroup-8-1] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:49261
+2026-04-12 23:23:59.358 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a55b3d2f80b8, serverMsgID=msg_1776007439357_100
+2026-04-12 23:24:10.322 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:49423
+2026-04-12 23:24:10.322 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Pending connection registered: connectionID=21d7d56cf03a4cc5bf7b72624d0228b9, remoteAddress=/127.0.0.1:49423
+2026-04-12 23:24:10.322 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - TCP connection created: connectionID=21d7d56cf03a4cc5bf7b72624d0228b9, clientIP=127.0.0.1
+2026-04-12 23:24:10.323 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Connection removed: userID=xuecheng, connectionID=52f43ed5346e40c68a535efeda61d16f, platform=Unknown, total=1
+2026-04-12 23:24:10.323 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Connection kicked: userID=xuecheng, connectionID=52f43ed5346e40c68a535efeda61d16f, reason=新设备登录，当前连接被踢下线
+2026-04-12 23:24:10.323 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Connection added: userID=xuecheng, connectionID=21d7d56cf03a4cc5bf7b72624d0228b9, platform=Unknown, total=1
+2026-04-12 23:24:10.323 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Authentication success: userID=xuecheng, sessionID=sess:xuecheng:cheesebox-dev, deviceID=cheesebox-dev, connectionID=21d7d56cf03a4cc5bf7b72624d0228b9
+2026-04-12 23:24:10.323 [nioEventLoopGroup-8-2] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:49341
+2026-04-12 23:24:17.078 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:49468
+2026-04-12 23:24:17.078 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Pending connection registered: connectionID=92ed22e784f94e158ac8bfd227df8a32, remoteAddress=/127.0.0.1:49468
+2026-04-12 23:24:17.078 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - TCP connection created: connectionID=92ed22e784f94e158ac8bfd227df8a32, clientIP=127.0.0.1
+2026-04-12 23:24:17.079 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=92ed22e784f94e158ac8bfd227df8a32, platform=Unknown, total=2
+2026-04-12 23:24:17.079 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:cheesebox-dev, deviceID=cheesebox-dev, connectionID=92ed22e784f94e158ac8bfd227df8a32
+2026-04-12 23:24:28.732 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a56213fb5468, serverMsgID=msg_1776007468732_101
+2026-04-12 23:24:37.396 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a564186cd920, serverMsgID=msg_1776007477396_102
+2026-04-12 23:24:48.512 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a566af061b88, serverMsgID=msg_1776007488512_103
+2026-04-12 23:25:04.959 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:49468
+2026-04-12 23:25:04.960 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=92ed22e784f94e158ac8bfd227df8a32, platform=Unknown, total=1
+2026-04-12 23:25:04.960 [nioEventLoopGroup-8-4] INFO  cheese-im-postoffice - TCP connection removed: connectionID=92ed22e784f94e158ac8bfd227df8a32, userID=xxxcrel
+2026-04-12 23:35:38.860 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:49423
+2026-04-12 23:35:38.861 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - Connection removed: userID=xuecheng, connectionID=21d7d56cf03a4cc5bf7b72624d0228b9, platform=Unknown, total=0
+2026-04-12 23:35:38.861 [nioEventLoopGroup-8-3] INFO  cheese-im-postoffice - TCP connection removed: connectionID=21d7d56cf03a4cc5bf7b72624d0228b9, userID=xuecheng
+2026-04-12 23:36:08.988 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:53104
+2026-04-12 23:36:08.988 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - Pending connection registered: connectionID=526fe4d3d31c457e87bd728d74ff8e6f, remoteAddress=/127.0.0.1:53104
+2026-04-12 23:36:08.988 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - TCP connection created: connectionID=526fe4d3d31c457e87bd728d74ff8e6f, clientIP=127.0.0.1
+2026-04-12 23:36:08.989 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=526fe4d3d31c457e87bd728d74ff8e6f, platform=Unknown, total=1
+2026-04-12 23:36:08.989 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:sdk-test-cli, deviceID=sdk-test-cli, connectionID=526fe4d3d31c457e87bd728d74ff8e6f
+2026-04-12 23:36:28.223 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:53209
+2026-04-12 23:36:28.223 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Pending connection registered: connectionID=2e2e1c1903fb48e2928ea85c89698204, remoteAddress=/127.0.0.1:53209
+2026-04-12 23:36:28.223 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - TCP connection created: connectionID=2e2e1c1903fb48e2928ea85c89698204, clientIP=127.0.0.1
+2026-04-12 23:36:28.224 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Connection added: userID=xuecheng, connectionID=2e2e1c1903fb48e2928ea85c89698204, platform=Unknown, total=2
+2026-04-12 23:36:28.224 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Authentication success: userID=xuecheng, sessionID=sess:xuecheng:sdk-test-cli, deviceID=sdk-test-cli, connectionID=2e2e1c1903fb48e2928ea85c89698204
+2026-04-12 23:38:04.698 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:53104
+2026-04-12 23:38:04.699 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=526fe4d3d31c457e87bd728d74ff8e6f, platform=Unknown, total=1
+2026-04-12 23:38:04.699 [nioEventLoopGroup-8-5] INFO  cheese-im-postoffice - TCP connection removed: connectionID=526fe4d3d31c457e87bd728d74ff8e6f, userID=xxxcrel
+2026-04-12 23:38:07.802 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:53722
+2026-04-12 23:38:07.802 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Pending connection registered: connectionID=b0a570de1a64424291e7aa41b8371fd7, remoteAddress=/127.0.0.1:53722
+2026-04-12 23:38:07.802 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - TCP connection created: connectionID=b0a570de1a64424291e7aa41b8371fd7, clientIP=127.0.0.1
+2026-04-12 23:38:07.803 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=b0a570de1a64424291e7aa41b8371fd7, platform=Unknown, total=2
+2026-04-12 23:38:07.803 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:sdk-test-cli, deviceID=sdk-test-cli, connectionID=b0a570de1a64424291e7aa41b8371fd7
+2026-04-12 23:38:11.006 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:53209
+2026-04-12 23:38:11.007 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - Connection removed: userID=xuecheng, connectionID=2e2e1c1903fb48e2928ea85c89698204, platform=Unknown, total=1
+2026-04-12 23:38:11.007 [nioEventLoopGroup-8-6] INFO  cheese-im-postoffice - TCP connection removed: connectionID=2e2e1c1903fb48e2928ea85c89698204, userID=xuecheng
+2026-04-12 23:38:12.593 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:53754
+2026-04-12 23:38:12.593 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Pending connection registered: connectionID=c4ee0d3cf5c54269aaa4bf4b0580e08f, remoteAddress=/127.0.0.1:53754
+2026-04-12 23:38:12.593 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - TCP connection created: connectionID=c4ee0d3cf5c54269aaa4bf4b0580e08f, clientIP=127.0.0.1
+2026-04-12 23:38:12.594 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Connection added: userID=xuecheng, connectionID=c4ee0d3cf5c54269aaa4bf4b0580e08f, platform=Unknown, total=2
+2026-04-12 23:38:12.594 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Authentication success: userID=xuecheng, sessionID=sess:xuecheng:sdk-test-cli, deviceID=sdk-test-cli, connectionID=c4ee0d3cf5c54269aaa4bf4b0580e08f
+2026-04-12 23:38:14.579 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a6225c090aa0, serverMsgID=msg_1776008294575_104
+2026-04-12 23:38:19.978 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a6239e116130, serverMsgID=msg_1776008299978_105
+2026-04-12 23:38:24.519 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a624acdcf520, serverMsgID=msg_1776008304519_106
+2026-04-12 23:39:05.169 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a62e23c8a478, serverMsgID=msg_1776008345169_107
+2026-04-12 23:40:02.257 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a63b6e774828, serverMsgID=msg_1776008402257_108
+2026-04-12 23:47:53.130 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:53722
+2026-04-12 23:47:53.132 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=b0a570de1a64424291e7aa41b8371fd7, platform=Unknown, total=1
+2026-04-12 23:47:53.132 [nioEventLoopGroup-8-7] INFO  cheese-im-postoffice - TCP connection removed: connectionID=b0a570de1a64424291e7aa41b8371fd7, userID=xxxcrel
+2026-04-12 23:48:38.376 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - TCP connection established: /127.0.0.1:56931
+2026-04-12 23:48:38.376 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - Pending connection registered: connectionID=14912ab7ee5d4c9a984e6b068cea36d9, remoteAddress=/127.0.0.1:56931
+2026-04-12 23:48:38.376 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - TCP connection created: connectionID=14912ab7ee5d4c9a984e6b068cea36d9, clientIP=127.0.0.1
+2026-04-12 23:48:38.379 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - Connection added: userID=xxxcrel, connectionID=14912ab7ee5d4c9a984e6b068cea36d9, platform=Unknown, total=2
+2026-04-12 23:48:38.379 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - Authentication success: userID=xxxcrel, sessionID=sess:xxxcrel:sdk-test-cli, deviceID=sdk-test-cli, connectionID=14912ab7ee5d4c9a984e6b068cea36d9
+2026-04-12 23:48:50.694 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a6b677a52cc8, serverMsgID=msg_1776008930693_109
+2026-04-12 23:50:01.209 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a6c6e2b8eff8, serverMsgID=msg_1776009001208_110
+2026-04-12 23:50:16.058 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - Message accepted successfully: userID=xxxcrel, clientMsgID=c8a5a6ca57ce8e80, serverMsgID=msg_1776009016058_111
+2026-04-12 23:50:29.916 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a6cd91e26300, serverMsgID=msg_1776009029916_112
+2026-04-12 23:53:25.008 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - Message accepted successfully: userID=xuecheng, clientMsgID=c8a5a6f655aed700, serverMsgID=msg_1776009205008_113
+2026-04-12 23:56:54.514 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:56931
+2026-04-12 23:56:54.517 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - Connection removed: userID=xxxcrel, connectionID=14912ab7ee5d4c9a984e6b068cea36d9, platform=Unknown, total=1
+2026-04-12 23:56:54.517 [nioEventLoopGroup-8-9] INFO  cheese-im-postoffice - TCP connection removed: connectionID=14912ab7ee5d4c9a984e6b068cea36d9, userID=xxxcrel
+2026-04-12 23:56:54.665 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - Shutting down WebSocket Server...
+2026-04-12 23:56:54.666 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - ConnectionManager destroyed
+2026-04-12 23:56:54.667 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - WebSocket Server shutdown completed
+2026-04-12 23:56:54.667 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - Shutting down TCP Server...
+2026-04-12 23:56:54.667 [SpringApplicationShutdownHook] INFO  cheese-im-postoffice - TCP Server shutdown completed
+2026-04-12 23:56:54.667 [nioEventLoopGroup-8-8] INFO  cheese-im-postoffice - TCP connection closed: /127.0.0.1:53754

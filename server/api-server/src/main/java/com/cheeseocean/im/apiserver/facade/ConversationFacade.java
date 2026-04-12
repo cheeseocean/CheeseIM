@@ -1,17 +1,30 @@
 package com.cheeseocean.im.apiserver.facade;
 
 import com.cheeseocean.im.apiserver.model.request.BatchGetConversationsRequest;
+import com.cheeseocean.im.apiserver.model.request.PullMessagesRequest;
+import com.cheeseocean.im.apiserver.model.request.SeqRangeItemRequest;
 import com.cheeseocean.im.apiserver.model.request.GetConversationRequest;
 import com.cheeseocean.im.apiserver.model.request.ListConversationMessagesRequest;
 import com.cheeseocean.im.apiserver.model.request.ListConversationsRequest;
 import com.cheeseocean.im.apiserver.model.request.SetConversationsRequest;
+import com.cheeseocean.im.apiserver.model.request.AckReadSeqRequest;
 import com.cheeseocean.im.apiserver.model.response.ConversationIdsHashResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationIdsResponse;
+import com.cheeseocean.im.apiserver.model.response.ConversationMaxSeqResponse;
+import com.cheeseocean.im.apiserver.model.response.ConversationReadSnapshotResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationResponse;
 import com.cheeseocean.im.apiserver.model.response.HistoryMessageResponse;
+import com.cheeseocean.im.apiserver.model.response.PullMessagesResponse;
+import com.cheeseocean.im.apiserver.model.response.PulledConversationMessagesResponse;
+import com.cheeseocean.im.apiserver.model.response.SyncMessageResponse;
 import com.cheeseocean.im.common.api.business.domain.User;
 import com.cheeseocean.im.common.api.business.domain.UserConversation;
 import com.cheeseocean.im.common.api.conversation.ConversationService;
+import com.cheeseocean.im.common.api.conversation.ConversationSyncService;
+import com.cheeseocean.im.common.api.dto.conversation.ConversationReadSnapshot;
+import com.cheeseocean.im.common.api.dto.conversation.PullMessages;
+import com.cheeseocean.im.common.api.dto.conversation.SeqRangeRequest;
+import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.enums.ConversationKind;
 import com.cheeseocean.im.common.api.permission.ConversationPermissionRequest;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
@@ -23,7 +36,10 @@ import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * 会话 HTTP facade，负责处理登录态解析和 HTTP 查询编排。
@@ -32,6 +48,7 @@ import java.util.List;
 public class ConversationFacade {
 
     private final ConversationService conversationService;
+    private final ConversationSyncService conversationSyncService;
     private final ConversationPermissionService permissionService;
     private final HistoryQueryService historyQueryService;
 
@@ -39,27 +56,29 @@ public class ConversationFacade {
     private UserInfoService userInfoService;
 
     public ConversationFacade(ConversationService conversationService,
+                              ConversationSyncService conversationSyncService,
                               ConversationPermissionService permissionService,
                               HistoryQueryService historyQueryService) {
         this.conversationService = conversationService;
+        this.conversationSyncService = conversationSyncService;
         this.permissionService = permissionService;
         this.historyQueryService = historyQueryService;
     }
 
     public List<ConversationResponse> listConversations(SessionPrincipal session, ListConversationsRequest request) {
         int effectiveLimit = Math.max(1, request.getLimit());
-        return conversationService.getAllConversations(session.getUserId()).stream()
+        return safeConversations(conversationService.getAllConversations(session.getUserId())).stream()
                 .filter(conversation -> conversation != null && conversation.getConversationId() != null)
                 .filter(conversation -> allow(session, conversation.getConversationId()))
                 .sorted(Comparator.comparingLong(ConversationFacade::sortTime).reversed())
                 .limit(effectiveLimit)
                 .map(this::toConversationResponse)
-                .filter(response -> response != null)
+                .filter(Objects::nonNull)
                 .toList();
     }
 
     public List<ConversationResponse> getAllConversations(SessionPrincipal session) {
-        return conversationService.getAllConversations(session.getUserId()).stream()
+        return safeConversations(conversationService.getAllConversations(session.getUserId())).stream()
                 .map(this::toConversationResponse)
                 .toList();
     }
@@ -99,7 +118,57 @@ public class ConversationFacade {
     }
 
     public void setConversations(SessionPrincipal session, SetConversationsRequest request) {
-        conversationService.setConversations(List.of(session.getUserId()), request.getPayload());
+        List<String> ownerUserIds = new ArrayList<>(1);
+        ownerUserIds.add(session.getUserId());
+        conversationService.setConversations(ownerUserIds, request.getPayload());
+    }
+
+    public List<ConversationMaxSeqResponse> getConversationMaxSeqs(SessionPrincipal session, List<String> conversationIds) {
+        return conversationSyncService.getConversationMaxSeqs(session.getUserId(), conversationIds).entrySet().stream()
+                .map(entry -> {
+                    ConversationMaxSeqResponse response = new ConversationMaxSeqResponse();
+                    response.setConversationId(entry.getKey());
+                    response.setMaxSeq(entry.getValue());
+                    return response;
+                })
+                .toList();
+    }
+
+    public PullMessagesResponse pullMessages(SessionPrincipal session,
+                                                                                         PullMessagesRequest request) {
+        List<SeqRangeRequest> ranges = request.getRanges().stream()
+                .map(this::toSeqRangeRequest)
+                .toList();
+        PullMessages pulled =
+                conversationSyncService.pullMessagesBySeqRanges(
+                        session.getUserId(),
+                        ranges,
+                        request.getLimitPerConversation()
+                );
+        PullMessagesResponse response = new PullMessagesResponse();
+        for (Map.Entry<String, List<Message>> entry : pulled.getMessagesByConversation().entrySet()) {
+            String conversationId = entry.getKey();
+            PulledConversationMessagesResponse item = new PulledConversationMessagesResponse();
+            item.setConversationId(conversationId);
+            item.setEndSeq(pulled.getEndSeqByConversation().getOrDefault(conversationId, 0L));
+            item.setCompleted(Boolean.TRUE.equals(pulled.getCompletedByConversation().get(conversationId)));
+            item.setMessages(entry.getValue().stream().map(this::toSyncMessageResponse).toList());
+            response.getConversations().add(item);
+        }
+        return response;
+    }
+
+    public List<ConversationReadSnapshotResponse> getConversationReadSnapshots(SessionPrincipal session,
+                                                                               List<String> conversationIds) {
+        return conversationSyncService.getConversationReadSnapshots(session.getUserId(), conversationIds)
+                .values()
+                .stream()
+                .map(this::toConversationReadSnapshotResponse)
+                .toList();
+    }
+
+    public void ackReadSeq(SessionPrincipal session, String conversationId, AckReadSeqRequest request) {
+        conversationSyncService.ackReadSeq(session.getUserId(), conversationId, request.getReadSeq());
     }
 
     public List<HistoryMessageResponse> getConversationMessages(SessionPrincipal session, ListConversationMessagesRequest request) {
@@ -144,6 +213,10 @@ public class ConversationFacade {
         return response;
     }
 
+    private List<UserConversation> safeConversations(List<UserConversation> conversations) {
+        return conversations == null ? new ArrayList<>() : conversations;
+    }
+
     private ConversationKind resolveKind(UserConversation conversation) {
         return switch (conversation.getConversationType()) {
             case 2 -> ConversationKind.GROUP;
@@ -184,6 +257,45 @@ public class ConversationFacade {
             // 用户资料服务异常时降级展示 targetId，避免会话列表整体失败。
         }
         return userId;
+    }
+
+    private SeqRangeRequest toSeqRangeRequest(SeqRangeItemRequest request) {
+        SeqRangeRequest range = new SeqRangeRequest();
+        range.setConversationId(request.getConversationId());
+        range.setBeginSeq(request.getBeginSeq());
+        range.setEndSeq(request.getEndSeq());
+        return range;
+    }
+
+    private ConversationReadSnapshotResponse toConversationReadSnapshotResponse(ConversationReadSnapshot snapshot) {
+        ConversationReadSnapshotResponse response = new ConversationReadSnapshotResponse();
+        response.setConversationId(snapshot.getConversationId());
+        response.setReadSeq(snapshot.getReadSeq());
+        response.setMaxSeq(snapshot.getMaxSeq());
+        response.setUnreadCount(snapshot.getUnreadCount());
+        return response;
+    }
+
+    private SyncMessageResponse toSyncMessageResponse(Message message) {
+        SyncMessageResponse response = new SyncMessageResponse();
+        response.setSeq(message.getSeq());
+        response.setClientMsgId(message.getClientMsgId());
+        response.setServerMsgId(message.getServerMsgId());
+        response.setSenderId(message.getSenderId());
+        response.setSenderNickName(message.getSenderNickName());
+        response.setReceiverId(message.getReceiverId());
+        response.setGroupId(message.getGroupId());
+        response.setContentType(message.getContentType() == null ? null : message.getContentType().getCode());
+        response.setSessionType(message.getSessionType() == null ? null : message.getSessionType().getCode());
+        response.setContent(message.getContent());
+        response.setSendTime(message.getSendTime());
+        response.setCreateTime(message.getCreateTime());
+        response.setStatus(message.getStatus() == null ? null : message.getStatus().getCode());
+        response.setPlatformType(message.getPlatformType() == null ? null : message.getPlatformType().getCode());
+        response.setUniqueId(message.getUniqueId());
+        response.setSource(message.getSource() == null ? null : message.getSource().getCode());
+        response.setAttributes(message.getAttributes());
+        return response;
     }
 
     private String defaultValue(String preferred, String fallback) {

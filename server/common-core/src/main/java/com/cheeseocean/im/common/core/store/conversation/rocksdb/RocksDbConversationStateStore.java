@@ -43,8 +43,18 @@ public class RocksDbConversationStateStore implements ConversationStateStore {
     }
 
     @Override
+    public Long getUserMaxSeq(String userId, String conversationId) {
+        return parseLong(support.get(RedisKeys.userMaxSeq(userId, conversationId), String.class));
+    }
+
+    @Override
     public void setUserReadSeq(String userId, String conversationId, long seq) {
         support.put(RedisKeys.userReadSeq(userId, conversationId), String.valueOf(seq), null);
+    }
+
+    @Override
+    public Long getUserReadSeq(String userId, String conversationId) {
+        return parseLong(support.get(RedisKeys.userReadSeq(userId, conversationId), String.class));
     }
 
     @Override
@@ -58,6 +68,11 @@ public class RocksDbConversationStateStore implements ConversationStateStore {
     public int getUnread(String userId, String conversationId) {
         Long value = parseLong(support.get(RedisKeys.userUnread(userId, conversationId), String.class));
         return value == null ? 0 : value.intValue();
+    }
+
+    @Override
+    public void setUnread(String userId, String conversationId, int unreadCount) {
+        support.put(RedisKeys.userUnread(userId, conversationId), String.valueOf(Math.max(unreadCount, 0)), null);
     }
 
     @Override

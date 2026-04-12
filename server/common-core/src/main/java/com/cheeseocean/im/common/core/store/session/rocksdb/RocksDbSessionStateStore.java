@@ -49,7 +49,7 @@ public class RocksDbSessionStateStore implements SessionStateStore {
     public List<SessionPrincipal> findByUserId(String userId) {
         Set<String> sessionIds = support.members(RedisKeys.userSessions(userId));
         if (sessionIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         List<SessionPrincipal> sessions = new ArrayList<>();
         for (String sessionId : sessionIds) {

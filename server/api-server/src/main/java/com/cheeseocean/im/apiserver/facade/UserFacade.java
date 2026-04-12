@@ -17,7 +17,7 @@ public class UserFacade {
 
     public UserSettingsResponse getUserSettings(SessionPrincipal session) {
         UserSettingsResponse response = new UserSettingsResponse();
-        response.setGlobalRecvMsgOpt(userInfoService.getReceiveOptions(session.getUserId()));
+        response.setReceiveOpt(userInfoService.getReceiveOptions(session.getUserId()));
         return response;
     }
 

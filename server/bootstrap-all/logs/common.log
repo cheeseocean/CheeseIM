@@ -1,0 +1,167 @@
+2026-04-08 15:20:56.479 [main] INFO  c.c.im.common.core.startup.StartupSummaryRunner - 
+==========================================================
+ CheeseIM Startup Summary
+  Application : cheese-im-postman
+  Profile     : default
+  Mode        : all-in-one
+  HTTP        : http://127.0.0.1:18085
+  Dubbo       : injvm-only
+  WebSocket   : ws://localhost:5147/ws
+  TCP         : tcp://localhost:5148
+==========================================================
+2026-04-08 15:28:09.449 [chronicle-queue-worker-ingress-postman-ingress] ERROR c.c.i.c.core.queue.chronicle.ChronicleQueueAdapter - Failed to deserialize Chronicle queue message
+com.fasterxml.jackson.core.JsonParseException: Illegal character ((CTRL-CHAR, code 7)): only regular white space (\r, \n, \t) is allowed between tokens
+ at [Source: (String)"
+\u0007smoke-a\u0012\u0013msg_1775633289402_1\u001A\u0004u100"\u0004u2002\u000Fhello from u1008e@\u0001Hµ¡÷ßÖ3\u0082\u0001\u0010\u0008\u0001\u0010\u0001\u0018\u0001 \u0001(\u00010\u00018\u0001@\u0001"; line: 2, column: 2]
+	at com.fasterxml.jackson.core.JsonParser._constructError(JsonParser.java:2477)
+	at com.fasterxml.jackson.core.base.ParserMinimalBase._reportError(ParserMinimalBase.java:750)
+	at com.fasterxml.jackson.core.base.ParserMinimalBase._throwInvalidSpace(ParserMinimalBase.java:728)
+	at com.fasterxml.jackson.core.json.ReaderBasedJsonParser._skipWSOrEnd(ReaderBasedJsonParser.java:2561)
+	at com.fasterxml.jackson.core.json.ReaderBasedJsonParser.nextToken(ReaderBasedJsonParser.java:701)
+	at com.fasterxml.jackson.databind.ObjectMapper._initForReading(ObjectMapper.java:4912)
+	at com.fasterxml.jackson.databind.ObjectMapper._readMapAndClose(ObjectMapper.java:4818)
+	at com.fasterxml.jackson.databind.ObjectMapper.readValue(ObjectMapper.java:3772)
+	at com.fasterxml.jackson.databind.ObjectMapper.readValue(ObjectMapper.java:3740)
+	at com.cheeseocean.im.common.core.queue.chronicle.ChronicleQueueAdapter.lambda$pollLoopKeyed$11(ChronicleQueueAdapter.java:124)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:539)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+2026-04-08 15:35:31.707 [main] INFO  c.c.im.common.core.startup.StartupSummaryRunner - 
+==========================================================
+ CheeseIM Startup Summary
+  Application : cheese-im-postman
+  Profile     : default
+  Mode        : all-in-one
+  HTTP        : http://127.0.0.1:18085
+  Dubbo       : injvm-only
+  WebSocket   : ws://localhost:5147/ws
+  TCP         : tcp://localhost:5148
+==========================================================
+2026-04-08 15:40:44.889 [main] INFO  c.c.im.common.core.startup.StartupSummaryRunner - 
+==========================================================
+ CheeseIM Startup Summary
+  Application : cheese-im-postman
+  Profile     : default
+  Mode        : all-in-one
+  HTTP        : http://127.0.0.1:18085
+  Dubbo       : injvm-only
+  WebSocket   : ws://localhost:5147/ws
+  TCP         : tcp://localhost:5148
+==========================================================
+2026-04-08 15:42:36.611 [chronicle-queue-worker-history-postbox-history] ERROR c.c.i.c.core.queue.chronicle.ChronicleQueueAdapter - Failed to read Chronicle Queue message
+java.lang.IllegalStateException: failed to parse history event payload
+	at com.cheeseocean.im.postmaster.listener.HistoryEventListener.onMessage(HistoryEventListener.java:29)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at org.springframework.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:281)
+	at com.cheeseocean.im.common.core.queue.processor.QueueListenerBeanPostProcessor.lambda$createHandler$3(QueueListenerBeanPostProcessor.java:102)
+	at com.cheeseocean.im.common.core.queue.chronicle.ChronicleQueueAdapter.invokeHandler(ChronicleQueueAdapter.java:172)
+	at com.cheeseocean.im.common.core.queue.chronicle.ChronicleQueueAdapter.lambda$pollLoop$12(ChronicleQueueAdapter.java:158)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:539)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+Caused by: java.lang.NullPointerException: Cannot invoke "java.lang.Long.longValue()" because the return value of "com.cheeseocean.im.common.api.dto.message.Message.getSeq()" is null
+	at com.cheeseocean.im.postmaster.history.BlockHistoryPersistenceService.lambda$persist$0(BlockHistoryPersistenceService.java:31)
+	at java.base/java.util.stream.Collectors.lambda$groupingBy$53(Collectors.java:1142)
+	at java.base/java.util.stream.ReduceOps$3ReducingSink.accept(ReduceOps.java:169)
+	at java.base/java.util.ArrayList$ArrayListSpliterator.forEachRemaining(ArrayList.java:1625)
+	at java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:509)
+	at java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+	at java.base/java.util.stream.ReduceOps$ReduceOp.evaluateSequential(ReduceOps.java:921)
+	at java.base/java.util.stream.AbstractPipeline.evaluate(AbstractPipeline.java:234)
+	at java.base/java.util.stream.ReferencePipeline.collect(ReferencePipeline.java:682)
+	at com.cheeseocean.im.postmaster.history.BlockHistoryPersistenceService.persist(BlockHistoryPersistenceService.java:31)
+	at com.cheeseocean.im.postmaster.listener.HistoryEventListener.onMessage(HistoryEventListener.java:27)
+	... 13 common frames omitted
+2026-04-08 15:42:36.652 [chronicle-queue-worker-delivery-push-delivery] ERROR c.c.i.c.core.queue.chronicle.ChronicleQueueAdapter - Failed to read Chronicle Queue message
+com.fasterxml.jackson.core.JsonParseException: Illegal character ((CTRL-CHAR, code 7)): only regular white space (\r, \n, \t) is allowed between tokens
+ at [Source: (byte[])"
+\u0007smoke-a\u0012\u0013msg_1775634156232_1\u001A\u0004u100"\u0004u2002\u000Fhello from u1008e@\u0001H�����3�\u0001\u0010\u0008\u0001\u0010\u0001\u0018\u0001 \u0001(\u00010\u00018\u0001@\u0001"; line: 2, column: 2]
+	at com.fasterxml.jackson.core.JsonParser._constructError(JsonParser.java:2477)
+	at com.fasterxml.jackson.core.base.ParserMinimalBase._reportError(ParserMinimalBase.java:750)
+	at com.fasterxml.jackson.core.base.ParserMinimalBase._throwInvalidSpace(ParserMinimalBase.java:728)
+	at com.fasterxml.jackson.core.json.UTF8StreamJsonParser._skipWSOrEnd(UTF8StreamJsonParser.java:3141)
+	at com.fasterxml.jackson.core.json.UTF8StreamJsonParser.nextToken(UTF8StreamJsonParser.java:757)
+	at com.fasterxml.jackson.databind.ObjectMapper._initForReading(ObjectMapper.java:4912)
+	at com.fasterxml.jackson.databind.ObjectMapper._readMapAndClose(ObjectMapper.java:4818)
+	at com.fasterxml.jackson.databind.ObjectMapper.readValue(ObjectMapper.java:3833)
+	at com.cheeseocean.im.common.core.queue.chronicle.ChronicleQueueAdapter.deserialize(ChronicleQueueAdapter.java:201)
+	at com.cheeseocean.im.common.core.queue.chronicle.ChronicleQueueAdapter.invokeHandler(ChronicleQueueAdapter.java:172)
+	at com.cheeseocean.im.common.core.queue.chronicle.ChronicleQueueAdapter.lambda$pollLoop$12(ChronicleQueueAdapter.java:158)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:539)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+2026-04-08 15:45:28.480 [main] INFO  c.c.im.common.core.startup.StartupSummaryRunner - 
+==========================================================
+ CheeseIM Startup Summary
+  Application : cheese-im-postman
+  Profile     : default
+  Mode        : all-in-one
+  HTTP        : http://127.0.0.1:18085
+  Dubbo       : injvm-only
+  WebSocket   : ws://localhost:5147/ws
+  TCP         : tcp://localhost:5148
+==========================================================
+2026-04-08 16:22:14.044 [main] INFO  c.c.im.common.core.startup.StartupSummaryRunner - 
+==========================================================
+ CheeseIM Startup Summary
+  Application : cheese-im-postman
+  Profile     : default
+  Mode        : all-in-one
+  HTTP        : http://127.0.0.1:18085
+  Dubbo       : injvm-only
+  WebSocket   : ws://localhost:5147/ws
+  TCP         : tcp://localhost:5148
+==========================================================
+2026-04-08 16:55:06.831 [main] INFO  c.c.im.common.core.startup.StartupSummaryRunner - 
+==========================================================
+ CheeseIM Startup Summary
+  Application : cheese-im-postman
+  Profile     : default
+  Mode        : all-in-one
+  HTTP        : http://127.0.0.1:18085
+  Dubbo       : injvm-only
+  WebSocket   : ws://localhost:5147/ws
+  TCP         : tcp://localhost:5148
+==========================================================
+2026-04-08 17:00:24.001 [main] INFO  c.c.im.common.core.startup.StartupSummaryRunner - 
+==========================================================
+ CheeseIM Startup Summary
+  Application : cheese-im-postman
+  Profile     : default
+  Mode        : all-in-one
+  HTTP        : http://127.0.0.1:18085
+  Dubbo       : injvm-only
+  WebSocket   : ws://localhost:5147/ws
+  TCP         : tcp://localhost:5148
+==========================================================
+2026-04-08 17:55:13.094 [main] INFO  c.c.im.common.core.startup.StartupSummaryRunner - 
+==========================================================
+ CheeseIM Startup Summary
+  Application : cheese-im-postman
+  Profile     : default
+  Mode        : all-in-one
+  HTTP        : http://127.0.0.1:18085
+  Dubbo       : injvm-only
+  WebSocket   : ws://localhost:5147/ws
+  TCP         : tcp://localhost:5148
+==========================================================
+2026-04-08 18:34:29.267 [main] INFO  c.c.im.common.core.startup.StartupSummaryRunner - 
+==========================================================
+ CheeseIM Startup Summary
+  Application : cheese-im-postman
+  Profile     : default
+  Mode        : all-in-one
+  HTTP        : http://127.0.0.1:18085
+  Dubbo       : injvm-only
+  WebSocket   : ws://localhost:5147/ws
+  TCP         : tcp://localhost:5148
+==========================================================

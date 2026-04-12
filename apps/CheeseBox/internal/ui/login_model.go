@@ -10,6 +10,8 @@ import (
 type LoginModel struct {
 	inputs []textinput.Model
 	focus  int
+	theme  ThemeName
+	locale LocaleName
 }
 
 func NewLoginModel() LoginModel {
@@ -30,7 +32,13 @@ func NewLoginModel() LoginModel {
 		}
 		inputs[i] = input
 	}
-	return LoginModel{inputs: inputs}
+	model := LoginModel{
+		inputs: inputs,
+		theme:  defaultTheme().Name,
+		locale: defaultLocale(),
+	}
+	model.applyText()
+	return model
 }
 
 func (m LoginModel) Init() tea.Cmd {
@@ -62,15 +70,16 @@ func (m LoginModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m LoginModel) View() string {
+	theme := themeByName(m.theme)
 	lines := []string{
-		titleStyle.Render("Login"),
+		theme.titleStyle().Render(T(m.locale, keyLoginTitle)),
 		"",
 	}
 	for _, input := range m.inputs {
 		lines = append(lines, input.View())
 	}
-	lines = append(lines, "", "Enter submit, Tab switch field")
-	return panelStyle.Width(48).Render(strings.Join(lines, "\n"))
+	lines = append(lines, "", theme.hintStyle().Render(T(m.locale, keyLoginHint)))
+	return theme.panelStyle().Width(48).Render(strings.Join(lines, "\n"))
 }
 
 func (m LoginModel) Values() []string {
@@ -83,4 +92,22 @@ func (m LoginModel) Values() []string {
 
 func (m LoginModel) Focus() int {
 	return m.focus
+}
+
+func (m *LoginModel) SetTheme(name ThemeName) {
+	m.theme = name
+}
+
+func (m *LoginModel) SetLocale(name LocaleName) {
+	m.locale = name
+	m.applyText()
+}
+
+func (m *LoginModel) applyText() {
+	if len(m.inputs) > 0 {
+		m.inputs[0].Placeholder = T(m.locale, keyLoginUserID)
+	}
+	if len(m.inputs) > 1 {
+		m.inputs[1].Placeholder = T(m.locale, keyLoginPassword)
+	}
 }

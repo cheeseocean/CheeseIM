@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -69,14 +70,14 @@ public class UserServiceImpl implements UserInfoService {
     @Override
     public List<User> getUsersInfo(List<String> userIds) {
         if (userIds == null || userIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         List<String> dedupedUserIds = userIds.stream()
                 .filter(StringUtils::hasText)
                 .distinct()
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
         if (dedupedUserIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
 
         Map<String, User> cached = userInfoCache.getAll(new LinkedHashSet<>(dedupedUserIds));
@@ -87,7 +88,7 @@ public class UserServiceImpl implements UserInfoService {
 
         List<String> misses = dedupedUserIds.stream()
                 .filter(userId -> !resolved.containsKey(userId))
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
         if (!misses.isEmpty()) {
             List<User> loaded = userRepository.findByIds(misses);
             Map<String, User> loadedMap = loaded.stream()
@@ -107,7 +108,7 @@ public class UserServiceImpl implements UserInfoService {
                 .map(resolved::get)
                 .filter(user -> user != null)
                 .map(this::copyUser)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override
@@ -150,7 +151,7 @@ public class UserServiceImpl implements UserInfoService {
         List<String> userIds = requests.stream()
                 .map(RegisterUserRequest::getUserId)
                 .filter(StringUtils::hasText)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
         Set<String> existing = new HashSet<>(userRepository.findExistingUserIds(userIds));
         if (!existing.isEmpty()) {
             throw new IllegalArgumentException("以下 userId 已注册：" + existing);
@@ -167,9 +168,11 @@ public class UserServiceImpl implements UserInfoService {
                     user.setCreateTime(now);
                     return user;
                 })
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
         userRepository.saveAll(users);
-        evictUsersInfoCache(users.stream().map(User::getUserId).toList());
+        evictUsersInfoCache(users.stream()
+                .map(User::getUserId)
+                .collect(Collectors.toCollection(ArrayList::new)));
         log.info("批量注册用户成功，数量={}", users.size());
     }
 
@@ -208,8 +211,12 @@ public class UserServiceImpl implements UserInfoService {
         user.setAvatarUrl(faceUrl);
         user.setAppManagerLevel(appManagerLevel);
         user.setCreateTime(System.currentTimeMillis());
-        userRepository.saveAll(List.of(user));
-        evictUsersInfoCache(List.of(actualUserId));
+        List<User> users = new ArrayList<>(1);
+        users.add(user);
+        userRepository.saveAll(users);
+        List<String> userIds = new ArrayList<>(1);
+        userIds.add(actualUserId);
+        evictUsersInfoCache(userIds);
         log.info("注册通知账号成功，userId={}，level={}", actualUserId, appManagerLevel);
         return actualUserId;
     }

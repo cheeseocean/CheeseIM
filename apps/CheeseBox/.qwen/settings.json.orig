@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/xxxcrel/Develop/backend/java/CheeseIM/sdks/go/**)"
+    ]
+  }
+}

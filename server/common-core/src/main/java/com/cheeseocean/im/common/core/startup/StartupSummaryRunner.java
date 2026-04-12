@@ -27,7 +27,7 @@ public class StartupSummaryRunner implements ApplicationListener<ApplicationRead
 
     public StartupSummaryRunner(Environment environment, List<StartupSummaryContributor> contributors) {
         this.environment = environment;
-        this.contributors = contributors == null ? List.of() : contributors;
+        this.contributors = contributors == null ? new ArrayList<>() : new ArrayList<>(contributors);
     }
 
     @Override

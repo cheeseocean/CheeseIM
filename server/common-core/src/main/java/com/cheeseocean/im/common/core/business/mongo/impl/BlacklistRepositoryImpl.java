@@ -7,7 +7,9 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * {@link BlacklistRepository} 的 MongoDB 实现。
@@ -58,7 +60,7 @@ public class BlacklistRepositoryImpl implements BlacklistRepository {
         query.fields().include("blockUserId");
         return mongoTemplate.find(query, BlacklistDoc.class).stream()
                 .map(BlacklistDoc::getBlockUserId)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override
@@ -66,7 +68,7 @@ public class BlacklistRepositoryImpl implements BlacklistRepository {
         Query query = Query.query(Criteria.where("ownerUserId").is(userId));
         return mongoTemplate.find(query, BlacklistDoc.class).stream()
                 .map(this::toDomain)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     private Blacklist toDomain(BlacklistDoc doc) {

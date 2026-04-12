@@ -13,6 +13,7 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -104,7 +105,7 @@ public class GroupRequestRepositoryImpl implements GroupRequestRepository {
     @Override
     public List<GroupRequest> pageByGroups(List<String> groupIds, List<Integer> handleResults, int limit, int offset) {
         if (groupIds == null || groupIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         // 这是“我管理的群收到哪些申请”的查询入口。
         Criteria criteria = Criteria.where("groupId").in(groupIds);

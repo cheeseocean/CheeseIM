@@ -13,9 +13,11 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * {@link UserRepository} 的 MongoDB 实现。
@@ -39,12 +41,12 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public List<User> findByIds(List<String> userIds) {
         if (userIds == null || userIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         Query query = Query.query(Criteria.where("_id").in(userIds));
         return mongoTemplate.find(query, UserDoc.class).stream()
                 .map(this::toDomain)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override
@@ -94,12 +96,12 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public List<User> findByNickname(String nickname) {
         if (!StringUtils.hasText(nickname)) {
-            return List.of();
+            return new ArrayList<>();
         }
         Query query = Query.query(Criteria.where("nickname").regex(nickname, "i"));
         return mongoTemplate.find(query, UserDoc.class).stream()
                 .map(this::toDomain)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override
@@ -107,7 +109,7 @@ public class UserRepositoryImpl implements UserRepository {
         Query query = Query.query(Criteria.where("appManagerLevel").gte(level));
         return mongoTemplate.find(query, UserDoc.class).stream()
                 .map(this::toDomain)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override
@@ -117,7 +119,7 @@ public class UserRepositoryImpl implements UserRepository {
                 .with(PageRequest.of(Math.max(0, offset) / Math.max(1, limit == 0 ? 1 : limit), Math.max(1, limit), Sort.by("createTime").descending()));
         return mongoTemplate.find(query, UserDoc.class).stream()
                 .map(this::toDomain)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override
@@ -147,19 +149,19 @@ public class UserRepositoryImpl implements UserRepository {
         query.fields().include("userId");
         return mongoTemplate.find(query, UserDoc.class).stream()
                 .map(UserDoc::getUserId)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override
     public List<String> findExistingUserIds(List<String> userIds) {
         if (userIds == null || userIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         Query query = Query.query(Criteria.where("_id").in(userIds));
         query.fields().include("userId");
         return mongoTemplate.find(query, UserDoc.class).stream()
                 .map(UserDoc::getUserId)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override
@@ -181,7 +183,7 @@ public class UserRepositoryImpl implements UserRepository {
                 .with(PageRequest.of(Math.max(0, offset) / Math.max(1, limit == 0 ? 1 : limit), Math.max(1, limit)));
         return mongoTemplate.find(query, UserDoc.class).stream()
                 .map(this::toDomain)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override

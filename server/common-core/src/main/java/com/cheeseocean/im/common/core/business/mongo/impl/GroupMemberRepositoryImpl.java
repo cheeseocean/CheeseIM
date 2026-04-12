@@ -13,9 +13,11 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.util.StringUtils;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * {@link GroupMemberRepository} 的 MongoDB 实现。
@@ -55,7 +57,9 @@ public class GroupMemberRepositoryImpl implements GroupMemberRepository {
         if (userIds != null && !userIds.isEmpty()) {
             query.addCriteria(Criteria.where("userId").in(userIds));
         }
-        return mongoTemplate.find(query, GroupMemberDoc.class).stream().map(this::toDomain).toList();
+        return mongoTemplate.find(query, GroupMemberDoc.class).stream()
+                .map(this::toDomain)
+                .collect(Collectors.toCollection(java.util.ArrayList::new));
     }
 
     @Override
@@ -64,7 +68,9 @@ public class GroupMemberRepositoryImpl implements GroupMemberRepository {
         if (groupIds != null && !groupIds.isEmpty()) {
             query.addCriteria(Criteria.where("groupId").in(groupIds));
         }
-        return mongoTemplate.find(query, GroupMemberDoc.class).stream().map(this::toDomain).toList();
+        return mongoTemplate.find(query, GroupMemberDoc.class).stream()
+                .map(this::toDomain)
+                .collect(Collectors.toCollection(java.util.ArrayList::new));
     }
 
     @Override
@@ -72,7 +78,9 @@ public class GroupMemberRepositoryImpl implements GroupMemberRepository {
         Query query = Query.query(Criteria.where("userId").is(userId))
                 .with(Sort.by(Sort.Order.desc("roleLevel"), Sort.Order.asc("joinTime")));
         query.fields().include("groupId");
-        return mongoTemplate.find(query, GroupMemberDoc.class).stream().map(GroupMemberDoc::getGroupId).toList();
+        return mongoTemplate.find(query, GroupMemberDoc.class).stream()
+                .map(GroupMemberDoc::getGroupId)
+                .collect(Collectors.toCollection(java.util.ArrayList::new));
     }
 
     @Override
@@ -85,20 +93,26 @@ public class GroupMemberRepositoryImpl implements GroupMemberRepository {
                 )
         );
         query.fields().include("groupId");
-        return mongoTemplate.find(query, GroupMemberDoc.class).stream().map(GroupMemberDoc::getGroupId).toList();
+        return mongoTemplate.find(query, GroupMemberDoc.class).stream()
+                .map(GroupMemberDoc::getGroupId)
+                .collect(Collectors.toCollection(java.util.ArrayList::new));
     }
 
     @Override
     public List<GroupMember> findByGroupIdAndRole(String groupId, int roleLevel) {
         Query query = Query.query(Criteria.where("groupId").is(groupId).and("roleLevel").is(roleLevel));
-        return mongoTemplate.find(query, GroupMemberDoc.class).stream().map(this::toDomain).toList();
+        return mongoTemplate.find(query, GroupMemberDoc.class).stream()
+                .map(this::toDomain)
+                .collect(Collectors.toCollection(java.util.ArrayList::new));
     }
 
     @Override
     public List<String> findRoleUserIds(String groupId, int roleLevel) {
         Query query = Query.query(Criteria.where("groupId").is(groupId).and("roleLevel").is(roleLevel));
         query.fields().include("userId");
-        return mongoTemplate.find(query, GroupMemberDoc.class).stream().map(GroupMemberDoc::getUserId).toList();
+        return mongoTemplate.find(query, GroupMemberDoc.class).stream()
+                .map(GroupMemberDoc::getUserId)
+                .collect(Collectors.toCollection(java.util.ArrayList::new));
     }
 
     @Override
@@ -106,7 +120,9 @@ public class GroupMemberRepositoryImpl implements GroupMemberRepository {
         Query query = Query.query(Criteria.where("groupId").is(groupId))
                 .with(Sort.by(Sort.Order.desc("roleLevel"), Sort.Order.asc("joinTime")));
         query.fields().include("userId");
-        return mongoTemplate.find(query, GroupMemberDoc.class).stream().map(GroupMemberDoc::getUserId).toList();
+        return mongoTemplate.find(query, GroupMemberDoc.class).stream()
+                .map(GroupMemberDoc::getUserId)
+                .collect(Collectors.toCollection(java.util.ArrayList::new));
     }
 
     @Override
@@ -119,7 +135,9 @@ public class GroupMemberRepositoryImpl implements GroupMemberRepository {
         Query query = Query.query(criteria)
                 .with(PageRequest.of(Math.max(0, offset) / pageSize(limit), pageSize(limit),
                         Sort.by(Sort.Order.desc("roleLevel"), Sort.Order.asc("joinTime"))));
-        return mongoTemplate.find(query, GroupMemberDoc.class).stream().map(this::toDomain).toList();
+        return mongoTemplate.find(query, GroupMemberDoc.class).stream()
+                .map(this::toDomain)
+                .collect(Collectors.toCollection(java.util.ArrayList::new));
     }
 
     @Override
@@ -173,7 +191,9 @@ public class GroupMemberRepositoryImpl implements GroupMemberRepository {
 
     @Override
     public void updateRoleLevel(String groupId, String userId, int roleLevel) {
-        updateFields(groupId, userId, Map.of("roleLevel", roleLevel));
+        Map<String, Object> fields = new LinkedHashMap<>();
+        fields.put("roleLevel", roleLevel);
+        updateFields(groupId, userId, fields);
     }
 
     @Override

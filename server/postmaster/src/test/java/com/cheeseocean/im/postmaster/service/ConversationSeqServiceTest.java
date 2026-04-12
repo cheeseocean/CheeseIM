@@ -1,6 +1,6 @@
 package com.cheeseocean.im.postmaster.service;
 
-import com.cheeseocean.im.common.core.store.sequence.ConversationSequenceAllocator;
+import com.cheeseocean.im.common.core.store.sequence.id.SequenceIdGenerator;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -11,8 +11,8 @@ class ConversationSeqServiceTest {
 
     @Test
     void nextSeqShouldUseConversationSequenceAllocator() {
-        ConversationSequenceAllocator allocator = mock(ConversationSequenceAllocator.class);
-        when(allocator.nextSeq("c1:userA:userB")).thenReturn(1001L);
+        SequenceIdGenerator allocator = mock(SequenceIdGenerator.class);
+        when(allocator.next("c1:userA:userB")).thenReturn(1001L);
 
         ConversationSeqService service = new ConversationSeqService(allocator);
 

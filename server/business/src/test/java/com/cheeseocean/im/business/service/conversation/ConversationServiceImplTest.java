@@ -28,6 +28,24 @@ import static org.mockito.Mockito.when;
 class ConversationServiceImplTest {
 
     @Test
+    void getConversationIdsShouldCopyCachedList() {
+        UserConversationRepository stateRepository = mock(UserConversationRepository.class);
+        CacheManager cacheManager = mock(CacheManager.class);
+        @SuppressWarnings("unchecked")
+        Cache<String, List<String>> idsCache = mock(Cache.class);
+        when(cacheManager.getOrCreateCache(any(QuickConfig.class))).thenReturn(mock(Cache.class));
+        when(idsCache.get("u1")).thenReturn(List.of("c1", "c2"));
+
+        ConversationServiceImpl service = new ConversationServiceImpl(stateRepository, cacheManager);
+        ReflectionTestUtils.setField(service, "conversationIdsCache", idsCache);
+
+        List<String> result = service.getConversationIds("u1");
+
+        assertEquals(List.of("c1", "c2"), result);
+        assertEquals(java.util.ArrayList.class, result.getClass());
+    }
+
+    @Test
     void getConversationsShouldReturnRepositoryState() {
         UserConversationRepository stateRepository = mock(UserConversationRepository.class);
         ConversationSettingsNotifier conversationSettingsNotifier = mock(ConversationSettingsNotifier.class);

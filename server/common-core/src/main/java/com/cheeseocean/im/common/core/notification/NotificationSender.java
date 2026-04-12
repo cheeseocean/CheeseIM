@@ -17,10 +17,12 @@ import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 通知消息发送器。
@@ -85,13 +87,13 @@ public class NotificationSender {
                                              Object payload,
                                              Map<String, String> attributes) {
         if (recvUserIds == null || recvUserIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         return recvUserIds.stream()
                 .filter(StringUtils::hasText)
                 .distinct()
                 .map(recvUserId -> sendToUser(sendUserId, recvUserId, contentType, notificationType, payload, attributes))
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     /**

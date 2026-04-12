@@ -24,6 +24,7 @@ import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.time.Duration;
 import java.util.stream.Collectors;
@@ -108,11 +109,11 @@ public class ConversationServiceImpl implements ConversationService {
      */
     public List<UserConversation> getConversations(String ownerUserId, List<String> conversationIds) {
         if (isBlank(ownerUserId) || conversationIds == null || conversationIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         List<String> dedupedConversationIds = dedupeConversationIds(conversationIds);
         if (dedupedConversationIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         Map<String, String> keyToConversationId = new LinkedHashMap<>();
         for (String conversationId : dedupedConversationIds) {
@@ -127,7 +128,7 @@ public class ConversationServiceImpl implements ConversationService {
         List<String> misses = keyToConversationId.keySet().stream()
                 .filter(key -> !resolved.containsKey(key))
                 .map(keyToConversationId::get)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
         if (!misses.isEmpty()) {
             List<UserConversation> loaded = stateRepository.findByIds(ownerUserId, misses);
             Map<String, UserConversation> loadedMap = loaded.stream()
@@ -145,9 +146,9 @@ public class ConversationServiceImpl implements ConversationService {
 
         return dedupedConversationIds.stream()
                 .map(conversationId -> resolved.get(detailKey(ownerUserId, conversationId)))
-                .filter(conversation -> conversation != null)
+                .filter(Objects::nonNull)
                 .map(this::copy)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override
@@ -156,15 +157,19 @@ public class ConversationServiceImpl implements ConversationService {
      */
     public List<UserConversation> getAllConversations(String ownerUserId) {
         if (isBlank(ownerUserId)) {
-            return List.of();
+            return new ArrayList<>();
         }
         List<String> conversationIds = getConversationIds(ownerUserId);
         if (conversationIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
-        return getConversations(ownerUserId, conversationIds).stream()
+        List<UserConversation> conversations = getConversations(ownerUserId, conversationIds);
+        if (conversations == null || conversations.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return conversations.stream()
                 .sorted(Comparator.comparingLong(UserConversation::getUpdatedAt).reversed())
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override
@@ -173,18 +178,18 @@ public class ConversationServiceImpl implements ConversationService {
      */
     public List<String> getConversationIds(String ownerUserId) {
         if (isBlank(ownerUserId)) {
-            return List.of();
+            return new ArrayList<>();
         }
         List<String> cached = conversationIdsCache.get(ownerUserId);
         if (cached != null) {
-            return cached;
+            return new ArrayList<>(cached);
         }
         List<String> loaded = stateRepository.findConversationIds(ownerUserId);
         if (loaded == null) {
-            loaded = List.of();
+            loaded = new ArrayList<>();
         }
         conversationIdsCache.put(ownerUserId, loaded);
-        return loaded;
+        return new ArrayList<>(loaded);
     }
 
     @Override
@@ -212,18 +217,18 @@ public class ConversationServiceImpl implements ConversationService {
      */
     public List<String> getNotNotifyConversationIds(String ownerUserId) {
         if (isBlank(ownerUserId)) {
-            return List.of();
+            return new ArrayList<>();
         }
         List<String> cached = notNotifyConversationIdsCache.get(ownerUserId);
         if (cached != null) {
-            return cached;
+            return new ArrayList<>(cached);
         }
         List<String> loaded = stateRepository.findNotNotifyConversationIds(ownerUserId);
         if (loaded == null) {
-            loaded = List.of();
+            loaded = new ArrayList<>();
         }
         notNotifyConversationIdsCache.put(ownerUserId, loaded);
-        return loaded;
+        return new ArrayList<>(loaded);
     }
 
     @Override
@@ -232,18 +237,18 @@ public class ConversationServiceImpl implements ConversationService {
      */
     public List<String> getPinnedConversationIds(String ownerUserId) {
         if (isBlank(ownerUserId)) {
-            return List.of();
+            return new ArrayList<>();
         }
         List<String> cached = pinnedConversationIdsCache.get(ownerUserId);
         if (cached != null) {
-            return cached;
+            return new ArrayList<>(cached);
         }
         List<String> loaded = stateRepository.findPinnedConversationIds(ownerUserId);
         if (loaded == null) {
-            loaded = List.of();
+            loaded = new ArrayList<>();
         }
         pinnedConversationIdsCache.put(ownerUserId, loaded);
-        return loaded;
+        return new ArrayList<>(loaded);
     }
 
     @Override
@@ -261,16 +266,21 @@ public class ConversationServiceImpl implements ConversationService {
      */
     public List<String> getOfflinePushUserIds(String conversationId, List<String> candidateUserIds) {
         if (isBlank(conversationId) || candidateUserIds == null || candidateUserIds.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         List<String> notReceiveUserIds = conversationNotReceiveUserIdsCache.computeIfAbsent(
                 conversationId,
                 stateRepository::findAllNotReceiveUserIds
         );
+        if (notReceiveUserIds == null) {
+            notReceiveUserIds = new ArrayList<>();
+        } else {
+            notReceiveUserIds = new ArrayList<>(notReceiveUserIds);
+        }
         Set<String> notReceiveSet = new HashSet<>(notReceiveUserIds);
         return candidateUserIds.stream()
                 .filter(userId -> !notReceiveSet.contains(userId))
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     @Override

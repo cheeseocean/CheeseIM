@@ -16,9 +16,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -93,7 +96,7 @@ public class FriendRelationServiceImpl implements FriendRelationService {
     @Override
     public List<Friendship> listFriends(String userId) {
         if (!StringUtils.hasText(userId)) {
-            return List.of();
+            return new ArrayList<>();
         }
         List<Friendship> friendships = friendListCache.computeIfAbsent(userId, key ->
                 friendshipRepository.findOwnerFriends(key, 0, 0)
@@ -104,10 +107,12 @@ public class FriendRelationServiceImpl implements FriendRelationService {
     @Override
     public List<FriendRequest> listIncomingRequests(String userId) {
         if (!StringUtils.hasText(userId)) {
-            return List.of();
+            return new ArrayList<>();
         }
+        List<Integer> pendingResults = new ArrayList<>();
+        pendingResults.add(HandleResultEnum.PENDING.getCode());
         List<FriendRequest> requests = incomingRequestCache.computeIfAbsent(userId, key ->
-                friendRequestRepository.findIncoming(key, List.of(HandleResultEnum.PENDING.getCode()), 0, 0)
+                friendRequestRepository.findIncoming(key, pendingResults, 0, 0)
         );
         return copyRequests(requests);
     }
@@ -115,10 +120,12 @@ public class FriendRelationServiceImpl implements FriendRelationService {
     @Override
     public List<FriendRequest> listOutgoingRequests(String userId) {
         if (!StringUtils.hasText(userId)) {
-            return List.of();
+            return new ArrayList<>();
         }
+        List<Integer> pendingResults = new ArrayList<>();
+        pendingResults.add(HandleResultEnum.PENDING.getCode());
         List<FriendRequest> requests = outgoingRequestCache.computeIfAbsent(userId, key ->
-                friendRequestRepository.findOutgoing(key, List.of(HandleResultEnum.PENDING.getCode()), 0, 0)
+                friendRequestRepository.findOutgoing(key, pendingResults, 0, 0)
         );
         return copyRequests(requests);
     }
@@ -177,9 +184,15 @@ public class FriendRelationServiceImpl implements FriendRelationService {
         right.setUserId(friendUserId);
         right.setFriendId(userId);
         right.setCreatedAt(now);
-        friendshipRepository.saveAll(List.of(left, right));
+        List<Friendship> friendships = new ArrayList<>();
+        friendships.add(left);
+        friendships.add(right);
+        friendshipRepository.saveAll(friendships);
         friendRealtimeNotifier.friendRequestAccepted(userId, friendUserId);
-        evictFriendshipCaches(Set.of(userId, friendUserId), List.of(left, right));
+        Set<String> userIds = new LinkedHashSet<>();
+        userIds.add(userId);
+        userIds.add(friendUserId);
+        evictFriendshipCaches(userIds, friendships);
         evictRequestCaches(userId, friendUserId);
         return copyFriendship(left);
     }
@@ -191,14 +204,10 @@ public class FriendRelationServiceImpl implements FriendRelationService {
             throw new IllegalStateException("friend request not found");
         }
         long now = System.currentTimeMillis();
-        friendRequestRepository.updateFields(
-                friendUserId,
-                userId,
-                Map.of(
-                        "handleResult", HandleResultEnum.REJECTED.getCode(),
-                        "updatedAt", now
-                )
-        );
+        Map<String, Object> fields = new LinkedHashMap<>();
+        fields.put("handleResult", HandleResultEnum.REJECTED.getCode());
+        fields.put("updatedAt", now);
+        friendRequestRepository.updateFields(friendUserId, userId, fields);
         incoming.setHandleResult(HandleResultEnum.REJECTED);
         incoming.setUpdatedAt(now);
         friendRealtimeNotifier.friendRequestRejected(userId, friendUserId);
@@ -213,14 +222,10 @@ public class FriendRelationServiceImpl implements FriendRelationService {
             throw new IllegalStateException("friend request not found");
         }
         long now = System.currentTimeMillis();
-        friendRequestRepository.updateFields(
-                userId,
-                friendUserId,
-                Map.of(
-                        "handleResult", HandleResultEnum.REJECTED.getCode(),
-                        "updatedAt", now
-                )
-        );
+        Map<String, Object> fields = new LinkedHashMap<>();
+        fields.put("handleResult", HandleResultEnum.REJECTED.getCode());
+        fields.put("updatedAt", now);
+        friendRequestRepository.updateFields(userId, friendUserId, fields);
         outgoing.setHandleResult(HandleResultEnum.REJECTED);
         outgoing.setUpdatedAt(now);
         friendRealtimeNotifier.friendRequestCancelled(userId, friendUserId);
@@ -268,7 +273,7 @@ public class FriendRelationServiceImpl implements FriendRelationService {
     @Override
     public List<String> listBlockedUserIds(String userId) {
         if (userId == null) {
-            return List.of();
+            return new ArrayList<>();
         }
         return blacklistRepository.listBlockedUserIds(userId);
     }
@@ -291,7 +296,7 @@ public class FriendRelationServiceImpl implements FriendRelationService {
     private void evictFriendshipCaches(Set<String> userIds, List<Friendship> friendships) {
         friendListCache.removeAll(userIds);
         Set<String> detailKeys = friendships.stream()
-                .filter(friendship -> friendship != null)
+                .filter(Objects::nonNull)
                 .map(friendship -> friendshipKey(friendship.getUserId(), friendship.getFriendId()))
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         if (!detailKeys.isEmpty()) {
@@ -311,11 +316,11 @@ public class FriendRelationServiceImpl implements FriendRelationService {
 
     private List<Friendship> copyFriendships(List<Friendship> friendships) {
         if (friendships == null || friendships.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         return friendships.stream()
                 .map(this::copyFriendship)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     private Friendship copyFriendship(Friendship friendship) {
@@ -337,11 +342,11 @@ public class FriendRelationServiceImpl implements FriendRelationService {
 
     private List<FriendRequest> copyRequests(List<FriendRequest> requests) {
         if (requests == null || requests.isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         return requests.stream()
                 .map(this::copyRequest)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     private FriendRequest copyRequest(FriendRequest request) {

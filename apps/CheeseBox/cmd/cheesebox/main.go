@@ -2,26 +2,23 @@ package main
 
 import (
 	"log"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	sdkclient "github.com/cheeseim/cheeseim-go-sdk/client"
 
 	"github.com/cheeseim/cheesebox/internal/config"
-	"github.com/cheeseim/cheesebox/internal/service"
-	"github.com/cheeseim/cheesebox/internal/transport/httpapi"
-	"github.com/cheeseim/cheesebox/internal/transport/tcpim"
 	"github.com/cheeseim/cheesebox/internal/ui"
 )
 
 func main() {
 	cfg := config.LoadRuntimeConfig()
-	httpClient := httpapi.New(cfg.APIBaseURL, 10*time.Second)
-	tcpClient := tcpim.NewClient(nil, 30*time.Second)
-	authService := service.NewAuthService(httpClient, httpClient, tcpClient)
-	rosterService := service.NewRosterService(httpClient)
-	chatService := service.NewChatService(tcpClient, httpClient)
-	contactService := service.NewContactService(httpClient)
-	program := tea.NewProgram(ui.NewRootModel(cfg, authService, rosterService, chatService, contactService))
+	imClient := sdkclient.New(sdkclient.Config{
+		APIBaseURL: cfg.APIBaseURL,
+		TCPAddr:    cfg.TCPAddr,
+		DeviceID:   cfg.DeviceID,
+		Platform:   cfg.Platform,
+	})
+	program := tea.NewProgram(ui.NewRootModel(cfg, imClient), tea.WithAltScreen())
 	if _, err := program.Run(); err != nil {
 		log.Fatal(err)
 	}

@@ -29,7 +29,18 @@
 - Bubble Tea
 - Bubbles
 - Lip Gloss
-- WebSocket / HTTP API（以 CheeseIM server 实际接口为准）
+- `sdks/go` 通用 IM client SDK
+- TCP / HTTP API（以 CheeseIM server 实际接口为准）
+
+当前实现边界已经调整为：
+
+- `sdks/go`
+  - 通用 IM client 能力
+  - 鉴权、TCP、会话同步、好友/群组/会话查询
+- `apps/CheeseBox`
+  - TUI 页面
+  - 本地 UI store
+  - 交互和显示逻辑
 
 ---
 
@@ -835,4 +846,3 @@ cheeseim-tui/
 - 所有真实请求都要带 debug 日志
 - 不要把协议字段转换逻辑写在 Bubble Tea UI 组件里
 ```
-

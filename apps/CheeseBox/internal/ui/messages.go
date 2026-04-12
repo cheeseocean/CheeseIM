@@ -1,6 +1,6 @@
 package ui
 
-import "github.com/cheeseim/cheesebox/internal/transport/tcpim"
+import "github.com/cheeseim/cheeseim-go-sdk/types"
 
 type LoginSubmittedMsg struct{}
 
@@ -15,5 +15,5 @@ type SubmitInputMsg struct {
 }
 
 type realtimeEventMsg struct {
-	event tcpim.Event
+	event types.Event
 }
