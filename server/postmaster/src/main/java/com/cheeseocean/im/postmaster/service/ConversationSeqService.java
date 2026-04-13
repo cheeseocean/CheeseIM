@@ -1,16 +1,15 @@
 package com.cheeseocean.im.postmaster.service;
 
-import com.cheeseocean.im.common.core.store.sequence.ConversationSequenceAllocator;
 import com.cheeseocean.im.common.core.store.sequence.SequenceRange;
-import com.cheeseocean.im.common.core.store.sequence.id.SequenceIdGenerator;
+import com.cheeseocean.im.common.core.store.sequence.conversation.ConversationSeqAllocator;
 import org.springframework.stereotype.Service;
 
 @Service
 public class ConversationSeqService {
 
-    private final SequenceIdGenerator sequenceAllocator;
+    private final ConversationSeqAllocator sequenceAllocator;
 
-    public ConversationSeqService(SequenceIdGenerator sequenceAllocator) {
+    public ConversationSeqService(ConversationSeqAllocator sequenceAllocator) {
         this.sequenceAllocator = sequenceAllocator;
     }
 
