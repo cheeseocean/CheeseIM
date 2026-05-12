@@ -75,7 +75,7 @@ final class _FakeChatClient implements ImClientGateway {
           peerId: peerId,
           content: text,
           contentType: 1,
-          sessionType: 1,
+          chatType: 1,
           sendTime: 1710000000000,
           status: MessageDeliveryStatus.sent,
           isOutgoing: true,

@@ -92,7 +92,7 @@ void main() {
         operationId: 'op-notify-1',
         timestamp: 1710000000003,
         data:
-            '{"serverMsgID":"server-2","clientMsgID":"client-2","sendID":"u2","recvID":"user123","content":"hi","contentType":101,"sessionType":1,"sendTime":1710000000003}',
+            '{"serverMsgID":"server-2","clientMsgID":"client-2","sendID":"u2","recvID":"user123","content":"hi","contentType":101,"chatType":1,"sendTime":1710000000003}',
       ),
     );
 

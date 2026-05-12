@@ -182,7 +182,7 @@ final class ChatController extends ChangeNotifier {
       peerId: peerId,
       content: text,
       contentType: 1,
-      sessionType: 1,
+      chatType: 1,
       sendTime: DateTime.now().millisecondsSinceEpoch,
       status: MessageDeliveryStatus.sending,
       isOutgoing: true,

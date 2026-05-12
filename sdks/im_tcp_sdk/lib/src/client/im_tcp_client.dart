@@ -53,7 +53,7 @@ final class ImTcpClient {
           'recvID': peerId,
           'content': text,
           'contentType': 101,
-          'sessionType': 1,
+          'chatType': 1,
         }),
       );
     } on Object catch (error) {
@@ -72,7 +72,7 @@ final class ImTcpClient {
       peerId: peerId,
       content: text,
       contentType: 101,
-      sessionType: 1,
+      chatType: 1,
       sendTime: (payload['sendTime'] as num?)?.toInt() ??
           DateTime.now().millisecondsSinceEpoch,
       status: MessageDeliveryStatus.sent,
@@ -108,7 +108,7 @@ final class ImTcpClient {
       peerId: peerId,
       content: payload['content'] as String? ?? '',
       contentType: (payload['contentType'] as num?)?.toInt() ?? 101,
-      sessionType: (payload['sessionType'] as num?)?.toInt() ?? 1,
+      chatType: (payload['chatType'] as num?)?.toInt() ?? 1,
       sendTime: (payload['sendTime'] as num?)?.toInt() ??
           DateTime.now().millisecondsSinceEpoch,
       status: outgoing

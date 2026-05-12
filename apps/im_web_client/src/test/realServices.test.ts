@@ -358,7 +358,7 @@ describe('realGatewayClient', () => {
         recvID: 'u_design',
         content: 'Need the final mockups before noon.',
         contentType: 101,
-        sessionType: 1,
+        chatType: 1,
       },
     });
 

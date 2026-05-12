@@ -45,7 +45,7 @@ describe('envelope', () => {
       recvID: 'u2',
       content: 'hello',
       contentType: 1,
-      sessionType: 1,
+      chatType: 1,
     });
 
     expect(payload).toEqual({
@@ -56,7 +56,7 @@ describe('envelope', () => {
         recvID: 'u2',
         content: 'hello',
         contentType: 1,
-        sessionType: 1,
+        chatType: 1,
       },
     });
   });
@@ -469,7 +469,7 @@ describe('wsClient', () => {
       recvID: 'u2',
       content: 'hello',
       contentType: 1,
-      sessionType: 1,
+      chatType: 1,
     });
 
     listeners.get('open')?.();
@@ -516,7 +516,7 @@ describe('wsClient', () => {
       recvID: 'u2',
       content: 'hello',
       contentType: 1,
-      sessionType: 1,
+      chatType: 1,
     });
 
     listeners.get('message')?.({
@@ -557,7 +557,7 @@ describe('wsClient', () => {
       recvID: 'u2',
       content: 'hello',
       contentType: 1,
-      sessionType: 1,
+      chatType: 1,
     });
 
     listeners.get('message')?.({
@@ -597,7 +597,7 @@ describe('wsClient', () => {
       recvID: 'u2',
       content: 'hello',
       contentType: 1,
-      sessionType: 1,
+      chatType: 1,
     });
 
     listeners.get('close')?.();

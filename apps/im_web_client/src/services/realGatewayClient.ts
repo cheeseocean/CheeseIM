@@ -223,7 +223,7 @@ export function createRealGatewayClient(
       recvID: input.recipientId,
       content: input.content,
       contentType: input.contentType,
-      sessionType: 1,
+      chatType: 1,
       attachedInfo: input.attachedInfo,
     });
 

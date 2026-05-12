@@ -10,7 +10,7 @@ final class ChatMessageItem {
     required this.peerId,
     required this.content,
     required this.contentType,
-    required this.sessionType,
+    required this.chatType,
     required this.sendTime,
     required this.status,
     this.failureReason,
@@ -25,7 +25,7 @@ final class ChatMessageItem {
   final String peerId;
   final String content;
   final int contentType;
-  final int sessionType;
+  final int chatType;
   final int sendTime;
   final MessageDeliveryStatus status;
   final String? failureReason;
@@ -47,7 +47,7 @@ final class ChatMessageItem {
       peerId: peerId,
       content: content,
       contentType: contentType,
-      sessionType: sessionType,
+      chatType: chatType,
       sendTime: sendTime ?? this.sendTime,
       status: status ?? this.status,
       failureReason:

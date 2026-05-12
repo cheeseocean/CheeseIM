@@ -120,7 +120,7 @@ Client -> Server: TCP_SEND_MSG_REQ
   "content": "Hello World!",
   "contentType": 101,
   "recvID": "receiver123",
-  "sessionType": 1
+  "chatType": 1
 }
 
 Server -> Client: TCP_SEND_MSG_RESP
@@ -132,9 +132,9 @@ Server -> Client: TCP_SEND_MSG_RESP
 ```
 
 #### 载荷示例（发送消息）
-- **TCP 发送消息请求**：`{"clientMsgID":"client-123","recvID":"receiver123","content":"Hello World!","contentType":101,"sessionType":1}`
+- **TCP 发送消息请求**：`{"clientMsgID":"client-123","recvID":"receiver123","content":"Hello World!","contentType":101,"chatType":1}`
 - **TCP 发送消息响应**：`{"serverMsgID":"msg-456","clientMsgID":"client-123","sendTime":1710000000000}`
-- **WebSocket 发送消息请求**：`{"clientMsgID":"client-123","recvID":"receiver123","content":"Hello World!","contentType":101,"sessionType":1}`
+- **WebSocket 发送消息请求**：`{"clientMsgID":"client-123","recvID":"receiver123","content":"Hello World!","contentType":101,"chatType":1}`
 - **WebSocket 发送消息响应**：`{"serverMsgID":"msg-456","clientMsgID":"client-123","sendTime":1710000000000}`
 
 ### 4.1 已读回执
@@ -153,7 +153,7 @@ Server -> Client: TCP_SEND_MSG_RESP
   "clientMsgID": "read-123",
   "recvID": "receiver123",
   "contentType": 2004,
-  "sessionType": 1,
+  "chatType": 1,
   "content": "{\"receiptType\":\"READ_CURSOR\",\"conversationId\":\"c1:receiver123:user123\",\"seq\":19}"
 }
 ```
@@ -181,7 +181,7 @@ Server -> Client: TCP_RECV_MSG_NOTIFY
   "recvID": "user123",
   "content": "Hello World!",
   "contentType": 101,
-  "sessionType": 1,
+  "chatType": 1,
   "sendTime": 1710000000000
 }
 
@@ -193,14 +193,14 @@ Server -> Client: WS_RECV_MSG_NOTIFY
   "recvID": "user123",
   "content": "Hello World!",
   "contentType": 101,
-  "sessionType": 1,
+  "chatType": 1,
   "sendTime": 1710000000000
 }
 ```
 
 #### 载荷示例（接收通知）
-- **TCP 接收通知**：`{"serverMsgID":"msg-456","clientMsgID":"client-123","sendID":"receiver123","recvID":"user123","content":"Hello World!","contentType":101,"sessionType":1,"sendTime":1710000000000}`
-- **WebSocket 接收通知**：`{"serverMsgID":"msg-456","clientMsgID":"client-123","sendID":"receiver123","recvID":"user123","content":"Hello World!","contentType":101,"sessionType":1,"sendTime":1710000000000}`
+- **TCP 接收通知**：`{"serverMsgID":"msg-456","clientMsgID":"client-123","sendID":"receiver123","recvID":"user123","content":"Hello World!","contentType":101,"chatType":1,"sendTime":1710000000000}`
+- **WebSocket 接收通知**：`{"serverMsgID":"msg-456","clientMsgID":"client-123","sendID":"receiver123","recvID":"user123","content":"Hello World!","contentType":101,"chatType":1,"sendTime":1710000000000}`
 
 
 ## 配置说明

@@ -32,7 +32,7 @@ export interface SendMessagePayload {
   recvID: string;
   content: string;
   contentType: number;
-  sessionType: number;
+  chatType: number;
   attachedInfo?: string;
 }
 
