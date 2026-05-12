@@ -244,7 +244,7 @@ func currentMaxSeq(items []types.Message) int64 {
 }
 
 func resolveConversationID(message types.Message) (string, error) {
-	switch message.SessionType {
+	switch message.ChatType {
 	case 2:
 		if message.GroupID == "" {
 			return "", fmt.Errorf("group message missing group id")
@@ -259,6 +259,6 @@ func resolveConversationID(message types.Message) (string, error) {
 		}
 		return "s:" + message.ReceiverID + ":" + message.SenderID, nil
 	default:
-		return "", fmt.Errorf("unsupported session type: %d", message.SessionType)
+		return "", fmt.Errorf("unsupported chat type: %d", message.ChatType)
 	}
 }

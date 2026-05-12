@@ -2,6 +2,7 @@ package tcpim
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -182,7 +183,7 @@ func (c *Client) readLoop(conn net.Conn) {
 			}
 			return
 		}
-		payloadLength := int(uint32(header[4])<<24 | uint32(header[5])<<16 | uint32(header[6])<<8 | uint32(header[7]))
+		payloadLength := int(binary.BigEndian.Uint32(header[4:8]))
 		raw := header
 		if payloadLength > 0 {
 			payload := make([]byte, payloadLength)
@@ -202,7 +203,7 @@ func (c *Client) readLoop(conn net.Conn) {
 }
 
 func (c *Client) handleFrame(frame Frame) {
-	switch frame.MsgType {
+	switch frame.CommandType {
 	case TCPAuthSuccess:
 		var message pb.ProtoAuthResponse
 		if err := gproto.Unmarshal(frame.Payload, &message); err != nil {
@@ -256,7 +257,7 @@ func (c *Client) awaitAuth(ctx context.Context, conn net.Conn) (*pb.ProtoAuthRes
 		if _, err := io.ReadFull(conn, header); err != nil {
 			return nil, fmt.Errorf("read auth header: %w", err)
 		}
-		payloadLength := int(uint32(header[4])<<24 | uint32(header[5])<<16 | uint32(header[6])<<8 | uint32(header[7]))
+		payloadLength := int(binary.BigEndian.Uint32(header[4:8]))
 		raw := header
 		if payloadLength > 0 {
 			payload := make([]byte, payloadLength)
@@ -269,7 +270,7 @@ func (c *Client) awaitAuth(ctx context.Context, conn net.Conn) (*pb.ProtoAuthRes
 		if err != nil {
 			return nil, err
 		}
-		switch frame.MsgType {
+		switch frame.CommandType {
 		case TCPConnectSuccess:
 			continue
 		case TCPAuthSuccess:
@@ -281,7 +282,7 @@ func (c *Client) awaitAuth(ctx context.Context, conn net.Conn) (*pb.ProtoAuthRes
 		case TCPErrorResp:
 			return nil, errors.New(string(frame.Payload))
 		default:
-			return nil, fmt.Errorf("unexpected auth frame type: %d", frame.MsgType)
+			return nil, fmt.Errorf("unexpected auth frame type: %d", frame.CommandType)
 		}
 	}
 }

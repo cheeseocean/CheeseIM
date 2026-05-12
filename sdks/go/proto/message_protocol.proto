@@ -33,7 +33,7 @@ message ProtoMessage {
   string group_id = 5;
   bytes content = 6;
   int32 content_type = 7;
-  int32 session_type = 8;
+  int32 chat_type = 8;
   int64 send_time = 9;
   int64 create_time = 10;
   int32 status = 11;

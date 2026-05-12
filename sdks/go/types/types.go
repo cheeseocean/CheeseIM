@@ -57,7 +57,7 @@ type Message struct {
 	ReceiverID  string
 	GroupID     string
 	ContentType int32
-	SessionType int32
+	ChatType    int32
 	Content     []byte
 	SendTime    int64
 	CreateTime  int64

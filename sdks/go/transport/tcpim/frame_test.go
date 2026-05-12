@@ -114,8 +114,8 @@ func TestDecodeFrame_ParsesServerPayloads(t *testing.T) {
 			if err != nil {
 				t.Fatalf("DecodeFrame() error = %v", err)
 			}
-			if frame.MsgType != tt.msgType {
-				t.Fatalf("MsgType = %d, want %d", frame.MsgType, tt.msgType)
+			if frame.CommandType != tt.msgType {
+				t.Fatalf("CommandType = %d, want %d", frame.CommandType, tt.msgType)
 			}
 			if frame.RequestID != tt.requestID {
 				t.Fatalf("RequestID = %q, want %q", frame.RequestID, tt.requestID)

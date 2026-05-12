@@ -13,25 +13,33 @@ const (
 	HeaderLength  = 32
 	MaxDataLength = 1024 * 1024
 
-	TCPConnectReq     = byte(1)
-	TCPConnectSuccess = byte(2)
-	TCPAuthReq        = byte(10)
-	TCPAuthSuccess    = byte(11)
-	TCPHeartbeatReq   = byte(20)
-	TCPHeartbeatResp  = byte(21)
-	TCPSendMsgReq     = byte(30)
-	TCPSendMsgResp    = byte(31)
-	TCPRecvMsgNotify  = byte(32)
-	TCPErrorResp      = byte(90)
+	TCPConnectReq                   = byte(1)
+	TCPConnectSuccess               = byte(2)
+	TCPAuthReq                      = byte(10)
+	TCPAuthSuccess                  = byte(11)
+	TCPHeartbeatReq                 = byte(20)
+	TCPHeartbeatResp                = byte(21)
+	TCPSendMsgReq                   = byte(30)
+	TCPSendMsgResp                  = byte(31)
+	TCPRecvMsgNotify                = byte(32)
+	TCPRevokeMsgReq                 = byte(34)
+	TCPRevokeMsgNotify              = byte(35)
+	TCPForceLogoutNotify            = byte(42)
+	TCPFriendApplicationNotify      = byte(70)
+	TCPFriendApplicationProcessed   = byte(71)
+	TCPFriendInfoChangeNotify       = byte(72)
+	TCPErrorResp                    = byte(90)
 )
 
 const (
-	CommandConnect   = int32(1)
-	CommandAuth      = int32(10)
-	CommandHeartbeat = int32(20)
-	CommandChatSend  = int32(30)
-	CommandChatRecv  = int32(32)
-	CommandError     = int32(90)
+	CommandConnect        = int32(1)
+	CommandAuth           = int32(10)
+	CommandHeartbeat      = int32(20)
+	CommandChatSend       = int32(30)
+	CommandChatRecv       = int32(32)
+	CommandChatRevoke     = int32(34)
+	CommandForceLogout    = int32(35)
+	CommandError          = int32(90)
 )
 
 var (
@@ -44,14 +52,14 @@ var (
 )
 
 type Frame struct {
-	Version   byte
-	MsgType   byte
-	RequestID string
-	Timestamp int64
-	Payload   []byte
+	Version     byte
+	CommandType byte
+	RequestID   string
+	Timestamp   int64
+	Payload     []byte
 }
 
-func EncodeFrame(msgType byte, requestID string, timestamp int64, payload []byte) ([]byte, error) {
+func EncodeFrame(commandType byte, requestID string, timestamp int64, payload []byte) ([]byte, error) {
 	if len(requestID) > 16 {
 		return nil, ErrRequestIDTooLong
 	}
@@ -61,7 +69,7 @@ func EncodeFrame(msgType byte, requestID string, timestamp int64, payload []byte
 	frame := make([]byte, HeaderLength+len(payload))
 	binary.BigEndian.PutUint16(frame[0:2], Magic)
 	frame[2] = Version
-	frame[3] = msgType
+	frame[3] = commandType
 	binary.BigEndian.PutUint32(frame[4:8], uint32(len(payload)))
 	copy(frame[8:24], []byte(requestID))
 	binary.BigEndian.PutUint64(frame[24:32], uint64(timestamp))
@@ -90,11 +98,11 @@ func DecodeFrame(raw []byte) (Frame, error) {
 	payload := make([]byte, dataLength)
 	copy(payload, raw[32:32+dataLength])
 	return Frame{
-		Version:   raw[2],
-		MsgType:   raw[3],
-		RequestID: requestID,
-		Timestamp: int64(binary.BigEndian.Uint64(raw[24:32])),
-		Payload:   payload,
+		Version:     raw[2],
+		CommandType: raw[3],
+		RequestID:   requestID,
+		Timestamp:   int64(binary.BigEndian.Uint64(raw[24:32])),
+		Payload:     payload,
 	}, nil
 }
 
@@ -108,6 +116,8 @@ func ClientMsgTypeForCommand(command int32) (byte, error) {
 		return TCPHeartbeatReq, nil
 	case CommandChatSend:
 		return TCPSendMsgReq, nil
+	case CommandChatRevoke:
+		return TCPRevokeMsgReq, nil
 	default:
 		return 0, fmt.Errorf("%w: %d", ErrUnknownCommand, command)
 	}
@@ -125,9 +135,63 @@ func ServerMsgTypeForCommand(command int32) (byte, error) {
 		return TCPSendMsgResp, nil
 	case CommandChatRecv:
 		return TCPRecvMsgNotify, nil
+	case CommandChatRevoke:
+		return TCPRevokeMsgNotify, nil
+	case CommandForceLogout:
+		return TCPForceLogoutNotify, nil
 	case CommandError:
 		return TCPErrorResp, nil
 	default:
 		return 0, fmt.Errorf("%w: %d", ErrUnknownCommand, command)
+	}
+}
+
+// ResolveClientCommand resolves a TCP message type byte to a CommandType enum value.
+// This is used when decoding incoming frames from the server.
+func ResolveClientCommand(msgType byte) (int32, error) {
+	switch msgType {
+	case TCPConnectReq:
+		return CommandConnect, nil
+	case TCPAuthReq:
+		return CommandAuth, nil
+	case TCPHeartbeatReq:
+		return CommandHeartbeat, nil
+	case TCPSendMsgReq:
+		return CommandChatSend, nil
+	case TCPRevokeMsgReq:
+		return CommandChatRevoke, nil
+	default:
+		return 0, fmt.Errorf("%w: %d", ErrUnknownCommand, msgType)
+	}
+}
+
+// ResolveServerCommand resolves a TCP message type byte to a CommandType enum value.
+// This is used when decoding incoming frames from the server.
+func ResolveServerCommand(msgType byte) (int32, error) {
+	switch msgType {
+	case TCPConnectSuccess:
+		return CommandConnect, nil
+	case TCPAuthSuccess:
+		return CommandAuth, nil
+	case TCPHeartbeatResp:
+		return CommandHeartbeat, nil
+	case TCPSendMsgResp:
+		return CommandChatSend, nil
+	case TCPRecvMsgNotify:
+		return CommandChatRecv, nil
+	case TCPRevokeMsgNotify:
+		return CommandChatRevoke, nil
+	case TCPForceLogoutNotify:
+		return CommandForceLogout, nil
+	case TCPFriendApplicationNotify:
+		return CommandChatRecv, nil
+	case TCPFriendApplicationProcessed:
+		return CommandChatRecv, nil
+	case TCPFriendInfoChangeNotify:
+		return CommandChatRecv, nil
+	case TCPErrorResp:
+		return CommandError, nil
+	default:
+		return 0, fmt.Errorf("%w: %d", ErrUnknownCommand, msgType)
 	}
 }

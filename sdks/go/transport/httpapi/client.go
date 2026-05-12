@@ -216,7 +216,7 @@ func (c *Client) PullMessages(ctx context.Context, accessToken string, ranges []
 				ReceiverID  string            `json:"receiverId"`
 				GroupID     string            `json:"groupId"`
 				ContentType int32             `json:"contentType"`
-				SessionType int32             `json:"sessionType"`
+				ChatType    int32             `json:"chatType"`
 				Content     []byte            `json:"content"`
 				SendTime    int64             `json:"sendTime"`
 				CreateTime  int64             `json:"createTime"`
@@ -244,7 +244,7 @@ func (c *Client) PullMessages(ctx context.Context, accessToken string, ranges []
 				ReceiverID:  msg.ReceiverID,
 				GroupID:     msg.GroupID,
 				ContentType: msg.ContentType,
-				SessionType: msg.SessionType,
+				ChatType:    msg.ChatType,
 				Content:     msg.Content,
 				SendTime:    msg.SendTime,
 				CreateTime:  msg.CreateTime,

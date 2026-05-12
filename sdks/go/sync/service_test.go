@@ -40,8 +40,8 @@ func TestServiceHandleRealtimeRepairsGap(t *testing.T) {
 			EndSeq:         12,
 			Completed:      true,
 			Messages: []types.Message{
-				{Sequence: 11, ServerMsgID: "m11", SenderID: "u200", ReceiverID: "u100", SessionType: 1},
-				{Sequence: 12, ServerMsgID: "m12", SenderID: "u200", ReceiverID: "u100", SessionType: 1},
+				{Sequence: 11, ServerMsgID: "m11", SenderID: "u200", ReceiverID: "u100", ChatType: 1},
+				{Sequence: 12, ServerMsgID: "m12", SenderID: "u200", ReceiverID: "u100", ChatType: 1},
 			},
 		}},
 	}
@@ -56,7 +56,7 @@ func TestServiceHandleRealtimeRepairsGap(t *testing.T) {
 		ServerMsgID: "m12",
 		SenderID:    "u200",
 		ReceiverID:  "u100",
-		SessionType: 1,
+		ChatType:    1,
 	})
 	if err != nil {
 		t.Fatalf("HandleRealtimeMessage() error = %v", err)

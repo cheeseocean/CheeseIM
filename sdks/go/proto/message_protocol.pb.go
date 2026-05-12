@@ -222,7 +222,7 @@ type ProtoMessage struct {
 	GroupId         string                 `protobuf:"bytes,5,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
 	Content         []byte                 `protobuf:"bytes,6,opt,name=content,proto3" json:"content,omitempty"`
 	ContentType     int32                  `protobuf:"varint,7,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
-	SessionType     int32                  `protobuf:"varint,8,opt,name=session_type,json=sessionType,proto3" json:"session_type,omitempty"`
+	ChatType        int32                  `protobuf:"varint,8,opt,name=chat_type,json=chatType,proto3" json:"chat_type,omitempty"`
 	SendTime        int64                  `protobuf:"varint,9,opt,name=send_time,json=sendTime,proto3" json:"send_time,omitempty"`
 	CreateTime      int64                  `protobuf:"varint,10,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"`
 	Status          int32                  `protobuf:"varint,11,opt,name=status,proto3" json:"status,omitempty"`
@@ -316,9 +316,9 @@ func (x *ProtoMessage) GetContentType() int32 {
 	return 0
 }
 
-func (x *ProtoMessage) GetSessionType() int32 {
+func (x *ProtoMessage) GetChatType() int32 {
 	if x != nil {
-		return x.SessionType
+		return x.ChatType
 	}
 	return 0
 }

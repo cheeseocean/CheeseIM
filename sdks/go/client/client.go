@@ -98,7 +98,7 @@ func (c *Client) OpenConversation(ctx context.Context, conversationID string, li
 }
 
 func (c *Client) SendText(requestID, conversationID, text string) (types.Message, error) {
-	receiverID, groupID, sessionType, err := resolveChatTarget(conversationID, c.currentUser)
+	receiverID, groupID, chatType, err := resolveChatTarget(conversationID, c.currentUser)
 	if err != nil {
 		return types.Message{}, err
 	}
@@ -108,7 +108,7 @@ func (c *Client) SendText(requestID, conversationID, text string) (types.Message
 		GroupId:     groupID,
 		Content:     []byte(text),
 		ContentType: 101,
-		SessionType: sessionType,
+		ChatType:    chatType,
 		SendTime:    time.Now().UnixMilli(),
 	}
 	if err := c.tcpClient.SendChatMessage(requestID, message); err != nil {
@@ -119,7 +119,7 @@ func (c *Client) SendText(requestID, conversationID, text string) (types.Message
 		SenderID:    c.currentUser,
 		ReceiverID:  receiverID,
 		GroupID:     groupID,
-		SessionType: sessionType,
+		ChatType:    chatType,
 		ContentType: 101,
 		Content:     []byte(text),
 		SendTime:    message.GetSendTime(),
@@ -239,7 +239,7 @@ func toSDKMessage(message *pb.ProtoMessage) types.Message {
 		ReceiverID:  message.GetReceiverId(),
 		GroupID:     message.GetGroupId(),
 		ContentType: message.GetContentType(),
-		SessionType: message.GetSessionType(),
+		ChatType:    message.GetChatType(),
 		Content:     message.GetContent(),
 		SendTime:    message.GetSendTime(),
 		CreateTime:  message.GetCreateTime(),
