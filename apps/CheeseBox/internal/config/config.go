@@ -6,7 +6,7 @@ const (
 	defaultAPIBaseURL = "http://127.0.0.1:18085"
 	defaultTCPAddr    = "127.0.0.1:5148"
 	defaultDeviceID   = "cheesebox-dev"
-	defaultPlatform   = "desktop"
+	defaultPlatform   = "cli"
 )
 
 type RuntimeConfig struct {

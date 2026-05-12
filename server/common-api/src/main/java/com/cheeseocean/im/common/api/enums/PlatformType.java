@@ -22,6 +22,10 @@ public enum PlatformType implements IEnum {
     MINI_WEB(6, "miniweb", "MiniWeb"),
     /** Linux 平台。 */
     LINUX(7, "linux", "Linux"),
+    /**
+     * 命令行平台
+     */
+    CLI(8, "cli", "CLI"),
     /** 未知平台。 */
     UNKNOWN(0, "unknown", "Unknown");
 
