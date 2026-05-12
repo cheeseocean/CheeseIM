@@ -3,7 +3,7 @@ package com.cheeseocean.im.postmaster.listener;
 import com.cheeseocean.im.common.api.conversation.ConversationService;
 import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.enums.ContentType;
-import com.cheeseocean.im.common.api.enums.SessionType;
+import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.api.event.HistoryEvent;
 import com.cheeseocean.im.common.core.constants.TopicNames;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
@@ -106,7 +106,6 @@ public class IngressEventListener {
             bindSeqs(storageMsgList, seqBatch.range().startInclusive());
             // 首次会话需为用户创建会话状态
             createConversationIfNeeded(msgSample.msg(), msgSample.convId(), seqBatch.isNewConversation());
-
         }
 
         // 处理通知消息
@@ -175,7 +174,7 @@ public class IngressEventListener {
         if (!newConversation) {
             return;
         }
-        if (sample.getSessionType() != null && sample.getSessionType() == SessionType.GROUP) {
+        if (sample.getChatType() != null && sample.getChatType() == ChatType.GROUP) {
             List<String> userIds = groupMembershipFacade.loadGroupMembers(sample.getGroupId());
             conversationService.createGroupChatConversations(sample.getGroupId(), conversationId, userIds);
             return;
@@ -184,7 +183,7 @@ public class IngressEventListener {
                 sample.getSenderId(),
                 sample.getReceiverId(),
                 conversationId,
-                sample.getSessionType() == null ? 0 : sample.getSessionType().getCode()
+                sample.getChatType() == null ? 0 : sample.getChatType().getCode()
         );
     }
 

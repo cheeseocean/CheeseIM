@@ -8,7 +8,7 @@ import com.cheeseocean.im.common.api.enums.ContentType;
 import com.cheeseocean.im.common.api.enums.MessageSource;
 import com.cheeseocean.im.common.api.enums.MessageStatus;
 import com.cheeseocean.im.common.api.enums.PlatformType;
-import com.cheeseocean.im.common.api.enums.SessionType;
+import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.core.auth.PermissionCheckResult;
 import com.cheeseocean.im.common.core.util.BlockIndexUtil;
 import com.cheeseocean.im.postbox.history.MessageBlockDoc;
@@ -27,8 +27,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 
 /**
  * CheeseBox 历史消息查询服务。
@@ -149,7 +147,7 @@ public class HistoryQueryService {
         message.setSenderNickName(slot.getSenderName());
         message.setReceiverId(firstNonBlank(slot.getReceiverId(), slot.getRecvId()));
         message.setGroupId(slot.getGroupId());
-        message.setSessionType(fromCode(slot.getSessionType(), SessionType::fromCode));
+        message.setChatType(fromCode(slot.getSessionType(), ChatType::fromCode));
         message.setContentType(fromCode(slot.getContentType(), ContentType::fromCode));
         message.setContent(toBytes(slot.getContent()));
         message.setSendTime(slot.getSendTime());

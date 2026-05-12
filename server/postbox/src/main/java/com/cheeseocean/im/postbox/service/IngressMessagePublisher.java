@@ -22,7 +22,7 @@ public class IngressMessagePublisher {
     // single chat 和 notification 共享同一 key，进同一批次，由消费方在批次内分流处理。
     public void publish(Message message) {
         String key = ConversationIdUtil.buildQueueKey(
-                message.getSessionType(), message.getSenderId(), message.getReceiverId(), message.getGroupId());
+                message.getChatType(), message.getSenderId(), message.getReceiverId(), message.getGroupId());
         queueAdapter.send(TopicNames.INGRESS, key, ProtoMessageMapper.toProto(message).toByteArray());
     }
 }

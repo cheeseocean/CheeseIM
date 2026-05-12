@@ -2,13 +2,13 @@ package com.cheeseocean.im.postoffice.handler;
 
 import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.dto.message.SendMessageResp;
+import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.common.api.rpc.MessageSender;
 import com.cheeseocean.im.common.api.enums.CommandType;
 import com.cheeseocean.im.common.api.enums.ConnectionState;
 import com.cheeseocean.im.common.api.enums.ContentType;
-import com.cheeseocean.im.common.api.enums.SessionType;
 import com.cheeseocean.im.postoffice.auth.ConnectionSessionGuard;
 import com.cheeseocean.im.postoffice.connection.ConnectionContext;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
@@ -76,7 +76,7 @@ class ChatMessageHandlerTest {
 
     private static ClientEnvelope textEnvelope() {
         Message request = new Message();
-        request.setSessionType(SessionType.SINGLE.getCode());
+        request.setChatType(ChatType.PRIVATE.getCode());
         request.setReceiverId("user-2");
         request.setClientMsgId("client-1");
         request.setContentType(ContentType.TEXT.getCode());
@@ -91,7 +91,7 @@ class ChatMessageHandlerTest {
 
     private static ClientEnvelope invalidEnvelope() {
         Message request = new Message();
-        request.setSessionType(SessionType.SINGLE.getCode());
+        request.setChatType(ChatType.PRIVATE.getCode());
         request.setClientMsgId("client-1");
         request.setContentType(ContentType.TEXT.getCode());
         request.setContent("hello");

@@ -7,7 +7,7 @@ import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.dto.message.MessageOptions;
 import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
 import com.cheeseocean.im.common.api.enums.ContentType;
-import com.cheeseocean.im.common.api.enums.SessionType;
+import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.api.event.DeliveryEvent;
 import com.cheeseocean.im.common.api.event.OfflinePushEvent;
 import com.cheeseocean.im.common.api.protocol.ProtoOfflinePushEventMapper;
@@ -97,7 +97,7 @@ class DeliveryEventListenerTest {
         DeliveryEventListener listener = new DeliveryEventListener(routeQueryRpc, onlineDispatcher, kafkaTemplate);
         DeliveryEvent event = event(true);
         event.getMessage().getOptions().setNotification(true);
-        event.getMessage().setSessionType(SessionType.NOTIFICATION);
+        event.getMessage().setChatType(ChatType.NOTIFICATION);
         event.getMessage().setContentType(ContentType.SYSTEM_NOTIFY);
 
         listener.handle(event);
@@ -106,7 +106,7 @@ class DeliveryEventListenerTest {
         verify(kafkaTemplate).send(eq(TopicNames.OFFLINE_PUSH), eq("userB"), captor.capture());
         OfflinePushEvent offlinePushEvent = ProtoOfflinePushEventMapper.parse(captor.getValue());
         assertEquals(true, offlinePushEvent.isNotification());
-        assertEquals(SessionType.NOTIFICATION.getCode(), offlinePushEvent.getSessionType());
+        assertEquals(ChatType.NOTIFICATION.getCode(), offlinePushEvent.getSessionType());
         assertEquals(ContentType.SYSTEM_NOTIFY.getCode(), offlinePushEvent.getContentType());
         assertEquals("userA", offlinePushEvent.getSenderId());
     }
@@ -122,7 +122,7 @@ class DeliveryEventListenerTest {
         message.setServerMsgId("server-1");
         message.setSenderId("userA");
         message.setReceiverId("userB");
-        message.setSessionType(SessionType.SINGLE);
+        message.setChatType(ChatType.PRIVATE);
         message.setContentType(ContentType.TEXT);
         message.setContent("hello".getBytes(StandardCharsets.UTF_8));
         message.setSendTime(System.currentTimeMillis());

@@ -7,8 +7,8 @@ import com.alicp.jetcache.template.QuickConfig;
 import com.cheeseocean.im.common.api.business.domain.UserConversation;
 import com.cheeseocean.im.common.api.conversation.ConversationService;
 import com.cheeseocean.im.common.api.dto.conversation.SetConversationRequest;
+import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.api.enums.ReceiveOption;
-import com.cheeseocean.im.common.api.enums.SessionType;
 import com.cheeseocean.im.common.core.business.repository.UserConversationRepository;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.stereotype.Service;
@@ -290,7 +290,7 @@ public class ConversationServiceImpl implements ConversationService {
      */
     public void createSingleChatConversation(String senderId, String recvId, String conversationId, int conversationType) {
         ConversationCacheEvictPlan plan = new ConversationCacheEvictPlan();
-        if (conversationType == SessionType.SINGLE.getCode()) {
+        if (conversationType == ChatType.PRIVATE.getCode()) {
             createParticipantConversation(buildExplicitState(senderId, conversationId, conversationType, recvId), plan);
             createParticipantConversation(buildExplicitState(recvId, conversationId, conversationType, senderId), plan);
         } else {
@@ -326,7 +326,7 @@ public class ConversationServiceImpl implements ConversationService {
                 continue;
             }
             createParticipantConversation(
-                    buildExplicitState(userId, conversationId, SessionType.GROUP.getCode(), groupId),
+                    buildExplicitState(userId, conversationId, ChatType.GROUP.getCode(), groupId),
                     plan
             );
         }
@@ -398,7 +398,7 @@ public class ConversationServiceImpl implements ConversationService {
         UserConversation state = new UserConversation();
         state.setOwnerUserId(ownerUserId);
         state.setConversationId(conversationId);
-        state.setConversationType(conversationType);
+        state.setChatType(conversationType);
         state.setTargetId(targetId);
         return state;
     }
@@ -506,7 +506,7 @@ public class ConversationServiceImpl implements ConversationService {
         UserConversation copy = new UserConversation();
         copy.setOwnerUserId(state.getOwnerUserId());
         copy.setConversationId(state.getConversationId());
-        copy.setConversationType(state.getConversationType());
+        copy.setChatType(state.getChatType());
         copy.setTargetId(state.getTargetId());
         copy.setReceiveOpt(state.getReceiveOpt());
         copy.setUnreadCount(state.getUnreadCount());

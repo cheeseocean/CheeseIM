@@ -153,7 +153,7 @@ class MessageHandlerContractTest {
 
     private static Message chatSendRequest() {
         Message request = new Message();
-        request.setSessionType(1);
+        request.setChatType(1);
         request.setReceiverId("receiver-1");
         request.setClientMsgId("client-1");
         request.setContentType(101);

@@ -3,7 +3,7 @@ package com.cheeseocean.im.postmaster.listener;
 import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.dto.message.MessageOptions;
 import com.cheeseocean.im.common.api.enums.ContentType;
-import com.cheeseocean.im.common.api.enums.SessionType;
+import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.api.event.HistoryEvent;
 import com.cheeseocean.im.common.api.protocol.ProtoHistoryEventMapper;
 import com.cheeseocean.im.common.api.protocol.ProtoMessageMapper;
@@ -241,7 +241,7 @@ class IngressEventListenerTest {
         message.setServerMsgId("msg-single");
         message.setSenderId("userA");
         message.setReceiverId("userB");
-        message.setSessionType(SessionType.SINGLE);
+        message.setChatType(ChatType.PRIVATE);
         message.setContentType(ContentType.TEXT);
         message.setContent("hello".getBytes());
         message.setOptions(options);
@@ -260,7 +260,7 @@ class IngressEventListenerTest {
         message.setServerMsgId("msg-group");
         message.setSenderId("captain");
         message.setGroupId("crew");
-        message.setSessionType(SessionType.GROUP);
+        message.setChatType(ChatType.GROUP);
         message.setContentType(ContentType.TEXT);
         message.setContent("assemble".getBytes());
         message.setOptions(options);
@@ -281,7 +281,7 @@ class IngressEventListenerTest {
         message.setServerMsgId("msg-notify");
         message.setSenderId("system");
         message.setReceiverId("userB");
-        message.setSessionType(SessionType.NOTIFICATION);
+        message.setChatType(ChatType.NOTIFICATION);
         message.setContentType(ContentType.SYSTEM_NOTIFY);
         message.setContent("{\"text\":\"you have a new follower\"}".getBytes());
         message.setOptions(options);
@@ -296,7 +296,7 @@ class IngressEventListenerTest {
         message.setClientMsgId("client-read");
         message.setSenderId("userA");
         message.setReceiverId("userB");
-        message.setSessionType(SessionType.SINGLE);
+        message.setChatType(ChatType.PRIVATE);
         message.setContentType(ContentType.READ_RECEIPT);
         message.setContent("{\"receiptType\":\"READ_CURSOR\",\"seq\":19}".getBytes());
         message.setOptions(options);

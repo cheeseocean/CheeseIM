@@ -1,10 +1,10 @@
 package com.cheeseocean.im.postman.service.impl;
 
 import com.cheeseocean.im.common.api.dto.message.Message;
+import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.api.enums.PlatformType;
 import com.cheeseocean.im.common.core.constants.MessageDisplayConstants;
 import com.cheeseocean.im.common.api.enums.ContentType;
-import com.cheeseocean.im.common.api.enums.SessionType;
 import com.cheeseocean.im.postman.entity.OfflinePushConfig;
 import com.cheeseocean.im.postman.entity.OfflinePushResult;
 import com.cheeseocean.im.postman.entity.PushMessage;
@@ -303,11 +303,11 @@ public class OfflinePushServiceImpl implements OfflinePushService {
         if (isNotificationMessage(message)) {
             return MessageDisplayConstants.PUSH_TITLE_SYSTEM_NOTIFICATION;
         }
-        SessionType sessionType = message.getSessionType();
-        if (sessionType == SessionType.SINGLE) {
+        ChatType chatType = message.getChatType();
+        if (chatType == ChatType.PRIVATE) {
             // 单聊
             return message.getSenderNickName() != null ? message.getSenderNickName() : MessageDisplayConstants.PUSH_TITLE_NEW_MESSAGE;
-        } else if (sessionType == SessionType.GROUP) {
+        } else if (chatType == ChatType.GROUP) {
             // 群聊
             return MessageDisplayConstants.PUSH_TITLE_GROUP_MESSAGE;
         } else {
@@ -351,7 +351,7 @@ public class OfflinePushServiceImpl implements OfflinePushService {
         if (message == null) {
             return false;
         }
-        if (message.getSessionType() == SessionType.NOTIFICATION) {
+        if (message.getChatType() == ChatType.NOTIFICATION) {
             return true;
         }
         return message.getOptions() != null && message.getOptions().getNotification();
@@ -376,16 +376,16 @@ public class OfflinePushServiceImpl implements OfflinePushService {
             pushMessage.setPlatformID(platformID);
 
             if (originalMessage != null) {
-                SessionType sessionType = originalMessage.getSessionType();
+                ChatType chatType = originalMessage.getChatType();
                 pushMessage.setMessageID(originalMessage.getServerMsgId());
                 pushMessage.setSenderID(originalMessage.getSenderId());
                 pushMessage.setSenderNickname(originalMessage.getSenderNickName());
                 pushMessage.setMessageType(originalMessage.getContentType().getCode());
-                pushMessage.setConversationType(sessionType.getCode());
+                pushMessage.setConversationType(chatType.getCode());
 
-                if (sessionType == SessionType.SINGLE) {
+                if (chatType == ChatType.PRIVATE) {
                     pushMessage.setConversationID("single_" + originalMessage.getSenderId() + "_" + originalMessage.getReceiverId());
-                } else if (sessionType == SessionType.GROUP) {
+                } else if (chatType == ChatType.GROUP) {
                     pushMessage.setConversationID("group_" + originalMessage.getGroupId());
                 }
 
@@ -404,14 +404,14 @@ public class OfflinePushServiceImpl implements OfflinePushService {
         }
     }
 
-    private SessionType resolveSessionType(Integer sessionType) {
+    private ChatType resolveSessionType(Integer sessionType) {
         if (sessionType == null) {
-            return SessionType.SINGLE;
+            return ChatType.PRIVATE;
         }
         try {
-            return SessionType.fromCode(sessionType);
+            return ChatType.fromCode(sessionType);
         } catch (IllegalArgumentException ex) {
-            return SessionType.SINGLE;
+            return ChatType.PRIVATE;
         }
     }
 

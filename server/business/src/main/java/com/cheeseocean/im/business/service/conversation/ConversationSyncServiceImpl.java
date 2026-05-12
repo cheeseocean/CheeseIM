@@ -7,7 +7,7 @@ import com.cheeseocean.im.common.api.dto.conversation.ConversationReadSnapshot;
 import com.cheeseocean.im.common.api.dto.conversation.PullMessages;
 import com.cheeseocean.im.common.api.dto.conversation.SeqRangeRequest;
 import com.cheeseocean.im.common.api.dto.message.Message;
-import com.cheeseocean.im.common.core.business.repository.ConversationRangeRepository;
+import com.cheeseocean.im.common.core.business.repository.ConversationSequenceRepository;
 import com.cheeseocean.im.common.core.business.repository.UserConversationSyncPointRepository;
 import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
 import com.cheeseocean.im.postbox.service.HistoryQueryService;
@@ -15,7 +15,6 @@ import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -35,21 +34,21 @@ public class ConversationSyncServiceImpl implements ConversationSyncService {
 
     private static final int DEFAULT_PULL_LIMIT = 100;
 
-    private final ConversationService conversationService;
-    private final ConversationRangeRepository conversationRangeRepository;
+    private final ConversationService                 conversationService;
+    private final ConversationSequenceRepository      conversationSequenceRepository;
     private final UserConversationSyncPointRepository syncPointRepository;
     private final ConversationStateStore conversationStateStore;
     private final HistoryQueryService historyQueryService;
     private final ReadSeqPersistenceWriter readSeqPersistenceWriter;
 
     public ConversationSyncServiceImpl(ConversationService conversationService,
-                                       ConversationRangeRepository conversationRangeRepository,
+                                       ConversationSequenceRepository conversationSequenceRepository,
                                        UserConversationSyncPointRepository syncPointRepository,
                                        ConversationStateStore conversationStateStore,
                                        HistoryQueryService historyQueryService,
                                        ReadSeqPersistenceWriter readSeqPersistenceWriter) {
         this.conversationService = conversationService;
-        this.conversationRangeRepository = conversationRangeRepository;
+        this.conversationSequenceRepository = conversationSequenceRepository;
         this.syncPointRepository = syncPointRepository;
         this.conversationStateStore = conversationStateStore;
         this.historyQueryService = historyQueryService;
@@ -196,7 +195,7 @@ public class ConversationSyncServiceImpl implements ConversationSyncService {
         if (hotConversationMaxSeq != null && hotConversationMaxSeq > 0) {
             return hotConversationMaxSeq;
         }
-        return conversationRangeRepository.getMaxSeq(conversationId);
+        return conversationSequenceRepository.getMaxSeq(conversationId);
     }
 
     private long resolveReadSeq(String userId, String conversationId) {

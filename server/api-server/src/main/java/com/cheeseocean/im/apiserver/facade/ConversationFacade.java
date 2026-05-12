@@ -194,7 +194,7 @@ public class ConversationFacade {
         ConversationResponse response = new ConversationResponse();
         response.setOwnerUserId(conversation.getOwnerUserId());
         response.setConversationId(conversation.getConversationId());
-        response.setConversationType(conversation.getConversationType());
+        response.setConversationType(conversation.getChatType());
         response.setTargetId(conversation.getTargetId());
         response.setReceiveOpt(conversation.getReceiveOpt());
         response.setUnreadCount(conversation.getUnreadCount());
@@ -218,7 +218,7 @@ public class ConversationFacade {
     }
 
     private ConversationKind resolveKind(UserConversation conversation) {
-        return switch (conversation.getConversationType()) {
+        return switch (conversation.getChatType()) {
             case 2 -> ConversationKind.GROUP;
             case 3 -> ConversationKind.NOTIFICATION;
             default -> ConversationKind.DIRECT;
@@ -286,7 +286,7 @@ public class ConversationFacade {
         response.setReceiverId(message.getReceiverId());
         response.setGroupId(message.getGroupId());
         response.setContentType(message.getContentType() == null ? null : message.getContentType().getCode());
-        response.setSessionType(message.getSessionType() == null ? null : message.getSessionType().getCode());
+        response.setSessionType(message.getChatType() == null ? null : message.getChatType().getCode());
         response.setContent(message.getContent());
         response.setSendTime(message.getSendTime());
         response.setCreateTime(message.getCreateTime());

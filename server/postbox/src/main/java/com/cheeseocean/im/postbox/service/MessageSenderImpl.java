@@ -5,10 +5,10 @@ import com.cheeseocean.im.common.api.dto.message.MessageOptions;
 import com.cheeseocean.im.common.api.dto.message.SendMessageReq;
 import com.cheeseocean.im.common.api.dto.message.SendMessageResp;
 import com.cheeseocean.im.common.api.conversation.ConversationService;
+import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.api.friend.FriendRelationService;
 import com.cheeseocean.im.common.api.rpc.MessageSender;
 import com.cheeseocean.im.common.api.enums.ReceiveOption;
-import com.cheeseocean.im.common.api.enums.SessionType;
 import com.cheeseocean.im.common.core.util.ConversationIdUtil;
 import com.cheeseocean.im.common.core.util.IdGenerator;
 import com.cheeseocean.im.postbox.facade.UserServiceFacade;
@@ -56,7 +56,7 @@ public class MessageSenderImpl implements MessageSender {
     @Override
     public SendMessageResp sendMessage(SendMessageReq req) {
         Message msg = req.getMsg();
-        String         conversationId = ConversationIdUtil.buildConversationId(msg.getSessionType(), msg.getSenderId(), msg.getReceiverId(), msg.getGroupId());
+        String         conversationId = ConversationIdUtil.buildConversationId(msg.getChatType(), msg.getSenderId(), msg.getReceiverId(), msg.getGroupId());
         MessageOptions options        = MessageOptionPolicy.fillDefaultOptions(msg);
 
         // 单聊需要检查接收方选项
@@ -82,7 +82,7 @@ public class MessageSenderImpl implements MessageSender {
         if (options.getNotification() != null && options.getNotification()) {
             return false;
         }
-        return msg.getSessionType() == SessionType.SINGLE;
+        return msg.getChatType() == ChatType.PRIVATE;
     }
 
     /**

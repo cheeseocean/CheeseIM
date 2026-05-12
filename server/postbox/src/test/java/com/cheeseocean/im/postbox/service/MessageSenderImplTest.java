@@ -3,8 +3,8 @@ package com.cheeseocean.im.postbox.service;
 import com.cheeseocean.im.common.api.dto.message.MessageOptions;
 import com.cheeseocean.im.common.api.dto.message.SendMessageReq;
 import com.cheeseocean.im.common.api.dto.message.SendMessageResp;
+import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.api.enums.ContentType;
-import com.cheeseocean.im.common.api.enums.SessionType;
 import com.cheeseocean.im.common.core.queue.QueueAdapter;
 import org.junit.jupiter.api.Test;
 
@@ -27,7 +27,7 @@ class MessageSenderImplTest {
         SendMessageReq req = new SendMessageReq();
         req.setRequestId("req-1");
         req.setSenderId("u200");
-        req.setSessionType(SessionType.SINGLE.getCode());
+        req.setSessionType(ChatType.PRIVATE.getCode());
         req.setRecvId("u100");
         req.setClientMsgId("cmsg-1");
         req.setContentType(ContentType.TEXT.getCode());
@@ -55,7 +55,7 @@ class MessageSenderImplTest {
         SendMessageReq req = new SendMessageReq();
         req.setRequestId("req-2");
         req.setSenderId("u100");
-        req.setSessionType(SessionType.GROUP.getCode());
+        req.setSessionType(ChatType.GROUP.getCode());
         req.setGroupId("g1");
         req.setClientMsgId("cmsg-2");
         req.setContentType(ContentType.TEXT.getCode());
@@ -79,7 +79,7 @@ class MessageSenderImplTest {
         SendMessageReq req = new SendMessageReq();
         req.setRequestId("req-3");
         req.setSenderId("u100");
-        req.setSessionType(SessionType.SINGLE.getCode());
+        req.setSessionType(ChatType.PRIVATE.getCode());
         req.setRecvId("u200");
         req.setClientMsgId("cmsg-3");
         req.setContentType(ContentType.TEXT.getCode());
@@ -102,7 +102,7 @@ class MessageSenderImplTest {
 
     @Test
     void sendMessageShouldUseTypingDefaults() {
-        IngressEvent event = publishEventForContentType(SessionType.SINGLE.getCode(), ContentType.TYPING.getCode());
+        IngressEvent event = publishEventForContentType(ChatType.PRIVATE.getCode(), ContentType.TYPING.getCode());
 
         MessageOptions options = event.getOptions();
         assertEquals(false, options.isNeedHistory());
@@ -115,7 +115,7 @@ class MessageSenderImplTest {
 
     @Test
     void sendMessageShouldUseReadReceiptDefaults() {
-        IngressEvent event = publishEventForContentType(SessionType.SINGLE.getCode(), ContentType.READ_RECEIPT.getCode());
+        IngressEvent event = publishEventForContentType(ChatType.PRIVATE.getCode(), ContentType.READ_RECEIPT.getCode());
 
         MessageOptions options = event.getOptions();
         assertEquals(true, options.isNeedHistory());
@@ -128,7 +128,7 @@ class MessageSenderImplTest {
 
     @Test
     void sendMessageShouldUseRevokeDefaults() {
-        IngressEvent event = publishEventForContentType(SessionType.SINGLE.getCode(), ContentType.REVOKE_NOTIFY.getCode());
+        IngressEvent event = publishEventForContentType(ChatType.PRIVATE.getCode(), ContentType.REVOKE_NOTIFY.getCode());
 
         MessageOptions options = event.getOptions();
         assertEquals(true, options.isNeedHistory());
@@ -143,7 +143,7 @@ class MessageSenderImplTest {
 
     @Test
     void sendMessageShouldUseNotificationDefaultsForSystemNotify() {
-        IngressEvent event = publishEventForContentType(SessionType.NOTIFICATION.getCode(), ContentType.SYSTEM_NOTIFY.getCode());
+        IngressEvent event = publishEventForContentType(ChatType.NOTIFICATION.getCode(), ContentType.SYSTEM_NOTIFY.getCode());
 
         MessageOptions options = event.getOptions();
         assertEquals(true, options.isNeedHistory());
@@ -158,7 +158,7 @@ class MessageSenderImplTest {
 
     @Test
     void sendMessageShouldUseSilentNotificationDefaultsForForceLogout() {
-        IngressEvent event = publishEventForContentType(SessionType.NOTIFICATION.getCode(), ContentType.FORCE_LOGOUT.getCode());
+        IngressEvent event = publishEventForContentType(ChatType.NOTIFICATION.getCode(), ContentType.FORCE_LOGOUT.getCode());
 
         MessageOptions options = event.getOptions();
         assertEquals(false, options.isNeedHistory());
@@ -187,7 +187,7 @@ class MessageSenderImplTest {
 
         var eventCaptor = forClass(IngressEvent.class);
         service.sendMessage(req);
-        verify(queueAdapter).send(eq("ingress"), eq(sessionType == SessionType.NOTIFICATION.getCode() ? "c3:u200" : "c1:u100:u200"), eventCaptor.capture());
+        verify(queueAdapter).send(eq("ingress"), eq(sessionType == ChatType.NOTIFICATION.getCode() ? "c3:u200" : "c1:u100:u200"), eventCaptor.capture());
         return eventCaptor.getValue();
     }
 }

@@ -6,8 +6,8 @@ import com.cheeseocean.im.common.api.dto.conversation.PullMessages;
 import com.cheeseocean.im.common.api.dto.conversation.SeqRangeRequest;
 import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.enums.ContentType;
-import com.cheeseocean.im.common.api.enums.SessionType;
-import com.cheeseocean.im.common.core.business.repository.ConversationRangeRepository;
+import com.cheeseocean.im.common.api.enums.ChatType;
+import com.cheeseocean.im.common.core.business.repository.ConversationSequenceRepository;
 import com.cheeseocean.im.common.core.business.repository.UserConversationSyncPointRepository;
 import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
 import com.cheeseocean.im.postbox.service.HistoryQueryService;
@@ -26,8 +26,8 @@ class ConversationSyncServiceImplTest {
 
     @Test
     void getConversationMaxSeqsShouldPreferUserHotState() {
-        ConversationService conversationService = mock(ConversationService.class);
-        ConversationRangeRepository rangeRepository = mock(ConversationRangeRepository.class);
+        ConversationService                 conversationService = mock(ConversationService.class);
+        ConversationSequenceRepository      rangeRepository     = mock(ConversationSequenceRepository.class);
         UserConversationSyncPointRepository syncPointRepository = mock(UserConversationSyncPointRepository.class);
         ConversationStateStore stateStore = mock(ConversationStateStore.class);
         HistoryQueryService historyQueryService = mock(HistoryQueryService.class);
@@ -52,8 +52,8 @@ class ConversationSyncServiceImplTest {
 
     @Test
     void getConversationMaxSeqsShouldTreatNullConversationIdsAsEmpty() {
-        ConversationService conversationService = mock(ConversationService.class);
-        ConversationRangeRepository rangeRepository = mock(ConversationRangeRepository.class);
+        ConversationService                 conversationService = mock(ConversationService.class);
+        ConversationSequenceRepository      rangeRepository     = mock(ConversationSequenceRepository.class);
         UserConversationSyncPointRepository syncPointRepository = mock(UserConversationSyncPointRepository.class);
         ConversationStateStore stateStore = mock(ConversationStateStore.class);
         HistoryQueryService historyQueryService = mock(HistoryQueryService.class);
@@ -77,8 +77,8 @@ class ConversationSyncServiceImplTest {
 
     @Test
     void pullMessagesBySeqRangesShouldReturnMessagesAndCompletedState() {
-        ConversationService conversationService = mock(ConversationService.class);
-        ConversationRangeRepository rangeRepository = mock(ConversationRangeRepository.class);
+        ConversationService                 conversationService = mock(ConversationService.class);
+        ConversationSequenceRepository      rangeRepository     = mock(ConversationSequenceRepository.class);
         UserConversationSyncPointRepository syncPointRepository = mock(UserConversationSyncPointRepository.class);
         ConversationStateStore stateStore = mock(ConversationStateStore.class);
         HistoryQueryService historyQueryService = mock(HistoryQueryService.class);
@@ -114,8 +114,8 @@ class ConversationSyncServiceImplTest {
 
     @Test
     void pullMessagesBySeqRangesShouldTreatNullVisibleConversationsAsEmpty() {
-        ConversationService conversationService = mock(ConversationService.class);
-        ConversationRangeRepository rangeRepository = mock(ConversationRangeRepository.class);
+        ConversationService                 conversationService = mock(ConversationService.class);
+        ConversationSequenceRepository      rangeRepository     = mock(ConversationSequenceRepository.class);
         UserConversationSyncPointRepository syncPointRepository = mock(UserConversationSyncPointRepository.class);
         ConversationStateStore stateStore = mock(ConversationStateStore.class);
         HistoryQueryService historyQueryService = mock(HistoryQueryService.class);
@@ -145,8 +145,8 @@ class ConversationSyncServiceImplTest {
 
     @Test
     void ackReadSeqShouldWriteHotStateAndEnqueuePersistence() {
-        ConversationService conversationService = mock(ConversationService.class);
-        ConversationRangeRepository rangeRepository = mock(ConversationRangeRepository.class);
+        ConversationService                 conversationService = mock(ConversationService.class);
+        ConversationSequenceRepository      rangeRepository     = mock(ConversationSequenceRepository.class);
         UserConversationSyncPointRepository syncPointRepository = mock(UserConversationSyncPointRepository.class);
         ConversationStateStore stateStore = mock(ConversationStateStore.class);
         HistoryQueryService historyQueryService = mock(HistoryQueryService.class);
@@ -179,7 +179,7 @@ class ConversationSyncServiceImplTest {
         message.setSeq(seq);
         message.setSenderId("u200");
         message.setReceiverId("u100");
-        message.setSessionType(SessionType.SINGLE);
+        message.setChatType(ChatType.PRIVATE);
         message.setContentType(ContentType.TEXT);
         return message;
     }

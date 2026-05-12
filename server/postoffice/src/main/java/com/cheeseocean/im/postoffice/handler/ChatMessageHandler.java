@@ -164,13 +164,13 @@ public class ChatMessageHandler implements MessageHandler {
         }
 
         // 检查会话类型
-        if (message.getSessionType() == null) {
+        if (message.getChatType() == null) {
             return "会话类型无效";
         }
 
         // 根据会话类型验证接收者信息
-        switch (message.getSessionType()) {
-            case SINGLE: // 单聊
+        switch (message.getChatType()) {
+            case PRIVATE: // 单聊
                 if (message.getReceiverId() == null || message.getReceiverId().trim().isEmpty()) {
                     return "单聊消息接收者ID不能为空";
                 }
@@ -186,7 +186,7 @@ public class ChatMessageHandler implements MessageHandler {
                 break;
 
             default:
-                return "不支持的会话类型: " + message.getSessionType();
+                return "不支持的会话类型: " + message.getChatType();
         }
 
         // TODO: 消息长度限制

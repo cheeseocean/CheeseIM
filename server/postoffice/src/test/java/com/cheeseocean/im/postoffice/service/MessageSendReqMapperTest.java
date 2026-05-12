@@ -23,7 +23,7 @@ class MessageSendReqMapperTest {
         message.setReceiverId("u200");
         message.setContent("hello");
         message.setContentType(101);
-        message.setSessionType(1);
+        message.setChatType(1);
         message.setSendTime(123L);
         message.setOptions(Map.of("needHistory", true, "needOnlinePush", true));
         message.setAttachedInfo("{\"attachmentId\":\"att-1\",\"downloadUrl\":\"https://cdn.example.com/a\"}");
@@ -51,7 +51,7 @@ class MessageSendReqMapperTest {
         message.setGroupId("g1");
         message.setContent("team");
         message.setContentType(101);
-        message.setSessionType(2);
+        message.setChatType(2);
 
         SendMessageReq req = mapper.map(message, connection, "op-2");
 

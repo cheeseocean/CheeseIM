@@ -12,8 +12,6 @@ import java.time.Instant;
  * 用户-会话业务状态 MongoDB 持久化文档。集合：{@code conversation}。
  *
  * <p>主键："{ownerUserId}:{conversationId}"（确定性复合主键，upsert 幂等）。
- * 序列号字段（maxSeq / minSeq ）独立存储在 {@code conversation_seq_range} 集合，
- * 参见 {@link ConversationRangeDoc}。
  */
 @Document("conversation")
 @CompoundIndexes({
@@ -38,7 +36,7 @@ public class UserConversationDoc {
     /**
      * 会话类型编码，区分单聊、群聊、通知等。
      */
-    private int     conversationType;
+    private int     chatType;
     /**
      * 单聊对端用户 ID 或群聊目标 ID。
      */

@@ -3,10 +3,10 @@ package com.cheeseocean.im.postman.service;
 import com.cheeseocean.im.common.api.dto.message.MessageOptions;
 import com.cheeseocean.im.common.api.dto.push.OfflinePushReq;
 import com.cheeseocean.im.common.api.dto.push.PushResult;
+import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.api.event.OfflinePushEvent;
 import com.cheeseocean.im.common.api.enums.ContentType;
 import com.cheeseocean.im.common.api.enums.DeliveryState;
-import com.cheeseocean.im.common.api.enums.SessionType;
 import com.cheeseocean.im.postman.entity.OfflinePushResult;
 import com.cheeseocean.im.postman.entity.PushAttempt;
 import com.cheeseocean.im.postman.service.impl.MessagePushServiceImpl;
@@ -92,7 +92,7 @@ class MessagePostmanServiceImplTest {
         task.setSeq(17L);
         task.setUserId("userB");
         task.setSenderId("system");
-        task.setSessionType(SessionType.NOTIFICATION.getCode());
+        task.setSessionType(ChatType.NOTIFICATION.getCode());
         task.setContentType(ContentType.SYSTEM_NOTIFY.getCode());
         task.setNotification(true);
         task.setContent("ping");
@@ -104,7 +104,7 @@ class MessagePostmanServiceImplTest {
         verify(offlinePushService).pushMessageToUser(messageCaptor.capture(), eq("userB"));
         MessageOptions options = messageCaptor.getValue().getOptions();
         assertTrue(options != null && Boolean.TRUE.equals(options.getNotification()));
-        assertEquals(SessionType.NOTIFICATION, messageCaptor.getValue().getSessionType());
+        assertEquals(ChatType.NOTIFICATION, messageCaptor.getValue().getChatType());
         assertEquals(ContentType.SYSTEM_NOTIFY, messageCaptor.getValue().getContentType());
     }
 }

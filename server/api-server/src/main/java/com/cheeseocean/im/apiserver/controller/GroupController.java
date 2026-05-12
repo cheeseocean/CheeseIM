@@ -56,7 +56,7 @@ public class GroupController {
         if (conversation == null) {
             return null;
         }
-        if (conversation.getTargetId() != null && !conversation.getTargetId().isBlank() && conversation.getConversationType() == 2) {
+        if (conversation.getTargetId() != null && !conversation.getTargetId().isBlank() && conversation.getChatType() == 2) {
             return conversation.getTargetId();
         }
         String conversationId = conversation.getConversationId();

@@ -66,7 +66,7 @@ public class BlockHistoryPersistenceService {
         slot.setSenderId(message.getSenderId());
         slot.setReceiverId(message.getReceiverId());
         slot.setGroupId(message.getGroupId());
-        slot.setSessionType(message.getSessionType() == null ? null : message.getSessionType().getCode());
+        slot.setSessionType(message.getChatType() == null ? null : message.getChatType().getCode());
         slot.setContentType(message.getContentType() == null ? null : message.getContentType().getCode());
         slot.setContent(message.getContent());
         slot.setSendTime(message.getSendTime());

@@ -28,7 +28,7 @@ public class UserConversation implements Serializable {
     /**
      * 会话类型：1=单聊，2=普通群聊，3=通知
      */
-    private int     conversationType;
+    private int     chatType;
     /**
      * 单聊对端用户 ID 或群聊的 groupId
      */

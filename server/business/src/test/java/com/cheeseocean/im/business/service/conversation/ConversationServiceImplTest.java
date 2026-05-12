@@ -10,7 +10,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -57,7 +56,7 @@ class ConversationServiceImplTest {
         UserConversation state = new UserConversation();
         state.setOwnerUserId("u1");
         state.setConversationId("c1");
-        state.setConversationType(1);
+        state.setChatType(1);
         state.setTargetId("u2");
         state.setUnreadCount(7);
 

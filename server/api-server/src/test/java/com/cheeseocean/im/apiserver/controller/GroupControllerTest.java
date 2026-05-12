@@ -73,7 +73,7 @@ class GroupControllerTest {
         UserConversation conversation = new UserConversation();
         conversation.setConversationId("c2:" + groupId);
         conversation.setTargetId(groupId);
-        conversation.setConversationType(2);
+        conversation.setChatType(2);
         return conversation;
     }
 

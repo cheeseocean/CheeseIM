@@ -8,7 +8,7 @@ import com.cheeseocean.im.common.api.event.OfflinePushEvent;
 import com.cheeseocean.im.common.api.enums.ContentType;
 import com.cheeseocean.im.common.api.rpc.OfflinePusher;
 import com.cheeseocean.im.common.api.enums.DeliveryState;
-import com.cheeseocean.im.common.api.enums.SessionType;
+import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.postman.entity.OfflinePushResult;
 import com.cheeseocean.im.postman.entity.PushAttempt;
 import com.cheeseocean.im.postman.service.OfflinePushService;
@@ -103,7 +103,7 @@ public class MessagePushServiceImpl implements OfflinePusher {
             message.setContentType(ContentType.fromCode(proto.getContentType()));
         }
         if (proto.getSessionType() != null) {
-            message.setSessionType(SessionType.fromCode(proto.getSessionType()));
+            message.setChatType(ChatType.fromCode(proto.getSessionType()));
         }
         message.setAttributes(proto.getExt());
         MessageOptions options = new MessageOptions();

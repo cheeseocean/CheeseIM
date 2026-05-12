@@ -5,7 +5,7 @@ import com.cheeseocean.im.common.api.dto.dispatch.DispatchMessageResp;
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchPayload;
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchResult;
 import com.cheeseocean.im.common.api.dto.message.Message;
-import com.cheeseocean.im.common.api.enums.SessionType;
+import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.api.event.OfflinePushEvent;
 import com.cheeseocean.im.common.api.protocol.ProtoOfflinePushEventMapper;
 import com.cheeseocean.im.common.api.route.OnlineRouteQueryService;
@@ -56,7 +56,7 @@ public class DeliveryEventListener {
     }
 
     private List<String> resolveTargets(Message message) {
-        if (message.getSessionType() == SessionType.GROUP) {
+        if (message.getChatType() == ChatType.GROUP) {
             log.warn("Skipping group delivery because target fanout data is not attached to message: groupId={}", message.getGroupId());
             return List.of();
         }
@@ -115,7 +115,7 @@ public class DeliveryEventListener {
         event.setSeq(message.getSeq());
         event.setServerMsgId(message.getServerMsgId());
         event.setSenderId(message.getSenderId());
-        event.setSessionType(message.getSessionType() == null ? null : message.getSessionType().getCode());
+        event.setSessionType(message.getChatType() == null ? null : message.getChatType().getCode());
         event.setContentType(message.getContentType() == null ? null : message.getContentType().getCode());
         event.setNotification(message.getOptions() != null && Boolean.TRUE.equals(message.getOptions().getNotification()));
         event.setTitle(message.getSenderId());

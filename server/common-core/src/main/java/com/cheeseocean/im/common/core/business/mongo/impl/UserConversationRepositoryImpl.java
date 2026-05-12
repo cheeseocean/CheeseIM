@@ -39,7 +39,7 @@ public class UserConversationRepositoryImpl implements UserConversationRepositor
                 .setOnInsert("_id", id)
                 .setOnInsert("ownerUserId", conversation.getOwnerUserId())
                 .setOnInsert("conversationId", conversation.getConversationId())
-                .setOnInsert("conversationType", conversation.getConversationType())
+                .setOnInsert("conversationType", conversation.getChatType())
                 .setOnInsert("targetId", conversation.getTargetId())
                 .setOnInsert("receiveOpt", conversation.getReceiveOpt())
                 .setOnInsert("unreadCount", conversation.getUnreadCount())
@@ -246,7 +246,7 @@ public class UserConversationRepositoryImpl implements UserConversationRepositor
         Update update = new Update()
                 .set("ownerUserId", conversation.getOwnerUserId())
                 .set("conversationId", conversation.getConversationId())
-                .set("conversationType", conversation.getConversationType())
+                .set("conversationType", conversation.getChatType())
                 .set("targetId", conversation.getTargetId())
                 .set("receiveOpt", conversation.getReceiveOpt())
                 .set("unreadCount", conversation.getUnreadCount())
@@ -267,7 +267,7 @@ public class UserConversationRepositoryImpl implements UserConversationRepositor
         UserConversation conversation = new UserConversation();
         conversation.setOwnerUserId(doc.getOwnerUserId());
         conversation.setConversationId(doc.getConversationId());
-        conversation.setConversationType(doc.getConversationType());
+        conversation.setChatType(doc.getChatType());
         conversation.setTargetId(doc.getTargetId());
         conversation.setReceiveOpt(doc.getReceiveOpt());
         conversation.setPinned(doc.isPinned());

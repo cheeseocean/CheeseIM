@@ -2,11 +2,11 @@ package com.cheeseocean.im.postmaster.history;
 
 import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.dto.message.MessageOptions;
+import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.api.enums.ContentType;
 import com.cheeseocean.im.common.api.enums.MessageSource;
 import com.cheeseocean.im.common.api.enums.MessageStatus;
 import com.cheeseocean.im.common.api.enums.PlatformType;
-import com.cheeseocean.im.common.api.enums.SessionType;
 import com.cheeseocean.im.common.api.event.HistoryEvent;
 import org.bson.Document;
 import org.junit.jupiter.api.Test;
@@ -59,7 +59,7 @@ class BlockHistoryPersistenceServiceTest {
         assertEquals("u100", slot.getString("senderId"));
         assertEquals("u200", slot.getString("receiverId"));
         assertEquals("trace-101", slot.getString("uniqueId"));
-        assertEquals(SessionType.SINGLE.getCode(), slot.getInteger("sessionType"));
+        assertEquals(ChatType.PRIVATE.getCode(), slot.getInteger("sessionType"));
         assertEquals(ContentType.TEXT.getCode(), slot.getInteger("contentType"));
         assertEquals(MessageStatus.ACCEPTED.getCode(), slot.getInteger("status"));
         assertEquals(PlatformType.IOS.getCode(), slot.getInteger("platformType"));
@@ -104,7 +104,7 @@ class BlockHistoryPersistenceServiceTest {
         message.setClientMsgId(clientMsgId);
         message.setSenderId("u100");
         message.setReceiverId("u200");
-        message.setSessionType(SessionType.SINGLE);
+        message.setChatType(ChatType.PRIVATE);
         message.setContentType(ContentType.TEXT);
         message.setStatus(MessageStatus.ACCEPTED);
         message.setPlatformType(PlatformType.IOS);

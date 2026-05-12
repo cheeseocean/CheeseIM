@@ -1,10 +1,10 @@
 package com.cheeseocean.im.postman.service.impl;
 
 import com.cheeseocean.im.common.api.dto.message.Message;
+import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.core.constants.MessageDisplayConstants;
 import com.cheeseocean.im.common.api.enums.ContentType;
 import com.cheeseocean.im.common.api.enums.PlatformType;
-import com.cheeseocean.im.common.api.enums.SessionType;
 import com.cheeseocean.im.postman.entity.OfflinePushConfig;
 import com.cheeseocean.im.postman.entity.OfflinePushResult;
 import com.cheeseocean.im.postman.entity.PushMessage;
@@ -71,7 +71,7 @@ class OfflinePostmanServiceImplTest {
         testMessage.setReceiverId("receiver-123");
         testMessage.setContent("Test message content");
         testMessage.setContentType(ContentType.TEXT.getCode());
-        testMessage.setSessionType(SessionType.SINGLE.getCode());
+        testMessage.setChatType(ChatType.PRIVATE.getCode());
         testMessage.setSenderNickname("Test Sender");
 
         // 设置目标用户
@@ -172,7 +172,7 @@ class OfflinePostmanServiceImplTest {
         notificationMessage.setReceiverId("user1");
         notificationMessage.setContent("Your policy was updated");
         notificationMessage.setContentType(ContentType.SYSTEM_NOTIFY.getCode());
-        notificationMessage.setSessionType(SessionType.NOTIFICATION.getCode());
+        notificationMessage.setChatType(ChatType.NOTIFICATION.getCode());
         notificationMessage.setOptions(Map.of("notification", true));
 
         OfflinePushResult result = offlinePushService.pushMessageToUsers(notificationMessage, List.of("user1"));
@@ -207,7 +207,7 @@ class OfflinePostmanServiceImplTest {
         notificationMessage.setReceiverId("user1");
         notificationMessage.setContent("   ");
         notificationMessage.setContentType(ContentType.FORCE_LOGOUT.getCode());
-        notificationMessage.setSessionType(SessionType.NOTIFICATION.getCode());
+        notificationMessage.setChatType(ChatType.NOTIFICATION.getCode());
         notificationMessage.setOptions(Map.of("notification", true));
 
         OfflinePushResult result = offlinePushService.pushMessageToUsers(notificationMessage, List.of("user1"));
@@ -241,7 +241,7 @@ class OfflinePostmanServiceImplTest {
         imageMessage.setReceiverId("user1");
         imageMessage.setContent("");
         imageMessage.setContentType(ContentType.IMAGE.getCode());
-        imageMessage.setSessionType(SessionType.GROUP.getCode());
+        imageMessage.setChatType(ChatType.GROUP.getCode());
         imageMessage.setSenderNickname(null);
 
         OfflinePushResult result = offlinePushService.pushMessageToUsers(imageMessage, List.of("user1"));

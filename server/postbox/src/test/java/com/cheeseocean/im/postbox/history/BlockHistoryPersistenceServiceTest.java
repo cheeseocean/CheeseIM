@@ -3,7 +3,7 @@ package com.cheeseocean.im.postbox.history;
 import com.cheeseocean.im.common.api.dto.message.MessageOptions;
 import com.cheeseocean.im.common.api.event.HistoryEvent;
 import com.cheeseocean.im.common.api.enums.ContentType;
-import com.cheeseocean.im.common.api.enums.SessionType;
+import com.cheeseocean.im.common.api.enums.ChatType;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
@@ -83,7 +83,7 @@ class BlockHistoryPersistenceServiceTest {
         message.setClientMsgId(clientMsgId);
         message.setSenderId("u100");
         message.setReceiverId("u200");
-        message.setSessionType(SessionType.SINGLE.getCode());
+        message.setSessionType(ChatType.PRIVATE.getCode());
         message.setContentType(ContentType.TEXT.getCode());
         message.setContent("hello");
         message.setSendTime(123L);
