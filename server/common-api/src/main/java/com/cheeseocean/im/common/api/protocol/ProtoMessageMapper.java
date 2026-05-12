@@ -3,6 +3,7 @@ package com.cheeseocean.im.common.api.protocol;
 import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.dto.message.MessageOptions;
 import com.cheeseocean.im.common.api.dto.message.OfflinePushInfo;
+import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoMessage;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoMessageOptions;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoOfflinePushInfo;
@@ -10,7 +11,6 @@ import com.cheeseocean.im.common.api.enums.ContentType;
 import com.cheeseocean.im.common.api.enums.MessageSource;
 import com.cheeseocean.im.common.api.enums.MessageStatus;
 import com.cheeseocean.im.common.api.enums.PlatformType;
-import com.cheeseocean.im.common.api.enums.SessionType;
 import com.google.protobuf.ByteString;
 
 import java.util.LinkedHashMap;
@@ -49,8 +49,8 @@ public final class ProtoMessageMapper {
         if (message.getContentType() != null) {
             builder.setContentType(message.getContentType().getCode());
         }
-        if (message.getSessionType() != null) {
-            builder.setSessionType(message.getSessionType().getCode());
+        if (message.getChatType() != null) {
+            builder.setChatType(message.getChatType().getCode());
         }
         if (message.getSendTime() != null) {
             builder.setSendTime(message.getSendTime());
@@ -99,8 +99,8 @@ public final class ProtoMessageMapper {
         if (proto.getContentType() != 0) {
             message.setContentType(ContentType.fromCode(proto.getContentType()));
         }
-        if (proto.getSessionType() != 0) {
-            message.setSessionType(SessionType.fromCode(proto.getSessionType()));
+        if (proto.getChatType() != 0) {
+            message.setChatType(ChatType.fromCode(proto.getChatType()));
         }
         if (proto.getSendTime() != 0L) {
             message.setSendTime(proto.getSendTime());

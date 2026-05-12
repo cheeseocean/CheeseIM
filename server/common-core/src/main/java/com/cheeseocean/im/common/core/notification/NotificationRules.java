@@ -2,7 +2,7 @@ package com.cheeseocean.im.common.core.notification;
 
 import com.cheeseocean.im.common.api.dto.message.OfflinePushInfo;
 import com.cheeseocean.im.common.api.enums.ContentType;
-import com.cheeseocean.im.common.api.enums.SessionType;
+import com.cheeseocean.im.common.api.enums.ChatType;
 
 import java.util.EnumMap;
 import java.util.Map;
@@ -67,7 +67,7 @@ public final class NotificationRules {
                 ContentType.SYSTEM_NOTIFY,
                 new NotificationRule(
                         ContentType.SYSTEM_NOTIFY,
-                        SessionType.NOTIFICATION,
+                        ChatType.NOTIFICATION,
                         false,
                         NotificationReliabilityLevel.RELIABLE_NO_MSG,
                         false,
@@ -80,7 +80,7 @@ public final class NotificationRules {
                 ContentType.FORCE_LOGOUT,
                 new NotificationRule(
                         ContentType.FORCE_LOGOUT,
-                        SessionType.NOTIFICATION,
+                        ChatType.NOTIFICATION,
                         false,
                         NotificationReliabilityLevel.UNRELIABLE,
                         false,
@@ -93,7 +93,7 @@ public final class NotificationRules {
                 ContentType.REVOKE_NOTIFY,
                 new NotificationRule(
                         ContentType.REVOKE_NOTIFY,
-                        SessionType.SINGLE,
+                        ChatType.PRIVATE,
                         true,
                         NotificationReliabilityLevel.RELIABLE_WITH_MSG,
                         false,
@@ -106,7 +106,7 @@ public final class NotificationRules {
                 ContentType.READ_RECEIPT,
                 new NotificationRule(
                         ContentType.READ_RECEIPT,
-                        SessionType.SINGLE,
+                        ChatType.PRIVATE,
                         false,
                         NotificationReliabilityLevel.UNRELIABLE,
                         false,
@@ -121,7 +121,7 @@ public final class NotificationRules {
     private static NotificationRule defaultSingleRule(ContentType contentType) {
         return new NotificationRule(
                 contentType,
-                SessionType.SINGLE,
+                ChatType.PRIVATE,
                 true,
                 NotificationReliabilityLevel.RELIABLE_WITH_MSG,
                 true,
@@ -175,7 +175,7 @@ public final class NotificationRules {
     private static NotificationRule friendRule(String offlinePushTitle, String offlinePushDesc) {
         return new NotificationRule(
                 ContentType.SYSTEM_NOTIFY,
-                SessionType.SINGLE,
+                ChatType.PRIVATE,
                 false,
                 NotificationReliabilityLevel.RELIABLE_NO_MSG,
                 false,

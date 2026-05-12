@@ -2,10 +2,10 @@ package com.cheeseocean.im.common.core.notification;
 
 import com.cheeseocean.im.common.api.dto.message.SendMessageReq;
 import com.cheeseocean.im.common.api.dto.message.SendMessageResp;
+import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.api.enums.ContentType;
 import com.cheeseocean.im.common.api.enums.MessageSource;
 import com.cheeseocean.im.common.api.enums.PlatformType;
-import com.cheeseocean.im.common.api.enums.SessionType;
 import com.cheeseocean.im.common.api.rpc.MessageSender;
 import com.cheeseocean.im.common.core.util.ObjectMapperFactory;
 import org.junit.jupiter.api.Test;
@@ -43,7 +43,7 @@ class NotificationSenderTest {
         SendMessageReq req = reqCaptor.getValue();
         assertEquals("system", req.getMsg().getSenderId());
         assertEquals("u100", req.getMsg().getReceiverId());
-        assertEquals(SessionType.NOTIFICATION, req.getMsg().getSessionType());
+        assertEquals(ChatType.NOTIFICATION, req.getMsg().getChatType());
         assertEquals(ContentType.SYSTEM_NOTIFY, req.getMsg().getContentType());
         assertEquals(MessageSource.SYSTEM, req.getMsg().getSource());
         assertEquals(PlatformType.UNKNOWN, req.getMsg().getPlatformType());
@@ -76,7 +76,7 @@ class NotificationSenderTest {
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> sender.send("system", null, null, ContentType.SYSTEM_NOTIFY, SessionType.GROUP, Map.of())
+                () -> sender.send("system", null, null, ContentType.SYSTEM_NOTIFY, ChatType.GROUP, Map.of())
         );
     }
 }

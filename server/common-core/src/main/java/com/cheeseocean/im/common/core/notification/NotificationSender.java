@@ -5,10 +5,10 @@ import com.cheeseocean.im.common.api.dto.message.MessageOptions;
 import com.cheeseocean.im.common.api.dto.message.OfflinePushInfo;
 import com.cheeseocean.im.common.api.dto.message.SendMessageReq;
 import com.cheeseocean.im.common.api.dto.message.SendMessageResp;
+import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.api.enums.ContentType;
 import com.cheeseocean.im.common.api.enums.MessageSource;
 import com.cheeseocean.im.common.api.enums.PlatformType;
-import com.cheeseocean.im.common.api.enums.SessionType;
 import com.cheeseocean.im.common.api.rpc.MessageSender;
 import com.cheeseocean.im.common.core.util.IdGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -64,7 +64,7 @@ public class NotificationSender {
                                       Object payload,
                                       Map<String, String> attributes) {
         NotificationRule rule = NotificationRules.get(contentType, notificationType);
-        return send(sendUserId, recvUserId, null, contentType, rule.sessionType(), notificationType, payload, attributes);
+        return send(sendUserId, recvUserId, null, contentType, rule.chatType(), notificationType, payload, attributes);
     }
 
     /**
@@ -105,9 +105,9 @@ public class NotificationSender {
                                 String recvUserId,
                                 String groupId,
                                 ContentType contentType,
-                                SessionType sessionType,
+                                ChatType chatType,
                                 Object payload) {
-        return send(sendUserId, recvUserId, groupId, contentType, sessionType, null, payload, null);
+        return send(sendUserId, recvUserId, groupId, contentType, chatType, null, payload, null);
     }
 
     /**
@@ -117,11 +117,11 @@ public class NotificationSender {
                                 String recvUserId,
                                 String groupId,
                                 ContentType contentType,
-                                SessionType sessionType,
+                                ChatType chatType,
                                 String notificationType,
                                 Object payload,
                                 Map<String, String> attributes) {
-        Message message = buildMessage(sendUserId, recvUserId, groupId, contentType, sessionType, notificationType, payload, attributes);
+        Message message = buildMessage(sendUserId, recvUserId, groupId, contentType, chatType, notificationType, payload, attributes);
         return messageSender.sendMessage(new SendMessageReq(message));
     }
 
@@ -132,11 +132,11 @@ public class NotificationSender {
                                  String recvUserId,
                                  String groupId,
                                  ContentType contentType,
-                                 SessionType sessionType,
+                                 ChatType chatType,
                                  String notificationType,
                                  Object payload,
                                  Map<String, String> attributes) {
-        validateRouting(recvUserId, groupId, sessionType);
+        validateRouting(recvUserId, groupId, chatType);
         NotificationRule rule    = NotificationRules.get(contentType, notificationType);
         Message          message = new Message();
         long             now     = System.currentTimeMillis();
@@ -146,12 +146,12 @@ public class NotificationSender {
         message.setGroupId(groupId);
         message.setContent(serializePayload(payload));
         message.setContentType(contentType);
-        message.setSessionType(sessionType);
+        message.setChatType(chatType);
         message.setSendTime(now);
         message.setCreateTime(now);
         message.setPlatformType(PlatformType.UNKNOWN);
         message.setSource(MessageSource.SYSTEM);
-        message.setOptions(buildOptions(rule, sessionType));
+        message.setOptions(buildOptions(rule, chatType));
         message.setOfflinePushInfo(copyOfflinePushInfo(rule.offlinePushInfoTemplate()));
         message.setAttributes(mergeAttributes(notificationType, attributes));
         return message;
@@ -167,8 +167,8 @@ public class NotificationSender {
 
     private void validateRouting(String recvUserId,
                                  String groupId,
-                                 SessionType sessionType) {
-        if (sessionType == SessionType.GROUP) {
+                                 ChatType chatType) {
+        if (chatType == ChatType.GROUP) {
             if (!StringUtils.hasText(groupId)) {
                 throw new IllegalArgumentException("groupId required for group notification");
             }
@@ -182,7 +182,7 @@ public class NotificationSender {
     /**
      * 按通知规则构造消息选项。
      */
-    private MessageOptions buildOptions(NotificationRule rule, SessionType actualSessionType) {
+    private MessageOptions buildOptions(NotificationRule rule, ChatType actualChatType) {
         MessageOptions options       = new MessageOptions();
         boolean        sendAsMessage = rule.sendAsMessage();
         boolean        reliable      = rule.reliabilityLevel() != NotificationReliabilityLevel.UNRELIABLE;
@@ -191,8 +191,8 @@ public class NotificationSender {
         options.setNeedUnreadCount(sendAsMessage && rule.unreadCount());
         options.setNeedOnlinePush(rule.onlinePush());
         options.setNeedOfflinePush(rule.offlinePush());
-        options.setSenderSync(actualSessionType == SessionType.SINGLE && sendAsMessage);
-        options.setNotification(actualSessionType == SessionType.NOTIFICATION || !sendAsMessage);
+        options.setSenderSync(actualChatType == ChatType.PRIVATE && sendAsMessage);
+        options.setNotification(actualChatType == ChatType.NOTIFICATION || !sendAsMessage);
         options.setNeedLastMessage(sendAsMessage);
         return options;
     }

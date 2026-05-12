@@ -4,7 +4,7 @@ import com.cheeseocean.im.common.api.enums.ContentType;
 import com.cheeseocean.im.common.api.enums.MessageSource;
 import com.cheeseocean.im.common.api.enums.MessageStatus;
 import com.cheeseocean.im.common.api.enums.PlatformType;
-import com.cheeseocean.im.common.api.enums.SessionType;
+import com.cheeseocean.im.common.api.enums.ChatType;
 import lombok.Data;
 
 import java.io.Serializable;
@@ -55,15 +55,15 @@ public class Message implements Serializable {
     /**
      * 消息内容类型，取值见 {@link com.cheeseocean.im.common.api.enums.ContentType}。
      */
-    private              ContentType         contentType;
+    private ContentType contentType;
     /**
-     * 会话类型，取值见 {@link com.cheeseocean.im.common.api.enums.SessionType}。
+     * 会话类型，取值见 {@link ChatType}。
      */
-    private              SessionType         sessionType;
+    private ChatType    chatType;
     /**
      * 客户端声明的发送时间。
      */
-    private              Long                sendTime;
+    private Long        sendTime;
     /**
      * 服务端创建时间。
      */

@@ -1,7 +1,7 @@
 package com.cheeseocean.im.common.core.util;
 
 import com.cheeseocean.im.common.api.dto.message.Message;
-import com.cheeseocean.im.common.api.enums.SessionType;
+import com.cheeseocean.im.common.api.enums.ChatType;
 
 public final class ConversationIdUtil {
 
@@ -9,12 +9,12 @@ public final class ConversationIdUtil {
     }
 
     public static String buildConversationId(Message message) {
-        return buildConversationId(message.getSessionType(), message.getSenderId(), message.getReceiverId(), message.getGroupId());
+        return buildConversationId(message.getChatType(), message.getSenderId(), message.getReceiverId(), message.getGroupId());
     }
 
-    public static String buildConversationId(SessionType sessionType, String senderId, String receiverId, String groupId) {
-        return switch (sessionType) {
-            case SINGLE -> single(senderId, receiverId);
+    public static String buildConversationId(ChatType chatType, String senderId, String receiverId, String groupId) {
+        return switch (chatType) {
+            case PRIVATE -> single(senderId, receiverId);
             case GROUP -> group(groupId);
             case NOTIFICATION -> notification(receiverId);
         };
@@ -28,17 +28,17 @@ public final class ConversationIdUtil {
      *   SINGLE / NOTIFICATION → sort(senderId, recvId) 拼接，无前缀
      *   GROUP                 → groupId，无前缀
      */
-    public static String buildQueueKey(SessionType sessionType, String senderId, String receiverId, String groupId) {
-        return switch (sessionType) {
+    public static String buildQueueKey(ChatType chatType, String senderId, String receiverId, String groupId) {
+        return switch (chatType) {
             case GROUP -> groupId;
-            case SINGLE, NOTIFICATION -> senderId.compareTo(receiverId) < 0
+            case PRIVATE, NOTIFICATION -> senderId.compareTo(receiverId) < 0
                     ? senderId + ":" + receiverId
                     : receiverId + ":" + senderId;
         };
     }
 
     public static String buildNotificationConversationId(Message message) {
-        return buildNotificationConversationId(message.getSessionType(), message.getReceiverId(), message.getGroupId());
+        return buildNotificationConversationId(message.getChatType(), message.getReceiverId(), message.getGroupId());
     }
 
     /**
@@ -47,9 +47,9 @@ public final class ConversationIdUtil {
      *   SINGLE / NOTIFICATION → c3:{recvId}（接收方的通知收件箱）
      *   GROUP                 → c3:{groupId}（群通知频道）
      */
-    public static String buildNotificationConversationId(SessionType sessionType, String receiverId, String groupId) {
-        return switch (sessionType) {
-            case SINGLE, NOTIFICATION -> notification(receiverId);
+    public static String buildNotificationConversationId(ChatType chatType, String receiverId, String groupId) {
+        return switch (chatType) {
+            case PRIVATE, NOTIFICATION -> notification(receiverId);
             case GROUP -> "ng:" + groupId;
         };
     }
