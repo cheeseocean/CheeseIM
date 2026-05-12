@@ -1,10 +1,9 @@
 package com.cheeseocean.im.common.core.store.sequence.conversation;
 
-import com.cheeseocean.im.common.core.business.repository.ConversationRangeRepository;
+import com.cheeseocean.im.common.core.business.repository.ConversationSequenceRepository;
 import com.cheeseocean.im.common.core.store.config.StateStoreProperties;
 import com.cheeseocean.im.common.core.store.sequence.conversation.redis.RedisConversationSeqCacheStore;
 import com.cheeseocean.im.common.core.store.sequence.conversation.rocksdb.RocksDbConversationSeqCacheStore;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -48,11 +47,11 @@ public class ConversationSeqAllocatorConfigurer {
     @Bean
     @ConditionalOnMissingBean
     public ConversationSeqAllocator conversationSeqAllocator(ConversationSeqCacheStore cacheStore,
-                                                             ConversationRangeRepository conversationRangeRepository,
+                                                             ConversationSequenceRepository conversationSequenceRepository,
                                                              ConversationSeqAllocatorProperties properties) {
         return new ConversationSeqAllocator(
                 cacheStore,
-                conversationRangeRepository,
+                conversationSequenceRepository,
                 properties.getSingleReserveSize(),
                 properties.getGroupReserveSize(),
                 properties.getMaxRetries()

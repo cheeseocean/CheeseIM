@@ -5,7 +5,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 /**
- * 会话级别最大最小序列号 MongoDB 持久化文档。集合：{@code conversation_seq_range}。
+ * 会话级别最大最小序列号 MongoDB 持久化文档。集合：{@code conversation_sequence}。
  *
  * <p>主键："{conversationId}"
  * 文档极简，只保存两个序列水位
@@ -14,9 +14,9 @@ import org.springframework.data.mongodb.core.mapping.Document;
  *   <li>minSeq — 历史可见下界</li>
  * </ul>
  */
-@Document("conversation_seq_range")
+@Document("conversation_sequence")
 @Data
-public class ConversationRangeDoc {
+public class ConversationSequenceDoc {
 
     /**
      * _id = "{conversationId}"

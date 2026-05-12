@@ -13,7 +13,7 @@ import java.io.Serializable;
  * @author xxxcrel
  */
 @Data
-public class ConversationRange implements Serializable {
+public class ConversationSequence implements Serializable {
 
     /**
      * 会话唯一标识

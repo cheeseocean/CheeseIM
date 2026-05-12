@@ -1,6 +1,6 @@
 package com.cheeseocean.im.common.core.store.sequence.conversation;
 
-import com.cheeseocean.im.common.core.business.repository.ConversationRangeRepository;
+import com.cheeseocean.im.common.core.business.repository.ConversationSequenceRepository;
 import com.cheeseocean.im.common.core.store.sequence.SequenceRange;
 
 import java.util.Objects;
@@ -21,19 +21,19 @@ import java.util.Objects;
  */
 public class ConversationSeqAllocator {
 
-    private final ConversationSeqCacheStore cacheStore;
-    private final ConversationRangeRepository conversationRangeRepository;
-    private final int singleReserveSize;
+    private final ConversationSeqCacheStore      cacheStore;
+    private final ConversationSequenceRepository conversationSequenceRepository;
+    private final int                            singleReserveSize;
     private final int groupReserveSize;
     private final int maxRetries;
 
     public ConversationSeqAllocator(ConversationSeqCacheStore cacheStore,
-                                    ConversationRangeRepository conversationRangeRepository,
+                                    ConversationSequenceRepository conversationSequenceRepository,
                                     int singleReserveSize,
                                     int groupReserveSize,
                                     int maxRetries) {
         this.cacheStore = Objects.requireNonNull(cacheStore, "cacheStore");
-        this.conversationRangeRepository = Objects.requireNonNull(conversationRangeRepository, "conversationRangeRepository");
+        this.conversationSequenceRepository = Objects.requireNonNull(conversationSequenceRepository, "conversationRangeRepository");
         if (singleReserveSize <= 0 || groupReserveSize <= 0 || maxRetries <= 0) {
             throw new IllegalArgumentException("reserveSize and maxRetries must be positive");
         }
@@ -103,7 +103,7 @@ public class ConversationSeqAllocator {
                     return result.currentSeq();
                 case MISS:
                     // 读路径遇到缓存 miss，不扩段，只同步 Mongo 当前值。
-                    long maxSeq = conversationRangeRepository.getMaxSeq(conversationId);
+                    long maxSeq = conversationSequenceRepository.getMaxSeq(conversationId);
                     cacheStore.install(conversationId, result.ownerToken(), maxSeq, maxSeq, nowMillis);
                     return maxSeq;
                 case LOCKED:
@@ -122,7 +122,7 @@ public class ConversationSeqAllocator {
                                               ConversationSeqCacheResult result) {
         // ConversationRangeRepository.allocate 返回的是分配前 maxSeq。
         long reserveSize = getReserveSize(conversationId, size);
-        long previousMaxSeq = conversationRangeRepository.allocate(conversationId, reserveSize);
+        long previousMaxSeq = conversationSequenceRepository.allocate(conversationId, reserveSize);
         long startInclusive = previousMaxSeq + 1L;
         long endInclusive = previousMaxSeq + size;
         // currentSeq 安装为“本次已经实际消费完成的末尾”，
@@ -139,7 +139,7 @@ public class ConversationSeqAllocator {
 
     private SequenceRange expandFromMongo(String conversationId, int size, ConversationSeqCacheResult result) {
         long reserveSize = getReserveSize(conversationId, size);
-        long previousMaxSeq = conversationRangeRepository.allocate(conversationId, reserveSize);
+        long previousMaxSeq = conversationSequenceRepository.allocate(conversationId, reserveSize);
         if (previousMaxSeq == result.lastSeq()) {
             // 正常路径：Mongo 的旧 maxSeq 与缓存 LAST 对齐，可从缓存 currentSeq 后续继续分配。
             long startInclusive = result.currentSeq() + 1L;

@@ -1,8 +1,8 @@
 package com.cheeseocean.im.common.core.business.mongo.impl;
 
-import com.cheeseocean.im.common.api.business.domain.ConversationRange;
-import com.cheeseocean.im.common.core.business.mongo.document.conversation.ConversationRangeDoc;
-import com.cheeseocean.im.common.core.business.repository.ConversationRangeRepository;
+import com.cheeseocean.im.common.api.business.domain.ConversationSequence;
+import com.cheeseocean.im.common.core.business.mongo.document.conversation.ConversationSequenceDoc;
+import com.cheeseocean.im.common.core.business.repository.ConversationSequenceRepository;
 import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -10,13 +10,13 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 
 /**
- * {@link ConversationRangeRepository} 的 MongoDB 实现。
+ * {@link ConversationSequenceRepository} 的 MongoDB 实现。
  */
-public class ConversationRangeRepositoryImpl implements ConversationRangeRepository {
+public class ConversationSequenceRepositoryImpl implements ConversationSequenceRepository {
 
     private final MongoTemplate mongoTemplate;
 
-    public ConversationRangeRepositoryImpl(MongoTemplate mongoTemplate) {
+    public ConversationSequenceRepositoryImpl(MongoTemplate mongoTemplate) {
         this.mongoTemplate = mongoTemplate;
     }
 
@@ -29,11 +29,11 @@ public class ConversationRangeRepositoryImpl implements ConversationRangeReposit
                 .setOnInsert("conversationId", conversationId)
                 .setOnInsert("minSeq", 0L)
                 .inc("maxSeq", size);
-        ConversationRangeDoc doc = mongoTemplate.findAndModify(
+        ConversationSequenceDoc doc = mongoTemplate.findAndModify(
                 query,
                 update,
                 FindAndModifyOptions.options().returnNew(false).upsert(true),
-                ConversationRangeDoc.class
+                ConversationSequenceDoc.class
         );
         return doc == null ? 0L : doc.getMaxSeq();
     }
@@ -45,7 +45,7 @@ public class ConversationRangeRepositoryImpl implements ConversationRangeReposit
 
     @Override
     public long getMaxSeq(String conversationId) {
-        ConversationRange range = find(conversationId);
+        ConversationSequence range = find(conversationId);
         return range == null ? 0L : range.getMaxSeq();
     }
 
@@ -56,18 +56,18 @@ public class ConversationRangeRepositoryImpl implements ConversationRangeReposit
 
     @Override
     public long getMinSeq(String conversationId) {
-        ConversationRange range = find(conversationId);
+        ConversationSequence range = find(conversationId);
         return range == null ? 0L : range.getMinSeq();
     }
 
     @Override
-    public ConversationRange find(String conversationId) {
-        Query query = Query.query(Criteria.where("_id").is(conversationId));
-        ConversationRangeDoc doc = mongoTemplate.findOne(query, ConversationRangeDoc.class);
+    public ConversationSequence find(String conversationId) {
+        Query                   query = Query.query(Criteria.where("_id").is(conversationId));
+        ConversationSequenceDoc doc   = mongoTemplate.findOne(query, ConversationSequenceDoc.class);
         if (doc == null) {
             return null;
         }
-        ConversationRange range = new ConversationRange();
+        ConversationSequence range = new ConversationSequence();
         range.setConversationId(doc.getConversationId());
         range.setMaxSeq(doc.getMaxSeq());
         range.setMinSeq(doc.getMinSeq());
@@ -82,6 +82,6 @@ public class ConversationRangeRepositoryImpl implements ConversationRangeReposit
                 .setOnInsert("conversationId", conversationId)
                 .setOnInsert(defaultField, defaultValue)
                 .set(seqField, seq);
-        mongoTemplate.upsert(query, update, ConversationRangeDoc.class);
+        mongoTemplate.upsert(query, update, ConversationSequenceDoc.class);
     }
 }

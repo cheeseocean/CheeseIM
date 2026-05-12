@@ -1,6 +1,6 @@
 package com.cheeseocean.im.common.core.store.sequence.conversation;
 
-import com.cheeseocean.im.common.core.business.repository.ConversationRangeRepository;
+import com.cheeseocean.im.common.core.business.repository.ConversationSequenceRepository;
 import com.cheeseocean.im.common.core.store.sequence.SequenceRange;
 import org.junit.jupiter.api.Test;
 
@@ -13,8 +13,8 @@ class ConversationSeqAllocatorTest {
 
     @Test
     void allocateShouldInitializeCacheFromMongoOnMiss() {
-        ConversationSeqCacheStore cacheStore = mock(ConversationSeqCacheStore.class);
-        ConversationRangeRepository rangeRepository = mock(ConversationRangeRepository.class);
+        ConversationSeqCacheStore      cacheStore      = mock(ConversationSeqCacheStore.class);
+        ConversationSequenceRepository rangeRepository = mock(ConversationSequenceRepository.class);
         when(cacheStore.allocate("s:u100:u200", 2, 100L))
                 .thenReturn(new ConversationSeqCacheResult(ConversationSeqRangeState.MISS, 0L, 0L, "owner-1", 100L));
         when(rangeRepository.allocate("s:u100:u200", 52L)).thenReturn(0L);
@@ -30,8 +30,8 @@ class ConversationSeqAllocatorTest {
 
     @Test
     void allocateShouldContinueFromCacheWhenMongoMatchesLastSeq() {
-        ConversationSeqCacheStore cacheStore = mock(ConversationSeqCacheStore.class);
-        ConversationRangeRepository rangeRepository = mock(ConversationRangeRepository.class);
+        ConversationSeqCacheStore      cacheStore      = mock(ConversationSeqCacheStore.class);
+        ConversationSequenceRepository rangeRepository = mock(ConversationSequenceRepository.class);
         when(cacheStore.allocate("g:g100", 2, 100L))
                 .thenReturn(new ConversationSeqCacheResult(ConversationSeqRangeState.EXHAUSTED, 10L, 10L, "owner-2", 100L));
         when(rangeRepository.allocate("g:g100", 102L)).thenReturn(10L);
@@ -47,8 +47,8 @@ class ConversationSeqAllocatorTest {
 
     @Test
     void allocateShouldRewriteFromMongoWhenCacheAndMongoDiffer() {
-        ConversationSeqCacheStore cacheStore = mock(ConversationSeqCacheStore.class);
-        ConversationRangeRepository rangeRepository = mock(ConversationRangeRepository.class);
+        ConversationSeqCacheStore      cacheStore      = mock(ConversationSeqCacheStore.class);
+        ConversationSequenceRepository rangeRepository = mock(ConversationSequenceRepository.class);
         when(cacheStore.allocate("g:g200", 1, 100L))
                 .thenReturn(new ConversationSeqCacheResult(ConversationSeqRangeState.EXHAUSTED, 10L, 10L, "owner-3", 100L));
         when(rangeRepository.allocate("g:g200", 101L)).thenReturn(20L);
@@ -64,8 +64,8 @@ class ConversationSeqAllocatorTest {
 
     @Test
     void getMaxSeqShouldLoadFromMongoOnCacheMiss() {
-        ConversationSeqCacheStore cacheStore = mock(ConversationSeqCacheStore.class);
-        ConversationRangeRepository rangeRepository = mock(ConversationRangeRepository.class);
+        ConversationSeqCacheStore      cacheStore      = mock(ConversationSeqCacheStore.class);
+        ConversationSequenceRepository rangeRepository = mock(ConversationSequenceRepository.class);
         when(cacheStore.allocate("s:u100:u300", 0, 100L))
                 .thenReturn(new ConversationSeqCacheResult(ConversationSeqRangeState.MISS, 0L, 0L, "owner-4", 100L));
         when(rangeRepository.getMaxSeq("s:u100:u300")).thenReturn(18L);
