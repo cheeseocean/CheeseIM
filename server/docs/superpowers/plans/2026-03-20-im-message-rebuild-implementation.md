@@ -185,7 +185,7 @@ public class IngressEvent implements Serializable {
     private Long conversationSeq;
     private String senderId;
     private String receiverId;
-    private Integer sessionType;
+    private Integer chatType;
     private List<String> targetUserIds;
 }
 ```

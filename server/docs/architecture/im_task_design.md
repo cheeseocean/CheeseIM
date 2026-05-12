@@ -225,7 +225,7 @@ WebSocket 发送消息命令
   "data": {
     "requestId": "req_xxx",
     "clientMsgId": "cmsg_xxx",
-    "sessionType": 1,
+    "chatType": 1,
     "recvId": "u200",
     "groupId": null,
     "contentType": 101,
@@ -273,7 +273,7 @@ SendMessageReq
 public class SendMessageReq {
     private String requestId;
     private String senderId;
-    private Integer sessionType;
+    private Integer chatType;
     private String recvId;
     private String groupId;
     private String clientMsgId;
@@ -402,7 +402,7 @@ ConversationStateResp
 
 public class ConversationStateResp {
     private String conversationId;
-    private Integer sessionType;
+    private Integer chatType;
     private Long maxSeq;
     private Long minSeq;
     private MessageSummaryDTO lastMessage;
@@ -441,7 +441,7 @@ public class IngressEvent {
     private String senderId;
     private String recvId;
     private String groupId;
-    private Integer sessionType;
+    private Integer chatType;
     private Integer contentType;
     private byte[] content;
     private Long sendTime;
@@ -589,7 +589,7 @@ msg:c1:u100:u200:123
   "serverMsgId":"smsg_xxx",
   "senderId":"u100",
   "recvId":"u200",
-  "sessionType":1,
+  "chatType":1,
   "contentType":101,
   "content":{},
   "sendTime":1710000000000,

@@ -226,17 +226,17 @@ public final class ConversationIdUtil {
     private ConversationIdUtil() {
     }
 
-    public static String buildConversationId(int sessionType, String senderId, String recvId, String groupId) {
-        if (sessionType == SessionType.SINGLE) {
+    public static String buildConversationId(int chatType, String senderId, String recvId, String groupId) {
+        if (chatType == SessionType.SINGLE) {
             return single(senderId, recvId);
         }
-        if (sessionType == SessionType.GROUP) {
+        if (chatType == SessionType.GROUP) {
             return group(groupId);
         }
-        if (sessionType == SessionType.NOTIFICATION) {
+        if (chatType == SessionType.NOTIFICATION) {
             return notification(recvId);
         }
-        throw new IllegalArgumentException("unknown sessionType: " + sessionType);
+        throw new IllegalArgumentException("unknown chatType: " + chatType);
     }
 
     public static String single(String userA, String userB) {
@@ -395,7 +395,7 @@ public class MessageDTO implements Serializable {
     private String senderId;
     private String recvId;
     private String groupId;
-    private Integer sessionType;
+    private Integer chatType;
     private Integer contentType;
     private byte[] content;
     private Long sendTime;
@@ -420,8 +420,8 @@ public class MessageDTO implements Serializable {
     public void setRecvId(String recvId) { this.recvId = recvId; }
     public String getGroupId() { return groupId; }
     public void setGroupId(String groupId) { this.groupId = groupId; }
-    public Integer getSessionType() { return sessionType; }
-    public void setSessionType(Integer sessionType) { this.sessionType = sessionType; }
+    public Integer getSessionType() { return chatType; }
+    public void setSessionType(Integer chatType) { this.chatType = chatType; }
     public Integer getContentType() { return contentType; }
     public void setContentType(Integer contentType) { this.contentType = contentType; }
     public byte[] getContent() { return content; }
@@ -488,7 +488,7 @@ import java.util.Map;
 public class SendMessageReq implements Serializable {
     private String requestId;
     private String senderId;
-    private Integer sessionType;
+    private Integer chatType;
     private String recvId;
     private String groupId;
     private String clientMsgId;
@@ -502,8 +502,8 @@ public class SendMessageReq implements Serializable {
     public void setRequestId(String requestId) { this.requestId = requestId; }
     public String getSenderId() { return senderId; }
     public void setSenderId(String senderId) { this.senderId = senderId; }
-    public Integer getSessionType() { return sessionType; }
-    public void setSessionType(Integer sessionType) { this.sessionType = sessionType; }
+    public Integer getSessionType() { return chatType; }
+    public void setSessionType(Integer chatType) { this.chatType = chatType; }
     public String getRecvId() { return recvId; }
     public void setRecvId(String recvId) { this.recvId = recvId; }
     public String getGroupId() { return groupId; }
@@ -570,15 +570,15 @@ import java.io.Serializable;
 
 public class ConversationStateDTO implements Serializable {
     private String conversationId;
-    private Integer sessionType;
+    private Integer chatType;
     private Long maxSeq;
     private Long minSeq;
     private MessageSummaryDTO lastMessage;
 
     public String getConversationId() { return conversationId; }
     public void setConversationId(String conversationId) { this.conversationId = conversationId; }
-    public Integer getSessionType() { return sessionType; }
-    public void setSessionType(Integer sessionType) { this.sessionType = sessionType; }
+    public Integer getSessionType() { return chatType; }
+    public void setSessionType(Integer chatType) { this.chatType = chatType; }
     public Long getMaxSeq() { return maxSeq; }
     public void setMaxSeq(Long maxSeq) { this.maxSeq = maxSeq; }
     public Long getMinSeq() { return minSeq; }
@@ -876,7 +876,7 @@ public class IngressEvent implements Serializable {
     private String senderId;
     private String recvId;
     private String groupId;
-    private Integer sessionType;
+    private Integer chatType;
     private Integer contentType;
     private byte[] content;
     private Long sendTime;
@@ -897,8 +897,8 @@ public class IngressEvent implements Serializable {
     public void setRecvId(String recvId) { this.recvId = recvId; }
     public String getGroupId() { return groupId; }
     public void setGroupId(String groupId) { this.groupId = groupId; }
-    public Integer getSessionType() { return sessionType; }
-    public void setSessionType(Integer sessionType) { this.sessionType = sessionType; }
+    public Integer getSessionType() { return chatType; }
+    public void setSessionType(Integer chatType) { this.chatType = chatType; }
     public Integer getContentType() { return contentType; }
     public void setContentType(Integer contentType) { this.contentType = contentType; }
     public byte[] getContent() { return content; }
@@ -930,7 +930,7 @@ public class SequencedMessage implements Serializable {
     private String senderId;
     private String recvId;
     private String groupId;
-    private Integer sessionType;
+    private Integer chatType;
     private Integer contentType;
     private byte[] content;
     private Long sendTime;
@@ -951,8 +951,8 @@ public class SequencedMessage implements Serializable {
     public void setRecvId(String recvId) { this.recvId = recvId; }
     public String getGroupId() { return groupId; }
     public void setGroupId(String groupId) { this.groupId = groupId; }
-    public Integer getSessionType() { return sessionType; }
-    public void setSessionType(Integer sessionType) { this.sessionType = sessionType; }
+    public Integer getSessionType() { return chatType; }
+    public void setSessionType(Integer chatType) { this.chatType = chatType; }
     public Integer getContentType() { return contentType; }
     public void setContentType(Integer contentType) { this.contentType = contentType; }
     public byte[] getContent() { return content; }

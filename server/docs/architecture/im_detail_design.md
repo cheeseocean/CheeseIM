@@ -86,7 +86,7 @@ key：userId
 public class SendMessageReq {
     private String requestId;
     private String senderId;
-    private Integer sessionType;   // 1单聊 2群聊 3通知
+    private Integer chatType;   // 1单聊 2群聊 3通知
     private String recvId;
     private String groupId;
     private String clientMsgId;
@@ -130,7 +130,7 @@ public class IngressEvent {
     private String senderId;
     private String recvId;
     private String groupId;
-    private Integer sessionType;
+    private Integer chatType;
     private Integer contentType;
     private byte[] content;
     private Long sendTime;
@@ -148,7 +148,7 @@ public class SequencedMessage {
     private String senderId;
     private String recvId;
     private String groupId;
-    private Integer sessionType;
+    private Integer chatType;
     private Integer contentType;
     private byte[] content;
     private Long sendTime;

@@ -74,7 +74,7 @@ expect(payload).toEqual({
     recvID: 'u2',
     content: 'hello',
     contentType: 1,
-    sessionType: 1,
+    chatType: 1,
   },
 });
 ```

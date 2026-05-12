@@ -23,7 +23,7 @@
 - `groupId`
 - `content`
 - `contentType`
-- `sessionType`
+- `chatType`
 - `sendTime`
 - `createTime`
 - `status`

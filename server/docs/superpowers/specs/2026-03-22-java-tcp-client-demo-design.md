@@ -81,7 +81,7 @@ Behavior:
 - `connect` opens TCP, waits for initial connect push, then sends `TCP_AUTH_REQ`
 - `send` emits a single-chat text message with:
   - `contentType=101`
-  - `sessionType=1`
+  - `chatType=1`
   - generated `clientMsgID`
 - inbound `TCP_RECV_MSG_NOTIFY` is printed asynchronously
 - `status` prints current user, token presence, socket state, auth state, and latest send ack

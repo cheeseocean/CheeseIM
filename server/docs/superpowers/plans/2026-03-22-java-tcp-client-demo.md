@@ -344,7 +344,7 @@ Implement:
 
 Payloads to support:
 - auth payload
-- send payload with `clientMsgID`, `recvID`, `content`, `contentType=101`, `sessionType=1`
+- send payload with `clientMsgID`, `recvID`, `content`, `contentType=101`, `chatType=1`
 
 - [ ] **Step 4: Re-run TCP client test**
 

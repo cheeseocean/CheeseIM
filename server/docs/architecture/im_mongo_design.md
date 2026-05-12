@@ -66,7 +66,7 @@ block 模型的优点：
       "senderId": "u100",
       "recvId": "u200",
       "groupId": null,
-      "sessionType": 1,
+      "chatType": 1,
       "contentType": 101,
       "content": { },
       "sendTime": 1710000000000,
@@ -195,7 +195,7 @@ public class MessageSlot {
     private String senderId;
     private String recvId;
     private String groupId;
-    private Integer sessionType;
+    private Integer chatType;
     private Integer contentType;
     private Object content;
     private Long sendTime;

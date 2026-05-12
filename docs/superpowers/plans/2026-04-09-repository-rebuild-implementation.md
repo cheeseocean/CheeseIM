@@ -91,7 +91,7 @@ Add tests covering:
 Run:
 ```bash
 cd server
-./gradlew :common-core:test --tests com.cheeseocean.im.common.core.business.mongo.impl.UserConversationRepositoryImplTest --tests com.cheeseocean.im.common.core.business.mongo.impl.UserConversationSyncPointRepositoryImplTest --tests com.cheeseocean.im.common.core.business.mongo.impl.ConversationRangeRepositoryImplTest
+./gradlew :common-core:test --tests com.cheeseocean.im.common.core.business.mongo.impl.UserConversationRepositoryImplTest --tests com.cheeseocean.im.common.core.business.mongo.impl.UserConversationSyncPointRepositoryImplTest --tests com.cheeseocean.im.common.core.business.mongo.impl.ConversationSequenceRepositoryImplTest
 ```
 
 Expected:
@@ -150,7 +150,7 @@ Cover:
 Run:
 ```bash
 cd server
-./gradlew :common-core:test --tests com.cheeseocean.im.common.core.business.mongo.impl.UserConversationRepositoryImplTest --tests com.cheeseocean.im.common.core.business.mongo.impl.UserConversationSyncPointRepositoryImplTest --tests com.cheeseocean.im.common.core.business.mongo.impl.ConversationRangeRepositoryImplTest
+./gradlew :common-core:test --tests com.cheeseocean.im.common.core.business.mongo.impl.UserConversationRepositoryImplTest --tests com.cheeseocean.im.common.core.business.mongo.impl.UserConversationSyncPointRepositoryImplTest --tests com.cheeseocean.im.common.core.business.mongo.impl.ConversationSequenceRepositoryImplTest
 ```
 
 Expected:
@@ -362,7 +362,7 @@ Expected:
 Run:
 ```bash
 cd server
-./gradlew :common-core:test --tests com.cheeseocean.im.common.core.business.mongo.impl.UserConversationRepositoryImplTest --tests com.cheeseocean.im.common.core.business.mongo.impl.UserConversationSyncPointRepositoryImplTest --tests com.cheeseocean.im.common.core.business.mongo.impl.ConversationRangeRepositoryImplTest --tests com.cheeseocean.im.common.core.business.mongo.impl.UserRepositoryImplTest --tests com.cheeseocean.im.common.core.business.mongo.impl.FriendshipRepositoryImplTest --tests com.cheeseocean.im.common.core.business.mongo.impl.FriendRequestRepositoryImplTest
+./gradlew :common-core:test --tests com.cheeseocean.im.common.core.business.mongo.impl.UserConversationRepositoryImplTest --tests com.cheeseocean.im.common.core.business.mongo.impl.UserConversationSyncPointRepositoryImplTest --tests com.cheeseocean.im.common.core.business.mongo.impl.ConversationSequenceRepositoryImplTest --tests com.cheeseocean.im.common.core.business.mongo.impl.UserRepositoryImplTest --tests com.cheeseocean.im.common.core.business.mongo.impl.FriendshipRepositoryImplTest --tests com.cheeseocean.im.common.core.business.mongo.impl.FriendRequestRepositoryImplTest
 ./gradlew :business:test --tests com.cheeseocean.im.business.service.conversation.ConversationLifecycleServiceTest --tests com.cheeseocean.im.business.service.conversation.ConversationQueryServiceImplTest --tests com.cheeseocean.im.business.service.FriendRelationServiceImplTest
 ```
 

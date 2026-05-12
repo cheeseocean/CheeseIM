@@ -276,7 +276,7 @@ ConversationState
 
 class ConversationState {
     String conversationId;
-    Integer sessionType;
+    Integer chatType;
     Long maxSeq;
     Long minSeq;
     MessageSummary lastMessage;
@@ -320,7 +320,7 @@ class IngressEvent {
     String senderId;
     String recvId;
     String groupId;
-    Integer sessionType;
+    Integer chatType;
     Integer contentType;
     byte[] content;
     Long sendTime;
@@ -339,7 +339,7 @@ class SequencedMessage {
     String senderId;
     String recvId;
     String groupId;
-    Integer sessionType;
+    Integer chatType;
     Integer contentType;
     byte[] content;
     Long sendTime;
