@@ -1,4 +1,4 @@
-2026-04-12 17:25:32.752 [main] INFO  c.c.im.common.core.startup.StartupSummaryRunner - 
+2026-05-12 17:44:41.468 [main] INFO  c.c.im.common.core.startup.StartupSummaryRunner - 
 ==========================================================
  CheeseIM Startup Summary
   Application : cheese-im-postman
@@ -9,51 +9,7 @@
   WebSocket   : ws://localhost:5147/ws
   TCP         : tcp://localhost:5148
 ==========================================================
-2026-04-12 17:27:19.265 [main] INFO  c.c.im.common.core.startup.StartupSummaryRunner - 
-==========================================================
- CheeseIM Startup Summary
-  Application : cheese-im-postman
-  Profile     : default
-  Mode        : all-in-one
-  HTTP        : http://127.0.0.1:18085
-  Dubbo       : injvm-only
-  WebSocket   : ws://localhost:5147/ws
-  TCP         : tcp://localhost:5148
-==========================================================
-2026-04-12 17:40:42.815 [main] INFO  c.c.im.common.core.startup.StartupSummaryRunner - 
-==========================================================
- CheeseIM Startup Summary
-  Application : cheese-im-postman
-  Profile     : default
-  Mode        : all-in-one
-  HTTP        : http://127.0.0.1:18085
-  Dubbo       : injvm-only
-  WebSocket   : ws://localhost:5147/ws
-  TCP         : tcp://localhost:5148
-==========================================================
-2026-04-12 17:44:52.481 [main] INFO  c.c.im.common.core.startup.StartupSummaryRunner - 
-==========================================================
- CheeseIM Startup Summary
-  Application : cheese-im-postman
-  Profile     : default
-  Mode        : all-in-one
-  HTTP        : http://127.0.0.1:18085
-  Dubbo       : injvm-only
-  WebSocket   : ws://localhost:5147/ws
-  TCP         : tcp://localhost:5148
-==========================================================
-2026-04-12 17:50:34.097 [main] INFO  c.c.im.common.core.startup.StartupSummaryRunner - 
-==========================================================
- CheeseIM Startup Summary
-  Application : cheese-im-postman
-  Profile     : default
-  Mode        : all-in-one
-  HTTP        : http://127.0.0.1:18085
-  Dubbo       : injvm-only
-  WebSocket   : ws://localhost:5147/ws
-  TCP         : tcp://localhost:5148
-==========================================================
-2026-04-12 17:55:27.960 [main] INFO  c.c.im.common.core.startup.StartupSummaryRunner - 
+2026-05-12 18:03:02.885 [main] INFO  c.c.im.common.core.startup.StartupSummaryRunner - 
 ==========================================================
  CheeseIM Startup Summary
   Application : cheese-im-postman

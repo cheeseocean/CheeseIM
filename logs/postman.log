@@ -1,62 +1,20 @@
-2026-04-12 17:25:30.942 [main] INFO  cheese-im-postman - APNs推送服务已禁用
-2026-04-12 17:25:30.944 [main] INFO  cheese-im-postman - FCM推送服务已禁用
-2026-04-12 17:25:30.953 [main] INFO  cheese-im-postman - 华为推送服务已禁用
-2026-04-12 17:25:30.954 [main] INFO  cheese-im-postman - 极光推送服务已禁用
-2026-04-12 17:25:30.955 [main] INFO  cheese-im-postman - 小米推送服务已禁用
-2026-04-12 17:25:32.434 [scheduling-1] INFO  cheese-im-postman - 开始清理过期设备Token
-2026-04-12 17:25:32.649 [scheduling-1] INFO  cheese-im-postman - 过期设备Token清理完成: cleanedCount=0
-2026-04-12 17:25:32.649 [scheduling-1] INFO  cheese-im-postman - 过期设备Token清理完成: cleanedCount=0, duration=215ms
-2026-04-12 17:27:16.900 [main] INFO  cheese-im-postman - APNs推送服务已禁用
-2026-04-12 17:27:16.901 [main] INFO  cheese-im-postman - FCM推送服务已禁用
-2026-04-12 17:27:16.910 [main] INFO  cheese-im-postman - 华为推送服务已禁用
-2026-04-12 17:27:16.911 [main] INFO  cheese-im-postman - 极光推送服务已禁用
-2026-04-12 17:27:16.912 [main] INFO  cheese-im-postman - 小米推送服务已禁用
-2026-04-12 17:27:18.435 [scheduling-1] INFO  cheese-im-postman - 开始清理过期设备Token
-2026-04-12 17:27:18.784 [scheduling-1] INFO  cheese-im-postman - 过期设备Token清理完成: cleanedCount=0
-2026-04-12 17:27:18.784 [scheduling-1] INFO  cheese-im-postman - 过期设备Token清理完成: cleanedCount=0, duration=349ms
-2026-04-12 17:30:00.012 [scheduling-1] INFO  cheese-im-postman - 推送统计: totalPush=0, successPush=0, failedPush=0, successRate=0.00%
-2026-04-12 17:30:00.016 [scheduling-1] INFO  cheese-im-postman - 实时统计: currentHourPush=0, currentMinutePush=0, currentSecondPush=0, currentSuccessRate=0.00%
-2026-04-12 17:40:41.213 [main] INFO  cheese-im-postman - APNs推送服务已禁用
-2026-04-12 17:40:41.214 [main] INFO  cheese-im-postman - FCM推送服务已禁用
-2026-04-12 17:40:41.223 [main] INFO  cheese-im-postman - 华为推送服务已禁用
-2026-04-12 17:40:41.224 [main] INFO  cheese-im-postman - 极光推送服务已禁用
-2026-04-12 17:40:41.226 [main] INFO  cheese-im-postman - 小米推送服务已禁用
-2026-04-12 17:40:42.493 [scheduling-1] INFO  cheese-im-postman - 开始清理过期设备Token
-2026-04-12 17:40:42.702 [scheduling-1] INFO  cheese-im-postman - 过期设备Token清理完成: cleanedCount=0
-2026-04-12 17:40:42.702 [scheduling-1] INFO  cheese-im-postman - 过期设备Token清理完成: cleanedCount=0, duration=209ms
-2026-04-12 17:44:50.750 [main] INFO  cheese-im-postman - APNs推送服务已禁用
-2026-04-12 17:44:50.751 [main] INFO  cheese-im-postman - FCM推送服务已禁用
-2026-04-12 17:44:50.762 [main] INFO  cheese-im-postman - 华为推送服务已禁用
-2026-04-12 17:44:50.763 [main] INFO  cheese-im-postman - 极光推送服务已禁用
-2026-04-12 17:44:50.765 [main] INFO  cheese-im-postman - 小米推送服务已禁用
-2026-04-12 17:44:52.270 [scheduling-1] INFO  cheese-im-postman - 开始清理过期设备Token
-2026-04-12 17:44:52.272 [scheduling-1] INFO  cheese-im-postman - 过期设备Token清理完成: cleanedCount=0
-2026-04-12 17:44:52.272 [scheduling-1] INFO  cheese-im-postman - 过期设备Token清理完成: cleanedCount=0, duration=2ms
-2026-04-12 17:50:32.532 [main] INFO  cheese-im-postman - APNs推送服务已禁用
-2026-04-12 17:50:32.533 [main] INFO  cheese-im-postman - FCM推送服务已禁用
-2026-04-12 17:50:32.541 [main] INFO  cheese-im-postman - 华为推送服务已禁用
-2026-04-12 17:50:32.543 [main] INFO  cheese-im-postman - 极光推送服务已禁用
-2026-04-12 17:50:32.544 [main] INFO  cheese-im-postman - 小米推送服务已禁用
-2026-04-12 17:50:33.781 [scheduling-1] INFO  cheese-im-postman - 开始清理过期设备Token
-2026-04-12 17:50:33.983 [scheduling-1] INFO  cheese-im-postman - 过期设备Token清理完成: cleanedCount=0
-2026-04-12 17:50:33.983 [scheduling-1] INFO  cheese-im-postman - 过期设备Token清理完成: cleanedCount=0, duration=202ms
-2026-04-12 17:55:26.261 [main] INFO  cheese-im-postman - APNs推送服务已禁用
-2026-04-12 17:55:26.262 [main] INFO  cheese-im-postman - FCM推送服务已禁用
-2026-04-12 17:55:26.271 [main] INFO  cheese-im-postman - 华为推送服务已禁用
-2026-04-12 17:55:26.272 [main] INFO  cheese-im-postman - 极光推送服务已禁用
-2026-04-12 17:55:26.273 [main] INFO  cheese-im-postman - 小米推送服务已禁用
-2026-04-12 17:55:27.648 [scheduling-1] INFO  cheese-im-postman - 开始清理过期设备Token
-2026-04-12 17:55:27.853 [scheduling-1] INFO  cheese-im-postman - 过期设备Token清理完成: cleanedCount=0
-2026-04-12 17:55:27.853 [scheduling-1] INFO  cheese-im-postman - 过期设备Token清理完成: cleanedCount=0, duration=205ms
-2026-04-12 18:00:00.003 [scheduling-1] INFO  cheese-im-postman - 设备Token统计: totalTokens=0, activeTokens=0, expiredTokens=0, platformDistribution={}
-2026-04-12 20:45:36.239 [scheduling-1] INFO  cheese-im-postman - 推送统计: totalPush=0, successPush=0, failedPush=0, successRate=0.00%
-2026-04-12 20:45:36.240 [scheduling-1] INFO  cheese-im-postman - 实时统计: currentHourPush=0, currentMinutePush=0, currentSecondPush=0, currentSuccessRate=0.00%
-2026-04-12 21:15:36.244 [scheduling-1] INFO  cheese-im-postman - 设备Token统计: totalTokens=0, activeTokens=0, expiredTokens=0, platformDistribution={}
-2026-04-12 21:30:00.010 [scheduling-1] INFO  cheese-im-postman - 推送统计: totalPush=0, successPush=0, failedPush=0, successRate=0.00%
-2026-04-12 21:30:00.012 [scheduling-1] INFO  cheese-im-postman - 实时统计: currentHourPush=0, currentMinutePush=0, currentSecondPush=0, currentSuccessRate=0.00%
-2026-04-12 22:00:00.009 [scheduling-1] INFO  cheese-im-postman - 设备Token统计: totalTokens=0, activeTokens=0, expiredTokens=0, platformDistribution={}
-2026-04-12 22:30:00.013 [scheduling-1] INFO  cheese-im-postman - 推送统计: totalPush=0, successPush=0, failedPush=0, successRate=0.00%
-2026-04-12 22:30:00.015 [scheduling-1] INFO  cheese-im-postman - 实时统计: currentHourPush=0, currentMinutePush=0, currentSecondPush=0, currentSuccessRate=0.00%
-2026-04-12 23:00:00.028 [scheduling-1] INFO  cheese-im-postman - 设备Token统计: totalTokens=0, activeTokens=0, expiredTokens=0, platformDistribution={}
-2026-04-12 23:30:00.030 [scheduling-1] INFO  cheese-im-postman - 推送统计: totalPush=0, successPush=0, failedPush=0, successRate=0.00%
-2026-04-12 23:30:00.032 [scheduling-1] INFO  cheese-im-postman - 实时统计: currentHourPush=0, currentMinutePush=0, currentSecondPush=0, currentSuccessRate=0.00%
+2026-05-12 17:44:40.599 [main] INFO  cheese-im-postman - APNs推送服务已禁用
+2026-05-12 17:44:40.600 [main] INFO  cheese-im-postman - FCM推送服务已禁用
+2026-05-12 17:44:40.608 [main] INFO  cheese-im-postman - 华为推送服务已禁用
+2026-05-12 17:44:40.609 [main] INFO  cheese-im-postman - 极光推送服务已禁用
+2026-05-12 17:44:40.610 [main] INFO  cheese-im-postman - 小米推送服务已禁用
+2026-05-12 17:44:41.169 [scheduling-1] INFO  cheese-im-postman - 开始清理过期设备Token
+2026-05-12 17:44:41.373 [scheduling-1] INFO  cheese-im-postman - 过期设备Token清理完成: cleanedCount=0
+2026-05-12 17:44:41.373 [scheduling-1] INFO  cheese-im-postman - 过期设备Token清理完成: cleanedCount=0, duration=204ms
+2026-05-12 18:00:00.012 [scheduling-1] INFO  cheese-im-postman - 设备Token统计: totalTokens=0, activeTokens=0, expiredTokens=0, platformDistribution={}
+2026-05-12 18:03:01.986 [main] INFO  cheese-im-postman - APNs推送服务已禁用
+2026-05-12 18:03:01.987 [main] INFO  cheese-im-postman - FCM推送服务已禁用
+2026-05-12 18:03:01.995 [main] INFO  cheese-im-postman - 华为推送服务已禁用
+2026-05-12 18:03:01.996 [main] INFO  cheese-im-postman - 极光推送服务已禁用
+2026-05-12 18:03:01.997 [main] INFO  cheese-im-postman - 小米推送服务已禁用
+2026-05-12 18:03:02.566 [scheduling-1] INFO  cheese-im-postman - 开始清理过期设备Token
+2026-05-12 18:03:02.779 [scheduling-1] INFO  cheese-im-postman - 过期设备Token清理完成: cleanedCount=0
+2026-05-12 18:03:02.780 [scheduling-1] INFO  cheese-im-postman - 过期设备Token清理完成: cleanedCount=0, duration=214ms
+2026-05-12 18:30:00.006 [scheduling-1] INFO  cheese-im-postman - 推送统计: totalPush=0, successPush=0, failedPush=0, successRate=0.00%
+2026-05-12 18:30:00.008 [scheduling-1] INFO  cheese-im-postman - 实时统计: currentHourPush=0, currentMinutePush=0, currentSecondPush=0, currentSuccessRate=0.00%
+2026-05-12 19:00:00.020 [scheduling-1] INFO  cheese-im-postman - 设备Token统计: totalTokens=0, activeTokens=0, expiredTokens=0, platformDistribution={}
