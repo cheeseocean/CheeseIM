@@ -255,22 +255,7 @@ func resolveChatTarget(conversationID, currentUserID string) (string, string, in
 	switch {
 	case strings.HasPrefix(conversationID, "g:"):
 		return "", conversationID[2:], 2, nil
-	case strings.HasPrefix(conversationID, "c2:"):
-		return "", conversationID[3:], 2, nil
 	case strings.HasPrefix(conversationID, "s:"):
-		parts := strings.Split(conversationID, ":")
-		if len(parts) != 3 {
-			return "", "", 0, fmt.Errorf("invalid direct conversation: %s", conversationID)
-		}
-		a, b := parts[1], parts[2]
-		if a == currentUserID {
-			return b, "", 1, nil
-		}
-		if b == currentUserID {
-			return a, "", 1, nil
-		}
-		return b, "", 1, nil
-	case strings.HasPrefix(conversationID, "c1:"):
 		parts := strings.Split(conversationID, ":")
 		if len(parts) != 3 {
 			return "", "", 0, fmt.Errorf("invalid direct conversation: %s", conversationID)

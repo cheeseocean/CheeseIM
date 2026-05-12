@@ -123,12 +123,12 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.submitInputCmd(strings.TrimSpace(msg.Text))
 	case historyLoadedMsg:
 		// 调试日志：加载历史消息
-		log.Printf("[HISTORY] conversationID=%s, messageCount=%d", msg.conversationID, len(msg.items))
-		if len(msg.items) > 0 {
-			lastMsg := msg.items[len(msg.items)-1]
-			log.Printf("[HISTORY LAST] senderID=%s, content=%q, sequence=%d",
-				lastMsg.SenderID, string(lastMsg.Content), lastMsg.Sequence)
-		}
+		//log.Printf("[HISTORY] conversationID=%s, messageCount=%d", msg.conversationID, len(msg.items))
+		//if len(msg.items) > 0 {
+		//	lastMsg := msg.items[len(msg.items)-1]
+		//	log.Printf("[HISTORY LAST] senderID=%s, content=%q, sequence=%d",
+		//		lastMsg.SenderID, string(lastMsg.Content), lastMsg.Sequence)
+		//}
 		
 		m.appStore.SetActiveConversation(msg.conversationID)
 		items := make([]domain.MessageItem, 0, len(msg.items))
@@ -275,8 +275,8 @@ func (m RootModel) sendMessageCmd(text string) tea.Cmd {
 	requestID := newRequestID()
 	
 	// 调试日志：发送消息
-	log.Printf("[SEND] conversationID=%s, userID=%s, requestID=%s, content=%q",
-		conversationID, currentUserID, requestID, text)
+	//log.Printf("[SEND] conversationID=%s, userID=%s, requestID=%s, content=%q",
+	//	conversationID, currentUserID, requestID, text)
 	
 	return func() tea.Msg {
 		item, err := m.client.SendText(requestID, conversationID, text)
@@ -285,8 +285,8 @@ func (m RootModel) sendMessageCmd(text string) tea.Cmd {
 			return appErrorMsg{err: err}
 		}
 		// 调试日志：发送成功，SDK返回
-		log.Printf("[SEND SUCCESS] serverMsgID=%s, clientMsgID=%s, returnedContent=%q",
-			item.ServerMsgID, item.ClientMsgID, string(item.Content))
+		//log.Printf("[SEND SUCCESS] serverMsgID=%s, clientMsgID=%s, returnedContent=%q",
+		//	item.ServerMsgID, item.ClientMsgID, string(item.Content))
 		
 		return sendMessageSuccessMsg{
 			conversationID: conversationID,
@@ -344,13 +344,13 @@ func (m RootModel) handleRealtimeEvent(event sdktypes.Event) (tea.Model, tea.Cmd
 		}
 		
 		// 调试日志：收到实时消息
-		log.Printf("[RECV] kind=realtime, conversationID=%s, senderID=%s, senderName=%s, content=%q, clientMsgID=%s, serverMsgID=%s",
-			event.ConversationID,
-			event.Message.SenderID,
-			event.Message.SenderName,
-			string(event.Message.Content),
-			event.Message.ClientMsgID,
-			event.Message.ServerMsgID)
+		//log.Printf("[RECV] kind=realtime, conversationID=%s, senderID=%s, senderName=%s, content=%q, clientMsgID=%s, serverMsgID=%s",
+		//	event.ConversationID,
+		//	event.Message.SenderID,
+		//	event.Message.SenderName,
+		//	string(event.Message.Content),
+		//	event.Message.ClientMsgID,
+		//	event.Message.ServerMsgID)
 		
 		conversationID := event.ConversationID
 		item := domain.MessageItem{
@@ -362,8 +362,8 @@ func (m RootModel) handleRealtimeEvent(event sdktypes.Event) (tea.Model, tea.Cmd
 		}
 		
 		// 调试日志：Self 判断结果
-		log.Printf("[RECV SELF CHECK] senderID=%s, currentUserID=%s, self=%v",
-			event.Message.SenderID, m.appStore.CurrentUserID, item.Self)
+		//log.Printf("[RECV SELF CHECK] senderID=%s, currentUserID=%s, self=%v",
+		//	event.Message.SenderID, m.appStore.CurrentUserID, item.Self)
 		
 		m.appStore.AppendMessage(conversationID, item)
 		m.touchConversation(conversationID, item.Content)
@@ -405,7 +405,7 @@ func (m RootModel) touchConversation(conversationID, preview string) {
 	m.appStore.UpsertConversation(summary)
 	
 	// 调试日志：会话更新
-	log.Printf("[CONV TOUCH] conversationID=%s, preview=%q", conversationID, preview)
+	//log.Printf("[CONV TOUCH] conversationID=%s, preview=%q", conversationID, preview)
 }
 
 func (m RootModel) isAuthenticated() bool {
