@@ -19,8 +19,8 @@ func TestClientConnectEmitsAuthSuccess(t *testing.T) {
 	client := NewClient(pipeDialer(clientConn), time.Hour)
 	go func() {
 		frame := mustReadFrame(t, serverConn)
-		if frame.MsgType != TCPAuthReq {
-			t.Errorf("MsgType = %d, want %d", frame.MsgType, TCPAuthReq)
+		if frame.CommandType != TCPAuthReq {
+			t.Errorf("MsgType = %d, want %d", frame.CommandType, TCPAuthReq)
 		}
 		authPayload := mustMarshal(t, &pb.ProtoAuthResponse{UserId: "user-1", Message: "ok"})
 		writeFrame(t, serverConn, TCPAuthSuccess, "auth", authPayload)
@@ -50,8 +50,8 @@ func TestClientSendChatMessageEmitsAck(t *testing.T) {
 		_ = mustReadFrame(t, serverConn)
 		writeFrame(t, serverConn, TCPAuthSuccess, "auth", mustMarshal(t, &pb.ProtoAuthResponse{UserId: "user-1"}))
 		frame := mustReadFrame(t, serverConn)
-		if frame.MsgType != TCPSendMsgReq {
-			t.Errorf("MsgType = %d, want %d", frame.MsgType, TCPSendMsgReq)
+		if frame.CommandType != TCPSendMsgReq {
+			t.Errorf("MsgType = %d, want %d", frame.CommandType, TCPSendMsgReq)
 		}
 		writeFrame(t, serverConn, TCPSendMsgResp, frame.RequestID, mustMarshal(t, &pb.ProtoChatSendAck{
 			ServerMsgId: "server-1",

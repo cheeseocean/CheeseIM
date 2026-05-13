@@ -92,7 +92,7 @@ public class ChatMessageHandler implements MessageHandler {
                     context.getUserId(), msgData.getClientMsgId(), deliveryResult.getServerMsgId());
 
             // 创建发送消息响应
-            ServerEnvelope sendMsgRespMsg = ServerEnvelope.chatSend(operationID, Map.of(
+            ServerEnvelope sendMsgRespMsg = ServerEnvelope.chatSendAck(operationID, Map.of(
                     "serverMsgID", deliveryResult.getServerMsgId(),
                     "clientMsgID", msgData.getClientMsgId(),
                     "sendTime", System.currentTimeMillis()

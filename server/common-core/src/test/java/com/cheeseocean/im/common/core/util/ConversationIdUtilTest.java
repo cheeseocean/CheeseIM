@@ -15,13 +15,13 @@ class ConversationIdUtilTest {
 
     @Test
     void buildConversationIdSupportsGroupAndNotification() {
-        assertEquals("c2:g1", ConversationIdUtil.buildConversationId(ChatType.GROUP.getCode(), "u1", null, "g1"));
-        assertEquals("c3:u9", ConversationIdUtil.buildConversationId(ChatType.NOTIFICATION.getCode(), null, "u9", null));
+        assertEquals("c2:g1", ConversationIdUtil.buildConversationId(ChatType.GROUP, null, null, "g1"));
+        assertEquals("c3:u9", ConversationIdUtil.buildConversationId(ChatType.NOTIFICATION, null, "u9", null));
     }
 
     @Test
     void unsupportedSessionTypeThrows() {
         assertThrows(IllegalArgumentException.class,
-                () -> ConversationIdUtil.buildConversationId(999, "u1", "u2", null));
+                () -> ConversationIdUtil.buildConversationId(null, "u1", "u2", null));
     }
 }

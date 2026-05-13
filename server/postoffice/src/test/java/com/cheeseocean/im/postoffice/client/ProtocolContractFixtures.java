@@ -1,6 +1,7 @@
 package com.cheeseocean.im.postoffice.client;
 
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchPayload;
+import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.common.api.enums.CommandType;
@@ -216,13 +217,14 @@ public final class ProtocolContractFixtures {
 
     public static DispatchPayload recvDispatchPayload() {
         DispatchPayload payload = new DispatchPayload();
-        payload.setServerMsgId(SERVER_MSG_ID);
-        payload.setClientMsgId(CLIENT_MSG_ID);
-        payload.setContent("Hello World!");
-        payload.setContentType(101);
-        payload.setConversationId("single:userA:userB");
-        payload.setSeq(1L);
-        payload.setSendTime(SEND_TIME);
+        Message msg = new Message();
+        msg.setServerMsgId(SERVER_MSG_ID);
+        msg.setClientMsgId(CLIENT_MSG_ID);
+        msg.setContent("Hello World!");
+        msg.setContentType(101);
+        msg.setSeq(1L);
+        msg.setSendTime(SEND_TIME);
+        payload.setMsg(msg);
         return payload;
     }
 

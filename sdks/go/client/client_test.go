@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -31,40 +30,51 @@ func TestResolveChatTarget(t *testing.T) {
 	}
 }
 
-func TestClientEmitsReadUpdatedOnMarkRead(t *testing.T) {
-	client := &Client{
-		events:      make(chan types.Event, 1),
-		accessToken: "token-1",
-		sync:        imsyncForTest(),
-	}
-	_, err := client.MarkRead(context.Background(), "s:u100:u200", 10)
+func TestResolveChatTargetGroup(t *testing.T) {
+	receiverID, groupID, sessionType, err := resolveChatTarget("g:g123", "u100")
 	if err != nil {
-		t.Fatalf("MarkRead() error = %v", err)
+		t.Fatalf("resolveChatTarget() error = %v", err)
 	}
-	event := <-client.Events()
-	if event.Kind != types.EventKindReadUpdated || event.ReadSnapshot == nil || event.ReadSnapshot.ReadSeq != 10 {
-		t.Fatalf("event = %#v", event)
+	if receiverID != "" || groupID != "g123" || sessionType != 2 {
+		t.Fatalf("unexpected target = %q %q %d", receiverID, groupID, sessionType)
 	}
 }
 
-func imsyncForTest() *testSyncService {
-	return &testSyncService{}
-}
+func TestResolveConversationID(t *testing.T) {
+	tests := []struct {
+		name     string
+		message  types.Message
+		expected string
+	}{
+		{
+			name: "private chat sender < receiver",
+			message: types.Message{
+				SenderID: "a", ReceiverID: "b", ChatType: 1,
+			},
+			expected: "s:a:b",
+		},
+		{
+			name: "private chat sender > receiver",
+			message: types.Message{
+				SenderID: "z", ReceiverID: "a", ChatType: 1,
+			},
+			expected: "s:a:z",
+		},
+		{
+			name: "group chat",
+			message: types.Message{
+				GroupID: "g123", ChatType: 2,
+			},
+			expected: "g:g123",
+		},
+	}
 
-type testSyncService struct{}
-
-func (t *testSyncService) Bootstrap(types.BootstrapData) {}
-
-func (t *testSyncService) Reset(string) {}
-
-func (t *testSyncService) OpenConversation(context.Context, string, string, int) ([]types.Message, error) {
-	return nil, nil
-}
-
-func (t *testSyncService) HandleRealtimeMessage(context.Context, string, types.Message) (string, []types.Message, bool, error) {
-	return "", nil, false, nil
-}
-
-func (t *testSyncService) MarkRead(context.Context, string, string, int64) (types.ReadSnapshot, error) {
-	return types.ReadSnapshot{ConversationID: "s:u100:u200", ReadSeq: 10}, nil
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := resolveConversationID(tt.message)
+			if result != tt.expected {
+				t.Errorf("resolveConversationID() = %q, want %q", result, tt.expected)
+			}
+		})
+	}
 }

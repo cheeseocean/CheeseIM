@@ -40,7 +40,7 @@ public final class ProtoEnvelopeMapper {
             case CONNECT -> builder.setConnect(toConnectResponse(envelope.getBody()));
             case AUTH -> builder.setAuth(toAuthResponse(envelope.getBody()));
             case HEARTBEAT -> builder.setHeartbeat(toHeartbeatResponse(envelope.getBody()));
-            case CHAT_SEND -> builder.setChatSendAck(toChatSendAck(envelope.getBody()));
+            case CHAT_SEND_ACK -> builder.setChatSendAck(toChatSendAck(envelope.getBody()));
             case CHAT_RECV -> builder.setChatMessage(ProtoMessageMapper.toProto(toDispatchPayload(envelope.getBody()).getMsg()));
             case ERROR -> builder.setError(toErrorResponse(envelope.getBody()));
             default -> builder.setError(ProtoErrorResponse.newBuilder()

@@ -211,21 +211,21 @@ func (c *Client) handleFrame(frame Frame) {
 			return
 		}
 		c.emit(Event{Kind: EventAuthSuccess, RequestID: frame.RequestID, UserID: message.GetUserId()})
-	case TCPSendMsgResp:
-		var message pb.ProtoChatSendAck
-		if err := gproto.Unmarshal(frame.Payload, &message); err != nil {
+	case CommandChatSendAck:
+		var ack pb.ProtoChatSendAck
+		if err := gproto.Unmarshal(frame.Payload, &ack); err != nil {
 			c.emit(Event{Kind: EventError, Err: err})
 			return
 		}
-		c.emit(Event{Kind: EventAck, RequestID: frame.RequestID, Ack: &message})
-	case TCPRecvMsgNotify:
+		c.emit(Event{Kind: EventAck, RequestID: frame.RequestID, Ack: &ack})
+	case CommandChatRecv:
 		var message pb.ProtoMessage
 		if err := gproto.Unmarshal(frame.Payload, &message); err != nil {
 			c.emit(Event{Kind: EventError, Err: err})
 			return
 		}
 		c.emit(Event{Kind: EventMessage, RequestID: frame.RequestID, Message: &message})
-	case TCPErrorResp:
+	case CommandError:
 		c.emit(Event{Kind: EventError, RequestID: frame.RequestID, Err: errors.New(string(frame.Payload))})
 	}
 }

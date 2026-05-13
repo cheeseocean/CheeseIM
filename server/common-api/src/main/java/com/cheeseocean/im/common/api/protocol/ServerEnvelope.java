@@ -36,8 +36,8 @@ public class ServerEnvelope implements Serializable {
         return of(CommandType.HEARTBEAT, requestId, body);
     }
 
-    public static ServerEnvelope chatSend(String requestId, Object body) {
-        return of(CommandType.CHAT_SEND, requestId, body);
+    public static ServerEnvelope chatSendAck(String requestId, Object body) {
+        return of(CommandType.CHAT_SEND_ACK, requestId, body);
     }
 
     public static ServerEnvelope error(String requestId, Object body) {

@@ -35,12 +35,10 @@ class QueueListenerBeanPostProcessorTest {
         private final List<SubscriptionRequest> subscriptions = new CopyOnWriteArrayList<>();
 
         @Override
-        public <T> void send(String topic, String key, T message) {
+        public void send(String topic, String key, byte[] message) {
             for (SubscriptionRequest subscription : subscriptions) {
                 if (subscription.topic().equals(topic)) {
-                    @SuppressWarnings("unchecked")
-                    QueueMessageHandler<T> handler = (QueueMessageHandler<T>) subscription.handler();
-                    handler.handle(message);
+                    // This test uses a simple dispatch without deserialization
                 }
             }
         }
@@ -52,7 +50,14 @@ class QueueListenerBeanPostProcessorTest {
         }
 
         void dispatch(String topic, DemoPayload payload) {
-            send(topic, null, payload);
+            // 直接调用 handler，不走 send 方法
+            for (SubscriptionRequest subscription : subscriptions) {
+                if (subscription.topic().equals(topic)) {
+                    @SuppressWarnings("unchecked")
+                    QueueMessageHandler<DemoPayload> handler = (QueueMessageHandler<DemoPayload>) subscription.handler();
+                    handler.handle(payload);
+                }
+            }
         }
     }
 

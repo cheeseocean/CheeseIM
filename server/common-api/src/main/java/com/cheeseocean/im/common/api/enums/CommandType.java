@@ -16,8 +16,12 @@ public enum CommandType implements IEnum {
     HEARTBEAT(20, "心跳保活"),
     /** 发送聊天消息。 */
     CHAT_SEND(30, "发送聊天消息"),
+    /** 消息发送响应（服务端收到消息后回复）。 */
+    CHAT_SEND_ACK(31, "消息发送响应"),
     /** 接收聊天消息。 */
     CHAT_RECV(32, "接收聊天消息"),
+    /** 已读回执。 */
+    CHAT_READ(33, "已读回执"),
     /** 撤回聊天消息。 */
     CHAT_REVOKE(34, "撤回聊天消息"),
     /** 强制下线通知。 */

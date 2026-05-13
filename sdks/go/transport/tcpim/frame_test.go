@@ -147,18 +147,6 @@ func TestDecodeFrame_RejectsInvalidMagicAndTruncatedPayload(t *testing.T) {
 	})
 }
 
-func TestMsgTypeMappings(t *testing.T) {
-	if got, err := ClientMsgTypeForCommand(CommandAuth); err != nil || got != TCPAuthReq {
-		t.Fatalf("ClientMsgTypeForCommand(auth) = (%d, %v), want (%d, nil)", got, err, TCPAuthReq)
-	}
-	if got, err := ServerMsgTypeForCommand(CommandChatRecv); err != nil || got != TCPRecvMsgNotify {
-		t.Fatalf("ServerMsgTypeForCommand(chat recv) = (%d, %v), want (%d, nil)", got, err, TCPRecvMsgNotify)
-	}
-	if _, err := ClientMsgTypeForCommand(999); !errors.Is(err, ErrUnknownCommand) {
-		t.Fatalf("ClientMsgTypeForCommand(999) error = %v, want ErrUnknownCommand", err)
-	}
-}
-
 func mustUnmarshal(t *testing.T, payload []byte, message gproto.Message) {
 	t.Helper()
 	if err := gproto.Unmarshal(payload, message); err != nil {

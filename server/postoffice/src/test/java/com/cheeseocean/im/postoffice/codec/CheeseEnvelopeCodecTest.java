@@ -40,7 +40,7 @@ class CheeseEnvelopeCodecTest {
     void encoderShouldWriteTcpFrameFromServerEnvelopeDirectly() {
         EmbeddedChannel channel = new EmbeddedChannel(new TcpEnvelopeEncoder());
 
-        ServerEnvelope envelope = ServerEnvelope.chatSend("op-send-1", Map.of(
+        ServerEnvelope envelope = ServerEnvelope.chatSendAck("op-send-1", Map.of(
                 "serverMsgID", "server-1",
                 "clientMsgID", "client-1",
                 "sendTime", 1710000000000L
