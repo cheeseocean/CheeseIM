@@ -4,6 +4,9 @@
 /.gradle/
 /build/
 /data
+*/*/data
+/logs
+*/*/logs
 server/common-core/data
 server/.gradle/
 server/build/
