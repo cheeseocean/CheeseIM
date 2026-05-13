@@ -5,9 +5,19 @@ import java.util.Arrays;
 /**
  * 消息内容类型枚举。
  *
+ * <p>代码分段设计：
+ * <ul>
+ *   <li>100-199: 普通消息</li>
+ *   <li>200-299: 好友相关通知</li>
+ *   <li>300-399: 群组相关通知</li>
+ *   <li>2000-2999: 系统消息/通知</li>
+ *   <li>4000-4999: 其他</li>
+ * </ul>
+ *
  * @author xxxcrel
  */
 public enum ContentType implements IEnum {
+    // ========== 普通消息 ==========
     /** 文本消息。 */
     TEXT(101, "文本"),
     /** 图片消息。 */
@@ -22,6 +32,40 @@ public enum ContentType implements IEnum {
     LOCATION(106, "位置"),
     /** 自定义消息。 */
     CUSTOM(200, "自定义"),
+
+    // ========== 好友相关通知 ==========
+    /** 好友申请。 */
+    FRIEND_REQUEST(201, "好友申请"),
+    /** 好友申请已接受。 */
+    FRIEND_REQUEST_ACCEPTED(202, "好友申请已接受"),
+    /** 好友申请已拒绝。 */
+    FRIEND_REQUEST_REJECTED(203, "好友申请已拒绝"),
+    /** 好友已删除。 */
+    FRIEND_DELETED(204, "好友已删除"),
+    /** 被加入黑名单提示。 */
+    ADDED_TO_BLACKLIST(205, "被加入黑名单"),
+    /** 对方将你移出黑名单。 */
+    REMOVED_FROM_BLACKLIST(206, "被移出黑名单"),
+
+    // ========== 群组相关通知 ==========
+    /** 入群申请。 */
+    GROUP_APPLICATION(301, "入群申请"),
+    /** 入群申请已接受。 */
+    GROUP_APPLICATION_ACCEPTED(302, "入群申请已接受"),
+    /** 入群申请已拒绝。 */
+    GROUP_APPLICATION_REJECTED(303, "入群申请已拒绝"),
+    /** 被踢出群聊。 */
+    KICKED_FROM_GROUP(304, "被踢出群聊"),
+    /** 群聊解散通知。 */
+    GROUP_DISMISSED(305, "群聊已解散"),
+    /** 被设置为群管理员。 */
+    PROMOTED_TO_ADMIN(306, "被设置为群管理员"),
+    /** 被取消群管理员。 */
+    DEMOTED_FROM_ADMIN(307, "被取消群管理员"),
+    /** 群成员变更通知（进群/退群）。 */
+    GROUP_MEMBER_CHANGED(308, "群成员变更"),
+
+    // ========== 系统消息/通知 ==========
     /** 已读回执。 */
     READ_RECEIPT(2004, "已读回执"),
     /** 撤回通知。 */
