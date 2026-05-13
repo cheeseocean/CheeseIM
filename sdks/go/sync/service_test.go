@@ -28,7 +28,8 @@ func TestServiceOpenConversationPullsTailOnFirstOpen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("OpenConversation() error = %v", err)
 	}
-	if len(items) != 2 || items[0].Sequence != 11 || api.lastRange.BeginSeq != 11 {
+	// 本地消息为空时，从 beginSeq=1 拉取到 serverMax=12，返回拉取的消息
+	if len(items) != 2 || items[0].Sequence != 11 || api.lastRange.BeginSeq != 1 {
 		t.Fatalf("items = %#v, range = %#v", items, api.lastRange)
 	}
 }
@@ -61,7 +62,9 @@ func TestServiceHandleRealtimeRepairsGap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HandleRealtimeMessage() error = %v", err)
 	}
-	if conversationID != "s:u100:u200" || !repaired || len(items) != 3 || items[1].Sequence != 11 {
+	// 修复间隙后，返回拉取的消息（不含本地已缓存的消息 10）
+	// 本地已缓存的消息仍然存储在 messagesByConv 中，但不再返回
+	if conversationID != "s:u100:u200" || !repaired || len(items) != 2 || items[0].Sequence != 11 {
 		t.Fatalf("conversationID=%q repaired=%v items=%#v", conversationID, repaired, items)
 	}
 }

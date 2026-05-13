@@ -292,10 +292,10 @@ func (f *fakeIMClient) AddFriend(_ context.Context, friendUserID, message string
 	return f.addFriendErr
 }
 
-func (f *fakeIMClient) MarkRead(_ context.Context, conversationID string, readSeq int64) (sdktypes.ReadSnapshot, error) {
+func (f *fakeIMClient) MarkRead(_ context.Context, conversationID string, readSeq int64) error {
 	f.markReadConversation = conversationID
 	f.markReadSeq = readSeq
-	return sdktypes.ReadSnapshot{ConversationID: conversationID, ReadSeq: readSeq}, f.markReadErr
+	return f.markReadErr
 }
 
 func (f *fakeIMClient) Events() <-chan sdktypes.Event {

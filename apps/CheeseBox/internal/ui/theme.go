@@ -32,6 +32,10 @@ type Theme struct {
 	tabInactiveFg lipgloss.Color
 	tabInactiveBg lipgloss.Color
 	tabDivider    lipgloss.Color
+	debugFg       lipgloss.Color
+	debugSendFg   lipgloss.Color
+	debugRecvFg   lipgloss.Color
+	debugErrFg    lipgloss.Color
 }
 
 func defaultTheme() Theme {
@@ -63,6 +67,10 @@ func themeByName(name ThemeName) Theme {
 			tabInactiveFg: lipgloss.Color("71"),
 			tabInactiveBg: lipgloss.Color("22"),
 			tabDivider:    lipgloss.Color("35"),
+			debugFg:       lipgloss.Color("35"),
+			debugSendFg:   lipgloss.Color("82"),
+			debugRecvFg:   lipgloss.Color("75"),
+			debugErrFg:    lipgloss.Color("196"),
 		}
 	case ThemePaper:
 		return Theme{
@@ -87,6 +95,10 @@ func themeByName(name ThemeName) Theme {
 			tabInactiveFg: lipgloss.Color("240"),
 			tabInactiveBg: lipgloss.Color("254"),
 			tabDivider:    lipgloss.Color("250"),
+			debugFg:       lipgloss.Color("241"),
+			debugSendFg:   lipgloss.Color("28"),
+			debugRecvFg:   lipgloss.Color("32"),
+			debugErrFg:    lipgloss.Color("196"),
 		}
 	default:
 		return Theme{
@@ -111,6 +123,10 @@ func themeByName(name ThemeName) Theme {
 			tabInactiveFg: lipgloss.Color("250"),
 			tabInactiveBg: lipgloss.Color("236"),
 			tabDivider:    lipgloss.Color("240"),
+			debugFg:       lipgloss.Color("245"),
+			debugSendFg:   lipgloss.Color("82"),
+			debugRecvFg:   lipgloss.Color("75"),
+			debugErrFg:    lipgloss.Color("196"),
 		}
 	}
 }
@@ -207,4 +223,26 @@ func (t Theme) tabInactiveStyle(focused bool) lipgloss.Style {
 
 func (t Theme) tabDividerStyle() lipgloss.Style {
 	return lipgloss.NewStyle().Foreground(t.tabDivider)
+}
+
+func (t Theme) debugHeaderStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(t.debugFg).
+		Bold(true)
+}
+
+func (t Theme) debugInfoStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(t.debugFg)
+}
+
+func (t Theme) debugSendStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(t.debugSendFg)
+}
+
+func (t Theme) debugRecvStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(t.debugRecvFg)
+}
+
+func (t Theme) debugErrorStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(t.debugErrFg)
 }

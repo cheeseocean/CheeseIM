@@ -24,24 +24,16 @@ type Config struct {
 }
 
 type Client struct {
-	cfg          Config
-	httpClient   *httpapi.Client
-	tcpClient    *tcpim.Client
-	authService  *auth.AuthService
-	social       *social.RosterService
-	sync         syncService
-	events       chan types.Event
-	accessToken  string
-	currentUser  string
-	stopRealtime chan struct{}
-}
-
-type syncService interface {
-	Bootstrap(data types.BootstrapData)
-	Reset(currentUserID string)
-	OpenConversation(ctx context.Context, accessToken, conversationID string, limit int) ([]types.Message, error)
-	HandleRealtimeMessage(ctx context.Context, accessToken string, message types.Message) (string, []types.Message, bool, error)
-	MarkRead(ctx context.Context, accessToken, conversationID string, readSeq int64) (types.ReadSnapshot, error)
+	cfg         Config
+	httpClient  *httpapi.Client
+	tcpClient   *tcpim.Client
+	authService *auth.AuthService
+	social      *social.RosterService
+	sync        *imsync.Service
+	events      chan types.Event
+	accessToken string
+	currentUser string
+	stopChan    chan struct{}
 }
 
 func New(cfg Config) *Client {
@@ -90,11 +82,53 @@ func (c *Client) Reconnect(ctx context.Context) (types.BootstrapData, error) {
 	return c.bootstrap(ctx, session)
 }
 
+// PullMessages 拉取消息，由应用层调用
+func (c *Client) PullMessages(ctx context.Context, ranges []types.SeqRange, limitPerConversation int64) ([]types.PulledConversationMessages, error) {
+	if c.sync == nil {
+		return nil, fmt.Errorf("sdk client not initialized")
+	}
+	return c.sync.PullMessages(ctx, ranges, limitPerConversation)
+}
+
+// GetSyncedMaxSeq 获取已同步的最大序列号
+func (c *Client) GetSyncedMaxSeq(conversationID string) int64 {
+	if c.sync == nil {
+		return 0
+	}
+	return c.sync.GetSyncedMaxSeq(conversationID)
+}
+
+// UpdateSyncedMaxSeq 更新已同步的最大序列号
+func (c *Client) UpdateSyncedMaxSeq(conversationID string, seq int64) {
+	if c.sync == nil {
+		return
+	}
+	c.sync.UpdateSyncedMaxSeq(conversationID, seq)
+}
+
+// OpenConversation 打开会话，拉取历史消息（降级实现，供参考）
 func (c *Client) OpenConversation(ctx context.Context, conversationID string, limit int) ([]types.Message, error) {
 	if c.sync == nil {
 		return nil, fmt.Errorf("sdk client not initialized")
 	}
-	return c.sync.OpenConversation(ctx, c.accessToken, conversationID, limit)
+	serverMax := c.sync.GetSyncedMaxSeq(conversationID)
+	beginSeq := serverMax - int64(limit) + 1
+	if beginSeq < 1 {
+		beginSeq = 1
+	}
+	ranges := []types.SeqRange{
+		{ConversationID: conversationID, BeginSeq: beginSeq, EndSeq: serverMax},
+	}
+	pulled, err := c.sync.PullMessages(ctx, ranges, int64(limit))
+	if err != nil {
+		return nil, err
+	}
+	for _, conv := range pulled {
+		if conv.ConversationID == conversationID {
+			return conv.Messages, nil
+		}
+	}
+	return nil, nil
 }
 
 func (c *Client) SendText(requestID, conversationID, text string) (types.Message, error) {
@@ -130,15 +164,11 @@ func (c *Client) AddFriend(ctx context.Context, friendUserID, message string) er
 	return c.httpClient.AddFriend(ctx, c.accessToken, friendUserID, message)
 }
 
-func (c *Client) MarkRead(ctx context.Context, conversationID string, readSeq int64) (types.ReadSnapshot, error) {
+func (c *Client) MarkRead(ctx context.Context, conversationID string, readSeq int64) error {
 	if c.sync == nil {
-		return types.ReadSnapshot{}, fmt.Errorf("sdk client not initialized")
+		return fmt.Errorf("sdk client not initialized")
 	}
-	snapshot, err := c.sync.MarkRead(ctx, c.accessToken, conversationID, readSeq)
-	if err == nil {
-		c.emit(types.Event{Kind: types.EventKindReadUpdated, ConversationID: conversationID, ReadSnapshot: &snapshot})
-	}
-	return snapshot, err
+	return c.sync.MarkRead(ctx, conversationID, readSeq)
 }
 
 func (c *Client) bootstrap(ctx context.Context, session auth.AuthSession) (types.BootstrapData, error) {
@@ -149,21 +179,22 @@ func (c *Client) bootstrap(ctx context.Context, session auth.AuthSession) (types
 	c.accessToken = session.AccessToken
 	c.currentUser = session.UserID
 	if c.sync == nil {
-		c.sync = imsync.NewService(c.social, session.UserID)
+		c.sync = imsync.NewService(c.social)
 	} else {
-		c.sync.Reset(session.UserID)
+		c.sync.Reset()
 	}
+	c.sync.SetAccessToken(session.AccessToken)
 	c.sync.Bootstrap(data)
 	c.restartRealtimeLoop()
 	return data, nil
 }
 
 func (c *Client) restartRealtimeLoop() {
-	if c.stopRealtime != nil {
-		close(c.stopRealtime)
+	if c.stopChan != nil {
+		close(c.stopChan)
 	}
-	c.stopRealtime = make(chan struct{})
-	go c.realtimeLoop(c.stopRealtime)
+	c.stopChan = make(chan struct{})
+	go c.realtimeLoop(c.stopChan)
 }
 
 func (c *Client) realtimeLoop(stop <-chan struct{}) {
@@ -194,32 +225,18 @@ func (c *Client) handleTransportEvent(event tcpim.Event) {
 	case tcpim.EventError:
 		c.emit(types.Event{Kind: types.EventKindError, Err: event.Err})
 	case tcpim.EventMessage:
-		if event.Message == nil || c.sync == nil {
+		// 直接把收到的消息转发给应用层，不做任何业务处理
+		if event.Message == nil {
 			return
 		}
 		message := toSDKMessage(event.Message)
-		c.emit(types.Event{Kind: types.EventKindSyncStarted})
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		conversationID, messages, repaired, err := c.sync.HandleRealtimeMessage(ctx, c.accessToken, message)
-		if err != nil {
-			c.emit(types.Event{Kind: types.EventKindError, Err: err})
-			return
-		}
-		if len(messages) == 0 {
-			return
-		}
-		last := messages[len(messages)-1]
+		conversationID := resolveConversationID(message)
 		c.emit(types.Event{
 			Kind:           types.EventKindRealtime,
 			RequestID:      event.RequestID,
 			ConversationID: conversationID,
-			Message:        &last,
+			Message:        &message,
 		})
-		if repaired {
-			c.emit(types.Event{Kind: types.EventKindGapRepaired, ConversationID: conversationID})
-		}
-		c.emit(types.Event{Kind: types.EventKindSyncCompleted, ConversationID: conversationID})
 	}
 }
 
@@ -271,4 +288,22 @@ func resolveChatTarget(conversationID, currentUserID string) (string, string, in
 	default:
 		return "", "", 0, fmt.Errorf("unsupported conversation: %s", conversationID)
 	}
+}
+
+// resolveConversationID 从消息中解析会话 ID
+func resolveConversationID(message types.Message) string {
+	switch message.ChatType {
+	case 2:
+		if message.GroupID != "" {
+			return "g:" + message.GroupID
+		}
+	case 1:
+		if message.SenderID != "" && message.ReceiverID != "" {
+			if message.SenderID <= message.ReceiverID {
+				return "s:" + message.SenderID + ":" + message.ReceiverID
+			}
+			return "s:" + message.ReceiverID + ":" + message.SenderID
+		}
+	}
+	return ""
 }

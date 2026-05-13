@@ -62,7 +62,7 @@ func (f *fakeRosterClient) GetConversationReadSnapshots(context.Context, string)
 	return f.readSnapshots, f.err
 }
 
-func (f *fakeRosterClient) PullMessages(context.Context, string, []types.SeqRange, int) ([]types.PulledConversationMessages, error) {
+func (f *fakeRosterClient) PullMessages(context.Context, string, []types.SeqRange, int64) ([]types.PulledConversationMessages, error) {
 	return f.pulled, f.err
 }
 

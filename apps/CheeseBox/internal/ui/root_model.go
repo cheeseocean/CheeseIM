@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
@@ -16,6 +15,7 @@ import (
 	"github.com/cheeseim/cheesebox/internal/config"
 	"github.com/cheeseim/cheesebox/internal/domain"
 	"github.com/cheeseim/cheesebox/internal/store"
+	"github.com/cheeseim/cheesebox/internal/sync"
 )
 
 type loginSuccessMsg struct {
@@ -50,26 +50,29 @@ type IMClient interface {
 	OpenConversation(ctx context.Context, conversationID string, limit int) ([]sdktypes.Message, error)
 	SendText(requestID, conversationID, text string) (sdktypes.Message, error)
 	AddFriend(ctx context.Context, friendUserID, message string) error
-	MarkRead(ctx context.Context, conversationID string, readSeq int64) (sdktypes.ReadSnapshot, error)
+	MarkRead(ctx context.Context, conversationID string, readSeq int64) error
 	Events() <-chan sdktypes.Event
 	CurrentUserID() string
 }
 
 type RootModel struct {
-	cfg      config.RuntimeConfig
-	login    LoginModel
-	app      AppModel
-	client   IMClient
-	appStore *store.AppStore
-	theme    ThemeName
-	locale   LocaleName
-	expanded bool
-	width    int
-	height   int
+	cfg       config.RuntimeConfig
+	login     LoginModel
+	app       AppModel
+	client    IMClient
+	syncer    *sync.Syncer
+	appStore  *store.AppStore
+	theme     ThemeName
+	locale    LocaleName
+	expanded  bool
+	debugLog  *DebugLogModel
+	width     int
+	height    int
 }
 
 func NewRootModel(cfg config.RuntimeConfig, client IMClient) RootModel {
-	appStore := store.New()
+	persister, _ := store.NewPersistedStore("")
+	appStore := store.NewWithPersister(persister)
 	root := RootModel{
 		cfg:      cfg,
 		login:    NewLoginModel(),
@@ -79,12 +82,15 @@ func NewRootModel(cfg config.RuntimeConfig, client IMClient) RootModel {
 		theme:    defaultTheme().Name,
 		locale:   defaultLocale(),
 		expanded: false,
+		debugLog: NewDebugLogModel(),
 	}
 	root.login.SetTheme(root.theme)
 	root.login.SetLocale(root.locale)
 	root.app.SetTheme(root.theme)
 	root.app.SetLocale(root.locale)
 	root.app.SetExpanded(root.expanded)
+	root.debugLog.SetEnabled(false)
+	root.app.SetDebugLog(root.debugLog)
 	return root
 }
 
@@ -93,18 +99,31 @@ func (m RootModel) Init() tea.Cmd {
 }
 
 func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// 处理终端尺寸变化，立即传递给 app
+	// 处理终端尺寸变化，立即传递给 app 和 debug log
 	if sizeMsg, ok := msg.(tea.WindowSizeMsg); ok {
 		m.width, m.height = sizeMsg.Width, sizeMsg.Height
 		m.app.SetSize(sizeMsg.Width, sizeMsg.Height)
+		// 计算调试面板的尺寸：右侧固定宽度
+		debugWidth := debugPanelWidth
+		debugHeight := sizeMsg.Height - 2 // 减去顶部 tab 和底部状态栏
+		if debugWidth > sizeMsg.Width/3 {
+			debugWidth = sizeMsg.Width / 3
+		}
+		if debugHeight < 15 {
+			debugHeight = 15
+		}
+		m.debugLog.SetSize(debugWidth, debugHeight)
 		return m, nil
 	}
-	// 全局快捷键：只使用不会被文本输入截获的 ctrl 组合键
+	// 全局快捷键
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		switch keyMsg.String() {
-		case "ctrl+f":
+		switch keyMsg.Type {
+		case tea.KeyCtrlF:
 			m.expanded = !m.expanded
 			m.app.SetExpanded(m.expanded)
+			return m, nil
+		case tea.KeyCtrlD:
+			m.debugLog.Toggle()
 			return m, nil
 		}
 	}
@@ -123,13 +142,15 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.submitInputCmd(strings.TrimSpace(msg.Text))
 	case historyLoadedMsg:
 		// 调试日志：加载历史消息
-		//log.Printf("[HISTORY] conversationID=%s, messageCount=%d", msg.conversationID, len(msg.items))
-		//if len(msg.items) > 0 {
-		//	lastMsg := msg.items[len(msg.items)-1]
-		//	log.Printf("[HISTORY LAST] senderID=%s, content=%q, sequence=%d",
-		//		lastMsg.SenderID, string(lastMsg.Content), lastMsg.Sequence)
-		//}
-		
+		var lastSenderID string
+		var lastSeq int64
+		if len(msg.items) > 0 {
+			lastMsg := msg.items[len(msg.items)-1]
+			lastSenderID = lastMsg.SenderID
+			lastSeq = lastMsg.Sequence
+		}
+		m.debugLog.AppendHistory(msg.conversationID, len(msg.items), lastSenderID, lastSeq)
+
 		m.appStore.SetActiveConversation(msg.conversationID)
 		items := make([]domain.MessageItem, 0, len(msg.items))
 		for _, item := range msg.items {
@@ -148,6 +169,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.appStore.UpsertConversation(summary)
 		return m, nil
 	case sendMessageSuccessMsg:
+		m.debugLog.AppendSend(msg.conversationID, m.appStore.CurrentUserID, "", msg.item.Content)
 		m.appStore.AppendMessage(msg.conversationID, msg.item)
 		m.touchConversation(msg.conversationID, msg.item.Content)
 		return m, nil
@@ -193,16 +215,22 @@ func (m RootModel) View() string {
 		if h <= 0 {
 			h = 24
 		}
+		// 登录时也初始化调试面板尺寸
+		if m.debugLog.width <= 0 {
+			m.debugLog.SetSize(40, h)
+		}
 		content := m.login.View()
 		if m.appStore.Toast.Message != "" {
 			content += "\n" + m.appStore.Toast.Message
 		}
 		return lipgloss.Place(w, h, lipgloss.Center, lipgloss.Center, content)
 	}
+
 	view := m.app.View()
 	if m.appStore.Toast.Message != "" {
 		view += "\n" + m.appStore.Toast.Message
 	}
+
 	return view
 }
 
@@ -234,6 +262,38 @@ func (m RootModel) openConversationCmd(conversationID string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
+
+		// 从持久化存储恢复消息到同步器
+		if m.syncer != nil {
+			if records := m.appStore.GetPersistedMessages(conversationID); len(records) > 0 {
+				m.debugLog.AppendInfo("[LOCAL] loaded from local store: " + conversationID)
+			}
+		}
+
+		// 使用同步器拉取和合并消息
+		if m.syncer != nil {
+			messages, err := m.syncer.OpenConversation(ctx, conversationID, 50)
+			if err != nil {
+				return appErrorMsg{err: err}
+			}
+
+			// 标记已读
+			var maxSeq int64
+			for _, msg := range messages {
+				if msg.Sequence > maxSeq {
+					maxSeq = msg.Sequence
+				}
+			}
+			if maxSeq > 0 {
+				m.client.MarkRead(ctx, conversationID, maxSeq)
+			}
+			return historyLoadedMsg{
+				conversationID: conversationID,
+				items:          messages,
+			}
+		}
+
+		// 降级：从客户端直接拉取
 		items, err := m.client.OpenConversation(ctx, conversationID, 50)
 		if err != nil {
 			return appErrorMsg{err: err}
@@ -245,9 +305,7 @@ func (m RootModel) openConversationCmd(conversationID string) tea.Cmd {
 			}
 		}
 		if maxSeq > 0 {
-			if _, err := m.client.MarkRead(ctx, conversationID, maxSeq); err != nil {
-				return appErrorMsg{err: err}
-			}
+			m.client.MarkRead(ctx, conversationID, maxSeq)
 		}
 		return historyLoadedMsg{
 			conversationID: conversationID,
@@ -273,21 +331,14 @@ func (m RootModel) sendMessageCmd(text string) tea.Cmd {
 	conversationID := m.appStore.ActiveConversation
 	currentUserID := m.appStore.CurrentUserID
 	requestID := newRequestID()
-	
-	// 调试日志：发送消息
-	//log.Printf("[SEND] conversationID=%s, userID=%s, requestID=%s, content=%q",
-	//	conversationID, currentUserID, requestID, text)
-	
+
 	return func() tea.Msg {
 		item, err := m.client.SendText(requestID, conversationID, text)
 		if err != nil {
-			log.Printf("[SEND ERROR] %v", err)
+			m.debugLog.AppendError("[SEND ERROR] " + err.Error())
 			return appErrorMsg{err: err}
 		}
-		// 调试日志：发送成功，SDK返回
-		//log.Printf("[SEND SUCCESS] serverMsgID=%s, clientMsgID=%s, returnedContent=%q",
-		//	item.ServerMsgID, item.ClientMsgID, string(item.Content))
-		
+
 		return sendMessageSuccessMsg{
 			conversationID: conversationID,
 			item: domain.MessageItem{
@@ -342,17 +393,25 @@ func (m RootModel) handleRealtimeEvent(event sdktypes.Event) (tea.Model, tea.Cmd
 		if event.Message == nil {
 			return m, next
 		}
-		
-		// 调试日志：收到实时消息
-		//log.Printf("[RECV] kind=realtime, conversationID=%s, senderID=%s, senderName=%s, content=%q, clientMsgID=%s, serverMsgID=%s",
-		//	event.ConversationID,
-		//	event.Message.SenderID,
-		//	event.Message.SenderName,
-		//	string(event.Message.Content),
-		//	event.Message.ClientMsgID,
-		//	event.Message.ServerMsgID)
-		
+
 		conversationID := event.ConversationID
+
+		m.debugLog.AppendRecv(conversationID, event.Message.SenderID, event.Message.SenderName,
+			string(event.Message.Content), event.Message.ClientMsgID, event.Message.ServerMsgID, event.Message.Sequence)
+
+		// 使用同步器处理消息（合并、gap repair）
+		if m.syncer != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			repaired, err := m.syncer.HandleRealtime(ctx, *event.Message)
+			if err != nil {
+				m.debugLog.AppendError("[SYNC] " + err.Error())
+			}
+			if repaired {
+				m.appStore.PushToast(domain.ToastKindInfo, T(m.locale, keyToastGapRepaired))
+			}
+		}
+
 		item := domain.MessageItem{
 			ID:          firstNonEmpty(event.Message.ServerMsgID, event.Message.ClientMsgID),
 			SenderID:    event.Message.SenderID,
@@ -360,11 +419,9 @@ func (m RootModel) handleRealtimeEvent(event sdktypes.Event) (tea.Model, tea.Cmd
 			Content:     string(event.Message.Content),
 			Self:        event.Message.SenderID == m.appStore.CurrentUserID,
 		}
-		
-		// 调试日志：Self 判断结果
-		//log.Printf("[RECV SELF CHECK] senderID=%s, currentUserID=%s, self=%v",
-		//	event.Message.SenderID, m.appStore.CurrentUserID, item.Self)
-		
+
+		m.debugLog.AppendSelfCheck(event.Message.SenderID, m.appStore.CurrentUserID, item.Self)
+
 		m.appStore.AppendMessage(conversationID, item)
 		m.touchConversation(conversationID, item.Content)
 		if m.appStore.ActiveConversation != conversationID {
@@ -383,6 +440,7 @@ func (m RootModel) handleRealtimeEvent(event sdktypes.Event) (tea.Model, tea.Cmd
 		return m, next
 	case sdktypes.EventKindError:
 		if event.Err != nil {
+			m.debugLog.AppendError("[ERR] " + event.Err.Error())
 			m.appStore.PushToast(domain.ToastKindError, event.Err.Error())
 		}
 		return m, next
@@ -403,9 +461,9 @@ func (m RootModel) touchConversation(conversationID, preview string) {
 		summary.UnreadCount = 0
 	}
 	m.appStore.UpsertConversation(summary)
-	
+
 	// 调试日志：会话更新
-	//log.Printf("[CONV TOUCH] conversationID=%s, preview=%q", conversationID, preview)
+	m.debugLog.AppendConvTouch(conversationID, preview)
 }
 
 func (m RootModel) isAuthenticated() bool {

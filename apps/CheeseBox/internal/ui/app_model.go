@@ -25,6 +25,8 @@ const (
 	// panelBodyHeight 面板内容区默认高度，也用作测试 fallback
 	panelBodyHeight  = 16
 	chatMessageGroups = 5
+	// debugPanelWidth 调试面板固定宽度
+	debugPanelWidth = 55
 )
 
 type AppModel struct {
@@ -39,6 +41,8 @@ type AppModel struct {
 	expanded bool
 	width    int
 	height   int
+	// 调试日志面板引用，由 RootModel 设置
+	debugLog *DebugLogModel
 }
 
 func NewAppModel(appStore *store.AppStore, cfg config.RuntimeConfig) AppModel {
@@ -89,15 +93,15 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		// 全局快捷键：使用 ctrl 组合，不干扰文本输入
-		switch msg.String() {
-		case "ctrl+f":
+		switch msg.Type {
+		case tea.KeyCtrlF:
 			m.expanded = !m.expanded
 			m.updateInputWidth()
 			return m, nil
-		case "ctrl+t":
+		case tea.KeyCtrlT:
 			m.theme = nextTheme(m.theme)
 			return m, nil
-		case "ctrl+l":
+		case tea.KeyCtrlL:
 			m.locale = nextLocale(m.locale)
 			m.applyText()
 			return m, nil
@@ -190,6 +194,12 @@ func (m AppModel) computeLayout() (listW, chatW, tabsW, bodyH int) {
 		h = 30
 	}
 
+	// 如果调试面板启用，预留其宽度（+2 是边框和间距）
+	debugOffset := 0
+	if m.debugLog != nil && m.debugLog.IsEnabled() {
+		debugOffset = debugPanelWidth + 2
+	}
+
 	if m.expanded {
 		// 固定行：tab(1) + hr(1) + hr底部(1) + 状态行(1) = 4
 		bodyH = h - 4
@@ -198,8 +208,8 @@ func (m AppModel) computeLayout() (listW, chatW, tabsW, bodyH int) {
 		}
 		// 扩展模式：无面板边框，直接使用内容宽度
 		// listW = w/4, chatW = 剩余 - divider(3)
-		listW = w / 4
-		chatW = w - listW - 3
+		listW = (w - debugOffset) / 4
+		chatW = w - debugOffset - listW - 3
 		tabsW = 0
 		return
 	}
@@ -212,7 +222,7 @@ func (m AppModel) computeLayout() (listW, chatW, tabsW, bodyH int) {
 	// 两个面板各有 border(2)+padding(2)=4 字符开销
 	// panelStyle 使用 RoundedBorder + Padding(0,1) = 左边框(1) + 左padding(1) + 右padding(1) + 右边框(1) = 4
 	// 两个面板总共需要 8 字符边框开销，再加2列用于 lipgloss 内部对齐
-	available := w - 8
+	available := w - 8 - debugOffset
 	if available < 30 {
 		available = 30
 	}
@@ -222,6 +232,11 @@ func (m AppModel) computeLayout() (listW, chatW, tabsW, bodyH int) {
 	// tabsW + 4 = (listW+4) + (chatW+4) → tabsW = listW + chatW + 4
 	tabsW = listW + chatW + 4
 	return
+}
+
+// SetDebugLog 设置调试日志面板引用
+func (m *AppModel) SetDebugLog(debugLog *DebugLogModel) {
+	m.debugLog = debugLog
 }
 
 func (m AppModel) View() string {
@@ -244,6 +259,20 @@ func (m AppModel) View() string {
 	// 与 list 保持一致的渲染方式
 	chat := theme.panelStyle().Width(chatW + 2).Height(bodyH).Render(chatContent)
 
+	// 主面板内容：tabs + list/chat
+	mainContent := strings.Join([]string{
+		tabs,
+		lipgloss.JoinHorizontal(lipgloss.Top, list, chat),
+	}, "\n")
+
+	// 如果调试日志启用，添加到右侧
+	if m.debugLog != nil && m.debugLog.IsEnabled() {
+		debugView := m.debugLog.ViewWithHeight(theme, bodyH+3) // +3 for tabs line
+		if debugView != "" {
+			mainContent = lipgloss.JoinHorizontal(lipgloss.Top, mainContent, debugView)
+		}
+	}
+
 	// 底部状态栏：提示文字居左，连接状态居右
 	statusText := theme.statusStyle().Render(T(m.locale, keyStatusLabel) + ": " + string(m.store.ConnectionStatus))
 	hintText := theme.hintStyle().Render(m.hintView())
@@ -254,11 +283,7 @@ func (m AppModel) View() string {
 	}
 	bottomBar := hintText + strings.Repeat(" ", gap) + statusText
 
-	return strings.Join([]string{
-		tabs,
-		lipgloss.JoinHorizontal(lipgloss.Top, list, chat),
-		bottomBar,
-	}, "\n")
+	return mainContent + "\n" + bottomBar
 }
 
 // expandedView 全屏无框布局，opencode 风格
@@ -370,7 +395,7 @@ func (m AppModel) selectedConversationID() (string, bool) {
 		if m.selected >= len(m.store.Groups) {
 			m.selected = len(m.store.Groups) - 1
 		}
-		return "c2:" + m.store.Groups[m.selected].GroupID, true
+		return "g:" + m.store.Groups[m.selected].GroupID, true
 	case domain.NavKeyFriends:
 		if len(m.store.Friends) == 0 {
 			return "", false

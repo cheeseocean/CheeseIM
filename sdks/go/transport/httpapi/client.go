@@ -189,7 +189,7 @@ func (c *Client) GetConversationReadSnapshots(ctx context.Context, accessToken s
 	return items, nil
 }
 
-func (c *Client) PullMessages(ctx context.Context, accessToken string, ranges []types.SeqRange, limitPerConversation int) ([]types.PulledConversationMessages, error) {
+func (c *Client) PullMessages(ctx context.Context, accessToken string, ranges []types.SeqRange, limitPerConversation int64) ([]types.PulledConversationMessages, error) {
 	body := map[string]any{
 		"limitPerConversation": limitPerConversation,
 	}

@@ -12,7 +12,7 @@ type RosterClient interface {
 	ListConversations(ctx context.Context, accessToken string) ([]types.Conversation, error)
 	GetConversationMaxSeqs(ctx context.Context, accessToken string) ([]types.ReadSnapshot, error)
 	GetConversationReadSnapshots(ctx context.Context, accessToken string) ([]types.ReadSnapshot, error)
-	PullMessages(ctx context.Context, accessToken string, ranges []types.SeqRange, limitPerConversation int) ([]types.PulledConversationMessages, error)
+	PullMessages(ctx context.Context, accessToken string, ranges []types.SeqRange, limitPerConversation int64) ([]types.PulledConversationMessages, error)
 	AckReadSeq(ctx context.Context, accessToken, conversationID string, readSeq int64) error
 }
 
@@ -64,7 +64,7 @@ func (s *RosterService) LoadInitialData(ctx context.Context, accessToken string)
 	}, nil
 }
 
-func (s *RosterService) PullMessages(ctx context.Context, accessToken string, ranges []types.SeqRange, limit int) ([]types.PulledConversationMessages, error) {
+func (s *RosterService) PullMessages(ctx context.Context, accessToken string, ranges []types.SeqRange, limit int64) ([]types.PulledConversationMessages, error) {
 	return s.client.PullMessages(ctx, accessToken, ranges, limit)
 }
 
