@@ -37,6 +37,13 @@ public interface UserConversationRepository {
      */
     void updateBatchFields(List<String> ownerUserIds, String conversationId, Map<String, Object> fields);
 
+    /**
+     * 删除指定用户维度的会话状态。
+     *
+     * <p>只影响 ownerUserId 自己的会话列表，不删除历史消息，也不影响其他参与者。
+     */
+    void delete(String ownerUserId, String conversationId);
+
     /** 查询单条会话业务状态，不存在时返回 null。 */
     UserConversation findOne(String ownerUserId, String conversationId);
 

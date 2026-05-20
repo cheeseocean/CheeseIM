@@ -10,6 +10,7 @@ import com.cheeseocean.im.apiserver.model.request.SetConversationsRequest;
 import com.cheeseocean.im.apiserver.model.request.AckReadSeqRequest;
 import com.cheeseocean.im.apiserver.model.response.ConversationIdsHashResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationIdsResponse;
+import com.cheeseocean.im.apiserver.model.response.ConversationIncrementalSyncResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationMaxSeqResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationReadSnapshotResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationResponse;
@@ -21,6 +22,7 @@ import com.cheeseocean.im.common.api.business.domain.User;
 import com.cheeseocean.im.common.api.business.domain.UserConversation;
 import com.cheeseocean.im.common.api.conversation.ConversationService;
 import com.cheeseocean.im.common.api.conversation.ConversationSyncService;
+import com.cheeseocean.im.common.api.dto.conversation.ConversationIncrementalSyncResult;
 import com.cheeseocean.im.common.api.dto.conversation.ConversationReadSnapshot;
 import com.cheeseocean.im.common.api.dto.conversation.PullMessages;
 import com.cheeseocean.im.common.api.dto.conversation.SeqRangeRequest;
@@ -105,6 +107,27 @@ public class ConversationFacade {
         return response;
     }
 
+    public ConversationIncrementalSyncResponse syncConversations(SessionPrincipal session,
+                                                                 String versionId,
+                                                                 Long version,
+                                                                 Long idHash) {
+        ConversationIncrementalSyncResult result = conversationService.syncConversations(
+                session.getUserId(),
+                versionId,
+                version == null ? 0L : version,
+                idHash == null ? 0L : idHash
+        );
+        ConversationIncrementalSyncResponse response = new ConversationIncrementalSyncResponse();
+        response.setVersionId(result.getVersionId());
+        response.setVersion(result.getVersion());
+        response.setIdHash(result.getIdHash());
+        response.setFull(result.isFull());
+        response.setInsert(result.getInsert().stream().map(this::toConversationResponse).filter(Objects::nonNull).toList());
+        response.setUpdate(result.getUpdate().stream().map(this::toConversationResponse).filter(Objects::nonNull).toList());
+        response.setDelete(result.getDelete());
+        return response;
+    }
+
     public ConversationIdsResponse getNotNotifyConversationIds(SessionPrincipal session) {
         ConversationIdsResponse response = new ConversationIdsResponse();
         response.setConversationIds(conversationService.getNotNotifyConversationIds(session.getUserId()));
@@ -121,6 +144,10 @@ public class ConversationFacade {
         List<String> ownerUserIds = new ArrayList<>(1);
         ownerUserIds.add(session.getUserId());
         conversationService.setConversations(ownerUserIds, request.getPayload());
+    }
+
+    public void deleteConversation(SessionPrincipal session, String conversationId) {
+        conversationService.deleteConversation(session.getUserId(), conversationId);
     }
 
     public List<ConversationMaxSeqResponse> getConversationMaxSeqs(SessionPrincipal session, List<String> conversationIds) {

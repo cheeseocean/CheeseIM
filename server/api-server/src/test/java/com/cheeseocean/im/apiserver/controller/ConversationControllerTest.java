@@ -9,6 +9,7 @@ import com.cheeseocean.im.apiserver.model.request.ListConversationsRequest;
 import com.cheeseocean.im.apiserver.model.request.SetConversationsRequest;
 import com.cheeseocean.im.apiserver.model.response.ConversationIdsHashResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationIdsResponse;
+import com.cheeseocean.im.apiserver.model.response.ConversationIncrementalSyncResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationResponse;
 import com.cheeseocean.im.apiserver.model.response.HistoryMessageResponse;
 import com.cheeseocean.im.common.api.dto.conversation.SetConversationRequest;
@@ -27,6 +28,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -184,6 +186,47 @@ class ConversationControllerTest {
                 .andExpect(status().isOk());
 
         verify(conversationFacade).setConversations(any(SessionPrincipal.class), any(SetConversationsRequest.class));
+    }
+
+    @Test
+    void deleteConversationShouldDelegateToFacade() throws Exception {
+        ConversationFacade conversationFacade = mock(ConversationFacade.class);
+        MockMvc mockMvc = mockMvc(conversationFacade);
+
+        mockMvc.perform(delete("/api/im/conversations/s:user-1:user-2")
+                        .header("Authorization", "Bearer token"))
+                .andExpect(status().isOk());
+
+        verify(conversationFacade).deleteConversation(any(SessionPrincipal.class), any(String.class));
+    }
+
+    @Test
+    void incrementalSyncShouldReturnConversationChanges() throws Exception {
+        ConversationFacade conversationFacade = mock(ConversationFacade.class);
+        ConversationIncrementalSyncResponse response = new ConversationIncrementalSyncResponse();
+        response.setVersionId("v1");
+        response.setVersion(3);
+        response.setIdHash(99);
+        response.setUpdate(List.of(conversationResponse("c1:userA:userB", 1, "userA", null)));
+        response.setDelete(List.of("c0"));
+        when(conversationFacade.syncConversations(any(SessionPrincipal.class), any(), any(Long.class), any(Long.class)))
+                .thenReturn(response);
+
+        MockMvc mockMvc = mockMvc(conversationFacade);
+
+        mockMvc.perform(get("/api/im/conversations/sync/incremental")
+                        .param("versionId", "v1")
+                        .param("version", "2")
+                        .param("idHash", "88")
+                        .header("Authorization", "Bearer token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.versionId").value("v1"))
+                .andExpect(jsonPath("$.version").value(3))
+                .andExpect(jsonPath("$.idHash").value(99))
+                .andExpect(jsonPath("$.update[0].conversationId").value("c1:userA:userB"))
+                .andExpect(jsonPath("$.delete[0]").value("c0"));
+
+        verify(conversationFacade).syncConversations(any(SessionPrincipal.class), any(), any(Long.class), any(Long.class));
     }
 
     private static MockMvc mockMvc(ConversationFacade conversationFacade) {

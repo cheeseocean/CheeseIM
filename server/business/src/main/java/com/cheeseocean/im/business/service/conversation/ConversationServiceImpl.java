@@ -5,10 +5,14 @@ import com.alicp.jetcache.CacheManager;
 import com.alicp.jetcache.anno.CacheType;
 import com.alicp.jetcache.template.QuickConfig;
 import com.cheeseocean.im.common.api.business.domain.UserConversation;
+import com.cheeseocean.im.common.api.business.domain.ConversationVersionLog;
 import com.cheeseocean.im.common.api.conversation.ConversationService;
+import com.cheeseocean.im.common.api.dto.conversation.ConversationIncrementalSyncResult;
 import com.cheeseocean.im.common.api.dto.conversation.SetConversationRequest;
 import com.cheeseocean.im.common.api.enums.ChatType;
+import com.cheeseocean.im.common.api.enums.ConversationVersionOperation;
 import com.cheeseocean.im.common.api.enums.ReceiveOption;
+import com.cheeseocean.im.common.core.business.repository.ConversationVersionLogRepository;
 import com.cheeseocean.im.common.core.business.repository.UserConversationRepository;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.stereotype.Service;
@@ -42,8 +46,10 @@ public class ConversationServiceImpl implements ConversationService {
     private static final int REMOTE_EXPIRE_SECONDS = 60 * 60 * 12;
     private static final int LOCAL_EXPIRE_SECONDS = 60 * 5;
     private static final int LOCAL_LIMIT = 1_000;
+    private static final int VERSION_SYNC_LIMIT = 200;
 
     private final UserConversationRepository stateRepository;
+    private final ConversationVersionLogRepository versionLogRepository;
     private final CacheManager cacheManager;
 
     /**
@@ -78,8 +84,10 @@ public class ConversationServiceImpl implements ConversationService {
     private Cache<String, List<String>> conversationNotReceiveUserIdsCache;
 
     public ConversationServiceImpl(UserConversationRepository stateRepository,
+                                   ConversationVersionLogRepository versionLogRepository,
                                    CacheManager cacheManager) {
         this.stateRepository = stateRepository;
+        this.versionLogRepository = versionLogRepository;
         this.cacheManager = cacheManager;
         this.conversationDetailCache = createCache("im:conv:detail:");
         this.conversationIdsCache = createCache("im:conv:ids:");
@@ -252,6 +260,40 @@ public class ConversationServiceImpl implements ConversationService {
     }
 
     @Override
+    public ConversationIncrementalSyncResult syncConversations(String ownerUserId, String versionId, long version, long idHash) {
+        ConversationIncrementalSyncResult result = new ConversationIncrementalSyncResult();
+        if (isBlank(ownerUserId)) {
+            result.setFull(true);
+            return result;
+        }
+
+        ConversationVersionLog latest = versionLogRepository.findLatest(ownerUserId).orElse(null);
+        long currentHash = getConversationIdsHash(ownerUserId);
+        result.setIdHash(currentHash);
+        if (latest != null) {
+            result.setVersionId(latest.getVersionId());
+            result.setVersion(latest.getVersion());
+        }
+
+        if (latest == null || isBlank(versionId) || !Objects.equals(latest.getVersionId(), versionId) || version > latest.getVersion()) {
+            fillFullSync(ownerUserId, result);
+            return result;
+        }
+        if (version == latest.getVersion()) {
+            result.setFull(false);
+            return result;
+        }
+
+        List<ConversationVersionLog> logs = versionLogRepository.findAfter(ownerUserId, versionId, version, VERSION_SYNC_LIMIT);
+        if (logs.size() >= VERSION_SYNC_LIMIT) {
+            fillFullSync(ownerUserId, result);
+            return result;
+        }
+        fillIncrementalSync(ownerUserId, logs, result);
+        return result;
+    }
+
+    @Override
     /**
      * 接收选项直接复用会话详情缓存，不单独维护字段级缓存副本。
      */
@@ -346,6 +388,7 @@ public class ConversationServiceImpl implements ConversationService {
         Map<String, Object> fields = buildUpdateFields(request);
         ConversationCacheEvictPlan plan = new ConversationCacheEvictPlan();
         for (String userId : userIds) {
+            boolean existed = stateRepository.findOne(userId, request.getConversationId()) != null;
             UserConversation state = buildExplicitState(
                     userId,
                     request.getConversationId(),
@@ -365,6 +408,11 @@ public class ConversationServiceImpl implements ConversationService {
             if (!fields.isEmpty()) {
                 stateRepository.updateFields(userId, request.getConversationId(), fields);
             }
+            versionLogRepository.append(
+                    userId,
+                    request.getConversationId(),
+                    existed ? ConversationVersionOperation.UPDATE : ConversationVersionOperation.INSERT
+            );
             plan.addDetail(userId, request.getConversationId());
             plan.addConversationIdsUser(userId);
             plan.addConversationIdsHashUser(userId);
@@ -379,16 +427,95 @@ public class ConversationServiceImpl implements ConversationService {
         evictAfterCommit(plan);
     }
 
+    @Override
+    @Transactional
+    public void deleteConversation(String ownerUserId, String conversationId) {
+        if (isBlank(ownerUserId) || isBlank(conversationId)) {
+            return;
+        }
+        stateRepository.delete(ownerUserId, conversationId);
+        versionLogRepository.append(ownerUserId, conversationId, ConversationVersionOperation.DELETE);
+        ConversationCacheEvictPlan plan = new ConversationCacheEvictPlan();
+        plan.addDetail(ownerUserId, conversationId);
+        plan.addConversationIdsUser(ownerUserId);
+        plan.addConversationIdsHashUser(ownerUserId);
+        plan.addPinnedUser(ownerUserId);
+        plan.addNotNotifyUser(ownerUserId);
+        plan.addNotReceiveConversation(conversationId);
+        evictAfterCommit(plan);
+    }
+
     /**
      * 初始化单个用户在该会话下的基础状态，并登记相关缓存失效计划。
      * 这里不写用户 seq 位点，避免在建会话时伪造 0L 的 maxSeq。
      */
     private void createParticipantConversation(UserConversation conversation, ConversationCacheEvictPlan plan) {
+        UserConversation existing = stateRepository.findOne(conversation.getOwnerUserId(), conversation.getConversationId());
+        if (existing != null) {
+            return;
+        }
         stateRepository.createIfAbsent(conversation);
+        versionLogRepository.append(
+                conversation.getOwnerUserId(),
+                conversation.getConversationId(),
+                ConversationVersionOperation.INSERT
+        );
         plan.addDetail(conversation.getOwnerUserId(), conversation.getConversationId());
         plan.addConversationIdsUser(conversation.getOwnerUserId());
         plan.addConversationIdsHashUser(conversation.getOwnerUserId());
         plan.addNotReceiveConversation(conversation.getConversationId());
+    }
+
+    private void fillFullSync(String ownerUserId, ConversationIncrementalSyncResult result) {
+        result.setFull(true);
+        List<UserConversation> conversations = stateRepository.findAll(ownerUserId);
+        result.setInsert(conversations == null ? new ArrayList<>() : conversations);
+        result.setUpdate(new ArrayList<>());
+        result.setDelete(new ArrayList<>());
+    }
+
+    private void fillIncrementalSync(String ownerUserId,
+                                     List<ConversationVersionLog> logs,
+                                     ConversationIncrementalSyncResult result) {
+        result.setFull(false);
+        if (logs == null || logs.isEmpty()) {
+            return;
+        }
+        Map<String, ConversationVersionOperation> lastOperationByConversation = new LinkedHashMap<>();
+        for (ConversationVersionLog log : logs) {
+            if (log != null && !isBlank(log.getConversationId()) && log.getOperation() != null) {
+                lastOperationByConversation.put(log.getConversationId(), log.getOperation());
+            }
+        }
+        List<String> upsertIds = lastOperationByConversation.entrySet().stream()
+                .filter(entry -> entry.getValue() != ConversationVersionOperation.DELETE)
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toCollection(ArrayList::new));
+        Map<String, UserConversation> current = stateRepository.findByIds(ownerUserId, upsertIds).stream()
+                .collect(Collectors.toMap(
+                        UserConversation::getConversationId,
+                        conversation -> conversation,
+                        (left, right) -> left,
+                        LinkedHashMap::new
+                ));
+        for (Map.Entry<String, ConversationVersionOperation> entry : lastOperationByConversation.entrySet()) {
+            String conversationId = entry.getKey();
+            ConversationVersionOperation operation = entry.getValue();
+            if (operation == ConversationVersionOperation.DELETE) {
+                result.getDelete().add(conversationId);
+                continue;
+            }
+            UserConversation conversation = current.get(conversationId);
+            if (conversation == null) {
+                result.getDelete().add(conversationId);
+                continue;
+            }
+            if (operation == ConversationVersionOperation.INSERT) {
+                result.getInsert().add(conversation);
+            } else {
+                result.getUpdate().add(conversation);
+            }
+        }
     }
 
     /**

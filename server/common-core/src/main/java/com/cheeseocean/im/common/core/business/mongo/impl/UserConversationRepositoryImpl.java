@@ -119,6 +119,15 @@ public class UserConversationRepositoryImpl implements UserConversationRepositor
     }
 
     @Override
+    public void delete(String ownerUserId, String conversationId) {
+        if (isBlank(ownerUserId) || isBlank(conversationId)) {
+            return;
+        }
+        Query query = Query.query(Criteria.where("_id").is(docId(ownerUserId, conversationId)));
+        mongoTemplate.remove(query, UserConversationDoc.class);
+    }
+
+    @Override
     public UserConversation findOne(String ownerUserId, String conversationId) {
         Query query = Query.query(Criteria.where("_id").is(docId(ownerUserId, conversationId)));
         UserConversationDoc doc = mongoTemplate.findOne(query, UserConversationDoc.class);

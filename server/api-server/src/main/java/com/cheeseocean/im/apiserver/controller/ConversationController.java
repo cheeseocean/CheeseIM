@@ -10,6 +10,7 @@ import com.cheeseocean.im.apiserver.model.request.PullMessagesRequest;
 import com.cheeseocean.im.apiserver.model.request.SetConversationsRequest;
 import com.cheeseocean.im.apiserver.model.response.ConversationIdsHashResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationIdsResponse;
+import com.cheeseocean.im.apiserver.model.response.ConversationIncrementalSyncResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationMaxSeqResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationReadSnapshotResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationResponse;
@@ -18,6 +19,7 @@ import com.cheeseocean.im.apiserver.model.response.PullMessagesResponse;
 import com.cheeseocean.im.common.api.dto.conversation.SetConversationRequest;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -77,6 +79,14 @@ public class ConversationController {
         return conversationFacade.getConversationIdsHash(session);
     }
 
+    @GetMapping("/sync/incremental")
+    public ConversationIncrementalSyncResponse syncConversations(SessionPrincipal session,
+                                                                 @RequestParam(required = false) String versionId,
+                                                                 @RequestParam(defaultValue = "0") long version,
+                                                                 @RequestParam(defaultValue = "0") long idHash) {
+        return conversationFacade.syncConversations(session, versionId, version, idHash);
+    }
+
     @GetMapping("/max-seqs")
     public List<ConversationMaxSeqResponse> getConversationMaxSeqs(SessionPrincipal session,
                                                                    @RequestParam(required = false) List<String> conversationIds) {
@@ -105,6 +115,12 @@ public class ConversationController {
         SetConversationsRequest request = new SetConversationsRequest();
         request.setPayload(payload);
         conversationFacade.setConversations(session, request);
+    }
+
+    @DeleteMapping("/{conversationId}")
+    public void deleteConversation(SessionPrincipal session,
+                                   @PathVariable String conversationId) {
+        conversationFacade.deleteConversation(session, conversationId);
     }
 
     @PostMapping("/sync/pull")
