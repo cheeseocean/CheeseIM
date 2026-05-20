@@ -32,7 +32,7 @@ class ChronicleQueueAdapterTest {
     }
 
     @Test
-    void shouldReuseAppenderWithinSameThreadAndTopic(@TempDir Path tempDir) {
+    void shouldReuseAppenderWithinSameThreadAndTopic(@TempDir Path tempDir) throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
         CountingChronicleQueueAdapter adapter = new CountingChronicleQueueAdapter(objectMapper, queueProperties(tempDir));
 

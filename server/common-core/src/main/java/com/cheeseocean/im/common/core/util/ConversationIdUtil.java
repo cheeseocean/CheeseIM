@@ -13,6 +13,9 @@ public final class ConversationIdUtil {
     }
 
     public static String buildConversationId(ChatType chatType, String senderId, String receiverId, String groupId) {
+        if (chatType == null) {
+            throw new IllegalArgumentException("chatType required");
+        }
         return switch (chatType) {
             case PRIVATE -> single(senderId, receiverId);
             case GROUP -> group(groupId);
