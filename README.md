@@ -1,309 +1,245 @@
 # CheeseIM
 
-中文/[英文](./README.en.md)
+CheeseIM 是一个面向自托管场景的开源 IM 服务端项目。当前仓库包含 Java 服务端、Go Client SDK、CheeseBox TUI 客户端以及配套文档。服务端采用模块化拆分：HTTP API、鉴权会话、业务域服务、长连接网关、消息接入、消息编排、推送分发分别由独立模块承担；开发环境优先使用 `bootstrap-all` 以单进程方式启动完整链路。
 
-CheeseIM 是一个即时通讯系统仓库，当前以 Java 17 的多模块后端为核心，同时包含客户端 Demo、Web/Flutter 客户端和 TCP SDK。
+[English](README.en.md)
 
-当前仓库重点在于一条经过重构的 IM 消息链路，主要服务边界如下：
+## 架构
 
-- `postoffice`：接入层、长连接管理、在线路由
-- `postman`：消息投递编排、幂等、补偿、状态收敛
-- `postbox`：消息持久化、历史查询、会话视图
-- `push`：在线投递执行、离线推送决策与适配
-- `authcenter`：轻量登录与认证引导
+```mermaid
+flowchart LR
+    Client[Client / Go SDK / CheeseBox] -->|HTTP REST| Api[api-server]
+    Client -->|TCP / WebSocket<br/>Protobuf| Office[postoffice]
 
-如果你是第一次进入仓库，建议先把它理解成一个 monorepo：
+    Api -->|Dubbo / injvm| Auth[authcenter]
+    Api -->|Dubbo / injvm| Biz[business]
+    Api -->|Dubbo / injvm| Box[postbox]
 
-- 根目录用于聚合服务端、客户端、SDK 与文档
-- 后端主要从 `server/` 目录构建和运行
-- 客户端和 SDK 在各自子目录独立开发
+    Office -->|连接鉴权 / 会话校验| Auth
+    Office -->|发送消息| Box
+
+    Box -->|IngressMessage| Queue[(Chronicle / Kafka)]
+    Queue --> Master[postmaster]
+    Master -->|写历史 / 会话序列| Mongo[(MongoDB)]
+    Master -->|投递事件| Delivery[(Delivery Queue)]
+    Delivery --> Man[postman]
+    Man -->|在线投递| Office
+    Man -->|离线推送| Push[Vendor Push]
+
+    Biz --> Mongo
+    Biz --> Cache[(JetCache / Redis)]
+    Master --> Seq[(Redis / RocksDB Seq State)]
+```
+
+### 消息链路
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant O as postoffice
+    participant B as postbox
+    participant M as postmaster
+    participant P as postman
+    participant DB as MongoDB
+
+    C->>O: AUTH(ticket)
+    O->>C: AUTH_ACK
+    C->>O: CHAT_MESSAGE(ProtoMessage)
+    O->>B: MessageSender.send(...)
+    B->>M: Ingress event
+    M->>M: 分配 conversation/user seq
+    M->>DB: 持久化历史块与会话状态
+    M->>P: Delivery event
+    P->>O: 在线投递
+    O->>C: CHAT_MESSAGE
+```
+
+## 模块定义
+
+| 模块 | 职责 |
+| --- | --- |
+| `server/api-server` | 统一 HTTP 入口。Controller 只处理 REST 入参、鉴权 Principal、Facade 编排和 Response 封装，不把 HTTP Response 模型下沉到业务 Service。 |
+| `server/authcenter` | 访问令牌、刷新令牌、WS/TCP ticket、会话生命周期、设备踢下线、连接鉴权。 |
+| `server/business` | 用户、好友、黑名单、群成员、会话、同步点等业务域服务实现；使用 JetCache 做业务缓存。 |
+| `server/postoffice` | TCP/WS 长连接网关。负责 Protobuf 编解码、连接管理、在线路由、心跳、踢下线和在线投递。 |
+| `server/postbox` | 消息发送入口与历史查询入口。实现 `MessageSender`，发布 ingress event，并对外提供历史消息查询能力。 |
+| `server/postmaster` | 消息编排核心。消费 ingress event，分配会话序列，写入历史块，维护用户会话序列范围，并生成投递事件。 |
+| `server/postman` | 投递与离线推送模块。消费 delivery/offline push event，调用 `postoffice` 在线投递或走 vendor push。 |
+| `server/common-api` | 跨模块 API、领域模型、枚举、事件模型、Protobuf 协议定义。 |
+| `server/common-core` | 通用基础设施：Mongo Repository、队列抽象、JetCache 配置、通知发送、序列状态、工具类。 |
+| `server/config` | Spring/YAML 配置集合，包含 all-in-one 与各模块配置片段。 |
+| `server/bootstrap-all` | 开发与本地联调推荐入口。单 JVM 装配所有模块，Dubbo 走 injvm。 |
+| `sdks/go` | Go 侧通用 IM Client SDK，供 CheeseBox 和后续其他应用复用。 |
+| `apps/CheeseBox` | 基于 Go SDK 的 TUI 聊天应用，用于真实端到端联调。 |
+
+## 已实现能力
+
+- HTTP 鉴权：登录、刷新、登出、设备踢下线、WS/TCP ticket 签发。
+- TCP/WS 长连接：统一使用 Protobuf envelope，支持鉴权、心跳、消息发送 ACK、服务端下行消息、错误响应。
+- 单聊/群聊消息链路：消息接入、选项判断、会话序列分配、历史块持久化、在线投递、离线推送事件。
+- 会话同步：可见会话列表、会话 ID hash、会话 max seq、read snapshot、按 seq range 拉取历史消息、read seq ACK。
+- 社交关系：用户设置、好友申请、好友关系、黑名单、群成员查询。
+- 通知体系：`NotificationSender` 基于 `MessageSender` 发送系统通知，通知规则集中在 common-core。
+- 客户端侧：`sdks/go` 提供通用 IM Client 能力，CheeseBox 作为 TUI 应用集成该 SDK。
+
+## 关键约束
+
+- `api-server` 是 HTTP 出入口。Request/Response 模型只应存在于 `api-server`，底层 Service 返回领域模型或基础结果。
+- `authcenter` 拥有令牌、ticket、session 与连接鉴权逻辑；`postoffice` 只持有连接态和在线路由。
+- TCP/WS 协议以 `common-api/src/main/proto/message_protocol.proto` 为准，不再使用 JSON 命令体。
+- 会话列表不再持有最新消息快照。最后一条消息由客户端缓存或通过同步/历史消息接口按需加载。
+- 消息 seq 不应使用通用 `SequenceIdGenerator` 替代。会话消息序列需要 Redis/RocksDB 区间分配状态与 Mongo 持久化状态协同。
+- 集群部署需要 Redis 承担分布式缓存与序列分配状态；单机降级可使用本地 RocksDB 状态，但不能跨节点保证全局一致。
+- 当前本地开发推荐 `bootstrap-all`。独立模块启动前需要校准启动类中的 `spring.config.name` 与 `server/config/src/main/resources/application-*.yml` 文件名，并接入真实 Dubbo 注册中心。
+
+## 开发环境
+
+推荐版本：
+
+- JDK 17
+- Gradle Wrapper：使用仓库内 `./gradlew`
+- MongoDB 6.x+
+- Redis 6.x+
+- 可选：Kafka / Nacos。all-in-one 默认使用 Chronicle 队列和 injvm Dubbo，本地开发可先不启 Kafka/Nacos。
+- Go 1.22+：用于 `sdks/go` 与 `apps/CheeseBox`
+
+启动中间件示例：
+
+```bash
+cd distro/docker
+docker compose -f docker-compose.middleware.yml up -d
+```
+
+该 compose 文件当前包含 Nacos、Kafka、Zookeeper、Kafka Console；MongoDB 和 Redis 需要单独启动，或使用本机已有实例。
+
+## 启动服务端
+
+推荐使用 all-in-one：
+
+```bash
+cd server
+./gradlew :bootstrap-all:bootRun
+```
+
+默认端口：
+
+| 服务 | 端口 |
+| --- | --- |
+| HTTP API | `18079` |
+| WebSocket | `5147`，默认 path `/ws` |
+| TCP | `5148` |
+| Dubbo | all-in-one 使用 injvm，不开放固定 Dubbo 端口 |
+
+常用 API 示例：
+
+```bash
+curl -sS -X POST http://127.0.0.1:18079/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"userId":"u100","platformId":1,"deviceId":"dev-u100","clientVersion":"dev"}'
+```
+
+```bash
+curl -sS -X POST http://127.0.0.1:18079/api/im/ws-ticket \
+  -H "Authorization: Bearer ${ACCESS_TOKEN}"
+```
+
+分模块部署目标端口在配置中定义：
+
+| 模块 | 配置文件 | 默认 Dubbo 端口 |
+| --- | --- | --- |
+| `authcenter` | `application-authcenter.yml` / `module-authcenter.yml` | `20884` |
+| `business` | `application-business.yml` / `module-business.yml` | `20885` |
+| `postoffice` | `application-postoffice.yml` / `module-postoffice.yml` | `20880` |
+| `postbox` | `application-postbox.yml` / `module-postbox.yml` | `20882` |
+| `postmaster` | `application-postmaster.yml` / `module-postmaster.yml` | `20881` |
+| `postman` | `application-postman.yml` / `module-postman.yml` | `20883` |
+
+## 启动 CheeseBox
+
+CheeseBox 是真实 TUI 客户端，不是 mock client。它通过 Go SDK 登录 HTTP API、申请 ticket，并连接 TCP/WS 长连接。
+
+```bash
+cd sdks/go
+go test ./...
+```
+
+```bash
+cd apps/CheeseBox
+go test ./...
+go run ./cmd/cheesebox
+```
+
+默认服务端地址以 CheeseBox 配置为准；本地 all-in-one 通常使用 `http://127.0.0.1:18079` 和 `127.0.0.1:5148`。
+
+## 测试指南
+
+服务端编译：
+
+```bash
+cd server
+./gradlew compileJava
+```
+
+按模块执行测试：
+
+```bash
+./gradlew :api-server:test
+./gradlew :business:test
+./gradlew :postoffice:test
+./gradlew :postmaster:test
+./gradlew :postbox:test
+./gradlew :postman:test
+```
+
+端到端联调建议：
+
+1. 启动 MongoDB 与 Redis。
+2. 启动 `:bootstrap-all:bootRun`。
+3. 启动两个 CheeseBox 客户端，分别登录不同用户。
+4. 通过好友/会话列表发起聊天。
+5. 验证在线消息投递、重启客户端后的历史同步、read seq ACK。
+
+如果只修改文档，至少执行：
+
+```bash
+git diff --check
+```
+
+## 文档状态
+
+优先维护的文档：
+
+- `README.md`：项目入口、服务端架构、模块边界、启动与测试指南。
+- `server/postoffice/docs/TCP_PROTOCOL.md`：TCP/WS Protobuf 协议说明。
+- `server/postoffice/README.md`、`server/postbox/README.md`、`server/postmaster/README.md`、`server/postman/README.md`：模块职责说明。
+- `apps/CheeseBox/README.md`、`apps/CheeseBox/arch.md`：TUI 客户端说明。
+
+参考型文档：
+
+- `server/postmaster/docs/ConversationArch.md`、`server/postmaster/docs/SeqArch.md`：会话和 seq 设计背景。
+- `docs/Open-IM-Server-数据同步设计文档.md`、`docs/OpenIM-SDK-Core-数据同步设计文档.md`：OpenIM 对照分析，仅作为设计参考。
+- `docs/superpowers/specs/**` 与 `docs/superpowers/plans/**`：历史重构过程记录，可能包含阶段性方案，不能替代当前代码事实。
 
 ## 仓库结构
 
 ```text
-CheeseIM/
-├── server/                  # Java 17 Gradle 多模块后端
-│   ├── authcenter/          # 认证服务
-│   ├── bootstrap-all/       # all-in-one 启动聚合模块
-│   ├── common-api/          # 跨模块 API/契约
-│   ├── common-core/         # 共享基础设施与通用能力
-│   ├── config/              # 多服务配置文件
-│   ├── postoffice/          # 网关 / TCP / WebSocket 接入
-│   ├── postman/             # 投递编排与状态机
-│   ├── postbox/             # 消息存储与查询
-│   └── push/                # 在线投递执行与离线推送
-├── apps/
-│   ├── im_flutter_client/   # Flutter 客户端
-│   ├── im_java_client_demo/ # Java TCP 客户端 Demo
-│   └── im_web_client/       # React + Vite Web 客户端
-├── sdks/
-│   └── im_tcp_sdk/          # Dart TCP SDK
-├── distro/docker/           # 本地中间件编排
-└── docs/                    # 运行手册、设计文档、计划文档
+.
+├── apps
+│   └── CheeseBox          # TUI 客户端
+├── distro                 # 本地中间件与辅助脚本
+├── docs                   # 设计文档与历史方案
+├── sdks
+│   └── go                 # Go IM Client SDK
+└── server                 # Java 服务端
+    ├── api-server
+    ├── authcenter
+    ├── business
+    ├── bootstrap-all
+    ├── common-api
+    ├── common-core
+    ├── config
+    ├── postbox
+    ├── postman
+    ├── postmaster
+    └── postoffice
 ```
-
-## 核心服务职责
-
-### `postoffice`
-
-`postoffice` 是接入层与在线路由层，负责：
-
-- 处理 TCP / WebSocket 长连接
-- 认证、心跳、断连与会话绑定
-- 维护用户-设备-网关节点的在线路由
-- 规范化客户端消息与回执后转发给后续服务
-
-它不负责最终消息真相、离线存储或完整投递编排。
-
-### `postman`
-
-`postman` 是消息链路中的编排核心，负责：
-
-- 消息幂等校验
-- 会话序列分配
-- 投递状态推进
-- 回执、已读、撤回等状态收敛
-- 补偿任务与死信处理
-
-它不直接承担查询侧存储模型，也不负责网关接入。
-
-### `postbox`
-
-`postbox` 是存储边界，负责：
-
-- 持久化消息历史
-- 维护消息块和消息 ID 映射
-- 提供历史拉取、会话视图与部分查询能力
-- 维护与会话状态相关的 Redis 热数据
-
-### `push`
-
-`push` 是投递执行与离线推送边界，负责：
-
-- 消费投递事件并执行在线投递
-- 判断是否需要厂商离线推送
-- 对推送尝试去重
-- 在回执收敛后取消过期推送
-- 对接 APNs / FCM / 极光等推送适配器
-
-### `authcenter`
-
-`authcenter` 提供轻量认证入口，当前主要用于本地联调和 Demo 登录流程。
-
-## 技术栈
-
-### 后端
-
-- Java 17
-- Gradle 多模块构建
-- Spring Boot 3.2.x
-- Apache Dubbo 3.x
-- Netty
-- Kafka
-- Redis
-- MongoDB
-
-### 客户端与 SDK
-
-- React + Vite Web 客户端
-- Flutter 客户端
-- Dart TCP SDK
-- Java TCP CLI Demo
-
-## 基础依赖
-
-按当前配置，后端默认依赖以下中间件：
-
-- Nacos：服务注册与配置中心
-- Kafka：异步事件流与投递链路
-- Redis：在线路由、热状态、幂等/缓存数据
-- MongoDB：消息历史与持久化查询数据
-
-仓库内已提供本地中间件编排文件：
-
-```bash
-docker-compose -f distro/docker/docker-compose.middleware.yml up -d
-```
-
-该编排当前包含：
-
-- `nacos`
-- `kafka`
-- `zookeeper`
-- `kafka-console`
-
-说明：
-
-- Redis 和 MongoDB 需要你自行准备，默认地址分别是 `localhost:6379` 与 `localhost:27017`
-- 后端配置文件位于 `server/config/src/main/resources/`
-
-## 运行方式
-
-### 1. 启动中间件
-
-在仓库根目录执行：
-
-```bash
-docker-compose -f distro/docker/docker-compose.middleware.yml up -d
-```
-
-### 2. 进入服务端目录
-
-后端 Gradle Wrapper 位于 `server/`：
-
-```bash
-cd server
-```
-
-### 3. 构建服务端
-
-```bash
-./gradlew build
-```
-
-### 4. 启动核心服务
-
-本地联调通常需要分别启动以下模块：
-
-```bash
-./gradlew :authcenter:bootRun
-./gradlew :postbox:bootRun
-./gradlew :postman:bootRun
-./gradlew :push:bootRun
-./gradlew :postoffice:bootRun
-```
-
-### 5. 启动 all-in-one 模式
-
-如果你希望以单进程方式本地运行全部后端模块，可以使用 `bootstrap-all`：
-
-```bash
-./gradlew :bootstrap-all:bootRun
-```
-
-当前 `application-all.yml` 显示：
-
-- all-in-one HTTP 端口为 `18079`
-- Dubbo 使用 `injvm`，不注册到外部注册中心
-
-## 常用端口
-
-按当前配置文件，默认端口如下：
-
-- `postoffice` HTTP：`18080`
-- `postoffice` WebSocket：`5147`
-- `postoffice` TCP：`5148`
-- `postman` HTTP：`18081`
-- `postbox` HTTP：`18082`
-- `push` HTTP：`18083`
-- `authcenter` HTTP：`18084`
-- `bootstrap-all` HTTP：`18079`
-- Nacos：`8848`
-- Kafka：`9092`
-
-## 客户端与 Demo
-
-### Java TCP Client Demo
-
-`apps/im_java_client_demo` 是当前后端联调最直接的客户端 Demo，用来验证：
-
-- 登录
-- TCP 连接与认证
-- 单聊文本消息发送
-- 入站消息接收
-
-运行方式：
-
-```bash
-cd server
-./gradlew :apps:im_java_client_demo:cli-demo:run --args="--host 127.0.0.1 --tcp-port 5148 --base-url http://127.0.0.1:18084"
-```
-
-说明：
-
-- 上面的命令使用当前仓库 `authcenter` 的默认 HTTP 端口 `18084`
-- `apps/im_java_client_demo/README.md` 中仍保留了旧示例 `8080`
-- 使用前请根据你的本地启动方式确认 `base-url`
-
-### Web / Flutter / Dart SDK
-
-仓库中还包含：
-
-- `apps/im_web_client`
-- `apps/im_flutter_client`
-- `sdks/im_tcp_sdk`
-
-它们的开发与测试入口可参考 [docs/client-runbook.md](/Users/xxxcrel/Develop/backend/java/CheeseIM/docs/client-runbook.md)。
-
-## 测试与验证
-
-### 后端单模块测试
-
-在 `server/` 目录执行：
-
-```bash
-./gradlew :postoffice:test
-./gradlew :postman:test
-./gradlew :postbox:test
-./gradlew :push:test
-```
-
-### 本地冒烟验证
-
-项目内已有本地 IM 冒烟手册：
-
-[docs/superpowers/runbooks/im-local-smoke-test.md](/Users/xxxcrel/Develop/backend/java/CheeseIM/docs/superpowers/runbooks/im-local-smoke-test.md)
-
-其中包含：
-
-- 在线投递
-- 离线回退
-- 重连拉取
-- 已读后取消推送
-
-最小回归命令示例：
-
-```bash
-cd server
-./gradlew :postbox:test :postman:test :push:test :postoffice:test
-```
-
-## 配置入口
-
-当前主要配置文件位于：
-
-- `server/config/src/main/resources/common.yml`
-- `server/config/src/main/resources/application-postoffice.yml`
-- `server/config/src/main/resources/application-postman.yml`
-- `server/config/src/main/resources/application-postbox.yml`
-- `server/config/src/main/resources/application-push.yml`
-- `server/config/src/main/resources/application-authcenter.yml`
-- `server/config/src/main/resources/application-all.yml`
-
-模块级默认行为包括：
-
-- `postoffice` 默认开启 WebSocket 和 TCP 接入
-- `postman` 默认开启补偿监听
-- `push` 默认开启定时任务
-- `postbox` 默认启用 MongoDB、Redis、Kafka 相关配置
-
-## 设计文档
-
-如果你想先理解当前重构后的架构，而不是直接读代码，建议先看：
-
-- [docs/superpowers/specs/2026-03-17-im-architecture-design.md](/Users/xxxcrel/Develop/backend/java/CheeseIM/docs/superpowers/specs/2026-03-17-im-architecture-design.md)
-- [docs/superpowers/specs/2026-03-17-im-message-pipeline-invariants.md](/Users/xxxcrel/Develop/backend/java/CheeseIM/docs/superpowers/specs/2026-03-17-im-message-pipeline-invariants.md)
-- [docs/client-runbook.md](/Users/xxxcrel/Develop/backend/java/CheeseIM/docs/client-runbook.md)
-
-`server/` 目录下也保留了较多历史设计资料与重构文档，可作为深入阅读入口。
-
-## 当前状态与注意事项
-
-这个仓库当前更适合被理解为“正在收敛中的 IM 系统实现”，而不是一个已经把所有面向终端产品能力都打磨完成的成品。
-
-阅读和使用时建议注意：
-
-- 根目录是 monorepo，不要直接假设后端命令都在根目录执行
-- 后端实际构建和启动入口在 `server/`
-- 本文档只描述当前代码与配置能支撑的事实
-- 某些旧 Demo 或设计文档中的端口示例可能和当前默认配置不同，运行前请以 `server/config` 下配置为准

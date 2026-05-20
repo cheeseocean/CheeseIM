@@ -1,95 +1,61 @@
-这份设计文档专门针对 OpenIM 消息中转与定序模块 (MsgTransfer) 的底层实现细节进行深度建模。它基于对 online_history_msg_handler.go 和 msg_transfer.go
-的代码级分析，旨在为系统重构、AI 逻辑推理或高性能 IM 开发提供精确的架构蓝图。
+# Sequence Architecture
 
-  ---
+本文描述 CheeseIM 当前消息 seq 分配设计。实现需要同时支持集群部署和单机无 Redis 降级。
 
-分布式消息定序与中转系统 (MsgTransfer) 深度设计文档
+## 目标
 
-1. 系统目标
-   在高并发环境下，确保消息流转满足以下三要素：
-* 绝对时序 (Strict Ordering)：同会话内消息 Seq 严格递增且不跳号。
-* 高吞吐量 (High Throughput)：利用窗口聚合减少 IO 争用。
-* 最终一致性 (Consistency)：确保缓存、推送、数据库三者状态最终对齐。
+- 同一 `conversationId` 内 seq 严格递增。
+- 批量申请 seq 区间，减少 Redis/Mongo IO。
+- MongoDB 保存最终进度，缓存或本地状态只作为加速层。
+- 集群模式依赖 Redis 保证跨节点唯一分配。
+- 单机模式允许 RocksDB 顶上 Redis 状态，但不承诺跨节点全局一致。
 
-  ---
+## 组件
 
-2. 核心组件交互模型
+| 组件 | 说明 |
+| --- | --- |
+| `ConversationSeqService` | `postmaster` 内的消息定序入口。 |
+| `SequenceIdGenerator` | 通用 ID 生成器，不应用于会话消息 seq。 |
+| Redis seq allocator | 集群模式下的区间申请状态。 |
+| RocksDB seq state | 单机降级状态，用于无 Redis 本地运行。 |
+| MongoDB `ConversationRange` | 持久化会话 seq 范围，是最终事实来源。 |
+| `UserConversationSyncPoint` | 用户侧同步点，用于多端历史同步。 |
 
-2.1 窗口聚合器 (Aggregator - batcher.Batcher)
-* 核心配置:
-    * Size: 500 (单批次最大消息数)
-    * Interval: 100ms (最大等待延迟)
-    * Worker: 50 (并发处理协程数)
-* 分片策略 (Sharding):
-    * 算法：Hash(ConversationID) % WorkerCount
-    * 关键特性: 强制保证同一会话的所有消息由同一个 Worker 顺序处理，这是消除并发冲突、保证时序的基础。
+## 分配流程
 
-2.2 消息定序控制器 (Sequencer - BatchInsertChat2Cache)
-这是系统最核心的逻辑块，执行以下原子操作：
+```mermaid
+flowchart TD
+    A[postmaster 收到同会话消息批次] --> B[按 conversationId 串行处理]
+    B --> C{Redis 可用?}
+    C -- yes --> D[Redis 原子申请 seq 区间]
+    C -- no, single node --> E[RocksDB 本地申请 seq 区间]
+    D --> F[为批次内消息逐条赋 seq]
+    E --> F
+    F --> G[写历史块]
+    G --> H[更新 Mongo ConversationRange]
+    H --> I[更新 UserConversationSyncPoint]
+    I --> J[生成投递事件]
+```
 
-1. 区间申请 (Malloc):
-    * 操作：Redis.INCRBY(SEQ_KEY_PREFIX + ConvID, batch_size)
-    * 返回：NewMaxSeq (分配后的最大序号)
-2. 内存分配:
-    * 计算 startSeq = NewMaxSeq - batch_size + 1
-    * 遍历 Batch，逐一赋值 msg.Seq = startSeq++
-3. 写穿/写回缓存:
-    * 将消息对象转换为 MsgInfoModel 并写入 Redis ZSET。
-    * Score 为 Seq，确保缓存本身也是有序的。
-4. 返回元数据:
-    * lastMaxSeq: 插入前的最大序号（用于入库连续性校验）。
-    * isNewConversation: 标识该会话是否为首次产出消息。
-    * userSeqMap: 发送者 ID 及其最新 Seq 的映射，用于更新发送者本人的已读位置。
+## Redis 与 Lua
 
-  ---
+Redis 区间申请的核心要求是“读取当前值 + 增量推进 + 返回新旧边界”必须原子化。可以用 Lua 脚本实现，也可以用 Redis 原生命令组合实现，但前提是操作必须在 Redis 侧保持原子语义。
 
-3. 消息流转流水线 (Pipeline)
+推荐策略：
 
-3.1 分类阶段 (Categorization)
-在 categorizeMessageLists 中，消息按 Options 被切分为四类：
-* StorageMsg: 历史消息，需分配 Seq，需存库，需推送。
-* NotStorageMsg: 状态类消息（如：正在输入），不分配 Seq，不存库，仅推送。
-* StorageNotification: 存储类通知（如：群成员变更），逻辑同存储消息。
-* NotStorageNotification: 瞬时通知。
+- 简单 `INCRBY` 足以返回新区间上界时，可以由客户端计算 `startSeq = newMax - size + 1`。
+- 如果还需要同时维护过期时间、初始化标记、多 key 元数据或对 Mongo snapshot 做校验，则使用 Lua 更清晰。
+- 不要用 Jedis/Lettuce 的多次普通命令模拟原子流程，除非包在事务或脚本中，并确认返回边界无竞态。
 
-3.2 处理阶段 (handleMsg)
-对聚合后的同 Key 消息执行以下链式操作：
+## Mongo 一致性
 
-1. 快速推送非存储消息: 先调用 toPushTopic 发送 notStorageList，保证实时性。
-2. 定序与缓存: 执行 BatchInsertChat2Cache。
-3. 已读状态更新:
-    * 同步调用 SetHasReadSeqs 更新 Redis 缓存中的已读 Seq。
-    * 异步将该状态放入 conversationUserHasReadChan 通道，由专门的协程写入数据库。
-4. 会话补偿: 如果 isNewConversation == true，触发 RPC 调用自动创建会话关系。
-5. 持久化驱动:
-    * 调用 MsgToMongoMQ，Payload 包含 lastMaxSeq。
-    * AI 校验点: 入库端通过检查 lastMaxSeq + 1 == Batch.First.Seq 来发现丢失的消息块。
-6. 正式推送: 调用 toPushTopic 发送带 Seq 的存储消息。
+- MongoDB 保存会话范围和历史块，是故障恢复时的基准。
+- Redis/RocksDB 启动时可以从 Mongo 的 max seq 恢复或校准。
+- 如果缓存状态小于 Mongo max seq，必须以 Mongo 为准推进缓存。
+- 如果缓存状态大于 Mongo max seq，需要检查是否存在已分配但未落库的消息批次，不能直接回退。
 
-  ---
+## 客户端同步影响
 
-4. 数据结构规格 (Data Specification)
-
-4.1 Redis 存储结构
-* Seq 计数器: String | Key: SEQ:{ConvID} | Value: int64
-* 消息缓存: ZSet | Key: MSG_CACHE:{ConvID} | Score: Seq | Value: Protobuf(MsgData)
-* 已读状态: Hash | Key: READ_SEQ:{ConvID} | Field: UserID | Value: Seq
-
-4.2 内部交换对象 (ContextMsg)
-
-1 type ContextMsg struct {
-2     message *sdkws.MsgData // 原始消息体
-3     ctx     context.Context // 携带 TraceID/OperationID 的上下文
-4 }
-
-  ---
-
-5. 异常处理机制
-* Seq 断号/重复: 由于采用 Redis 原子 INCRBY 结合内存单线程分配（Worker 分片），系统天然免疫 Seq 重复。
-* 入库顺序性: MsgToMongoMQ 显式传递 lastSeq。如果入库端检测到 lastSeq 与数据库当前 maxSeq 不符，系统会挂起该批次并从 Redis 缓存中主动回拉数据，实现自愈。
-
-  ---
-
-6. 总结 (AI 分析要点)
-* 核心优势: 这是一个“分片串行化”设计。它将全局并发通过 Hash 分解为多个局部串行流，在局部流内利用窗口聚合（Batching）和原子区间分配（Malloc）极大提升了定序效率。
-* 因果律: 因为先分配了 Seq 并写入了有序缓存，所以后续的推送（Push）和持久化（Mongo）可以完全异步并行，且不担心顺序丢失。
+- 服务端实时推送只是优化路径，不是唯一消息来源。
+- 客户端发现 seq gap 时，按 conversationId 和 seq range 拉取历史。
+- 多端登录时，每个端都基于用户侧 sync point 和本地缓存判断缺口。

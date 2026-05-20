@@ -1,63 +1,65 @@
 # Client Runbook
 
+当前客户端侧以 Go SDK 和 CheeseBox 为主。历史 Dart/Flutter/Web 客户端文档已经不再代表当前代码结构，相关旧方案只保留在 `docs/superpowers/**` 作为过程记录。
+
 ## Workspace
 
-- `packages/im_tcp_sdk`: Dart TCP SDK for Flutter/mobile/desktop
-- `apps/im_flutter_client`: Flutter client shell
-- `apps/im_web_client`: React + Vite Web client
-- `postoffice`: gateway contract source of truth
+| 路径 | 说明 |
+| --- | --- |
+| `sdks/go` | 通用 Go IM Client SDK，封装 HTTP 登录、ticket 获取、TCP/WS 连接、消息收发和同步能力。 |
+| `apps/CheeseBox` | TUI 聊天应用，集成 `sdks/go`，用于真实双端联调。 |
+| `server/postoffice` | 长连接协议与网关实现，协议以 Protobuf 为准。 |
+| `server/api-server` | HTTP API 入口，提供登录、ticket、会话同步、好友/用户相关接口。 |
 
 ## Protocol Boundary
 
-- Flutter/Dart SDK uses TCP framed `CheeseMessage`
-- Web client uses `WSMessage` JSON over WebSocket
-- Current gateway behavior pushes `CONNECT_SUCCESS` from server first, then client auths
+- HTTP API 用于登录、刷新 token、申请长连接 ticket、会话同步、好友和用户设置。
+- TCP/WebSocket 用于实时长连接消息，统一承载 `ProtoClientEnvelope` / `ProtoServerEnvelope`。
+- WebSocket 不再使用 JSON envelope；TCP/WS 都以 `message_protocol.proto` 为准。
+- 客户端本地只缓存展示状态和同步游标，服务端消息历史以 MongoDB 历史块为准。
 
 ## Common Commands
 
-### Dart SDK
+### Server
 
 ```bash
-cd packages/im_tcp_sdk
-dart test
+cd server
+./gradlew :bootstrap-all:bootRun
 ```
 
-### Flutter Client
+### Go SDK
 
 ```bash
-cd apps/im_flutter_client
-flutter test test/features
-flutter run
+cd sdks/go
+go test ./...
 ```
 
-### Web Client
+### CheeseBox
 
 ```bash
-cd apps/im_web_client
-npm test
-npm run dev
+cd apps/CheeseBox
+go test ./...
+go run ./cmd/cheesebox
 ```
 
-### Backend Contract Tests
+## Manual Smoke Test
 
-```bash
-cd .
-./gradlew :postoffice:test --tests com.cheeseocean.im.postoffice.client.TcpClientTest --tests com.cheeseocean.im.postoffice.WebSocketTestClient
-```
+1. 启动 MongoDB 与 Redis。
+2. 启动 `server:bootstrap-all`。
+3. 打开两个终端，分别启动 CheeseBox。
+4. 使用两个不同用户登录。
+5. 通过好友/会话入口发送消息。
+6. 验证在线消息到达。
+7. 重启其中一个 CheeseBox，验证会话同步与历史消息拉取。
 
 ## Current Coverage
 
-- Dart SDK: framing, protocol mapping, reconnect guard, normalized errors, buffer reset
-- Flutter: login flow, auth/network state handling, real SDK-backed text send, inbound stream consumption, chat shell layout, failed-send retry
-- Web: WS message builders, WebSocket lifecycle callbacks, session store transitions, conversation aggregation, login/chat UI smoke tests
+- Go SDK：HTTP 登录、ticket 获取、长连接认证、消息发送、下行消息监听、同步接口封装。
+- CheeseBox：TUI 登录、会话/好友导航、左右消息布局、主题/语言设置、真实服务端连接。
+- Server：all-in-one 本地联调、Protobuf 长连接协议、会话同步 HTTP API。
 
 ## Current Limitations
 
-- Neither client includes persistence, history pagination, or file/image messages yet
-- Web UI currently keeps presentation intentionally minimal; no styling system or responsive polish yet
-
-## Suggested Next Integration Step
-
-1. Add real gateway-backed end-to-end manual runs for Flutter and Web against local `postoffice`
-2. Extend SDK/Web transport to cover message failure responses, force logout, and heartbeat scheduling in UI runtime
-3. Add history loading, persistence, and richer message types on top of the current client state model
+- 文件、图片、语音等富媒体消息仍需继续补齐。
+- 分模块部署需要先校准独立启动配置和 Dubbo 注册中心。
+- 旧 Flutter/Web/Dart 客户端路径不属于当前主线。

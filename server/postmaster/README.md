@@ -1,38 +1,37 @@
-# Postman
+# Postmaster
 
-`postman` is the orchestration core of the rebuilt IM architecture.
+`postmaster` 是 CheeseIM 的消息编排模块。它消费 ingress event，完成消息序列分配、历史持久化、用户会话序列推进，并生成后续投递事件。
 
-## Responsibility
+## 职责
 
-- consume normalized ingress events from `postbox`
-- enforce idempotency and allocate stable conversation `seq`
-- orchestrate history fanout to `postbox`
-- orchestrate delivery fanout to `push`
-- converge ack, read, and recall state
-- schedule compensation and dead-letter handling for incomplete delivery
+- 消费 `postbox` 发布的 ingress event。
+- 为单聊/群聊消息分配 conversation seq 与用户侧 max seq。
+- 根据消息选项决定是否写历史、是否计未读、是否生成投递事件。
+- 将消息写入 MongoDB 历史块。
+- 维护用户会话范围、同步点和 read/max seq 相关状态。
+- 生成 delivery/offline push event，交给 `postman` 投递。
 
-## Core Types
+## 非职责
 
-- `IngressEventListener`
-- `ConversationSeqService`
-- `MessageIdempotencyService`
-- `DeliveryCompensationService`
-- `MessageStateService`
+- 不直接接收 TCP/WS 客户端连接。
+- 不处理 HTTP 请求。
+- 不生成登录 token 或长连接 ticket。
+- 不实现 vendor push。
 
-## Not In Scope
+## 关键类
 
-The module does not carry query-side or storage-side ownership:
+| 类 | 说明 |
+| --- | --- |
+| `PostMaster` | 独立模块启动入口。 |
+| `IngressEventListener` | ingress event 消费入口。 |
+| `HistoryEventListener` | 历史事件消费入口。 |
+| `ConversationSeqService` | 会话消息序列分配。 |
+| `DefaultMessagePolicyEngine` | 消息策略判断。 |
+| `BlockHistoryPersistenceService` | 历史块持久化。 |
+| `UserMaxSeqPersistenceWriter` | 用户会话 max seq 推进。 |
+| `GroupFanoutPlanner` | 群消息扇出规划。 |
 
-- history-query APIs
-- Mongo persistence models
-- history persistence models
+## 设计文档
 
-History truth lives in `postbox`, online dispatch lives in `postoffice`, and delivery execution lives in `push`.
-
-## Verification
-
-```bash
-./gradlew :postman:test
-```
-
-Key regressions are concentrated in `postman/src/test/java/com/cheeseocean/im/postman/service`.
+- `docs/ConversationArch.md`：会话模型设计背景。
+- `docs/SeqArch.md`：seq 分配与缓存/持久化设计背景。
