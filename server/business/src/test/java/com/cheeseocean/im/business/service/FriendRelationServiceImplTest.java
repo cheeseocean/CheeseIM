@@ -50,7 +50,7 @@ class FriendRelationServiceImplTest {
         assertEquals(HandleResultEnum.PENDING, request.getHandleResult());
         assertEquals("hello there", request.getReqMsg());
         verify(requestRepository).update(any(FriendRequest.class));
-        verify(notifier).friendRequestCreated("userA", "userB");
+        verify(notifier).friendRequestCreated("userA", "userB",  "hello there");
     }
 
     @Test

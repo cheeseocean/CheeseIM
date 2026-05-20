@@ -157,7 +157,7 @@ public class FriendRelationServiceImpl implements FriendRelationService {
             request.setCreateTime(now);
             request.setUpdatedAt(now);
             friendRequestRepository.update(request);
-            friendRealtimeNotifier.friendRequestCreated(userId, friendUserId);
+            friendRealtimeNotifier.friendRequestCreated(userId, friendUserId, requestMessage);
             result = request;
         } else {
             result = existing;

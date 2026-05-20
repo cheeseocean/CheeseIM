@@ -7,6 +7,8 @@ import com.cheeseocean.im.common.api.enums.ChatType;
 import java.util.EnumMap;
 import java.util.Map;
 
+import static com.cheeseocean.im.common.api.enums.ContentType.*;
+
 /**
  * 通知规则注册表。
  *
@@ -17,17 +19,6 @@ import java.util.Map;
 public final class NotificationRules {
 
     private static final Map<ContentType, NotificationRule> RULES = createDefaults();
-    private static final Map<String, NotificationRule> FRIEND_RULES = createFriendDefaults();
-
-    public static final String FRIEND_REQUEST_CREATED = "friend_request_created";
-    public static final String FRIEND_REQUEST_ACCEPTED = "friend_request_accepted";
-    public static final String FRIEND_REQUEST_REJECTED = "friend_request_rejected";
-    public static final String FRIEND_REQUEST_CANCELLED = "friend_request_cancelled";
-    public static final String FRIEND_DELETED = "friend_deleted";
-    public static final String FRIEND_REMARK_SET = "friend_remark_set";
-    public static final String BLACK_ADDED = "black_added";
-    public static final String BLACK_DELETED = "black_deleted";
-    public static final String FRIEND_INFO_UPDATED = "friend_info_updated";
 
     private NotificationRules() {
     }
@@ -40,25 +31,6 @@ public final class NotificationRules {
             throw new IllegalArgumentException("contentType required");
         }
         return RULES.getOrDefault(contentType, defaultSingleRule(contentType));
-    }
-
-    /**
-     * 根据内容类型和业务通知类型获取规则。
-     *
-     * <p>好友通知虽然当前仍使用 {@link ContentType#SYSTEM_NOTIFY} 承载，
-     * 但不同 notificationType 在会话类型、离线推送文案上存在差异。
-     */
-    public static NotificationRule get(ContentType contentType, String notificationType) {
-        if (contentType == null) {
-            throw new IllegalArgumentException("contentType required");
-        }
-        if (contentType == ContentType.SYSTEM_NOTIFY && notificationType != null && !notificationType.isBlank()) {
-            NotificationRule friendRule = FRIEND_RULES.get(notificationType);
-            if (friendRule != null) {
-                return friendRule;
-            }
-        }
-        return get(contentType);
     }
 
     private static Map<ContentType, NotificationRule> createDefaults() {
@@ -115,6 +87,7 @@ public final class NotificationRules {
                         null
                 )
         );
+        rules.putAll(createFriendDefaults());
         return rules;
     }
 
@@ -131,10 +104,10 @@ public final class NotificationRules {
         );
     }
 
-    private static Map<String, NotificationRule> createFriendDefaults() {
-        Map<String, NotificationRule> rules = new java.util.LinkedHashMap<>();
+    private static Map<ContentType, NotificationRule> createFriendDefaults() {
+        Map<ContentType, NotificationRule> rules = new java.util.LinkedHashMap<>();
         rules.put(
-                FRIEND_REQUEST_CREATED,
+                FRIEND_REQUEST,
                 friendRule("New friend request", "You have a new friend request")
         );
         rules.put(
@@ -154,15 +127,15 @@ public final class NotificationRules {
                 friendRule("Friend removed", "A friend relationship has been removed")
         );
         rules.put(
-                FRIEND_REMARK_SET,
+                FRIEND_REMARK_MODIFIED,
                 friendRule("Friend remark updated", "Your friend's remark has been updated")
         );
         rules.put(
-                BLACK_ADDED,
+                ADDED_TO_BLACKLIST,
                 friendRule("Blacklist updated", "A user has been added to your blacklist")
         );
         rules.put(
-                BLACK_DELETED,
+                REMOVED_FROM_BLACKLIST,
                 friendRule("Blacklist updated", "A user has been removed from your blacklist")
         );
         rules.put(

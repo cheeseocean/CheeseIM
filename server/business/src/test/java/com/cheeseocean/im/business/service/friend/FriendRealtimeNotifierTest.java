@@ -17,18 +17,17 @@ class FriendRealtimeNotifierTest {
     @Test
     void friendRequestCreatedShouldSendNotificationToBothParticipants() {
         NotificationSender notificationSender = mock(NotificationSender.class);
-        when(notificationSender.sendToUser(any(), any(), any(), any(), any(), any()))
+        when(notificationSender.sendToUser(any(), any(), any(), any(), any()))
                 .thenReturn(new SendMessageResp());
 
         FriendRealtimeNotifier notifier = new FriendRealtimeNotifier(notificationSender);
 
-        notifier.friendRequestCreated("userA", "userB");
+        notifier.friendRequestCreated("userA", "userB",  "hello there");
 
         verify(notificationSender, times(2)).sendToUser(
                 eq("userA"),
                 any(),
-                eq(ContentType.SYSTEM_NOTIFY),
-                eq("friend_request_created"),
+                eq(ContentType.FRIEND_REQUEST),
                 any(),
                 any()
         );

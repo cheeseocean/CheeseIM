@@ -40,12 +40,24 @@ public enum ContentType implements IEnum {
     FRIEND_REQUEST_ACCEPTED(202, "好友申请已接受"),
     /** 好友申请已拒绝。 */
     FRIEND_REQUEST_REJECTED(203, "好友申请已拒绝"),
+    /**
+     * 好友申请已取消
+     */
+    FRIEND_REQUEST_CANCELLED(204, "好友申请已拒绝"),
+    /**
+     * 好友备注已修改
+     */
+    FRIEND_REMARK_MODIFIED(205, "好友备注已修改"),
+    /**
+     * 好友信息已更新
+     */
+    FRIEND_INFO_UPDATED(206, "好友信息已更新"),
     /** 好友已删除。 */
-    FRIEND_DELETED(204, "好友已删除"),
+    FRIEND_DELETED(207, "好友已删除"),
     /** 被加入黑名单提示。 */
-    ADDED_TO_BLACKLIST(205, "被加入黑名单"),
+    ADDED_TO_BLACKLIST(208, "被加入黑名单"),
     /** 对方将你移出黑名单。 */
-    REMOVED_FROM_BLACKLIST(206, "被移出黑名单"),
+    REMOVED_FROM_BLACKLIST(209, "被移出黑名单"),
 
     // ========== 群组相关通知 ==========
     /** 入群申请。 */

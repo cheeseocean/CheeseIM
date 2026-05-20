@@ -51,7 +51,7 @@ public class NotificationSender {
                                       String recvUserId,
                                       ContentType contentType,
                                       Object payload) {
-        return sendToUser(sendUserId, recvUserId, contentType, null, payload, null);
+        return sendToUser(sendUserId, recvUserId, contentType, payload, null);
     }
 
     /**
@@ -60,11 +60,10 @@ public class NotificationSender {
     public SendMessageResp sendToUser(String sendUserId,
                                       String recvUserId,
                                       ContentType contentType,
-                                      String notificationType,
                                       Object payload,
                                       Map<String, String> attributes) {
-        NotificationRule rule = NotificationRules.get(contentType, notificationType);
-        return send(sendUserId, recvUserId, null, contentType, rule.chatType(), notificationType, payload, attributes);
+        NotificationRule rule = NotificationRules.get(contentType);
+        return send(sendUserId, recvUserId, null, contentType, rule.chatType(), payload, attributes);
     }
 
     /**
@@ -74,7 +73,7 @@ public class NotificationSender {
                                              Collection<String> recvUserIds,
                                              ContentType contentType,
                                              Object payload) {
-        return sendToUsers(sendUserId, recvUserIds, contentType, null, payload, null);
+        return sendToUsers(sendUserId, recvUserIds, contentType, payload, null);
     }
 
     /**
@@ -83,7 +82,6 @@ public class NotificationSender {
     public List<SendMessageResp> sendToUsers(String sendUserId,
                                              Collection<String> recvUserIds,
                                              ContentType contentType,
-                                             String notificationType,
                                              Object payload,
                                              Map<String, String> attributes) {
         if (recvUserIds == null || recvUserIds.isEmpty()) {
@@ -92,7 +90,7 @@ public class NotificationSender {
         return recvUserIds.stream()
                 .filter(StringUtils::hasText)
                 .distinct()
-                .map(recvUserId -> sendToUser(sendUserId, recvUserId, contentType, notificationType, payload, attributes))
+                .map(recvUserId -> sendToUser(sendUserId, recvUserId, contentType, payload, attributes))
                 .collect(Collectors.toCollection(ArrayList::new));
     }
 
@@ -107,7 +105,7 @@ public class NotificationSender {
                                 ContentType contentType,
                                 ChatType chatType,
                                 Object payload) {
-        return send(sendUserId, recvUserId, groupId, contentType, chatType, null, payload, null);
+        return send(sendUserId, recvUserId, groupId, contentType, chatType, payload, null);
     }
 
     /**
@@ -118,10 +116,9 @@ public class NotificationSender {
                                 String groupId,
                                 ContentType contentType,
                                 ChatType chatType,
-                                String notificationType,
                                 Object payload,
                                 Map<String, String> attributes) {
-        Message message = buildMessage(sendUserId, recvUserId, groupId, contentType, chatType, notificationType, payload, attributes);
+        Message message = buildMessage(sendUserId, recvUserId, groupId, contentType, chatType, payload, attributes);
         return messageSender.sendMessage(new SendMessageReq(message));
     }
 
@@ -133,11 +130,10 @@ public class NotificationSender {
                                  String groupId,
                                  ContentType contentType,
                                  ChatType chatType,
-                                 String notificationType,
                                  Object payload,
                                  Map<String, String> attributes) {
         validateRouting(recvUserId, groupId, chatType);
-        NotificationRule rule    = NotificationRules.get(contentType, notificationType);
+        NotificationRule rule    = NotificationRules.get(contentType);
         Message          message = new Message();
         long             now     = System.currentTimeMillis();
         message.setClientMsgId(IdGenerator.generateMsgId());
@@ -153,7 +149,6 @@ public class NotificationSender {
         message.setSource(MessageSource.SYSTEM);
         message.setOptions(buildOptions(rule, chatType));
         message.setOfflinePushInfo(copyOfflinePushInfo(rule.offlinePushInfoTemplate()));
-        message.setAttributes(mergeAttributes(notificationType, attributes));
         return message;
     }
 

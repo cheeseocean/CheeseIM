@@ -23,43 +23,47 @@ public class FriendRealtimeNotifier {
         this.notificationSender = notificationSender;
     }
 
-    public void friendRequestCreated(String fromUserId, String toUserId) {
-        notifyUsers("friend_request_created", fromUserId, toUserId);
+    public void friendRequestCreated(String fromUserId, String toUserId, String remark) {
+        notifyUsers(ContentType.FRIEND_REQUEST, fromUserId, toUserId, remark);
     }
 
     public void friendRequestAccepted(String userId, String friendUserId) {
-        notifyUsers("friend_request_accepted", userId, friendUserId);
+        notifyUsers(ContentType.FRIEND_REQUEST_ACCEPTED, userId, friendUserId);
     }
 
     public void friendRequestRejected(String userId, String friendUserId) {
-        notifyUsers("friend_request_rejected", userId, friendUserId);
+        notifyUsers(ContentType.FRIEND_REQUEST_REJECTED, userId, friendUserId);
     }
 
     public void friendRequestCancelled(String userId, String friendUserId) {
-        notifyUsers("friend_request_cancelled", userId, friendUserId);
+        notifyUsers(ContentType.FRIEND_REQUEST_CANCELLED, userId, friendUserId);
     }
 
     public void friendDeleted(String userId, String friendUserId) {
-        notifyUsers("friend_deleted", userId, friendUserId);
+        notifyUsers(ContentType.FRIEND_DELETED, userId, friendUserId);
     }
 
-    public void friendRemarkSet(String userId, String friendUserId) {
-        notifyUsers("friend_remark_set", userId, friendUserId);
+    public void friendRemarkModified(String userId, String friendUserId) {
+        notifyUsers(ContentType.FRIEND_REMARK_MODIFIED, userId, friendUserId);
     }
 
     public void blackAdded(String userId, String targetUserId) {
-        notifyUsers("black_added", userId, targetUserId);
+        notifyUsers(ContentType.ADDED_TO_BLACKLIST, userId, targetUserId);
     }
 
     public void blackDeleted(String userId, String targetUserId) {
-        notifyUsers("black_deleted", userId, targetUserId);
+        notifyUsers(ContentType.REMOVED_FROM_BLACKLIST, userId, targetUserId);
     }
 
     public void friendInfoUpdated(String userId, String friendUserId) {
-        notifyUsers("friend_info_updated", userId, friendUserId);
+        notifyUsers(ContentType.FRIEND_INFO_UPDATED, userId, friendUserId);
     }
 
-    private void notifyUsers(String notificationType, String actorUserId, String targetUserId) {
+    private void notifyUsers(ContentType contentType, String actorUserId, String targetUserId) {
+        notifyUsers(contentType, actorUserId, targetUserId, null);
+    }
+
+    private void notifyUsers(ContentType contentType, String actorUserId, String targetUserId, String remark) {
         if (actorUserId == null || targetUserId == null) {
             return;
         }
@@ -69,7 +73,7 @@ public class FriendRealtimeNotifier {
         targets.add(actorUserId);
         targets.add(targetUserId);
         for (String recipientUserId : targets) {
-            FriendRelationEvent event = buildEvent(recipientUserId, notificationType, actorUserId, targetUserId, now);
+            FriendRelationEvent event = buildEvent(recipientUserId, actorUserId, targetUserId, now);
             try {
                 Map<String, String> attributes = new LinkedHashMap<>();
                 attributes.put("actorUserId", actorUserId);
@@ -77,15 +81,14 @@ public class FriendRealtimeNotifier {
                 notificationSender.sendToUser(
                         actorUserId,
                         recipientUserId,
-                        ContentType.SYSTEM_NOTIFY,
-                        notificationType,
+                        contentType,
                         event,
                         attributes
                 );
             } catch (RuntimeException ex) {
                 log.warn(
                         "failed to send friend notification, notificationType={}, actorUserId={}, recipientUserId={}",
-                        notificationType,
+                        contentType,
                         actorUserId,
                         recipientUserId,
                         ex
@@ -95,7 +98,6 @@ public class FriendRealtimeNotifier {
     }
 
     private FriendRelationEvent buildEvent(String recipientUserId,
-                                           String notificationType,
                                            String actorUserId,
                                            String targetUserId,
                                            long occurredAt) {
@@ -103,7 +105,6 @@ public class FriendRealtimeNotifier {
         event.setRecipientUserId(recipientUserId);
         event.setActorUserId(actorUserId);
         event.setPeerUserId(recipientUserId.equals(actorUserId) ? targetUserId : actorUserId);
-        event.setEventType(notificationType);
         event.setOccurredAt(occurredAt);
         return event;
     }
