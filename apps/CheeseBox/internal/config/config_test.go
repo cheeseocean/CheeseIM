@@ -19,7 +19,7 @@ func TestLoadRuntimeConfig_UsesDefaultValuesWhenEnvUnset(t *testing.T) {
 	if got, want := cfg.DeviceID, "cheesebox-dev"; got != want {
 		t.Fatalf("DeviceID = %q, want %q", got, want)
 	}
-	if got, want := cfg.Platform, "desktop"; got != want {
+	if got, want := cfg.Platform, "cli"; got != want {
 		t.Fatalf("Platform = %q, want %q", got, want)
 	}
 }

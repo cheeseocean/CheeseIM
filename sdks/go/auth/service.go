@@ -77,10 +77,22 @@ func (s *AuthService) Events() <-chan tcpim.Event {
 func platformID(platform string) int {
 	switch platform {
 	case "ios":
-		return 2
-	case "android":
-		return 3
-	default:
 		return 1
+	case "android":
+		return 2
+	case "windows":
+		return 3
+	case "osx", "mac", "macos":
+		return 4
+	case "web":
+		return 5
+	case "miniweb", "mini_web":
+		return 6
+	case "linux":
+		return 7
+	case "cli":
+		return 8
+	default:
+		return 0
 	}
 }

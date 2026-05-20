@@ -36,16 +36,31 @@ func TestAuthServiceLoginReturnsTicketError(t *testing.T) {
 	}
 }
 
-type fakeAccessTokenIssuer struct {
-	userID   string
-	password string
-	token    string
-	err      error
+func TestAuthServiceLoginUsesCliPlatformID(t *testing.T) {
+	tokenIssuer := &fakeAccessTokenIssuer{token: "token-1"}
+	service := NewAuthService(tokenIssuer, &fakeTicketIssuer{ticket: types.WsTicket{Ticket: "ticket-1"}}, &fakeAuthConnector{userID: "user-1"})
+
+	if _, err := service.Login(context.Background(), "user-1", "secret", "device-1", "cli", "127.0.0.1:9000"); err != nil {
+		t.Fatalf("Login() error = %v", err)
+	}
+
+	if got, want := tokenIssuer.platformID, 8; got != want {
+		t.Fatalf("platformID = %d, want %d", got, want)
+	}
 }
 
-func (f *fakeAccessTokenIssuer) Login(_ context.Context, userID, password string, _ int, _ string, _ string) (string, error) {
+type fakeAccessTokenIssuer struct {
+	userID     string
+	password   string
+	platformID int
+	token      string
+	err        error
+}
+
+func (f *fakeAccessTokenIssuer) Login(_ context.Context, userID, password string, platformID int, _ string, _ string) (string, error) {
 	f.userID = userID
 	f.password = password
+	f.platformID = platformID
 	return f.token, f.err
 }
 

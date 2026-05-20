@@ -91,6 +91,7 @@ public enum PlatformType implements IEnum {
             case "web" -> WEB;
             case "miniweb", "mini_web" -> MINI_WEB;
             case "linux" -> LINUX;
+            case "cli" -> CLI;
             default -> UNKNOWN;
         };
     }
