@@ -44,35 +44,49 @@ type addFriendSuccessMsg struct {
 	friendUserID string
 }
 
+type conversationSyncSuccessMsg struct {
+	result sdktypes.ConversationSyncResult
+}
+
+var newUserPersister = func(userID string) (store.Persister, error) {
+	return store.NewPersistedStoreForUser("", userID)
+}
+
 type IMClient interface {
 	Login(ctx context.Context, userID, password string) (sdktypes.BootstrapData, error)
 	Reconnect(ctx context.Context) (sdktypes.BootstrapData, error)
 	OpenConversation(ctx context.Context, conversationID string, limit int) ([]sdktypes.Message, error)
+	PullMessages(ctx context.Context, ranges []sdktypes.SeqRange, limitPerConversation int64) ([]sdktypes.PulledConversationMessages, error)
 	SendText(requestID, conversationID, text string) (sdktypes.Message, error)
 	AddFriend(ctx context.Context, friendUserID, message string) error
 	MarkRead(ctx context.Context, conversationID string, readSeq int64) error
 	Events() <-chan sdktypes.Event
 	CurrentUserID() string
+	GetSyncedMaxSeq(conversationID string) int64
+	GetServerMaxSeq(conversationID string) int64
+	UpdateSyncedMaxSeq(conversationID string, seq int64)
+	GetConversationCursor() sdktypes.ConversationSyncCursor
+	UpdateConversationCursor(cursor sdktypes.ConversationSyncCursor)
+	SyncConversations(ctx context.Context) (sdktypes.ConversationSyncResult, error)
 }
 
 type RootModel struct {
-	cfg       config.RuntimeConfig
-	login     LoginModel
-	app       AppModel
-	client    IMClient
-	syncer    *sync.Syncer
-	appStore  *store.AppStore
-	theme     ThemeName
-	locale    LocaleName
-	expanded  bool
-	debugLog  *DebugLogModel
-	width     int
-	height    int
+	cfg      config.RuntimeConfig
+	login    LoginModel
+	app      AppModel
+	client   IMClient
+	syncer   *sync.Syncer
+	appStore *store.AppStore
+	theme    ThemeName
+	locale   LocaleName
+	expanded bool
+	debugLog *DebugLogModel
+	width    int
+	height   int
 }
 
 func NewRootModel(cfg config.RuntimeConfig, client IMClient) RootModel {
-	persister, _ := store.NewPersistedStore("")
-	appStore := store.NewWithPersister(persister)
+	appStore := store.New()
 	root := RootModel{
 		cfg:      cfg,
 		login:    NewLoginModel(),
@@ -91,6 +105,12 @@ func NewRootModel(cfg config.RuntimeConfig, client IMClient) RootModel {
 	root.app.SetExpanded(root.expanded)
 	root.debugLog.SetEnabled(false)
 	root.app.SetDebugLog(root.debugLog)
+	root.syncer = sync.NewSyncer(
+		sync.NewMemoryStore(),
+		sync.NewSDKPuller(client),
+		client.GetServerMaxSeq,
+		client.UpdateSyncedMaxSeq,
+	)
 	return root
 }
 
@@ -134,8 +154,14 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case loginSuccessMsg:
 		m.appStore.SetConnectionStatus(domain.ConnectionStatusConnected)
 		m.appStore.SetCurrentUserID(m.client.CurrentUserID())
+		m.useUserPersister(m.client.CurrentUserID())
+		m.client.UpdateConversationCursor(m.appStore.ConversationCursor)
 		m.applyBootstrapData(msg.data)
-		return m, m.waitRealtimeEventCmd()
+		return m, tea.Batch(m.syncConversationsCmd(), m.waitRealtimeEventCmd())
+	case conversationSyncSuccessMsg:
+		m.applyConversationSyncResult(msg.result)
+		m.appStore.SetConversationCursor(msg.result.ConversationSyncCursor)
+		return m, nil
 	case OpenConversationMsg:
 		return m, m.openConversationCmd(msg.ConversationID)
 	case SubmitInputMsg:
@@ -154,13 +180,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.appStore.SetActiveConversation(msg.conversationID)
 		items := make([]domain.MessageItem, 0, len(msg.items))
 		for _, item := range msg.items {
-			items = append(items, domain.MessageItem{
-				ID:          firstNonEmpty(item.ServerMsgID, item.ClientMsgID),
-				SenderID:    item.SenderID,
-				SenderLabel: firstNonEmpty(item.SenderName, item.SenderID),
-				Content:     string(item.Content),
-				Self:        item.SenderID == m.appStore.CurrentUserID,
-			})
+			items = append(items, toMessageItem(msg.conversationID, item, m.appStore.CurrentUserID))
 		}
 		m.appStore.SetMessages(msg.conversationID, items)
 		summary := m.appStore.Conversations[msg.conversationID]
@@ -258,6 +278,18 @@ func (m RootModel) reconnectCmd() tea.Cmd {
 	}
 }
 
+func (m RootModel) syncConversationsCmd() tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		result, err := m.client.SyncConversations(ctx)
+		if err != nil {
+			return appErrorMsg{err: err}
+		}
+		return conversationSyncSuccessMsg{result: result}
+	}
+}
+
 func (m RootModel) openConversationCmd(conversationID string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -270,8 +302,8 @@ func (m RootModel) openConversationCmd(conversationID string) tea.Cmd {
 			}
 		}
 
-		// 使用同步器拉取和合并消息
-		if m.syncer != nil {
+		// 使用同步器拉取和合并消息；没有服务端 maxSeq 快照时降级到客户端历史接口。
+		if m.syncer != nil && m.client.GetServerMaxSeq(conversationID) > 0 {
 			messages, err := m.syncer.OpenConversation(ctx, conversationID, 50)
 			if err != nil {
 				return appErrorMsg{err: err}
@@ -341,13 +373,7 @@ func (m RootModel) sendMessageCmd(text string) tea.Cmd {
 
 		return sendMessageSuccessMsg{
 			conversationID: conversationID,
-			item: domain.MessageItem{
-				ID:          firstNonEmpty(item.ServerMsgID, item.ClientMsgID),
-				SenderID:    currentUserID,
-				SenderLabel: "me",
-				Content:     string(item.Content),
-				Self:        true,
-			},
+			item:           toMessageItem(conversationID, item, currentUserID),
 		}
 	}
 }
@@ -399,30 +425,40 @@ func (m RootModel) handleRealtimeEvent(event sdktypes.Event) (tea.Model, tea.Cmd
 		m.debugLog.AppendRecv(conversationID, event.Message.SenderID, event.Message.SenderName,
 			string(event.Message.Content), event.Message.ClientMsgID, event.Message.ServerMsgID, event.Message.Sequence)
 
+		item := toMessageItem(conversationID, *event.Message, m.appStore.CurrentUserID)
+		messagesApplied := false
+
 		// 使用同步器处理消息（合并、gap repair）
 		if m.syncer != nil {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			repaired, err := m.syncer.HandleRealtime(ctx, *event.Message)
+			result, err := m.syncer.HandleRealtime(ctx, *event.Message)
 			if err != nil {
 				m.debugLog.AppendError("[SYNC] " + err.Error())
+			} else {
+				if result.ConversationID != "" {
+					conversationID = result.ConversationID
+					item = toMessageItem(conversationID, *event.Message, m.appStore.CurrentUserID)
+				}
+				if len(result.Messages) > 0 {
+					items := make([]domain.MessageItem, 0, len(result.Messages))
+					for _, message := range result.Messages {
+						items = append(items, toMessageItem(conversationID, message, m.appStore.CurrentUserID))
+					}
+					m.appStore.SetMessages(conversationID, items)
+					messagesApplied = true
+				}
+				if result.Repaired {
+					m.appStore.PushToast(domain.ToastKindInfo, T(m.locale, keyToastGapRepaired))
+				}
 			}
-			if repaired {
-				m.appStore.PushToast(domain.ToastKindInfo, T(m.locale, keyToastGapRepaired))
-			}
-		}
-
-		item := domain.MessageItem{
-			ID:          firstNonEmpty(event.Message.ServerMsgID, event.Message.ClientMsgID),
-			SenderID:    event.Message.SenderID,
-			SenderLabel: firstNonEmpty(event.Message.SenderName, event.Message.SenderID),
-			Content:     string(event.Message.Content),
-			Self:        event.Message.SenderID == m.appStore.CurrentUserID,
 		}
 
 		m.debugLog.AppendSelfCheck(event.Message.SenderID, m.appStore.CurrentUserID, item.Self)
 
-		m.appStore.AppendMessage(conversationID, item)
+		if !messagesApplied {
+			m.appStore.AppendMessage(conversationID, item)
+		}
 		m.touchConversation(conversationID, item.Content)
 		if m.appStore.ActiveConversation != conversationID {
 			summary := m.appStore.Conversations[conversationID]
@@ -447,6 +483,18 @@ func (m RootModel) handleRealtimeEvent(event sdktypes.Event) (tea.Model, tea.Cmd
 	default:
 		return m, next
 	}
+}
+
+func (m *RootModel) useUserPersister(userID string) {
+	if userID == "" {
+		return
+	}
+	persister, err := newUserPersister(userID)
+	if err != nil {
+		m.debugLog.AppendError("[STORE] " + err.Error())
+		return
+	}
+	m.appStore.UsePersister(persister)
 }
 
 func (m RootModel) touchConversation(conversationID, preview string) {
@@ -503,6 +551,57 @@ func (m *RootModel) applyBootstrapData(data sdktypes.BootstrapData) {
 			LastMessageTime:    conversation.LastMessageTime,
 			UnreadCount:        conversation.UnreadCount,
 		})
+	}
+}
+
+func (m *RootModel) applyConversationSyncResult(result sdktypes.ConversationSyncResult) {
+	if result.Full {
+		m.appStore.Conversations = make(map[string]domain.ConversationSummary)
+		m.appStore.ConversationOrder = nil
+	}
+	for _, conversation := range result.Insert {
+		m.appStore.UpsertConversation(toConversationSummary(conversation))
+	}
+	for _, conversation := range result.Update {
+		m.appStore.UpsertConversation(toConversationSummary(conversation))
+	}
+	for _, conversationID := range result.Delete {
+		m.appStore.RemoveConversation(conversationID)
+	}
+	m.appStore.SetActiveConversation("")
+	m.appStore.SetActiveNav(domain.NavKeyChats)
+	m.appStore.SetConversationCursor(result.ConversationSyncCursor)
+}
+
+func toMessageItem(conversationID string, message sdktypes.Message, currentUserID string) domain.MessageItem {
+	id := firstNonEmpty(message.ServerMsgID, message.ClientMsgID)
+	if id == "" && message.Sequence > 0 {
+		id = fmt.Sprintf("seq:%d", message.Sequence)
+	}
+	return domain.MessageItem{
+		ID:             id,
+		ConversationID: conversationID,
+		Sequence:       message.Sequence,
+		ClientMsgID:    message.ClientMsgID,
+		ServerMsgID:    message.ServerMsgID,
+		SenderID:       message.SenderID,
+		SenderLabel:    firstNonEmpty(message.SenderName, message.SenderID),
+		Content:        string(message.Content),
+		Self:           message.SenderID == currentUserID,
+		SendTime:       message.SendTime,
+		CreateTime:     message.CreateTime,
+	}
+}
+
+func toConversationSummary(conversation sdktypes.Conversation) domain.ConversationSummary {
+	return domain.ConversationSummary{
+		ConversationID:     conversation.ConversationID,
+		Title:              firstNonEmpty(conversation.Title, conversation.TargetID, conversation.ConversationID),
+		Subtitle:           conversation.Subtitle,
+		Kind:               mapConversationKind(conversation.Kind),
+		LastMessagePreview: conversation.LastMessagePreview,
+		LastMessageTime:    conversation.LastMessageTime,
+		UnreadCount:        conversation.UnreadCount,
 	}
 }
 

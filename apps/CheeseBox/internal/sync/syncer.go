@@ -24,6 +24,12 @@ type Syncer struct {
 	updateMaxSeq func(conversationID string, seq int64)
 }
 
+type RealtimeResult struct {
+	ConversationID string
+	Messages       []sdktypes.Message
+	Repaired       bool
+}
+
 type Puller interface {
 	PullMessages(ctx context.Context, ranges []sdktypes.SeqRange, limitPerConversation int64) ([]sdktypes.PulledConversationMessages, error)
 	GetSyncedMaxSeq(conversationID string) int64
@@ -39,31 +45,37 @@ func NewSyncer(store MessageStore, puller Puller, getMaxSeq func(conversationID 
 	}
 }
 
-// HandleRealtime 处理实时消息，返回是否有消息修复
-func (s *Syncer) HandleRealtime(ctx context.Context, message sdktypes.Message) (bool, error) {
+// HandleRealtime 处理实时消息，返回合并后的当前会话消息。
+func (s *Syncer) HandleRealtime(ctx context.Context, message sdktypes.Message) (RealtimeResult, error) {
 	conversationID := resolveConversationID(message)
 	localMessages := s.store.GetMessages(conversationID)
 	localMax := currentMaxSeq(localMessages)
+	repaired := localMax > 0 && message.Sequence > localMax+1
 
 	// 检查是否有消息空洞需要修复
-	if message.Sequence > 0 && localMax > 0 && message.Sequence > localMax+1 {
+	if message.Sequence > 0 && repaired {
 		// 有空洞，需要拉取缺失的消息
 		if err := s.repairGap(ctx, conversationID, localMax+1, message.Sequence-1); err != nil {
-			return false, err
+			return RealtimeResult{}, err
 		}
 		// 更新本地最大序列号
 		s.updateMaxSeq(conversationID, message.Sequence-1)
 	}
 
 	// 追加当前消息
-	s.store.AppendMessage(conversationID, message)
+	merged := mergeMessages(s.store.GetMessages(conversationID), []sdktypes.Message{message})
+	s.store.SetMessages(conversationID, merged)
 
 	// 更新已同步的最大序列号
 	if message.Sequence > 0 && message.Sequence > s.getMaxSeq(conversationID) {
 		s.updateMaxSeq(conversationID, message.Sequence)
 	}
 
-	return localMax > 0 && message.Sequence > localMax+1, nil
+	return RealtimeResult{
+		ConversationID: conversationID,
+		Messages:       s.store.GetMessages(conversationID),
+		Repaired:       repaired,
+	}, nil
 }
 
 // repairGap 修复消息空洞

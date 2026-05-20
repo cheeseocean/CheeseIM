@@ -33,3 +33,19 @@ func TestAppStoreAppendMessageAndToast(t *testing.T) {
 		t.Fatalf("toast = %#v", store.Toast)
 	}
 }
+
+func TestAppStoreAppendMessageDeduplicatesByStableMessageIdentity(t *testing.T) {
+	store := New()
+
+	store.AppendMessage("c1", domain.MessageItem{ID: "server-1", ServerMsgID: "server-1", Sequence: 7, Content: "hello"})
+	store.AppendMessage("c1", domain.MessageItem{ID: "server-1", ServerMsgID: "server-1", Sequence: 7, Content: "hello again"})
+	store.AppendMessage("c1", domain.MessageItem{ID: "server-2", ServerMsgID: "server-2", Sequence: 8, Content: "next"})
+
+	items := store.MessagesByConv["c1"]
+	if len(items) != 2 {
+		t.Fatalf("messages = %#v, want 2 deduped items", items)
+	}
+	if items[0].Content != "hello" {
+		t.Fatalf("first message was overwritten: %#v", items[0])
+	}
+}

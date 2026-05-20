@@ -3,16 +3,20 @@ package sync
 import (
 	"context"
 
-	sdkclient "github.com/cheeseim/cheeseim-go-sdk/client"
 	sdktypes "github.com/cheeseim/cheeseim-go-sdk/types"
 )
 
-// SDKPuller SDK 拉取器适配器
-type SDKPuller struct {
-	client *sdkclient.Client
+type SDKClient interface {
+	PullMessages(ctx context.Context, ranges []sdktypes.SeqRange, limitPerConversation int64) ([]sdktypes.PulledConversationMessages, error)
+	GetSyncedMaxSeq(conversationID string) int64
 }
 
-func NewSDKPuller(client *sdkclient.Client) *SDKPuller {
+// SDKPuller SDK 拉取器适配器
+type SDKPuller struct {
+	client SDKClient
+}
+
+func NewSDKPuller(client SDKClient) *SDKPuller {
 	return &SDKPuller{client: client}
 }
 
