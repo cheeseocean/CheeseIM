@@ -47,11 +47,30 @@ func TestServiceBootstrap(t *testing.T) {
 	service.Bootstrap(types.BootstrapData{
 		MaxSeqs: map[string]int64{"conv1": 10, "conv2": 20},
 	})
-	if seq := service.GetSyncedMaxSeq("conv1"); seq != 10 {
-		t.Errorf("Bootstrap() conv1 seq = %d, want 10", seq)
+	if seq := service.GetSyncedMaxSeq("conv1"); seq != 0 {
+		t.Errorf("Bootstrap() local synced conv1 seq = %d, want 0", seq)
 	}
-	if seq := service.GetSyncedMaxSeq("conv2"); seq != 20 {
-		t.Errorf("Bootstrap() conv2 seq = %d, want 20", seq)
+	if seq := service.GetServerMaxSeq("conv1"); seq != 10 {
+		t.Errorf("Bootstrap() server max conv1 seq = %d, want 10", seq)
+	}
+	if seq := service.GetServerMaxSeq("conv2"); seq != 20 {
+		t.Errorf("Bootstrap() server max conv2 seq = %d, want 20", seq)
+	}
+}
+
+func TestServiceConversationCursor(t *testing.T) {
+	api := &fakePullAPI{}
+	service := NewService(api)
+	service.Bootstrap(types.BootstrapData{
+		ConversationCursor: types.ConversationSyncCursor{VersionID: "v1", Version: 2, IDHash: 88},
+	})
+
+	if cursor := service.GetConversationCursor(); cursor.VersionID != "v1" || cursor.Version != 2 || cursor.IDHash != 88 {
+		t.Fatalf("cursor = %#v", cursor)
+	}
+	service.UpdateConversationCursor(types.ConversationSyncCursor{VersionID: "v1", Version: 3, IDHash: 99})
+	if cursor := service.GetConversationCursor(); cursor.Version != 3 || cursor.IDHash != 99 {
+		t.Fatalf("updated cursor = %#v", cursor)
 	}
 }
 

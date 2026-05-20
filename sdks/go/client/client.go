@@ -98,6 +98,14 @@ func (c *Client) GetSyncedMaxSeq(conversationID string) int64 {
 	return c.sync.GetSyncedMaxSeq(conversationID)
 }
 
+// GetServerMaxSeq 获取服务端最大序列号快照
+func (c *Client) GetServerMaxSeq(conversationID string) int64 {
+	if c.sync == nil {
+		return 0
+	}
+	return c.sync.GetServerMaxSeq(conversationID)
+}
+
 // UpdateSyncedMaxSeq 更新已同步的最大序列号
 func (c *Client) UpdateSyncedMaxSeq(conversationID string, seq int64) {
 	if c.sync == nil {
@@ -106,12 +114,49 @@ func (c *Client) UpdateSyncedMaxSeq(conversationID string, seq int64) {
 	c.sync.UpdateSyncedMaxSeq(conversationID, seq)
 }
 
+// GetConversationCursor 获取会话元数据同步游标。
+func (c *Client) GetConversationCursor() types.ConversationSyncCursor {
+	if c.sync == nil {
+		return types.ConversationSyncCursor{}
+	}
+	return c.sync.GetConversationCursor()
+}
+
+// UpdateConversationCursor 设置会话元数据同步游标。
+func (c *Client) UpdateConversationCursor(cursor types.ConversationSyncCursor) {
+	if c.sync == nil {
+		c.sync = imsync.NewService(c.social)
+	}
+	c.sync.UpdateConversationCursor(cursor)
+}
+
+// SyncConversations 同步会话元数据增量并更新 SDK 本地游标。
+func (c *Client) SyncConversations(ctx context.Context) (types.ConversationSyncResult, error) {
+	if c.sync == nil {
+		return types.ConversationSyncResult{}, fmt.Errorf("sdk client not initialized")
+	}
+	result, err := c.social.SyncConversations(ctx, c.accessToken, c.sync.GetConversationCursor())
+	if err != nil {
+		return types.ConversationSyncResult{}, err
+	}
+	c.sync.UpdateConversationCursor(result.ConversationSyncCursor)
+	return result, nil
+}
+
+// DeleteConversation 删除当前用户维度的会话元数据；历史消息仍保留在服务端。
+func (c *Client) DeleteConversation(ctx context.Context, conversationID string) error {
+	if c.accessToken == "" {
+		return fmt.Errorf("sdk client not initialized")
+	}
+	return c.social.DeleteConversation(ctx, c.accessToken, conversationID)
+}
+
 // OpenConversation 打开会话，拉取历史消息（降级实现，供参考）
 func (c *Client) OpenConversation(ctx context.Context, conversationID string, limit int) ([]types.Message, error) {
 	if c.sync == nil {
 		return nil, fmt.Errorf("sdk client not initialized")
 	}
-	serverMax := c.sync.GetSyncedMaxSeq(conversationID)
+	serverMax := c.sync.GetServerMaxSeq(conversationID)
 	beginSeq := serverMax - int64(limit) + 1
 	if beginSeq < 1 {
 		beginSeq = 1

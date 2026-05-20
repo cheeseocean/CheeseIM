@@ -88,10 +88,25 @@ type PulledConversationMessages struct {
 	Messages       []Message
 }
 
+type ConversationSyncCursor struct {
+	VersionID string
+	Version   int64
+	IDHash    int64
+}
+
+type ConversationSyncResult struct {
+	ConversationSyncCursor
+	Full   bool
+	Insert []Conversation
+	Update []Conversation
+	Delete []string
+}
+
 type BootstrapData struct {
-	Friends       []Friend
-	Groups        []Group
-	Conversations []Conversation
-	MaxSeqs       map[string]int64
-	ReadSnapshots map[string]ReadSnapshot
+	Friends            []Friend
+	Groups             []Group
+	Conversations      []Conversation
+	MaxSeqs            map[string]int64
+	ReadSnapshots      map[string]ReadSnapshot
+	ConversationCursor ConversationSyncCursor
 }

@@ -32,14 +32,31 @@ func TestRosterServiceLoadInitialData(t *testing.T) {
 	}
 }
 
+func TestRosterServiceDeleteConversation(t *testing.T) {
+	client := &fakeRosterClient{}
+	service := NewRosterService(client)
+
+	if err := service.DeleteConversation(context.Background(), "token-1", "s:user-1:user-2"); err != nil {
+		t.Fatalf("DeleteConversation() error = %v", err)
+	}
+	if client.deletedAccessToken != "token-1" {
+		t.Fatalf("deleted access token = %q", client.deletedAccessToken)
+	}
+	if client.deletedConversationID != "s:user-1:user-2" {
+		t.Fatalf("deleted conversation id = %q", client.deletedConversationID)
+	}
+}
+
 type fakeRosterClient struct {
-	friends       []types.Friend
-	groups        []types.Group
-	conversations []types.Conversation
-	maxSeqs       []types.ReadSnapshot
-	readSnapshots []types.ReadSnapshot
-	pulled        []types.PulledConversationMessages
-	err           error
+	friends               []types.Friend
+	groups                []types.Group
+	conversations         []types.Conversation
+	maxSeqs               []types.ReadSnapshot
+	readSnapshots         []types.ReadSnapshot
+	pulled                []types.PulledConversationMessages
+	deletedAccessToken    string
+	deletedConversationID string
+	err                   error
 }
 
 func (f *fakeRosterClient) ListFriends(context.Context, string) ([]types.Friend, error) {
@@ -62,10 +79,20 @@ func (f *fakeRosterClient) GetConversationReadSnapshots(context.Context, string)
 	return f.readSnapshots, f.err
 }
 
+func (f *fakeRosterClient) SyncConversations(context.Context, string, types.ConversationSyncCursor) (types.ConversationSyncResult, error) {
+	return types.ConversationSyncResult{}, f.err
+}
+
 func (f *fakeRosterClient) PullMessages(context.Context, string, []types.SeqRange, int64) ([]types.PulledConversationMessages, error) {
 	return f.pulled, f.err
 }
 
 func (f *fakeRosterClient) AckReadSeq(context.Context, string, string, int64) error {
+	return f.err
+}
+
+func (f *fakeRosterClient) DeleteConversation(_ context.Context, accessToken, conversationID string) error {
+	f.deletedAccessToken = accessToken
+	f.deletedConversationID = conversationID
 	return f.err
 }

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -189,6 +190,89 @@ func (c *Client) GetConversationReadSnapshots(ctx context.Context, accessToken s
 	return items, nil
 }
 
+func (c *Client) SyncConversations(ctx context.Context, accessToken string, cursor types.ConversationSyncCursor) (types.ConversationSyncResult, error) {
+	values := url.Values{}
+	values.Set("versionId", cursor.VersionID)
+	values.Set("version", fmt.Sprintf("%d", cursor.Version))
+	values.Set("idHash", fmt.Sprintf("%d", cursor.IDHash))
+	path := "/api/im/conversations/sync/incremental?" + values.Encode()
+	var response struct {
+		VersionID string `json:"versionId"`
+		Version   int64  `json:"version"`
+		IDHash    int64  `json:"idHash"`
+		Full      bool   `json:"full"`
+		Insert    []struct {
+			OwnerUserID        string `json:"ownerUserId"`
+			ConversationID     string `json:"conversationId"`
+			ConversationType   int    `json:"conversationType"`
+			TargetID           string `json:"targetId"`
+			ReceiveOpt         int    `json:"receiveOpt"`
+			UnreadCount        int    `json:"unreadCount"`
+			Pinned             bool   `json:"pinned"`
+			AttachedInfo       string `json:"attachedInfo"`
+			GroupAtType        int    `json:"groupAtType"`
+			AutoCleanup        bool   `json:"autoCleanup"`
+			CleanupCycle       int64  `json:"cleanupCycle"`
+			LatestCleanupTime  int64  `json:"latestCleanupTime"`
+			CreatedAt          int64  `json:"createdAt"`
+			UpdatedAt          int64  `json:"updatedAt"`
+			Kind               string `json:"kind"`
+			Title              string `json:"title"`
+			Subtitle           string `json:"subtitle"`
+			LastMessagePreview string `json:"lastMessagePreview"`
+			LastMessageTime    int64  `json:"lastMessageTime"`
+			Notification       bool   `json:"notification"`
+		} `json:"insert"`
+		Update []struct {
+			OwnerUserID        string `json:"ownerUserId"`
+			ConversationID     string `json:"conversationId"`
+			ConversationType   int    `json:"conversationType"`
+			TargetID           string `json:"targetId"`
+			ReceiveOpt         int    `json:"receiveOpt"`
+			UnreadCount        int    `json:"unreadCount"`
+			Pinned             bool   `json:"pinned"`
+			AttachedInfo       string `json:"attachedInfo"`
+			GroupAtType        int    `json:"groupAtType"`
+			AutoCleanup        bool   `json:"autoCleanup"`
+			CleanupCycle       int64  `json:"cleanupCycle"`
+			LatestCleanupTime  int64  `json:"latestCleanupTime"`
+			CreatedAt          int64  `json:"createdAt"`
+			UpdatedAt          int64  `json:"updatedAt"`
+			Kind               string `json:"kind"`
+			Title              string `json:"title"`
+			Subtitle           string `json:"subtitle"`
+			LastMessagePreview string `json:"lastMessagePreview"`
+			LastMessageTime    int64  `json:"lastMessageTime"`
+			Notification       bool   `json:"notification"`
+		} `json:"update"`
+		Delete []string `json:"delete"`
+	}
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &response); err != nil {
+		return types.ConversationSyncResult{}, err
+	}
+	result := types.ConversationSyncResult{
+		ConversationSyncCursor: types.ConversationSyncCursor{
+			VersionID: response.VersionID,
+			Version:   response.Version,
+			IDHash:    response.IDHash,
+		},
+		Full:   response.Full,
+		Delete: response.Delete,
+	}
+	for _, item := range response.Insert {
+		result.Insert = append(result.Insert, toConversation(item))
+	}
+	for _, item := range response.Update {
+		result.Update = append(result.Update, toConversation(item))
+	}
+	return result, nil
+}
+
+func (c *Client) DeleteConversation(ctx context.Context, accessToken, conversationID string) error {
+	path := "/api/im/conversations/" + url.PathEscape(conversationID)
+	return c.doJSON(ctx, http.MethodDelete, path, accessToken, nil, nil)
+}
+
 func (c *Client) PullMessages(ctx context.Context, accessToken string, ranges []types.SeqRange, limitPerConversation int64) ([]types.PulledConversationMessages, error) {
 	body := map[string]any{
 		"limitPerConversation": limitPerConversation,
@@ -322,5 +406,51 @@ func parseConversationKind(kind string) types.ConversationKind {
 		return types.ConversationKindGroup
 	default:
 		return types.ConversationKindDirect
+	}
+}
+
+func toConversation(item struct {
+	OwnerUserID        string `json:"ownerUserId"`
+	ConversationID     string `json:"conversationId"`
+	ConversationType   int    `json:"conversationType"`
+	TargetID           string `json:"targetId"`
+	ReceiveOpt         int    `json:"receiveOpt"`
+	UnreadCount        int    `json:"unreadCount"`
+	Pinned             bool   `json:"pinned"`
+	AttachedInfo       string `json:"attachedInfo"`
+	GroupAtType        int    `json:"groupAtType"`
+	AutoCleanup        bool   `json:"autoCleanup"`
+	CleanupCycle       int64  `json:"cleanupCycle"`
+	LatestCleanupTime  int64  `json:"latestCleanupTime"`
+	CreatedAt          int64  `json:"createdAt"`
+	UpdatedAt          int64  `json:"updatedAt"`
+	Kind               string `json:"kind"`
+	Title              string `json:"title"`
+	Subtitle           string `json:"subtitle"`
+	LastMessagePreview string `json:"lastMessagePreview"`
+	LastMessageTime    int64  `json:"lastMessageTime"`
+	Notification       bool   `json:"notification"`
+}) types.Conversation {
+	return types.Conversation{
+		OwnerUserID:        item.OwnerUserID,
+		ConversationID:     item.ConversationID,
+		ConversationType:   item.ConversationType,
+		TargetID:           item.TargetID,
+		ReceiveOpt:         item.ReceiveOpt,
+		UnreadCount:        item.UnreadCount,
+		Pinned:             item.Pinned,
+		AttachedInfo:       item.AttachedInfo,
+		GroupAtType:        item.GroupAtType,
+		AutoCleanup:        item.AutoCleanup,
+		CleanupCycle:       item.CleanupCycle,
+		LatestCleanupTime:  item.LatestCleanupTime,
+		CreatedAt:          item.CreatedAt,
+		UpdatedAt:          item.UpdatedAt,
+		Kind:               parseConversationKind(item.Kind),
+		Title:              item.Title,
+		Subtitle:           item.Subtitle,
+		LastMessagePreview: item.LastMessagePreview,
+		LastMessageTime:    item.LastMessageTime,
+		Notification:       item.Notification,
 	}
 }

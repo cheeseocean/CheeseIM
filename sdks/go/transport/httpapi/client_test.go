@@ -191,6 +191,62 @@ func TestClientGetConversationReadSnapshots(t *testing.T) {
 	}
 }
 
+func TestClientSyncConversations(t *testing.T) {
+	client := New("https://example.invalid", time.Second)
+	client.httpClient.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if got := r.URL.Path; got != "/api/im/conversations/sync/incremental" {
+			t.Fatalf("path = %q", got)
+		}
+		if r.URL.Query().Get("versionId") != "v1" || r.URL.Query().Get("version") != "2" || r.URL.Query().Get("idHash") != "88" {
+			t.Fatalf("query = %s", r.URL.RawQuery)
+		}
+		return jsonResponse(map[string]any{
+			"versionId": "v1",
+			"version":   int64(3),
+			"idHash":    int64(99),
+			"full":      false,
+			"update": []map[string]any{{
+				"conversationId": "s:user-1:user-2",
+				"targetId":       "user-2",
+				"title":          "Alice",
+			}},
+			"delete": []string{"s:user-1:user-3"},
+		}), nil
+	})
+
+	result, err := client.SyncConversations(context.Background(), "token-1", types.ConversationSyncCursor{
+		VersionID: "v1",
+		Version:   2,
+		IDHash:    88,
+	})
+	if err != nil {
+		t.Fatalf("SyncConversations() error = %v", err)
+	}
+	if result.Version != 3 || result.IDHash != 99 || len(result.Update) != 1 || result.Update[0].Title != "Alice" {
+		t.Fatalf("unexpected result = %#v", result)
+	}
+	if len(result.Delete) != 1 || result.Delete[0] != "s:user-1:user-3" {
+		t.Fatalf("delete = %#v", result.Delete)
+	}
+}
+
+func TestClientDeleteConversation(t *testing.T) {
+	client := New("https://example.invalid", time.Second)
+	client.httpClient.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if r.Method != http.MethodDelete || r.URL.Path != "/api/im/conversations/s:user-1:user-2" {
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer token-1" {
+			t.Fatalf("Authorization = %q, want Bearer token-1", got)
+		}
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(nil)), Header: make(http.Header)}, nil
+	})
+
+	if err := client.DeleteConversation(context.Background(), "token-1", "s:user-1:user-2"); err != nil {
+		t.Fatalf("DeleteConversation() error = %v", err)
+	}
+}
+
 func TestClientPullMessages(t *testing.T) {
 	client := New("https://example.invalid", time.Second)
 	client.httpClient.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {

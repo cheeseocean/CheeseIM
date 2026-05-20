@@ -12,8 +12,10 @@ type RosterClient interface {
 	ListConversations(ctx context.Context, accessToken string) ([]types.Conversation, error)
 	GetConversationMaxSeqs(ctx context.Context, accessToken string) ([]types.ReadSnapshot, error)
 	GetConversationReadSnapshots(ctx context.Context, accessToken string) ([]types.ReadSnapshot, error)
+	SyncConversations(ctx context.Context, accessToken string, cursor types.ConversationSyncCursor) (types.ConversationSyncResult, error)
 	PullMessages(ctx context.Context, accessToken string, ranges []types.SeqRange, limitPerConversation int64) ([]types.PulledConversationMessages, error)
 	AckReadSeq(ctx context.Context, accessToken, conversationID string, readSeq int64) error
+	DeleteConversation(ctx context.Context, accessToken, conversationID string) error
 }
 
 type BootstrapData = types.BootstrapData
@@ -68,6 +70,14 @@ func (s *RosterService) PullMessages(ctx context.Context, accessToken string, ra
 	return s.client.PullMessages(ctx, accessToken, ranges, limit)
 }
 
+func (s *RosterService) SyncConversations(ctx context.Context, accessToken string, cursor types.ConversationSyncCursor) (types.ConversationSyncResult, error) {
+	return s.client.SyncConversations(ctx, accessToken, cursor)
+}
+
 func (s *RosterService) AckReadSeq(ctx context.Context, accessToken, conversationID string, readSeq int64) error {
 	return s.client.AckReadSeq(ctx, accessToken, conversationID, readSeq)
+}
+
+func (s *RosterService) DeleteConversation(ctx context.Context, accessToken, conversationID string) error {
+	return s.client.DeleteConversation(ctx, accessToken, conversationID)
 }

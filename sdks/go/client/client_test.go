@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -17,6 +18,14 @@ func TestClientCurrentUserID(t *testing.T) {
 	})
 	if client.CurrentUserID() != "" {
 		t.Fatalf("CurrentUserID() = %q, want empty", client.CurrentUserID())
+	}
+}
+
+func TestClientDeleteConversationRequiresInitializedSession(t *testing.T) {
+	client := New(Config{})
+
+	if err := client.DeleteConversation(context.Background(), "s:user-1:user-2"); err == nil {
+		t.Fatal("DeleteConversation() error = nil, want initialized session error")
 	}
 }
 
