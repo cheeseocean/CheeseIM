@@ -48,6 +48,17 @@ flowchart LR
 | `server/bootstrap-all` | Recommended local development entry. Runs all modules in one JVM with Dubbo injvm. |
 | `sdks/go` | Reusable Go IM client SDK. |
 | `apps/CheeseBox` | TUI chat application built on top of the Go SDK. |
+| `apps/CheeseWeb` | Experimental React web client. It is not the primary integration entry. |
+
+## Current Status
+
+| Area | Status | Notes |
+| --- | --- | --- |
+| Java server | Core pipeline implemented | all-in-one local integration is the main path; split-module deployment still needs environment-specific config and verification. |
+| Go SDK | Usable for real integration | Wraps HTTP auth, ticket issuing, TCP long connection, message sending, conversation sync, and social queries. |
+| CheeseBox TUI | Usable integration client | Supports login, conversation/friend/group navigation, text messages, realtime events, history sync, and gap repair. Friend request handling UI, conversation deletion UI, and rich media remain future work. |
+| CheeseWeb | Experimental client | Kept as a web implementation and test surface, not the main README startup path. |
+| Documentation | Being consolidated | Root READMEs, module READMEs, protocol docs, and the client runbook are the maintained entry points. Historical plans/specs are process references only. |
 
 ## Implemented Features
 
@@ -145,3 +156,46 @@ Run module tests:
 ```
 
 For end-to-end testing, start MongoDB and Redis, run `:bootstrap-all:bootRun`, then launch two CheeseBox clients with different users and verify online delivery plus history sync after restart.
+
+## Documentation
+
+Maintained entry points:
+
+- `README.md` / `README.en.md`: project entry, architecture, module boundaries, startup, and testing.
+- `docs/CheeseIM-数据同步设计文档.md`: current conversation/message sync design.
+- `docs/client-runbook.md`: Go SDK and CheeseBox integration runbook.
+- `server/postoffice/docs/TCP_PROTOCOL.md`: TCP/WS Protobuf protocol.
+- `server/postoffice/README.md`, `server/postbox/README.md`, `server/postmaster/README.md`, `server/postman/README.md`: server module responsibilities.
+- `apps/CheeseBox/README.md`, `apps/CheeseBox/arch.md`: TUI client documentation.
+
+Reference-only documents:
+
+- `server/postmaster/docs/ConversationArch.md` and `server/postmaster/docs/SeqArch.md`: conversation and seq design background.
+- `docs/handoff/**`: phase handoff notes.
+- `server/docs/architecture/**`: earlier server architecture drafts.
+- `docs/superpowers/**` and `server/docs/superpowers/**`: historical specs/plans from implementation work; do not treat them as current code facts without checking the source.
+
+## Repository Layout
+
+```text
+.
+├── apps
+│   ├── CheeseBox          # TUI client, current primary integration client
+│   └── CheeseWeb          # Experimental web client
+├── distro                 # Local middleware and helper scripts
+├── docs                   # Design documents and historical plans
+├── sdks
+│   └── go                 # Go IM client SDK
+└── server                 # Java server
+    ├── api-server
+    ├── authcenter
+    ├── business
+    ├── bootstrap-all
+    ├── common-api
+    ├── common-core
+    ├── config
+    ├── postbox
+    ├── postman
+    ├── postmaster
+    └── postoffice
+```

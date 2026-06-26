@@ -71,6 +71,17 @@ sequenceDiagram
 | `server/bootstrap-all` | 开发与本地联调推荐入口。单 JVM 装配所有模块，Dubbo 走 injvm。 |
 | `sdks/go` | Go 侧通用 IM Client SDK，供 CheeseBox 和后续其他应用复用。 |
 | `apps/CheeseBox` | 基于 Go SDK 的 TUI 聊天应用，用于真实端到端联调。 |
+| `apps/CheeseWeb` | React Web 客户端实验实现。当前不是主要联调入口，状态以代码和自身测试为准。 |
+
+## 当前状态
+
+| 范围 | 状态 | 说明 |
+| --- | --- | --- |
+| Java 服务端 | 核心链路已实现 | all-in-one 本地联调是当前主线；分模块部署配置仍需按目标环境校准并验证。 |
+| Go SDK | 可用于真实联调 | 封装 HTTP 鉴权、ticket、TCP 长连接、消息发送、会话同步和好友/群组查询。 |
+| CheeseBox TUI | 联调客户端可用 | 支持登录、会话/好友/群组导航、文本消息、实时事件、历史同步和 gap repair；好友请求处理、会话删除入口、富媒体等仍需补齐。 |
+| CheeseWeb | 实验客户端 | 保留为 Web 侧实现与测试，不作为当前 README 的主线启动路径。 |
+| 文档 | 正在收敛 | 根 README、模块 README、协议文档和 client runbook 是优先维护入口；历史 plans/specs 只作过程参考。 |
 
 ## 已实现能力
 
@@ -210,6 +221,9 @@ git diff --check
 优先维护的文档：
 
 - `README.md`：项目入口、服务端架构、模块边界、启动与测试指南。
+- `README.en.md`：英文项目入口，应与中文 README 保持同级信息。
+- `docs/CheeseIM-数据同步设计文档.md`：当前会话/消息同步设计说明。
+- `docs/client-runbook.md`：Go SDK 与 CheeseBox 联调入口。
 - `server/postoffice/docs/TCP_PROTOCOL.md`：TCP/WS Protobuf 协议说明。
 - `server/postoffice/README.md`、`server/postbox/README.md`、`server/postmaster/README.md`、`server/postman/README.md`：模块职责说明。
 - `apps/CheeseBox/README.md`、`apps/CheeseBox/arch.md`：TUI 客户端说明。
@@ -217,15 +231,18 @@ git diff --check
 参考型文档：
 
 - `server/postmaster/docs/ConversationArch.md`、`server/postmaster/docs/SeqArch.md`：会话和 seq 设计背景。
-- `docs/Open-IM-Server-数据同步设计文档.md`、`docs/OpenIM-SDK-Core-数据同步设计文档.md`：OpenIM 对照分析，仅作为设计参考。
+- `docs/handoff/**`：阶段性交接记录，用于理解当时改动背景，不替代当前代码事实。
+- `server/docs/architecture/**`：早期服务端架构草案和专题设计，阅读时需要和当前模块代码核对。
 - `docs/superpowers/specs/**` 与 `docs/superpowers/plans/**`：历史重构过程记录，可能包含阶段性方案，不能替代当前代码事实。
+- `server/docs/superpowers/specs/**` 与 `server/docs/superpowers/plans/**`：服务端历史实施计划和规格记录，仅作追溯参考。
 
 ## 仓库结构
 
 ```text
 .
 ├── apps
-│   └── CheeseBox          # TUI 客户端
+│   ├── CheeseBox          # TUI 客户端，当前主要真实联调客户端
+│   └── CheeseWeb          # Web 客户端实验实现
 ├── distro                 # 本地中间件与辅助脚本
 ├── docs                   # 设计文档与历史方案
 ├── sdks
