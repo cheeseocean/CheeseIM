@@ -6,30 +6,9 @@ CheeseIM 是一个面向自托管场景的开源 IM 服务端项目。当前仓�
 
 ## 架构
 
-```mermaid
-flowchart LR
-    Client[Client / Go SDK / CheeseBox] -->|HTTP REST| Api[api-server]
-    Client -->|TCP / WebSocket<br/>Protobuf| Office[postoffice]
+下图按产品体验组织层级：从使用端和接入体验出发，再展开 IM 核心能力、消息闭环和数据支撑。
 
-    Api -->|Dubbo / injvm| Auth[authcenter]
-    Api -->|Dubbo / injvm| Biz[business]
-    Api -->|Dubbo / injvm| Box[postbox]
-
-    Office -->|连接鉴权 / 会话校验| Auth
-    Office -->|发送消息| Box
-
-    Box -->|IngressMessage| Queue[(Chronicle / Kafka)]
-    Queue --> Master[postmaster]
-    Master -->|写历史 / 会话序列| Mongo[(MongoDB)]
-    Master -->|投递事件| Delivery[(Delivery Queue)]
-    Delivery --> Man[postman]
-    Man -->|在线投递| Office
-    Man -->|离线推送| Push[Vendor Push]
-
-    Biz --> Mongo
-    Biz --> Cache[(JetCache / Redis)]
-    Master --> Seq[(Redis / RocksDB Seq State)]
-```
+![CheeseIM 产品架构](docs/assets/cheeseim-architecture.svg)
 
 ### 消息链路
 

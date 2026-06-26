@@ -6,30 +6,9 @@ CheeseIM is a self-hosted open-source IM system. The repository contains the Jav
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    Client[Client / Go SDK / CheeseBox] -->|HTTP REST| Api[api-server]
-    Client -->|TCP / WebSocket<br/>Protobuf| Office[postoffice]
+The diagram below is organized around the product experience: user-facing clients, access channels, IM capabilities, the message loop, and the data foundation.
 
-    Api -->|Dubbo / injvm| Auth[authcenter]
-    Api -->|Dubbo / injvm| Biz[business]
-    Api -->|Dubbo / injvm| Box[postbox]
-
-    Office -->|auth / session validation| Auth
-    Office -->|send message| Box
-
-    Box -->|IngressMessage| Queue[(Chronicle / Kafka)]
-    Queue --> Master[postmaster]
-    Master -->|history / conversation seq| Mongo[(MongoDB)]
-    Master -->|delivery event| Delivery[(Delivery Queue)]
-    Delivery --> Man[postman]
-    Man -->|online delivery| Office
-    Man -->|offline push| Push[Vendor Push]
-
-    Biz --> Mongo
-    Biz --> Cache[(JetCache / Redis)]
-    Master --> Seq[(Redis / RocksDB Seq State)]
-```
+![CheeseIM product architecture](docs/assets/cheeseim-architecture.svg)
 
 ## Modules
 
