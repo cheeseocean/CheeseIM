@@ -1,8 +1,7 @@
-  ${AnsiColor.BRIGHT_RED}______________                             _____________  ___
-  ${AnsiColor.BRIGHT_RED}__  ____/__  /_______________________      ____  _/__   |/  /
-  ${AnsiColor.BRIGHT_YELLOW}_  /    __  __ \  _ \  _ \_  ___/  _ \      __  / __  /|_/ /
-  ${AnsiColor.BRIGHT_GREEN}/ /___  _  / / /  __/  __/(__  )/  __/     __/ /  _  /  / /
-  ${AnsiColor.BRIGHT_CYAN}\____/  /_/ /_/\___/\___//____/ \___/      /___/  /_/  /_/
+${AnsiColor.BRIGHT_YELLOW}                                   ▄
+  █▀▀█ █  █ █▀▀ █▀▀ █▀▀ █▀▀ ▀█▀ █▀▄▀█
+  █    █▀▀█ █▀▀ █▀▀ ▀▀█ █▀▀  █  █ ▀ █
+  ▀▀▀▀ ▀  ▀ ▀▀▀ ▀▀▀ ▀▀▀ ▀▀▀ ▀▀▀ ▀   ▀
 ${AnsiColor.DEFAULT}
   CheeseIM: The Ultimate Messaging Platform
   Spring Boot Version: ${spring-boot.version}
