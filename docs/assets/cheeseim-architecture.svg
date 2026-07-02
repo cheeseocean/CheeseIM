@@ -1,136 +1,242 @@
-<svg width="1280" height="760" viewBox="0 0 1280 760" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+<svg width="1500" height="920" viewBox="0 0 1500 920" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
   <title id="title">CheeseIM product architecture</title>
-  <desc id="desc">A product-oriented architecture diagram showing clients, access channels, core communication capabilities, delivery loop, and data foundation.</desc>
+  <desc id="desc">A layered architecture diagram showing clients, access channels, core capabilities, message loop, and data foundation.</desc>
   <defs>
     <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#123" flood-opacity="0.12"/>
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#0F172A" flood-opacity="0.10"/>
     </filter>
-    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
-      <path d="M2 2L10 6L2 10" fill="#4B5F7A"/>
-    </marker>
-    <linearGradient id="header" x1="0" y1="0" x2="1280" y2="0">
+    <linearGradient id="header" x1="0" y1="0" x2="1500" y2="0">
       <stop stop-color="#2563EB"/>
       <stop offset="0.55" stop-color="#0F766E"/>
       <stop offset="1" stop-color="#7C3AED"/>
     </linearGradient>
+    <linearGradient id="band1" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#EEF5FF"/>
+      <stop offset="1" stop-color="#F8FBFF"/>
+    </linearGradient>
+    <linearGradient id="band2" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#ECFDF5"/>
+      <stop offset="1" stop-color="#F7FFFC"/>
+    </linearGradient>
+    <linearGradient id="band3" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#FFF7E8"/>
+      <stop offset="1" stop-color="#FFFCF4"/>
+    </linearGradient>
+    <linearGradient id="band4" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#FFF1E8"/>
+      <stop offset="1" stop-color="#FFF9F5"/>
+    </linearGradient>
+    <linearGradient id="band5" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#F3F4F6"/>
+      <stop offset="1" stop-color="#FBFBFC"/>
+    </linearGradient>
     <style>
-      .bg { fill: #F7F9FC; }
-      .title { font: 700 34px Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #0F172A; }
-      .subtitle { font: 400 16px Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #475569; }
-      .layer-title { font: 700 18px Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #0F172A; }
-      .layer-note { font: 400 13px Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #64748B; }
-      .card-title { font: 700 17px Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #111827; }
-      .card-body { font: 400 13px Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #475569; }
-      .tag { font: 700 12px Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #FFFFFF; letter-spacing: 0.3px; }
-      .small { font: 400 12px Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #64748B; }
+      .bg { fill: #F4F7FB; }
+      .title { font: 700 38px Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #0F172A; }
+      .subtitle { font: 400 18px Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #475569; }
+      .layer-title { font: 700 20px Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #0F172A; }
+      .layer-note { font: 400 15px Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #64748B; }
+      .card-title { font: 700 18px Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #111827; }
+      .card-body { font: 400 14px Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #55657A; }
+      .badge-text { font: 700 14px Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #FFFFFF; letter-spacing: 0.3px; }
       .panel { fill: #FFFFFF; stroke: #E2E8F0; stroke-width: 1.2; filter: url(#shadow); }
-      .card { fill: #FFFFFF; stroke: #D8E0EA; stroke-width: 1.1; }
-      .muted-card { fill: #F8FAFC; stroke: #D8E0EA; stroke-width: 1.1; }
-      .line { stroke: #4B5F7A; stroke-width: 2.2; marker-end: url(#arrow); }
-      .soft-line { stroke: #9AA8BA; stroke-width: 1.8; marker-end: url(#arrow); }
+      .band { stroke: rgba(148,163,184,0.22); stroke-width: 1; }
+      .card { stroke-width: 1.2; rx: 10; }
+      .card-outline { fill: #FFFFFF; stroke: #D8E0EA; }
+      .icon-stroke { stroke-linecap: round; stroke-linejoin: round; }
     </style>
   </defs>
 
-  <rect class="bg" width="1280" height="760"/>
-  <rect x="0" y="0" width="1280" height="10" fill="url(#header)"/>
+  <rect class="bg" width="1500" height="920"/>
+  <rect x="0" y="0" width="1500" height="10" fill="url(#header)"/>
 
-  <text class="title" x="64" y="66">CheeseIM 产品架构</text>
-  <text class="subtitle" x="64" y="96">从用户入口到消息闭环：登录、实时通信、会话同步、在线投递与离线通知</text>
+  <text class="title" x="80" y="78">CheeseIM 产品架构</text>
+  <text class="subtitle" x="80" y="114">从用户入口到数据底座，按层组织展示，不强调箭头关系，只强调产品分工和承载关系</text>
 
-  <g transform="translate(64 128)">
-    <rect class="panel" width="1152" height="574" rx="8"/>
+  <g transform="translate(80 148)">
+    <rect class="panel" width="1340" height="672" rx="12"/>
 
-    <g transform="translate(30 30)">
-      <text class="layer-title" x="0" y="20">1. 使用端</text>
-      <text class="layer-note" x="0" y="42">用户真正接触的入口</text>
-      <rect class="card" x="170" y="0" width="190" height="70" rx="8"/>
-      <text class="card-title" x="194" y="29">CheeseBox TUI</text>
-      <text class="card-body" x="194" y="51">终端聊天与联调客户端</text>
-      <rect class="card" x="386" y="0" width="190" height="70" rx="8"/>
-      <text class="card-title" x="410" y="29">Go SDK</text>
-      <text class="card-body" x="410" y="51">可复用客户端能力层</text>
-      <rect class="muted-card" x="602" y="0" width="190" height="70" rx="8"/>
-      <text class="card-title" x="626" y="29">CheeseWeb</text>
-      <text class="card-body" x="626" y="51">Web 客户端实验实现</text>
+    <g>
+      <rect class="band" x="0" y="0" width="1340" height="112" rx="12" fill="url(#band1)"/>
+      <text class="layer-title" x="28" y="36">1. 使用端</text>
+      <text class="layer-note" x="28" y="62">用户直接接触的入口和客户端形态</text>
+
+      <g transform="translate(190 22)">
+        <rect class="card card-outline" width="230" height="68"/>
+        <rect x="20" y="16" width="20" height="30" rx="4" fill="#2563EB"/>
+        <rect x="24" y="20" width="12" height="16" rx="2" fill="#DBEAFE"/>
+        <text class="card-title" x="58" y="32">CheeseBox TUI</text>
+        <text class="card-body" x="58" y="56">终端聊天与联调客户端</text>
+      </g>
+      <g transform="translate(456 22)">
+        <rect class="card card-outline" width="230" height="68"/>
+        <rect x="18" y="15" width="32" height="36" rx="5" fill="#0F766E"/>
+        <rect x="22" y="20" width="24" height="20" rx="3" fill="#CCFBF1"/>
+        <circle cx="34" cy="45" r="2.5" fill="#CCFBF1"/>
+        <text class="card-title" x="66" y="32">Go SDK</text>
+        <text class="card-body" x="66" y="56">可复用客户端能力层</text>
+      </g>
+      <g transform="translate(722 22)">
+        <rect class="card card-outline" width="230" height="68"/>
+        <rect x="18" y="15" width="28" height="36" rx="4" fill="#7C3AED"/>
+        <rect x="22" y="20" width="20" height="20" rx="3" fill="#EDE9FE"/>
+        <circle cx="32" cy="44" r="2" fill="#EDE9FE"/>
+        <text class="card-title" x="60" y="32">CheeseWeb</text>
+        <text class="card-body" x="60" y="56">Web 客户端实验实现</text>
+      </g>
     </g>
 
-    <g transform="translate(30 130)">
-      <text class="layer-title" x="0" y="20">2. 接入体验</text>
-      <text class="layer-note" x="0" y="42">把账号会话和实时连接分开处理</text>
-      <rect class="card" x="170" y="0" width="300" height="78" rx="8"/>
-      <text class="card-title" x="196" y="30">HTTP API</text>
-      <text class="card-body" x="196" y="52">登录、ticket、好友、群组、会话同步</text>
-      <rect class="card" x="520" y="0" width="300" height="78" rx="8"/>
-      <text class="card-title" x="546" y="30">TCP / WebSocket</text>
-      <text class="card-body" x="546" y="52">Protobuf 长连接、心跳、实时收发</text>
+    <g transform="translate(0 120)">
+      <rect class="band" x="0" y="0" width="1340" height="112" rx="12" fill="url(#band2)"/>
+      <text class="layer-title" x="28" y="36">2. 接入体验</text>
+      <text class="layer-note" x="28" y="62">账号会话和实时连接分离，前者偏网关，后者偏长连接</text>
+
+      <g transform="translate(190 22)">
+        <rect class="card card-outline" width="400" height="68"/>
+        <circle cx="33" cy="34" r="16" fill="#10B981"/>
+        <path d="M25 34H41" stroke="#ECFDF5" stroke-width="2.5" class="icon-stroke"/>
+        <path d="M33 26V42" stroke="#ECFDF5" stroke-width="2.5" class="icon-stroke"/>
+        <text class="card-title" x="64" y="32">HTTP API</text>
+        <text class="card-body" x="64" y="56">登录、ticket、好友、群组、会话同步</text>
+      </g>
+      <g transform="translate(626 22)">
+        <rect class="card card-outline" width="400" height="68"/>
+        <circle cx="33" cy="34" r="16" fill="#06B6D4"/>
+        <rect x="23" y="24" width="20" height="20" rx="3" fill="none" stroke="#ECFEFF" stroke-width="2.5" class="icon-stroke"/>
+        <path d="M27 29H39" stroke="#ECFEFF" stroke-width="2" class="icon-stroke"/>
+        <path d="M27 34H39" stroke="#ECFEFF" stroke-width="2" class="icon-stroke"/>
+        <text class="card-title" x="64" y="32">TCP / WebSocket</text>
+        <text class="card-body" x="64" y="56">Protobuf 长连接、心跳、实时收发</text>
+      </g>
     </g>
 
-    <g transform="translate(30 238)">
-      <text class="layer-title" x="0" y="20">3. 核心能力</text>
-      <text class="layer-note" x="0" y="42">支撑 IM 产品体验的业务能力</text>
-      <rect class="card" x="170" y="0" width="175" height="74" rx="8"/>
-      <text class="card-title" x="194" y="29">身份与会话</text>
-      <text class="card-body" x="194" y="51">token、ticket、多端状态</text>
-      <rect class="card" x="370" y="0" width="175" height="74" rx="8"/>
-      <text class="card-title" x="394" y="29">社交关系</text>
-      <text class="card-body" x="394" y="51">好友、黑名单、群成员</text>
-      <rect class="card" x="570" y="0" width="175" height="74" rx="8"/>
-      <text class="card-title" x="594" y="29">消息发送</text>
-      <text class="card-body" x="594" y="51">单聊、群聊、系统通知</text>
-      <rect class="card" x="770" y="0" width="175" height="74" rx="8"/>
-      <text class="card-title" x="794" y="29">会话同步</text>
-      <text class="card-body" x="794" y="51">cursor、seq、read ack</text>
+    <g transform="translate(0 240)">
+      <rect class="band" x="0" y="0" width="1340" height="112" rx="12" fill="url(#band3)"/>
+      <text class="layer-title" x="28" y="36">3. 核心能力</text>
+      <text class="layer-note" x="28" y="62">支撑 IM 产品体验的业务能力和状态管理</text>
+
+      <g transform="translate(190 22)">
+        <rect class="card card-outline" width="225" height="68"/>
+        <rect x="18" y="15" width="30" height="36" rx="5" fill="#16A34A"/>
+        <path d="M25 34H41" stroke="#ECFDF5" stroke-width="2.5" class="icon-stroke"/>
+        <circle cx="33" cy="27" r="3.5" fill="#ECFDF5"/>
+        <text class="card-title" x="62" y="32">身份与会话</text>
+        <text class="card-body" x="62" y="56">token、ticket、多端状态</text>
+      </g>
+      <g transform="translate(445 22)">
+        <rect class="card card-outline" width="225" height="68"/>
+        <circle cx="33" cy="33" r="16" fill="#F59E0B"/>
+        <path d="M25 33H41" stroke="#FFFBEB" stroke-width="2" class="icon-stroke"/>
+        <path d="M33 24C29 28 29 38 33 42C37 38 37 28 33 24Z" fill="#FFFBEB"/>
+        <text class="card-title" x="62" y="32">社交关系</text>
+        <text class="card-body" x="62" y="56">好友、黑名单、群成员</text>
+      </g>
+      <g transform="translate(700 22)">
+        <rect class="card card-outline" width="225" height="68"/>
+        <rect x="18" y="15" width="32" height="36" rx="5" fill="#DC2626"/>
+        <path d="M27 29H43" stroke="#FEF2F2" stroke-width="2.5" class="icon-stroke"/>
+        <path d="M27 36H43" stroke="#FEF2F2" stroke-width="2.5" class="icon-stroke"/>
+        <text class="card-title" x="62" y="32">消息发送</text>
+        <text class="card-body" x="62" y="56">单聊、群聊、系统通知</text>
+      </g>
+      <g transform="translate(955 22)">
+        <rect class="card card-outline" width="225" height="68"/>
+        <circle cx="33" cy="33" r="16" fill="#6366F1"/>
+        <path d="M25 33H41" stroke="#EEF2FF" stroke-width="2" class="icon-stroke"/>
+        <path d="M29 25H37V41H29Z" fill="none" stroke="#EEF2FF" stroke-width="2.5" class="icon-stroke"/>
+        <text class="card-title" x="62" y="32">会话同步</text>
+        <text class="card-body" x="62" y="56">cursor、seq、read ack</text>
+      </g>
     </g>
 
-    <g transform="translate(30 342)">
-      <text class="layer-title" x="0" y="20">4. 消息闭环</text>
-      <text class="layer-note" x="0" y="42">实时到达只是入口，最终一致由历史与同步保证</text>
-      <rect class="card" x="170" y="0" width="150" height="74" rx="8"/>
-      <text class="card-title" x="195" y="29">接入</text>
-      <text class="card-body" x="195" y="51">接收客户端消息</text>
-      <rect class="card" x="350" y="0" width="150" height="74" rx="8"/>
-      <text class="card-title" x="375" y="29">排序</text>
-      <text class="card-body" x="375" y="51">分配会话 seq</text>
-      <rect class="card" x="530" y="0" width="150" height="74" rx="8"/>
-      <text class="card-title" x="555" y="29">历史</text>
-      <text class="card-body" x="555" y="51">写入消息块</text>
-      <rect class="card" x="710" y="0" width="150" height="74" rx="8"/>
-      <text class="card-title" x="735" y="29">在线投递</text>
-      <text class="card-body" x="735" y="51">推送到在线端</text>
-      <rect class="card" x="890" y="0" width="150" height="74" rx="8"/>
-      <text class="card-title" x="915" y="29">离线通知</text>
-      <text class="card-body" x="915" y="51">厂商 push 事件</text>
+    <g transform="translate(0 360)">
+      <rect class="band" x="0" y="0" width="1340" height="112" rx="12" fill="url(#band4)"/>
+      <text class="layer-title" x="28" y="36">4. 消息闭环</text>
+      <text class="layer-note" x="28" y="62">实时到达、排序、存档和投递构成最终一致的主路径</text>
+
+      <g transform="translate(190 22)">
+        <rect class="card card-outline" width="190" height="68"/>
+        <circle cx="33" cy="33" r="16" fill="#FB923C"/>
+        <path d="M25 33H41" stroke="#FFF7ED" stroke-width="2.5" class="icon-stroke"/>
+        <path d="M33 25V41" stroke="#FFF7ED" stroke-width="2.5" class="icon-stroke"/>
+        <text class="card-title" x="62" y="32">接入</text>
+        <text class="card-body" x="62" y="56">接收客户端消息</text>
+      </g>
+      <g transform="translate(404 22)">
+        <rect class="card card-outline" width="190" height="68"/>
+        <circle cx="33" cy="33" r="16" fill="#EA580C"/>
+        <path d="M25 28H41" stroke="#FFF7ED" stroke-width="2.5" class="icon-stroke"/>
+        <path d="M28 38H38" stroke="#FFF7ED" stroke-width="2.5" class="icon-stroke"/>
+        <text class="card-title" x="62" y="32">排序</text>
+        <text class="card-body" x="62" y="56">分配会话 seq</text>
+      </g>
+      <g transform="translate(618 22)">
+        <rect class="card card-outline" width="190" height="68"/>
+        <rect x="18" y="15" width="32" height="36" rx="5" fill="#D97706"/>
+        <path d="M26 33H42" stroke="#FFFBEB" stroke-width="2.5" class="icon-stroke"/>
+        <path d="M30 27H38" stroke="#FFFBEB" stroke-width="2.5" class="icon-stroke"/>
+        <text class="card-title" x="62" y="32">历史</text>
+        <text class="card-body" x="62" y="56">写入消息块</text>
+      </g>
+      <g transform="translate(832 22)">
+        <rect class="card card-outline" width="190" height="68"/>
+        <circle cx="33" cy="33" r="16" fill="#C2410C"/>
+        <path d="M25 33H41" stroke="#FFF7ED" stroke-width="2.5" class="icon-stroke"/>
+        <path d="M30 26L41 33L30 40Z" fill="#FFF7ED"/>
+        <text class="card-title" x="62" y="32">在线投递</text>
+        <text class="card-body" x="62" y="56">推送到在线端</text>
+      </g>
+      <g transform="translate(1046 22)">
+        <rect class="card card-outline" width="190" height="68"/>
+        <circle cx="33" cy="33" r="16" fill="#8B5CF6"/>
+        <path d="M25 33H41" stroke="#F5F3FF" stroke-width="2.5" class="icon-stroke"/>
+        <path d="M29 26H37" stroke="#F5F3FF" stroke-width="2.5" class="icon-stroke"/>
+        <path d="M33 38V41" stroke="#F5F3FF" stroke-width="2.5" class="icon-stroke"/>
+        <text class="card-title" x="62" y="32">离线通知</text>
+        <text class="card-body" x="62" y="56">厂商 push 事件</text>
+      </g>
     </g>
 
-    <g transform="translate(30 456)">
-      <text class="layer-title" x="0" y="20">5. 数据与基础设施</text>
-      <text class="layer-note" x="0" y="42">支撑可靠同步、缓存和队列解耦</text>
-      <rect class="card" x="170" y="0" width="210" height="70" rx="8"/>
-      <text class="card-title" x="194" y="29">MongoDB</text>
-      <text class="card-body" x="194" y="51">用户、关系、会话、历史块</text>
-      <rect class="card" x="420" y="0" width="210" height="70" rx="8"/>
-      <text class="card-title" x="444" y="29">Redis / RocksDB</text>
-      <text class="card-body" x="444" y="51">缓存、在线路由、seq 状态</text>
-      <rect class="card" x="670" y="0" width="210" height="70" rx="8"/>
-      <text class="card-title" x="694" y="29">Chronicle / Kafka</text>
-      <text class="card-body" x="694" y="51">消息接入、历史、投递队列</text>
+    <g transform="translate(0 480)">
+      <rect class="band" x="0" y="0" width="1340" height="180" rx="12" fill="url(#band5)"/>
+      <text class="layer-title" x="28" y="36">5. 数据与基础设施</text>
+      <text class="layer-note" x="28" y="62">存储、缓存和队列解耦，支撑可靠同步和投递</text>
+
+      <g transform="translate(190 28)">
+        <rect class="card card-outline" width="290" height="108"/>
+        <ellipse cx="42" cy="30" rx="22" ry="9" fill="#2563EB"/>
+        <path d="M20 30V72C20 77 30 83 42 83C54 83 64 77 64 72V30" fill="#DBEAFE"/>
+        <ellipse cx="42" cy="72" rx="22" ry="9" fill="#BFDBFE"/>
+        <path d="M20 50C20 55 30 61 42 61C54 61 64 55 64 50" fill="none" stroke="#93C5FD" stroke-width="1.4"/>
+        <text class="card-title" x="88" y="34">MongoDB</text>
+        <text class="card-body" x="88" y="58">用户、关系、会话、历史块</text>
+        <text class="card-body" x="88" y="82">主存储与消息历史</text>
+      </g>
+      <g transform="translate(512 28)">
+        <rect class="card card-outline" width="290" height="108"/>
+        <rect x="22" y="22" width="40" height="40" rx="10" fill="#0F766E"/>
+        <path d="M30 40H54" stroke="#CCFBF1" stroke-width="2.5" class="icon-stroke"/>
+        <path d="M38 32L47 40L38 48" fill="none" stroke="#CCFBF1" stroke-width="2.5" class="icon-stroke"/>
+        <text class="card-title" x="88" y="34">Redis / RocksDB</text>
+        <text class="card-body" x="88" y="58">缓存、在线路由、seq 状态</text>
+        <text class="card-body" x="88" y="82">热点数据与本地状态</text>
+      </g>
+      <g transform="translate(834 28)">
+        <rect class="card card-outline" width="290" height="108"/>
+        <rect x="24" y="22" width="36" height="14" rx="4" fill="#7C3AED"/>
+        <rect x="24" y="40" width="36" height="14" rx="4" fill="#A78BFA"/>
+        <rect x="24" y="58" width="36" height="14" rx="4" fill="#C4B5FD"/>
+        <path d="M78 40H100" stroke="#7C3AED" stroke-width="2.5" class="icon-stroke"/>
+        <path d="M90 32L100 40L90 48" fill="#7C3AED"/>
+        <text class="card-title" x="110" y="34">Chronicle / Kafka</text>
+        <text class="card-body" x="110" y="58">消息接入、历史、投递队列</text>
+        <text class="card-body" x="110" y="82">异步缓冲与解耦</text>
+      </g>
     </g>
 
-    <line class="line" x1="320" y1="100" x2="320" y2="128"/>
-    <line class="line" x1="670" y1="100" x2="670" y2="128"/>
-    <line class="line" x1="320" y1="208" x2="258" y2="238"/>
-    <line class="line" x1="670" y1="208" x2="658" y2="238"/>
-    <line class="soft-line" x1="658" y1="312" x2="245" y2="342"/>
-    <line class="line" x1="320" y1="379" x2="348" y2="379"/>
-    <line class="line" x1="500" y1="379" x2="528" y2="379"/>
-    <line class="line" x1="680" y1="379" x2="708" y2="379"/>
-    <line class="line" x1="860" y1="379" x2="888" y2="379"/>
-    <line class="soft-line" x1="605" y1="416" x2="605" y2="456"/>
-    <line class="soft-line" x1="785" y1="416" x2="775" y2="456"/>
-
-    <g transform="translate(926 512)">
-      <rect x="0" y="0" width="170" height="34" rx="17" fill="#0F766E"/>
-      <text class="tag" x="25" y="22">Self-hosted IM</text>
+    <g transform="translate(1110 618)">
+      <rect x="0" y="0" width="200" height="44" rx="22" fill="#0F766E"/>
+      <text class="badge-text" x="100" y="28" text-anchor="middle">Self-hosted IM</text>
     </g>
   </g>
 </svg>
