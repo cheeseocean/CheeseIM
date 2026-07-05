@@ -195,25 +195,27 @@ cd server
 git diff --check
 ```
 
-## 文档状态
+## 文档导览
 
-优先维护的文档：
+全仓文档地图与状态标注见 [`docs/INDEX.md`](docs/INDEX.md)。AI 代理开发约束见 [`AGENTS.md`](AGENTS.md)。
 
-- `README.md`：项目入口、服务端架构、模块边界、启动与测试指南。
-- `README.en.md`：英文项目入口，应与中文 README 保持同级信息。
-- `docs/CheeseIM-数据同步设计文档.md`：当前会话/消息同步设计说明。
+权威文档（与代码同步维护）：
+
+- `README.md` / `README.en.md`：项目入口、架构、模块边界、启动与测试指南。
+- `AGENTS.md`：跨 Agent 开发约束（Claude / Codex / Cursor / Cline 必读）。
+- `docs/INDEX.md`：全仓文档地图 + 状态标注。
+- `server/AGENTS.md`：Java 服务端开发约束（已替代 `server/.claude/rules/`）。
+- `server/docs/architecture/ASSESSMENT.md`：服务端架构评估、百万级演进路线、阻断性问题清单。
+- 各模块 `ARCH.md` 事实快照：`server/{api-server,authcenter,business,common-api,common-core,postbox,postman,postmaster,postoffice,bootstrap-all}/ARCH.md`。
+- `sdks/go/AGENTS.md`、`apps/CheeseBox/AGENTS.md`：Go SDK 与 TUI 客户端约束。
+- `docs/CheeseIM-数据同步设计文档.md`：当前会话/消息同步设计。
 - `docs/client-runbook.md`：Go SDK 与 CheeseBox 联调入口。
 - `server/postoffice/docs/TCP_PROTOCOL.md`：TCP/WS Protobuf 协议说明。
-- `server/postoffice/README.md`、`server/postbox/README.md`、`server/postmaster/README.md`、`server/postman/README.md`：模块职责说明。
-- `apps/CheeseBox/README.md`、`apps/CheeseBox/arch.md`：TUI 客户端说明。
+- `server/postmaster/docs/ConversationArch.md`、`server/postmaster/docs/SeqArch.md`：会话与 seq 设计背景。
 
-参考型文档：
+参考型文档（阅读需对照当前代码）：
 
-- `server/postmaster/docs/ConversationArch.md`、`server/postmaster/docs/SeqArch.md`：会话和 seq 设计背景。
-- `docs/handoff/**`：阶段性交接记录，用于理解当时改动背景，不替代当前代码事实。
-- `server/docs/architecture/**`：早期服务端架构草案和专题设计，阅读时需要和当前模块代码核对。
-- `docs/superpowers/specs/**` 与 `docs/superpowers/plans/**`：历史重构过程记录，可能包含阶段性方案，不能替代当前代码事实。
-- `server/docs/superpowers/specs/**` 与 `server/docs/superpowers/plans/**`：服务端历史实施计划和规格记录，仅作追溯参考。
+- `server/docs/architecture/im_*.md`：早期服务端架构草案与专题设计（状态已标注在 `docs/INDEX.md`，多为草案/过程）。
 
 ## 仓库结构
 
