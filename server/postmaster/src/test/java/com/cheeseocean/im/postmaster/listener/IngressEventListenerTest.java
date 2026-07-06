@@ -91,11 +91,46 @@ class IngressEventListenerTest {
     }
 
     @Test
-    void shouldPublishGroupHistoryAndDelivery() {
+    void shouldPublishGroupHistoryAndFanoutPerMemberForNormalGroup() throws Exception {
         QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
         when(conversationSeqService.allocateBatch("g:crew", 1)).thenReturn(seqBatch(2002L, 2002L));
+        when(groupMembershipFacade.loadGroupType("crew")).thenReturn(com.cheeseocean.im.common.api.enums.GroupTypeEnum.NORMAL_GROUP);
+        when(groupMembershipFacade.loadGroupMembers("crew")).thenReturn(List.of("u1", "u2", "u3"));
+
+        IngressEventListener listener = listener(
+                queueAdapter, groupMembershipFacade, conversationSeqService);
+
+        listener.handle(List.of(groupMessage()));
+
+        // history 仍是单条会话级 event
+        verify(queueAdapter).send(eq(TopicNames.HISTORY), eq("g:crew"), org.mockito.ArgumentMatchers.any(byte[].class));
+        // delivery 改为写扩散：每位成员一份 keyed DeliveryEvent，key 形如 g:{groupId}:{memberId}
+        var deliveryCaptor = forClass(byte[].class);
+        verify(queueAdapter, times(3)).send(eq(TopicNames.DELIVERY), org.mockito.ArgumentMatchers.any(String.class), deliveryCaptor.capture());
+        verify(queueAdapter).send(eq(TopicNames.DELIVERY), eq("g:crew:u1"), org.mockito.ArgumentMatchers.any(byte[].class));
+        verify(queueAdapter).send(eq(TopicNames.DELIVERY), eq("g:crew:u2"), org.mockito.ArgumentMatchers.any(byte[].class));
+        verify(queueAdapter).send(eq(TopicNames.DELIVERY), eq("g:crew:u3"), org.mockito.ArgumentMatchers.any(byte[].class));
+
+        // 校验 delivery payload 中 receiverId 被替换为对应成员（而非群本身的 receiverId）
+        for (int i = 0; i < 3; i++) {
+            Message msg = ProtoMessageMapper.fromProto(
+                    com.cheeseocean.im.common.api.protocol.proto.ProtoMessage.parseFrom(deliveryCaptor.getAllValues().get(i)));
+            assertEquals("u" + (i + 1), msg.getReceiverId());
+            assertEquals(ChatType.GROUP, msg.getChatType());
+            assertEquals("crew", msg.getGroupId());
+            assertEquals(2002L, msg.getSeq());
+        }
+    }
+
+    @Test
+    void shouldPublishGroupHistoryButSkipDeliveryForSuperGroup() {
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
+        GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
+        ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
+        when(conversationSeqService.allocateBatch("g:crew", 1)).thenReturn(seqBatch(2002L, 2002L));
+        when(groupMembershipFacade.loadGroupType("crew")).thenReturn(com.cheeseocean.im.common.api.enums.GroupTypeEnum.SUPER_GROUP);
 
         IngressEventListener listener = listener(
                 queueAdapter, groupMembershipFacade, conversationSeqService);
@@ -103,7 +138,25 @@ class IngressEventListenerTest {
         listener.handle(List.of(groupMessage()));
 
         verify(queueAdapter).send(eq(TopicNames.HISTORY), eq("g:crew"), org.mockito.ArgumentMatchers.any(byte[].class));
-        verify(queueAdapter).send(eq(TopicNames.DELIVERY), eq("g:crew"), org.mockito.ArgumentMatchers.any(byte[].class));
+        verify(queueAdapter, never()).send(eq(TopicNames.DELIVERY), org.mockito.ArgumentMatchers.any(String.class), org.mockito.ArgumentMatchers.any(byte[].class));
+        verify(groupMembershipFacade, never()).loadGroupMembers("crew");
+    }
+
+    @Test
+    void shouldFallbackToWriteFanoutWhenGroupTypeUnknown() {
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
+        GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
+        ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
+        when(conversationSeqService.allocateBatch("g:crew", 1)).thenReturn(seqBatch(2002L, 2002L));
+        when(groupMembershipFacade.loadGroupType("crew")).thenReturn(null);
+        when(groupMembershipFacade.loadGroupMembers("crew")).thenReturn(List.of("u1", "u2"));
+
+        IngressEventListener listener = listener(
+                queueAdapter, groupMembershipFacade, conversationSeqService);
+
+        listener.handle(List.of(groupMessage()));
+
+        verify(queueAdapter, times(2)).send(eq(TopicNames.DELIVERY), org.mockito.ArgumentMatchers.any(String.class), org.mockito.ArgumentMatchers.any(byte[].class));
     }
 
     @Test
@@ -143,6 +196,7 @@ class IngressEventListenerTest {
         QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
+        when(groupMembershipFacade.loadGroupType("crew")).thenReturn(com.cheeseocean.im.common.api.enums.GroupTypeEnum.NORMAL_GROUP);
         when(groupMembershipFacade.loadGroupMembers("crew")).thenReturn(List.of("u1", "u2", "u3"));
         when(conversationSeqService.allocateBatch("g:crew", 1)).thenReturn(seqBatch(1L, 1L));
 
@@ -151,7 +205,8 @@ class IngressEventListenerTest {
 
         listener.handle(List.of(groupMessage()));
 
-        verify(groupMembershipFacade).loadGroupMembers("crew");
+        // 首条群消息：一次用于 createConversationIfNeeded，一次用于 fanout
+        verify(groupMembershipFacade, times(2)).loadGroupMembers("crew");
     }
 
     @Test
@@ -225,7 +280,8 @@ class IngressEventListenerTest {
                 new HistoryEventProducer(queueAdapter),
                 groupMembershipFacade,
                 conversationSeqService,
-                new DefaultMessagePolicyEngine()
+                new DefaultMessagePolicyEngine(),
+                new com.cheeseocean.im.postmaster.service.GroupFanoutPlanner(500)
         );
     }
 

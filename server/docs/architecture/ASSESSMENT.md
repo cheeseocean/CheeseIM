@@ -66,7 +66,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、当前实现态仍是单
 | 级别 | 问题 | 位置 | 影响 |
 | --- | --- | --- | --- |
 | **P0** | 跨节点在线投递失效：`gatewayNode` 硬编码 `"postoffice"`，Dubbo 默认 LB 随机选节点 | `ConnectionManager.java:486`、`OnlineDispatcherImpl.java:67` | 多节点下除命中本机的消息外，全部误判离线走 push |
-| **P0** | 群投递被硬跳过 | `DeliveryEventListener.java:59-61` | 群消息只持久化、不投递；`GroupFanoutPlanner` 死代码 |
+| ~~**P0**~~ | ~~群投递被硬跳过~~ | ~~`DeliveryEventListener.java:59-61`~~ | **已修复 2026-07-06**：`IngressEventListener.fanoutGroupDelivery` 接通 `GroupFanoutPlanner`，NORMAL_GROUP 走写扩散按成员切片 publish N 个 keyed DeliveryEvent（`g:{groupId}:{memberId}`），SUPER_GROUP 走读扩散仅持久化，postman `DeliveryEventListener` 去除 `ChatType.GROUP` 跳过分支 |
 | ~~**P0**~~ | ~~路由表非原子 RMW + L1 无失效广播~~ | ~~`RedisOnlineRouteService.java:25,35,47`、`MultiLevelCacheService.java:45`~~ | **已修复 2026-07-06**：`RedisOnlineRouteService` 改为单脚本 Lua 原 子 HASH 双字段（route/heartbeat），不再走 `MultiLevelCacheService` L1 缓存，见 `postoffice/ARCH.md` §3 |
 | **P1** | ConnectionManager 全局 `synchronized` | `ConnectionManager.java:139,203` | 重连风暴下吞吐塌缩 |
 | **P1** | 踢下线跨节点失效 | `KickoffCommandServiceImpl.java:18-40` | 多端登录超限、安全踢下线不可靠 |
@@ -121,7 +121,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、当前实现态仍是单
 ### P0 — 修正"伪集群"（必做，2-4 周）
 
 1. **节点身份贯通**：`RouteSnapshot.gatewayNode` 写入真实节点 id（Nacos 实例 id 或启动随机 UUID 注册到 Redis）。postman 根据 `gatewayNode` 选择 Dubbo 服务组，或改"每节点专属 topic + 节点订阅"直投。
-2. **群扩散闭环**：在 `IngressEventListener.handleMessage` 调用 `GroupFanoutPlanner`。普通群（`GroupTypeEnum.NORMAL_GROUP`）走写扩散，产出 N 个 keyed `DeliveryEvent`；超级群（`SUPER_GROUP`）走读扩散，仅持久化 + 客户端按 seq 拉取。
+2. ~~**群扩散闭环**：在 `IngressEventListener.handleMessage` 调用 `GroupFanoutPlanner`。普通群（`GroupTypeEnum.NORMAL_GROUP`）走写扩散，产出 N 个 keyed `DeliveryEvent`；超级群（`SUPER_GROUP`）走读扩散，仅持久化 + 客户端按 seq 拉取。~~ **已完成 2026-07-06**：`fanoutGroupDelivery` 接通 `GroupFanoutPlanner.partition` + `deliveryKey`，经 `GroupMembershipFacade.loadGroupType` 分流 NORMAL_GROUP（写扩散）/ SUPER_GROUP（读扩散）/ null（按 NORMAL 兜底）；`MessageProducer.publishForMember` 复用 protobuf builder 替换 `receiverId`，避免 Java 侧深拷贝；postman `DeliveryEventListener` 去除 `ChatType.GROUP` 跳过分支。
 3. ~~**路由表原子化**：把 `RedisOnlineRouteService` 的 register/refresh/kick 改写为单脚本 Lua（类比 seq 分配器的工作模式），消除 RMW 竞态。~~ **已完成 2026-07-06**：`register`/`refresh`/`unregister` 走单脚本 Lua；存储改为 Redis HASH 双字段（`route:{deviceId}` JSON + `heartbeat:{deviceId}` 时间戳），不再依赖 `MultiLevelCacheService` L1。
 4. **连接管理去全局锁**：`ConnectionManager` 按 `userId hash` 分片到 N 个 `ShardedConnectionManager`，分片锁 + 分片清理线程，连接增删并发提升 N 倍。
 5. **投递去重上 Redis**：`deliveredMessageKeys` 改 Redis `SET ... EX` 跨节点去重 + 自动过期。
@@ -194,3 +194,4 @@ CheeseIM 是一个**架构骨架已经为集群设计、当前实现态仍是单
 ## 九、勘误记录
 
 - 2026-07-06：P0-3 路由表原子化已完成。`RedisOnlineRouteService` 重写为基于 `StringRedisTemplate` + 单脚本 Lua，存储改为 Redis HASH 双字段（`route:{deviceId}` JSON + `heartbeat:{deviceId}` 时间戳），不再走 `MultiLevelCacheService`，消除原 RMW 竞态与 L1 无广播不一致。`OnlineRouteService` 接口未变，`HeartbeatMessageHandler` / `ConnectionManager` 调用方零改动。原 ASSESSMENT 「P0-3」表格项已划除，演进路线 P0 §3 已划除并标注完成日期。
+- 2026-07-06：P0-2 群扩散闭环已完成。`GroupMembershipQueryService` Dubbo 契约新增 `queryGroupType(groupId)`，business 实现侧复用 `GroupRepository` 读群资料并映射 `GroupTypeEnum`；`GroupMembershipFacade` 增 `loadGroupType` 包装；`GroupFanoutPlanner` 新增 `deliveryKey(groupId, memberId)` 生成 `g:{groupId}:{memberId}` 形式 partition key；`IngressEventListener` 新增 `fanoutGroupDelivery` 分流 NORMAL_GROUP（写扩散按成员切片 publish N 份 keyed DeliveryEvent）/ SUPER_GROUP（读扩散仅持久化）/ null（兜底 NORMAL）；`MessageProducer.publishForMember` 通过 protobuf builder 替换 `receiverId`，避免 Java 侧深拷贝 `Message`；postman `DeliveryEventListener.resolveTargets` 去除 `ChatType.GROUP` 跳过分支，直接按 `receiverId` 投递（写扩散后每条 DeliveryEvent 已携带具体 memberId）。injvm 部署原生兼容，调用方零改动。

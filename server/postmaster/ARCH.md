@@ -14,7 +14,7 @@
 | `ConversationSeqService` | `service/ConversationSeqService.java:20` | seq 分配薄包装，委托 `ConversationSeqAllocator`（common-core） |
 | `BlockHistoryPersistenceService` | `history/BlockHistoryPersistenceService.java:29` | 历史块 upsert + message id mapping 保存 |
 | `DefaultMessagePolicyEngine` | `policy/DefaultMessagePolicyEngine.java:11` | 输出 `MessageRouteDecision`（persistHistory/notification/sendDelivery/needOfflinePush/senderSync） |
-| `GroupFanoutPlanner` | `service/GroupFanoutPlanner.java:18` | 群扩散规划器（已实现但**未接通**，P0-2 修复项） |
+| `GroupFanoutPlanner` | `service/GroupFanoutPlanner.java` | 群扩散规划器：成员切片 + delivery key 生成（`g:{groupId}:{memberId}`）；2026-07-06 P0-2 修复接通 |
 | `UserMaxSeqPersistenceWriter` | `service/UserMaxSeqPersistenceWriter.java` | 用户 maxSeq 异步写 Mongo（单线程 drain + 2000 队列） |
 
 ## 2. Ingress 处理流程（`IngressEventListener.handle`）
@@ -24,7 +24,14 @@
 3. 按 `storageMsgList` / `storageNotificationList` / `transientList` 分组
 4. 每组申请一批 seq（`ConversationSeqAllocator.allocateBatch`）并按顺序绑 seq（line 153）
 5. `createConversationIfNeeded` 同步 Dubbo 创建会话（line 173）——同步链路
-6. publish history event + delivery event（per-message，未批量）
+6. publish history event（per-batch）
+7. delivery 发布分两路：
+   - 群聊（`ChatType.GROUP`）走 `fanoutGroupDelivery`：根据 `GroupMembershipFacade.loadGroupType` 返回的 `GroupTypeEnum` 选择
+     - `NORMAL_GROUP`：调 `loadGroupMembers` 查询成员 → `GroupFanoutPlanner.partition` 切片 →
+       每成员 `MessageProducer.publishForMember("g:{groupId}:{memberId}", template, memberId)` 发一份 keyed DeliveryEvent（**写扩散**）
+     - `SUPER_GROUP`：不投递，仅持久化（**读扩散**），客户端按 seq 拉取
+     - `null`（群不存在/Dubbo 异常）：按 NORMAL_GROUP 兜底，避免投递丢失
+   - 非群聊（单聊/通知）走原 per-message `MessageProducer.publish(convId, msg)`
 
 ## 3. seq 分配（生产级，委托 common-core）
 
@@ -39,12 +46,18 @@
 
 ⚠️ 当前 `BlockHistoryPersistenceService.java:55` 在循环里**逐条 `mappingRepository.save`**，未用 `bulkOps`，是写吞吐瓶颈。ASSESSMENT P1-8 修复项。
 
-## 5. 群扩散（**未闭环**）
+## 5. 群扩散（**已闭环 2026-07-06**）
 
-- `GroupFanoutPlanner` 已实现 500 批的分区扩展
-- **没有任何代码调用它**（grep 全仓零 caller）
-- `DeliveryEventListener`（在 postman）对 `ChatType.GROUP` 直接 `return List.of()`，群消息只持久化不投递
-- ASSESSMENT P0-2：在 `IngressEventListener.handleMessage` 调 `GroupFanoutPlanner`，普通群写扩散 publish N 个 keyed `DeliveryEvent`，超级群读扩散仅持久化
+- `GroupFanoutPlanner.partition(memberIds)` 把成员按 `cheeseim.delivery.group-fanout.batch-size`（默认 500）切片
+- `GroupFanoutPlanner.deliveryKey(groupId, memberId)` 产出 `g:{groupId}:{memberId}` 形式 partition key，保证同成员在同一群内消息落同一 Kafka 分区、按序投递
+- `IngressEventListener.fanoutGroupDelivery` 调用：
+  - `GroupMembershipFacade.loadGroupType(groupId)` → `GroupTypeEnum.NORMAL_GROUP` / `SUPER_GROUP` / `null`
+  - NORMAL_GROUP：`loadGroupMembers` → 切片 → 每成员 `MessageProducer.publishForMember` 替换 `receiverId` 后投递
+  - SUPER_GROUP：不投递，仅持久化
+  - null：按 NORMAL_GROUP 兜底
+- `MessageProducer.publishForMember` 通过 protobuf builder 替换 `receiverId`，避免 Java 侧深拷贝 `Message`
+- postman `DeliveryEventListener.resolveTargets` 不再对 `ChatType.GROUP` 跳过——写扩散后每条 DeliveryEvent 已带 `receiverId`，直接按 receiverId 投递即可
+- 同步链路上每个群消息最多加 2 次 Dubbo：`loadGroupType` + `loadGroupMembers`（新会话已有后者用于 createConversation，复用可优化，留作 P2-14 合并 Dubbo 的后续工作）
 
 ## 6. 已读回执（**残缺**）
 

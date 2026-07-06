@@ -4,6 +4,7 @@ import com.cheeseocean.im.common.api.conversation.ConversationService;
 import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.enums.ContentType;
 import com.cheeseocean.im.common.api.enums.ChatType;
+import com.cheeseocean.im.common.api.enums.GroupTypeEnum;
 import com.cheeseocean.im.common.api.event.HistoryEvent;
 import com.cheeseocean.im.common.core.constants.TopicNames;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
@@ -12,6 +13,7 @@ import com.cheeseocean.im.common.core.util.ConversationIdUtil;
 import com.cheeseocean.im.postmaster.sender.HistoryEventProducer;
 import com.cheeseocean.im.postmaster.sender.MessageProducer;
 import com.cheeseocean.im.postmaster.service.ConversationSeqService;
+import com.cheeseocean.im.postmaster.service.GroupFanoutPlanner;
 import com.cheeseocean.im.postmaster.service.GroupMembershipFacade;
 import com.cheeseocean.im.postmaster.service.MessagePolicyEngine;
 import com.cheeseocean.im.postmaster.service.MessageRouteDecision;
@@ -32,6 +34,7 @@ public class IngressEventListener {
     private final        GroupMembershipFacade  groupMembershipFacade;
     private final        ConversationSeqService conversationSeqService;
     private final        MessagePolicyEngine    messagePolicyEngine;
+    private final        GroupFanoutPlanner    groupFanoutPlanner;
     @DubboReference
     private              ConversationService    conversationService;
 
@@ -39,12 +42,14 @@ public class IngressEventListener {
                                 HistoryEventProducer historyEventProducer,
                                 GroupMembershipFacade groupMembershipFacade,
                                 ConversationSeqService conversationSeqService,
-                                MessagePolicyEngine messagePolicyEngine) {
+                                MessagePolicyEngine messagePolicyEngine,
+                                GroupFanoutPlanner groupFanoutPlanner) {
         this.messageProducer = messageProducer;
         this.historyEventProducer = historyEventProducer;
         this.groupMembershipFacade = groupMembershipFacade;
         this.conversationSeqService = conversationSeqService;
         this.messagePolicyEngine = messagePolicyEngine;
+        this.groupFanoutPlanner = groupFanoutPlanner;
     }
 
     // 消费 INGRESS 队列，批量接收同一会话的消息
@@ -122,10 +127,75 @@ public class IngressEventListener {
         publishHistoryEvent(storageMsgList, seqBatch);
         publishHistoryEvent(storageNotificationList, notificationSeqBatch);
 
-        // 在线推送
+        // 在线推送：群聊按 NORMAL_GROUP/SUPER_GROUP 分流；其它会话按消息原样 per-message publish
         for (EventCtx p : storageList) {
-            if (p.decision().sendDelivery()) messageProducer.publish(p.convId(), p.msg());
+            if (!p.decision().sendDelivery()) {
+                continue;
+            }
+            if (p.msg().getChatType() == ChatType.GROUP) {
+                fanoutGroupDelivery(p.msg());
+            } else {
+                messageProducer.publish(p.convId(), p.msg());
+            }
         }
+    }
+
+    /**
+     * 群消息扩散投递。
+     *
+     * <ul>
+     *   <li>{@link GroupTypeEnum#NORMAL_GROUP}：写扩散——查询群成员，按 {@link GroupFanoutPlanner#partition}
+     *       切片后，逐成员 publish 一个 keyed DeliveryEvent（{@code g:{groupId}:{memberId}}），
+     *       postman 收到后按 {@code receiverId} 直投。</li>
+     *   <li>{@link GroupTypeEnum#SUPER_GROUP}：读扩散——不投递，仅持久化即可，客户端按 seq 同步。</li>
+     *   <li>{@code null}：群不存在或 Dubbo 异常，按 NORMAL_GROUP 写扩散兜底，避免安全降级丢失投递。</li>
+     * </ul>
+     *
+     * <p>为何不在 ingress 吞下群投递失败：此处异常上抛会导致整批 ingress 重投，重复 seq 分配。
+     * 因此本方法内捕获 Dubbo/查询异常并降级为"无投递"，仅在日志记录；客户端按 seq 同步自愈。
+     * 单聊的原 per-message publish 等价语义不受影响。
+     */
+    private void fanoutGroupDelivery(Message groupMsg) {
+        String groupId = groupMsg.getGroupId();
+        if (groupId == null || groupId.isBlank()) {
+            log.warn("Group delivery skipped: groupId is missing, serverMsgId={}", groupMsg.getServerMsgId());
+            return;
+        }
+        GroupTypeEnum groupType;
+        try {
+            groupType = groupMembershipFacade.loadGroupType(groupId);
+        } catch (Exception e) {
+            // Dubbo 异常时不降级为读扩散——按 NORMAL_GROUP 兜底，至少保证普通群能投递
+            log.warn("Load group type failed, fallback to NORMAL_GROUP write-fanout: groupId={}", groupId, e);
+            groupType = GroupTypeEnum.NORMAL_GROUP;
+        }
+        if (groupType == GroupTypeEnum.SUPER_GROUP) {
+            // 读扩散：仅持久化，客户端按 seq 拉取。无投递事件 publish。
+            log.debug("Group message sent in read-fanout mode (SUPER_GROUP): groupId={}, seq={}",
+                    groupId, groupMsg.getSeq());
+            return;
+        }
+        // null 或 NORMAL_GROUP：写扩散
+        List<String> members;
+        try {
+            members = groupMembershipFacade.loadGroupMembers(groupId);
+        } catch (Exception e) {
+            log.warn("Load group members failed, group delivery abandoned: groupId={}", groupId, e);
+            return;
+        }
+        if (members == null || members.isEmpty()) {
+            log.warn("Group has no members to fan out: groupId={}, serverMsgId={}", groupId, groupMsg.getServerMsgId());
+            return;
+        }
+        List<List<String>> batches = groupFanoutPlanner.partition(members);
+        for (List<String> batch : batches) {
+            for (String memberId : batch) {
+                // 自发送者已在成员列表中，senderSync 由 delivery 链路按 receiverId == senderId 时自行决定
+                messageProducer.publishForMember(groupFanoutPlanner.deliveryKey(groupId, memberId), groupMsg, memberId);
+            }
+        }
+        log.debug("Group message fanned out: groupId={}, members={}, batches={}, seq={}",
+                groupId, members.size(), batches.size(), groupMsg.getSeq());
     }
 
     // ── 共用私有方法 ──────────────────────────────────────────────────────────

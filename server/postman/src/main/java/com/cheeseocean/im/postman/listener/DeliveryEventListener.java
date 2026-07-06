@@ -56,10 +56,9 @@ public class DeliveryEventListener {
     }
 
     private List<String> resolveTargets(Message message) {
-        if (message.getChatType() == ChatType.GROUP) {
-            log.warn("Skipping group delivery because target fanout data is not attached to message: groupId={}", message.getGroupId());
-            return List.of();
-        }
+        // 写扩散群消息已在 postmaster 端拆解为 per-member DeliveryEvent（chatType=GROUP, receiverId=memberId）；
+        // 读扩散群消息（SUPER_GROUP）不会进入 DELIVERY 队列，因此本方法可直接按 receiverId 投递，
+        // 不再按 chatType 跳过群投递。
         if (message.getReceiverId() == null || message.getReceiverId().isBlank()) {
             return List.of();
         }
