@@ -54,8 +54,20 @@ public final class RedisKeys {
         return AUTH_PREFIX + ":friend_request:" + fromUserId + ":" + toUserId;
     }
 
+    /**
+     * 用户在线路由表缓存 key。
+     *
+     * <p>存储结构：Redis HASH（field = {@code route:{deviceId}} / {@code heartbeat:{deviceId}}），
+     * 详见 {@code postoffice/RedisOnlineRouteService}。
+     *
+     * <p>版本化原因：早期实现把该 key 写成 String（经 {@code RedisL2CacheAdapter}），
+     * 2026-07-06 P0-3 路由表原子化改为 Lua + HASH。若直接复用旧 key，
+     * 滚动重启期间旧 String 残留会导致 {@code HSET}/{@code HGETALL} 抛 {@code WRONGTYPE}，
+     * 在旧 key 30min TTL 自然过期前影响该用户的注册/心跳/注销链路。
+     * 加 {@code v2} 后旧 key 自然过期，无需手动清理。
+     */
     public static String onlineUser(String userId) {
-        return "online:user:" + userId;
+        return "online:user:v2:" + userId;
     }
 
     public static String onlineConn(String connectionId) {

@@ -18,7 +18,7 @@
 | 组件 | 文件 | 职责 |
 | --- | --- | --- |
 | `ConnectionManager` | `connection/ConnectionManager.java:39` | 6 张本地 `ConcurrentHashMap` 持连接态，`addConnection/removeConnection` 用 `synchronized` |
-| `RedisOnlineRouteService` | `service/RedisOnlineRouteService.java:25,35,47` | 在线路由注册/刷新/踢下线（**非原子 RMW**） |
+| `RedisOnlineRouteService` | `service/RedisOnlineRouteService.java` | 在线路由注册/刷新/踢下线（**Lua 原子脚本**，HASH + 双字段：route/heartbeat） |
 | `OnlineDispatcherImpl` | `api/OnlineDispatcherImpl.java:67` | Dubbo 投递入口，仅本地 dispatch |
 | `KickoffCommandServiceImpl` | `kickoff/KickoffCommandServiceImpl.java:8` | Dubbo 踢下线接口 |
 | `HeartbeatMessageHandler` | `handler/HeartbeatMessageHandler.java:42` | 心跳处理 |
@@ -26,9 +26,14 @@
 
 ## 3. 路由表契约
 
-- 存储：Redis hash key `RouteSnapshot` list + 30min TTL
+- 存储：Redis HASH key `online:user:{userId}`（参见 `RedisKeys.onlineUser`），30min TTL
+  - Field `route:{deviceId}` = `RouteSnapshot` 的 JSON（注册/重连时整体覆盖）
+  - Field `heartbeat:{deviceId}` = 心跳时间戳字符串（被 `refresh` 高频更新，独立字段避免每次心跳重序列化整条 JSON）
+- 原子性：`register` / `refresh` / `unregister` 均走单脚本 Lua（参见 `RedisOnlineRouteService`），消除原 `MultiLevelCacheService` 「读-改-写」竞态与 L1 无失效广播问题（ASSESSMENT P0-3 已修复）
+- 不再使用 `MultiLevelCacheService` L1 Caffeine：路由是跨节点共享真相，L1 本地缓存会让多节点 1-5min 不一致；读写都直连 Redis
+- `findByUser` 走 `HGETALL`，Java 侧合并 `route:` / `heartbeat:` 双字段，按 `deviceId` 排序
 - 使用方：`OnlineDispatcherImpl.java:67` 仅取 `userId` 查本地连接，**`gatewayNode` 字段当前未被任何消费者读取**
-- `gatewayNode` 在 `ConnectionManager.java:486` 硬编码 `"postoffice"`，是 P0 阻断性问题（ASSESSMENT P0-1）
+- `gatewayNode` 在 `ConnectionManager.java:486` 硬编码 `"postoffice"`，是 P0 阻断性问题（ASSESSMENT P0-1，尚未修复）
 - 不要把 `gatewayNode` 改成任意字符串；需配合 postman 路由整体修复
 
 ## 4. 多端登录策略
@@ -45,8 +50,8 @@
 
 ## 7. 修复优先级（按 ASSESSMENT）
 
-1. P0-1 真实 gatewayNode + Dubbo 服务组路由 / per-node topic 直投
-2. P0-3 路由注册改 Lua 原子
+1. ~~P0-3 路由注册改 Lua 原子~~（已修复 2026-07-06）
+2. P0-1 真实 gatewayNode + Dubbo 服务组路由 / per-node topic 直投
 3. P1 ConnectionManager 分片去 global lock
 4. P1 踢下线跨节点
 
