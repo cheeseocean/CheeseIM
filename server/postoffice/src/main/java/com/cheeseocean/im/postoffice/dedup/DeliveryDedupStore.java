@@ -20,7 +20,10 @@ public interface DeliveryDedupStore {
      *
      * @param serverMsgId 服务端消息 ID，非空
      * @param userId      接收方用户 ID，非空
-     * @param deviceId    设备 ID，可为 null（null 时按通配符 "*" 记录，等价于"任何设备均标记为已投递"）
+     * @param deviceId    设备/连接标识。当前调用方 {@code ConnectionManager.markDeliveryIfAbsent}
+     *                     传入的是 {@code connectionId}（per-connection 粒度去重），命名上沿用 deviceId
+     *                     是历史遗留——见 {@link com.cheeseocean.im.postoffice.connection.ConnectionManager}
+     *                     的接口注释。可为 null，按通配符 "*" 记录，等价于"任何设备/连接均已投递"。
      * @return {@code true} 表示本次是首次记录，可执行真正的投递；{@code false} 表示已记录过，调用方应跳过
      */
     boolean markIfAbsent(String serverMsgId, String userId, String deviceId);

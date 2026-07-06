@@ -20,13 +20,12 @@ public class GroupMembershipFacade {
         this.groupMembershipQueryService = groupMembershipQueryService;
     }
 
-    public List<String> loadDeliveryTargets(String conversationId) {
-        if (groupMembershipQueryService == null) {
-            throw new IllegalStateException("GroupMembershipQueryDubboService is not configured");
-        }
-        return groupMembershipQueryService.queryConversationMembers(conversationId);
-    }
-
+    /**
+     * 查询群成员 userId 列表。
+     *
+     * <p>历史上有 {@code loadDeliveryTargets(String conversationId)} 同义方法，但已无调用方；
+     * 群写扩散改造（P0-2）后 postmaster 直接按 groupId 查询并按成员切片 publish，不再经会话维度。
+     */
     public List<String> loadGroupMembers(String groupId) {
         if (groupMembershipQueryService == null) {
             throw new IllegalStateException("GroupMembershipQueryDubboService is not configured");
