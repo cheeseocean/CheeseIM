@@ -46,7 +46,16 @@
 
 ## 6. 投递去重
 
-`ConnectionManager.markDeliveryIfAbsent` 用 `deliveredMessageKeys = ConcurrentHashMap.newKeySet()`，无界本地 Set。**禁止**换另一份本地 Set，必须上 Redis（ASSESSMENT P0-5）。
+`ConnectionManager.markDeliveryIfAbsent` 委托给 `DeliveryDedupStore`：
+
+- 生产环境注入 `RedisDeliveryDedupStore`，使用 Redis 单命令 `SET <key> 1 NX EX <ttl>` 做原子 mark-if-absent：
+  - 跨节点共享：多 postoffice 节点共用同一 Redis，跨节点的重复推送也会被去重
+  - 无界增长问题修复：每个去重记录一个独立 key，TTL 自动回收，与进程生命期无关
+  - Key：`idem:delivery:{serverMsgId}:{userId}:{deviceId|*}`，复用 `RedisKeys.deliveryIdem`
+  - TTL 默认 600 秒（`cheeseim.delivery.dedup.ttl-seconds`），覆盖典型客户端重试窗口
+  - Redis 异常返回 null 时按 false 处理，调用方走重复分支避免重复推送（保 side-effect-safe）
+- 测试环境不注入 `DeliveryDedupStore` 时走 NO-OP 放行，由测试用例自行断言期望的推送次数
+- **禁止**把旧的本地 `ConcurrentHashMap.newKeySet()` 重新引入或换另一份本地 Set（根 AGENTS §8、ASSESSMENT P0-5）
 
 ## 7. 修复优先级（按 ASSESSMENT）
 

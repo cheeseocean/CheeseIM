@@ -2,6 +2,7 @@ package com.cheeseocean.im.postoffice.connection;
 
 import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
+import com.cheeseocean.im.postoffice.dedup.DeliveryDedupStore;
 import com.cheeseocean.im.postoffice.service.OnlineRouteService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.channel.Channel;
@@ -32,6 +33,16 @@ public class ConnectionManager {
 
     @Autowired(required = false)
     private OnlineRouteService onlineRouteService;
+
+    /**
+     * 投递去重存储。生产环境由 {@link com.cheeseocean.im.postoffice.dedup.RedisDeliveryDedupStore}
+     * 提供 Redis 跨节点去重 + TTL 自动过期；测试环境不注入时走 NO-OP（直接放行）回退，
+     * 因为单元测试不连 Redis，重复投递的副作用由测试断言决定而非依赖真实去重。
+     *
+     * <p>禁止再换一份本地 Set 来"修复"无界增长问题（见 ASSESSMENT P0-5 + 根 AGENTS §8）。
+     */
+    @Autowired(required = false)
+    private DeliveryDedupStore deliveryDedupStore;
     
     /**
      * Connection ID to connection metadata.
@@ -58,11 +69,6 @@ public class ConnectionManager {
      */
     private final Map<Channel, String> channelConnectionMap = new ConcurrentHashMap<>();
 
-    /**
-     * Best-effort in-memory gateway delivery dedup.
-     */
-    private final Set<String> deliveredMessageKeys = ConcurrentHashMap.newKeySet();
-    
     /**
      * Distinct online-user count.
      */
@@ -323,7 +329,12 @@ public class ConnectionManager {
         if (serverMsgId == null || userId == null) {
             return false;
         }
-        return deliveredMessageKeys.add(serverMsgId + ":" + userId + ":" + (deviceId == null ? "*" : deviceId));
+        // 生产环境注入 RedisDeliveryDedupStore 走 Redis SET NX EX；测试环境未注入时 NO-OP 放行，
+        // 由测试用例自行断言期望的推送次数（重复判断不是测试关注点）。
+        if (deliveryDedupStore == null) {
+            return true;
+        }
+        return deliveryDedupStore.markIfAbsent(serverMsgId, userId, deviceId);
     }
     
     /**
