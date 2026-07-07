@@ -7,7 +7,6 @@ import com.cheeseocean.im.common.api.dto.dispatch.DispatchResult;
 import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.api.event.OfflinePushEvent;
-import com.cheeseocean.im.common.api.protocol.ProtoOfflinePushEventMapper;
 import com.cheeseocean.im.common.api.route.OnlineRouteQueryService;
 import com.cheeseocean.im.common.api.rpc.NodeDeliveryService;
 import com.cheeseocean.im.common.api.rpc.OnlineDispatcher;
@@ -16,9 +15,9 @@ import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
 import com.cheeseocean.im.common.core.queue.annotation.QueueListener;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import com.cheeseocean.im.common.core.util.ConversationIdUtil;
+import com.cheeseocean.im.postman.sender.OfflinePushEventProducer;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
@@ -32,16 +31,16 @@ public class DeliveryEventListener {
     private static final Logger       log = CommonLoggers.POSTMAN;
     private final OnlineRouteQueryService onlineRouteQueryService;
     private final OnlineDispatcher        onlineDispatcher;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final OfflinePushEventProducer offlinePushProducer;
     @Autowired(required = false)
     private NodeDeliveryService nodeDeliveryService;
 
     public DeliveryEventListener(OnlineRouteQueryService onlineRouteQueryService,
                                  OnlineDispatcher onlineDispatcher,
-                                 KafkaTemplate<String, Object> kafkaTemplate) {
+                                 OfflinePushEventProducer offlinePushProducer) {
         this.onlineRouteQueryService = onlineRouteQueryService;
         this.onlineDispatcher = onlineDispatcher;
-        this.kafkaTemplate = kafkaTemplate;
+        this.offlinePushProducer = offlinePushProducer;
     }
 
     @QueueListener(topic = TopicNames.DELIVERY, group = "push-delivery")
@@ -154,7 +153,9 @@ public class DeliveryEventListener {
         if (message.getOptions() == null || !Boolean.TRUE.equals(message.getOptions().getNeedOfflinePush())) {
             return;
         }
-        kafkaTemplate.send(TopicNames.OFFLINE_PUSH, userId, ProtoOfflinePushEventMapper.toProto(toOfflinePushEvent(userId, message)).toByteArray());
+        // P0-6 修复：通过 QueueAdapter 而非直连 KafkaTemplate，使 OFFLINE_PUSH 在 cheeseim.queue.type=chronicle
+        // 的单机联调模式下同样能投到 Chronicle 队列被 OfflinePushEventListener 消费。
+        offlinePushProducer.publish(userId, toOfflinePushEvent(userId, message));
     }
 
     private DispatchPayload toDispatchPayload(Message message) {

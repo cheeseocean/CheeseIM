@@ -40,7 +40,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、当前实现态仍是单
 | 连接管理（ConnectionManager） | 全局 `synchronized`，连接增删串行；`deliveredMessageKeys` 无界本地 HashSet |
 | 群消息投递 | `DeliveryEventListener` 对 `ChatType.GROUP` 直接 `return List.of()`，`GroupFanoutPlanner` 已实现但无人调用 |
 | 二级缓存（MultiLevelCacheService） | L1 Caffeine 本地，无 pub/sub 失效广播，远端写入最长 1-5min 才一致 |
-| 队列抽象（QueueAdapter） | 默认 Chronicle（单机文件）；Kafka 路径消费者用 Jackson `StringDeserializer`，生产者发 Protobuf 字节，**端到端不兼容** |
+| 队列抽象（QueueAdapter） | 默认 Chronicle（单机文件）；Kafka 路径消费者用 Jackson `StringDeserializer`，生产者发 Protobuf 字节，**端到端不兼容**（**已修复 2026-07-07**：`KafkaQueueAdapter.subscribe` 对齐 `ChronicleQueueAdapter.deserialize`——`byte[]` 透传、`Message/HistoryEvent/OfflinePushEvent` 走 protobuf 原生解析；`CommonKafkaStringConfig.byteKafkaTemplate` 用 `ByteArraySerializer`，`QueueAutoConfigurer` 注入字节 template 取代原 `stringKafkaTemplate` 的泛型不匹配；`DeliveryEventListener` 通过新增 `OfflinePushEventProducer` → `QueueAdapter.send`） |
 | WS ticket 一次性 consume | read-then-write 非原子，有重放窗口 |
 | `tokenVersion` 踢下线校验 | 硬编码 `1L`，基于版本号的踢下线形同虚设 |
 | 用户封禁标志 | 只存 Redis 缓存（`loader = () -> null`），flush 即解封 |
@@ -71,7 +71,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、当前实现态仍是单
 | **P1** | ConnectionManager 全局 `synchronized` | `ConnectionManager.java:139,203` | 重连风暴下吞吐塌缩 |
 | **P1** | 踢下线跨节点失效 | `KickoffCommandServiceImpl.java:18-40` | 多端登录超限、安全踢下线不可靠 |
 | ~~**P1**~~ | ~~`deliveredMessageKeys` 无界本地 HashSet~~ | ~~`ConnectionManager.java:64`~~ | **已修复 2026-07-06**：`ConnectionManager.markDeliveryIfAbsent` 委托给新抽象 `DeliveryDedupStore`；`RedisDeliveryDedupStore` 用 Redis `SET NX EX` 单原子命令做跨节点去重 + TTL 自动过期，key 形如 `idem:delivery:{serverMsgId}:{userId}:{deviceId|*}`。去掉旧 `ConcurrentHashMap.newKeySet()` 本地 Set，长跑 OOM 与跨节点漏去重双问题同时消除。
-| **P1** | 默认队列 Chronicle（单机）+ Kafka 路径序列化不兼容 | `QueueAutoConfigurer.java:28`、`KafkaQueueAdapter.java:54` vs `MessageProducer.java:27` | 多节点下无队列通道 |
+| ~~**P1**~~ | ~~默认队列 Chronicle（单机）+ Kafka 路径序列化不兼容~~ | ~~`QueueAutoConfigurer.java:28`、`KafkaQueueAdapter.java:54` vs `MessageProducer.java:27`~~ | **已修复 2026-07-07**：`KafkaQueueAdapter` 反序列化对齐 Chronicle（protobuf 原生 / byte[] 透传），`byteKafkaTemplate` 修复泛型不匹配，DeliveryEventListener 改走 `OfflinePushEventProducer` → `QueueAdapter.send`（详见 `postman/ARCH.md` §7）。多节点下队列通道已就绪，只需在 `common.yml` 启用 `cheeseim.queue.type=kafka` 并确保 Kafka bootstrap 配置可用即可上集群。
 | **P2** | 历史分页全扫 | `HistoryQueryService.java:53-82` | 长会话分页 O(n) |
 | **P2** | 权限校验失败放行 | `HistoryQueryService.java:213` | Dubbo 故障期越权访问 |
 | **P2** | MessageSender 三次同步 Dubbo | `MessageSenderImpl.java:109-123` | 发送热路径 RTT ×3 |
@@ -125,7 +125,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、当前实现态仍是单
 3. ~~**路由表原子化**：把 `RedisOnlineRouteService` 的 register/refresh/kick 改写为单脚本 Lua（类比 seq 分配器的工作模式），消除 RMW 竞态。~~ **已完成 2026-07-06**：`register`/`refresh`/`unregister` 走单脚本 Lua；存储改为 Redis HASH 双字段（`route:{deviceId}` JSON + `heartbeat:{deviceId}` 时间戳），不再依赖 `MultiLevelCacheService` L1。
 4. **连接管理去全局锁**：`ConnectionManager` 按 `userId hash` 分片到 N 个 `ShardedConnectionManager`，分片锁 + 分片清理线程，连接增删并发提升 N 倍。
 5. ~~**投递去重上 Redis**：`deliveredMessageKeys` 改 Redis `SET ... EX` 跨节点去重 + 自动过期。~~ **已完成 2026-07-06**：新增 `DeliveryDedupStore` 抽象 + `RedisDeliveryDedupStore` 实现，使用 `SET <key> 1 NX EX <ttl>` 单原子命令；key = `idem:delivery:{serverMsgId}:{userId}:{deviceId|*}`，TTL 默认 600s（`cheeseim.delivery.dedup.ttl-seconds`）；`ConnectionManager` 删除本地 `ConcurrentHashMap.newKeySet()` 字段，改为依赖注入 `DeliveryDedupStore`，未注入时 NO-OP 放行供测试使用。
-6. **修复 Kafka 路径**：统一 Protobuf 序列化器（Producer/Consumer 一致），把 `DeliveryEventListener.emitOfflinePushIfNeeded` 中的 `kafkaTemplate.send` 直调改回 `QueueAdapter`。
+6. ~~**修复 Kafka 路径**：统一 Protobuf 序列化器（Producer/Consumer 一致），把 `DeliveryEventListener.emitOfflinePushIfNeeded` 中的 `kafkaTemplate.send` 直调改回 `QueueAdapter`。~~ **已完成 2026-07-07**：新增 `OfflinePushEventProducer`（postman），`DeliveryEventListener.emitOfflinePushIfNeeded` 改走 `offlinePushProducer.publish` → `QueueAdapter.send(OFFLINE_PUSH, …)`；`KafkaQueueAdapter.subscribe/subscribeKeyed` 反序列化对齐 `ChronicleQueueAdapter.deserialize`（`byte[]` 透传 / `Message`/`HistoryEvent`/`OfflinePushEvent` 走 protobuf 原生解析，其它类型 Jackson 兜底）；`CommonKafkaStringConfig` 新增 `byteKafkaTemplate()`（`ByteArraySerializer`），`QueueAutoConfigurer.kafkaQueueAdapter` 改注入字节 template。Chronicle/Kafka 两种 `cheeseim.queue.type` 后端端到端一致。
 
 ### P1 — 存储与索引（4-8 周）
 
@@ -201,4 +201,5 @@ CheeseIM 是一个**架构骨架已经为集群设计、当前实现态仍是单
   - 可用性：P0-3 + P0-5 让 Redis 成为在线投递链路的硬依赖（路由表 + 去重）。`RedisDeliveryDedupStore.markIfAbsent` 当前不加 try/catch，Redis 不可达时 `setIfAbsent` 抛 `RedisConnectionFailureException` 会被 `DeliveryEventListener.onMessage` 的 catch 吞掉，等同停所有在线投递。如要 fail-open（Redis 不可达时容忍重复推送），可在 `markIfAbsent` 中 catch `RedisConnectionFailureException` 返回 `true`。本权衡按 ASSESSMENT 接受硬依赖，未改。
   - 命名：`ConnectionManager.markDeliveryIfAbsent` 第三参 `deviceId` 实为 `connectionId`（per-connection 粒度）。新接口 `DeliveryDedupStore` docstring 已明示此历史遗留，未重命名以免破坏既有调用方。
   - 死代码：`GroupMembershipFacade.loadDeliveryTargets`（无人调用）已删除。
+- 2026-07-07：P0-6 + P1-6（Kafka 路径修复）已完成。`DeliveryEventListener.emitOfflinePushIfNeeded` 去除对 `KafkaTemplate` 的直连，改为调用新增的 `OfflinePushEventProducer`（postman/sender/），后者通过 `QueueAdapter.send(OFFLINE_PUSH, userId, bytes)` 投递；Chronicle / Kafka 两种 `cheeseim.queue.type` 后端同走抽象路径，离线推送在单机联调模式（Chronicle）下也可用。`KafkaQueueAdapter.subscribe/subscribeKeyed` 反序列化对齐 `ChronicleQueueAdapter.deserialize`：`byte[]` 透传（消费侧 `OfflinePushEventListener.onMessage(byte[])` 不再被 Jackson 解析崩溃）、`Message`/`HistoryEvent`/`OfflinePushEvent` 走 protobuf 原生解析、其它类型 Jackson 兜底；消费者 factory 改用 `ByteArrayDeserializer`。`CommonKafkaStringConfig` 新增 `byteKafkaTemplate()`（`ByteArraySerializer`），`QueueAutoConfigurer.kafkaQueueAdapter` 注入字节 template 取代原 `stringKafkaTemplate`（其类型为 `<String,String>`，与适配器声明 `<String,byte[]>` 泛型不匹配，是 P1-6 端到端不兼容的隐性根因之一）。`DeliveryEventListenerTest` / `DeliveryEventListenerContextTest` 同步改 mock `QueueAdapter`。postman 模块预存的 stale 测试（`OfflinePostmanServiceImplTest` 等）编译与本改动无关。
 - 2026-07-07：P0-1 跨节点在线投递已完成。`NodeIdentityProvider` 提供节点唯一 ID（配置或自动 UUID）；`ConnectionManager.registerOnlineRoute` 写入真实 nodeId 替代硬编码 `"postoffice"`；`NodeDeliveryService` 接口（common-api）+ `RedisNodeDeliveryService` 实现（postman）提供按节点投递抽象，通过 `StringRedisTemplate` LPUSH 到 `delivery:node:{gatewayNode}` Redis LIST；`NodeDeliveryPoller`（postoffice）后台 daemon 线程 BRPOP 消费并委托 `OnlineDispatcherImpl` 本地投递；`DeliveryEventListener.deliverToUser` 按 gatewayNode 分组路由，`NodeDeliveryService` 不可用时降级为直接 Dubbo 调用。新增 Redis key `delivery:node:{nodeId}`（`RedisKeys.deliveryNodeQueue`）。all-in-one 模式透明兼容（单 JVM 共享 Redis LIST）。原 ASSESSMENT P0-1 表格项已划除，演进路线 P0 §1 已划除并标注完成日期。P0 全部四项阻断问题现已修复完毕。

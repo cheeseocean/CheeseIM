@@ -2,12 +2,13 @@ package com.cheeseocean.im.postman.listener;
 
 import com.cheeseocean.im.common.api.route.OnlineRouteQueryService;
 import com.cheeseocean.im.common.api.rpc.OnlineDispatcher;
+import com.cheeseocean.im.common.core.queue.QueueAdapter;
+import com.cheeseocean.im.postman.sender.OfflinePushEventProducer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.kafka.core.KafkaTemplate;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.Mockito.mock;
@@ -18,7 +19,7 @@ class DeliveryEventListenerContextTest {
     void deliveryEventListenerShouldBeCreatableInSpringContext() {
         assertDoesNotThrow(() -> {
             try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext()) {
-                context.register(TestConfig.class, DeliveryEventListener.class);
+                context.register(TestConfig.class, DeliveryEventListener.class, OfflinePushEventProducer.class);
                 context.refresh();
                 context.getBean(DeliveryEventListener.class);
             }
@@ -44,9 +45,8 @@ class DeliveryEventListenerContextTest {
         }
 
         @Bean
-        @SuppressWarnings("unchecked")
-        KafkaTemplate<String, Object> kafkaTemplate() {
-            return mock(KafkaTemplate.class);
+        QueueAdapter queueAdapter() {
+            return mock(QueueAdapter.class);
         }
     }
 }

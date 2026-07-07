@@ -160,7 +160,7 @@ api-server Controller  ──HTTP──> Facade ──Dubbo──> business / po
 
 中间件事实：
 - `all-in-one`：Chronicle + injvm Dubbo；Redis 在 P0-1（节点投递队列）/P0-3（路由表）/P0-5（投递去重）之后已是**在线投递链路的硬依赖**——详见 `postoffice/ARCH.md` §3、§6，部署时必须启动。Mongo 仍可选（无消息历史时长会话 × 首次会话查询会失败）。
-- 分模块部署：Nacos 注册 + 配置中心 + Dubbo 远程；Kafka bootstrap 在 `common.yml` 当前是注释，需要手动解开并配合序列化修复；Mongo 仅单点，无副本集（需补 cluster profile）。
+- 分模块部署：Nacos 注册 + 配置中心 + Dubbo 远程；Kafka 路径 P0-6 已修复序列化不兼容与 `DeliveryEventListener.emitOfflinePushIfNeeded` 的 `KafkaTemplate` 直调旁路，只需在 `common.yml` 启用 `cheeseim.queue.type=kafka` 并确保 Kafka bootstrap 配置可用即可上集群；Mongo 仅单点，无副本集（需补 cluster profile）。
 - 任何 `localhost:27017` / `localhost:6379` 写死都不可入默认 profile，应走 `${env:...}`。
 
 ## 10. Protobuf 协议

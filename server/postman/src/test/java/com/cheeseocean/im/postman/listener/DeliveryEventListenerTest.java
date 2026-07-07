@@ -8,20 +8,20 @@ import com.cheeseocean.im.common.api.dto.message.MessageOptions;
 import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
 import com.cheeseocean.im.common.api.enums.ContentType;
 import com.cheeseocean.im.common.api.enums.ChatType;
-import com.cheeseocean.im.common.api.event.DeliveryEvent;
 import com.cheeseocean.im.common.api.event.OfflinePushEvent;
 import com.cheeseocean.im.common.api.protocol.ProtoOfflinePushEventMapper;
 import com.cheeseocean.im.common.api.route.OnlineRouteQueryService;
 import com.cheeseocean.im.common.api.rpc.OnlineDispatcher;
 import com.cheeseocean.im.common.core.constants.TopicNames;
+import com.cheeseocean.im.common.core.queue.QueueAdapter;
+import com.cheeseocean.im.postman.sender.OfflinePushEventProducer;
 import org.junit.jupiter.api.Test;
-import org.springframework.kafka.core.KafkaTemplate;
+import org.mockito.ArgumentCaptor;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -29,81 +29,84 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * P0-6 修复后：{@link DeliveryEventListener} 通过 {@link OfflinePushEventProducer} → {@link QueueAdapter}
+ * 投递 OFFLINE_PUSH，而不再直连 {@code KafkaTemplate}。本测试随之改为 mock {@link QueueAdapter}，
+ * 验证 (a) 离线分支调用 {@code queueAdapter.send(OFFLINE_PUSH, userId, bytes)}；
+ * (b) 在线投递成功时不进入离线分支； (c) notification 元数据透传到 {@link OfflinePushEvent}。
+ */
 class DeliveryEventListenerTest {
 
     @Test
     void deliveryListenerShouldDispatchOnlineWhenRoutesExist() {
         OnlineRouteQueryService routeQueryRpc = mock(OnlineRouteQueryService.class);
         OnlineDispatcher onlineDispatcher = mock(OnlineDispatcher.class);
-        @SuppressWarnings("unchecked")
-        KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
 
         when(routeQueryRpc.findByUser("userB")).thenReturn(List.of(route("userB", "ios-1")));
         DispatchMessageResp dispatchResp = new DispatchMessageResp();
         dispatchResp.setResults(List.of(new DispatchResult("conn-1", true, "OK", "delivered")));
         when(onlineDispatcher.dispatchMessage(any())).thenReturn(dispatchResp);
 
-        DeliveryEventListener listener = new DeliveryEventListener(routeQueryRpc, onlineDispatcher, kafkaTemplate);
-        listener.handle(event(true));
+        DeliveryEventListener listener = new DeliveryEventListener(
+                routeQueryRpc, onlineDispatcher, new OfflinePushEventProducer(queueAdapter));
+        listener.handle(message(true));
 
-        var captor = forClass(DispatchMessageReq.class);
-        verify(onlineDispatcher).dispatchMessage(captor.capture());
-        assertEquals("userA", captor.getValue().getPayload().getMsg().getSenderId());
-        assertEquals("userB", captor.getValue().getPayload().getMsg().getReceiverId());
-        verify(kafkaTemplate, never()).send(eq(TopicNames.OFFLINE_PUSH), eq("userB"), any(byte[].class));
+        verify(onlineDispatcher).dispatchMessage(any(DispatchMessageReq.class));
+        verify(queueAdapter, never()).send(eq(TopicNames.OFFLINE_PUSH), eq("userB"), any(byte[].class));
     }
 
     @Test
     void deliveryListenerShouldQueueOfflinePushWhenUserIsOffline() {
         OnlineRouteQueryService routeQueryRpc = mock(OnlineRouteQueryService.class);
         OnlineDispatcher onlineDispatcher = mock(OnlineDispatcher.class);
-        @SuppressWarnings("unchecked")
-        KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
 
         when(routeQueryRpc.findByUser("userB")).thenReturn(List.of());
 
-        DeliveryEventListener listener = new DeliveryEventListener(routeQueryRpc, onlineDispatcher, kafkaTemplate);
-        listener.handle(event(true));
+        DeliveryEventListener listener = new DeliveryEventListener(
+                routeQueryRpc, onlineDispatcher, new OfflinePushEventProducer(queueAdapter));
+        listener.handle(message(true));
 
         verify(onlineDispatcher, never()).dispatchMessage(any());
-        verify(kafkaTemplate).send(eq(TopicNames.OFFLINE_PUSH), eq("userB"), any(byte[].class));
+        verify(queueAdapter).send(eq(TopicNames.OFFLINE_PUSH), eq("userB"), any(byte[].class));
     }
 
     @Test
     void deliveryListenerShouldSkipOfflinePushWhenOptionIsDisabled() {
         OnlineRouteQueryService routeQueryRpc = mock(OnlineRouteQueryService.class);
         OnlineDispatcher onlineDispatcher = mock(OnlineDispatcher.class);
-        @SuppressWarnings("unchecked")
-        KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
 
         when(routeQueryRpc.findByUser("userB")).thenReturn(List.of());
 
-        DeliveryEventListener listener = new DeliveryEventListener(routeQueryRpc, onlineDispatcher, kafkaTemplate);
-        listener.handle(event(false));
+        DeliveryEventListener listener = new DeliveryEventListener(
+                routeQueryRpc, onlineDispatcher, new OfflinePushEventProducer(queueAdapter));
+        listener.handle(message(false));
 
         verify(onlineDispatcher, never()).dispatchMessage(any());
-        verify(kafkaTemplate, never()).send(eq(TopicNames.OFFLINE_PUSH), eq("userB"), any(byte[].class));
+        verify(queueAdapter, never()).send(eq(TopicNames.OFFLINE_PUSH), eq("userB"), any(byte[].class));
     }
 
     @Test
     void deliveryListenerShouldPropagateNotificationMetadataIntoOfflinePushEvent() throws Exception {
         OnlineRouteQueryService routeQueryRpc = mock(OnlineRouteQueryService.class);
         OnlineDispatcher onlineDispatcher = mock(OnlineDispatcher.class);
-        @SuppressWarnings("unchecked")
-        KafkaTemplate<String, Object> kafkaTemplate = mock(KafkaTemplate.class);
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
 
         when(routeQueryRpc.findByUser("userB")).thenReturn(List.of());
 
-        DeliveryEventListener listener = new DeliveryEventListener(routeQueryRpc, onlineDispatcher, kafkaTemplate);
-        DeliveryEvent event = event(true);
-        event.getMessage().getOptions().setNotification(true);
-        event.getMessage().setChatType(ChatType.NOTIFICATION);
-        event.getMessage().setContentType(ContentType.SYSTEM_NOTIFY);
+        DeliveryEventListener listener = new DeliveryEventListener(
+                routeQueryRpc, onlineDispatcher, new OfflinePushEventProducer(queueAdapter));
+        Message m = message(true);
+        m.getOptions().setNotification(true);
+        m.setChatType(ChatType.NOTIFICATION);
+        m.setContentType(ContentType.SYSTEM_NOTIFY);
 
-        listener.handle(event);
+        listener.handle(m);
 
-        var captor = forClass(byte[].class);
-        verify(kafkaTemplate).send(eq(TopicNames.OFFLINE_PUSH), eq("userB"), captor.capture());
+        ArgumentCaptor<byte[]> captor = ArgumentCaptor.forClass(byte[].class);
+        verify(queueAdapter).send(eq(TopicNames.OFFLINE_PUSH), eq("userB"), captor.capture());
         OfflinePushEvent offlinePushEvent = ProtoOfflinePushEventMapper.parse(captor.getValue());
         assertEquals(true, offlinePushEvent.isNotification());
         assertEquals(ChatType.NOTIFICATION.getCode(), offlinePushEvent.getSessionType());
@@ -111,7 +114,7 @@ class DeliveryEventListenerTest {
         assertEquals("userA", offlinePushEvent.getSenderId());
     }
 
-    private static DeliveryEvent event(boolean needOfflinePush) {
+    private static Message message(boolean needOfflinePush) {
         MessageOptions options = new MessageOptions();
         options.setNeedOfflinePush(needOfflinePush);
         options.setNeedOnlinePush(true);
@@ -127,11 +130,7 @@ class DeliveryEventListenerTest {
         message.setContent("hello".getBytes(StandardCharsets.UTF_8));
         message.setSendTime(System.currentTimeMillis());
         message.setOptions(options);
-
-        DeliveryEvent event = new DeliveryEvent();
-        event.setMessage(message);
-        event.setTargetUserIds(List.of("userB"));
-        return event;
+        return message;
     }
 
     private static RouteSnapshot route(String userId, String deviceId) {

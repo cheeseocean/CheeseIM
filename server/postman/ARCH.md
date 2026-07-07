@@ -27,17 +27,15 @@
 
 ✅ 跨节点在线投递已修复：postman 按路由表中的真实节点 ID 精准投递，不再依赖 Dubbo 随机 LB。
 
-## 3. 群投递（**硬跳过**）
+## 3. 群投递（**已闭环 2026-07-06**，P0-2 修复项）
 
-```java
-// DeliveryEventListener.java:59-61
-if (message.getChatType() == ChatType.GROUP) {
-    log.warn("Skipping group delivery because target fanout data is not attached...");
-    return List.of();
-}
-```
+postmaster `IngressEventListener.fanoutGroupDelivery` 已按 `GroupTypeEnum` 分流：
 
-群消息在 postmaster 持久化但**永不投递**。`GroupFanoutPlanner` 在 postmaster 已实现但无人调用。修复见 ASSESSMENT P0-2。
+- NORMAL_GROUP → 写扩散：查询群成员 → 按 `GroupFanoutPlanner.partition` 切片 → 每成员 `MessageProducer.publishForMember("g:{groupId}:{memberId}", template, memberId)` 发一份 keyed DeliveryEvent
+- SUPER_GROUP → 读扩散：仅持久化，客户端按 seq 拉取
+- null → 按 NORMAL_GROUP 兜底，Dubbo 异常被吞 Logged，避免 ingress 批重投引发 dup seq
+
+postman `DeliveryEventListener.resolveTargets` 已**移除** `ChatType.GROUP` 跳过分支：写扩散后每条 DeliveryEvent 已带 `receiverId`，直接按 `receiverId` 投递即可。详见 `postmaster/ARCH.md` §5。
 
 ## 4. 投递去重
 
@@ -65,9 +63,17 @@ if (message.getChatType() == ChatType.GROUP) {
 - ⚠️ 使用 **common ForkJoinPool**（无显式 executor），1M 级 fan-out 会饿死其它 CompletableFuture 用户
 - 日推送计数（line 162）是**非原子 read-modify-write**，多副本会出错
 
-## 7. Kafka 序列化绕过 QueueAdapter
+## 7. Kafka 序列化绕过 QueueAdapter（**已修复 2026-07-07**，P0-6）
 
-`DeliveryEventListener.emitOfflinePushIfNeeded`（line 102）直接 `kafkaTemplate.send` 发 OfflinePushEvent，**绕过 `QueueAdapter` 抽象**。如果切回 Chronicle 队列模式，这条路径会失效。ASSESSMENT P0-6 修复项。
+旧：`DeliveryEventListener.emitOfflinePushIfNeeded` 直连 `kafkaTemplate.send` 旁路 `QueueAdapter`，切回 Chronicle 队列模式时离线推送失效。
+新：经 `OfflinePushEventProducer`（postman 模块新增）通过 `QueueAdapter.send(OFFLINE_PUSH, userId, bytes)` 投递，Chronicle / Kafka 两种 `cheeseim.queue.type` 后端**端到端一致**。
+
+`QueueAdapter` 抽象层同时修复端到端不兼容（ASSESSMENT P1-6 根因）：
+
+- `KafkaQueueAdapter.subscribe` 的反序列化路径**对齐 `ChronicleQueueAdapter.deserialize`**：`byte[]` 透传、`Message`/`HistoryEvent`/`OfflinePushEvent` 走 protobuf 原生解析，其它类型才走 Jackson 兜底。原 Jackson `readValue(String, payloadType)` 对 protobuf 字节就是错的，故以字节级 template + 反序列化原生 protobuf 取代。
+- `CommonKafkaStringConfig` 新增 `byteKafkaTemplate()`（`ByteArraySerializer`），由 `QueueAutoConfigurer.kafkaQueueAdapter` 注入，修掉原 `KafkaTemplate<String, byte[]> stringKafkaTemplate` 与 `<String,String>` bean 之间的泛型不匹配——这是 P1-6 中"端到端不兼容"的另一根因。
+
+消费端 `OfflinePushEventListener.onMessage(byte[])` 仍是 protobuf 字节直收 → `ProtoOfflinePushEventMapper.parse(byte[])`，路径不变。
 
 ## 8. 配置
 

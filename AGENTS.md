@@ -104,15 +104,17 @@ Client ──TCP/WS──> postoffice ──> postbox ──ingress event──>
 
 | 行为 | 原因 |
 | --- | --- |
-| 修改 `GatewayNode` 为任意字符串 | 需配合 postman 路由整体修复，见 ASSESSMENT P0-1 |
-| 在 postman 启用群投递但未接通 `GroupFanoutPlanner` | 群扩散闭环见 ASSESSMENT P0-2 |
-| 用 `RedisOnlineRouteService.register` 增删路由但未改为 Lua | 路由表原子化见 ASSESSMENT P0-3 |
-| 把 `deliveredMessageKeys` 换成另一份本地 Set | 必须上 Redis，见 ASSESSMENT P0-5 |
-| 在 `common.yml` 启用 Kafka 又不改 `QueueAdapter` 序列化 | 端到端不兼容，见 ASSESSMENT P1-6 |
+| ~~修改 `GatewayNode` 为任意字符串~~ | **已修复 2026-07-07**：`NodeIdentityProvider` 写入真实节点 ID，见 ASSESSMENT P0-1 |
+| ~~在 postman 启用群投递但未接通 `GroupFanoutPlanner`~~ | **已修复 2026-07-06**：群扩散闭环见 ASSESSMENT P0-2 |
+| ~~用 `RedisOnlineRouteService.register` 增删路由但未改为 Lua~~ | **已修复 2026-07-06**：路由表原子化见 ASSESSMENT P0-3 |
+| ~~把 `deliveredMessageKeys` 换成另一份本地 Set~~ | **已修复 2026-07-06**：必须上 Redis，见 ASSESSMENT P0-5 |
+| ~~在 `common.yml` 启用 Kafka 又不改 `QueueAdapter` 序列化~~ | **已修复 2026-07-07**：`KafkaQueueAdapter` 反序列化对齐 Chronicle + `byteKafkaTemplate`，见 ASSESSMENT P0-6 / postman ARCH §7 |
 | 新增 `ConversationId` 前缀（如 `c2:`） | 已被 `s:/g:/n:/ng:` 替换；`GroupController.resolveGroupId` 的 `c2:` 是死分支 |
 | 在 `api-server` Controller 调用 Mongo Repository | 违反分层 |
 | 给新消息字段在 `message_protocol.proto` 用 `int32` 装复杂结构 | 用类型化 nested message |
 | 在 `MessageSender` 同步链路新增 Dubbo 调用 | 当前已有 3 次，新增需合并 |
+| 在 `DeliveryEventListener` 直连 `KafkaTemplate.send` | 必须经 `OfflinePushEventProducer` → `QueueAdapter.send`（见 ASSESSMENT P0-6） |
+| 不读 `RouteSnapshot.gatewayNode` 就调 `OnlineDispatcher.dispatchMessage` | 跨节点在线投递需按 node 路由（见 ASSESSMENT P0-1） |
 
 ## 9. 验证命令速查
 

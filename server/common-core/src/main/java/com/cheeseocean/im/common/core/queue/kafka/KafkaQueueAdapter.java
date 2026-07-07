@@ -51,14 +51,14 @@ public class KafkaQueueAdapter implements QueueAdapter {
                                       QueueMessageHandler<T> handler) {
         ContainerProperties containerProperties = new ContainerProperties(topic);
         containerProperties.setGroupId(group);
-        containerProperties.setMessageListener((org.springframework.kafka.listener.MessageListener<String, String>) record -> {
+        containerProperties.setMessageListener((org.springframework.kafka.listener.MessageListener<String, byte[]>) record -> {
             try {
-                handler.handle(objectMapper.readValue(record.value(), payloadType));
+                handler.handle(deserialize(record.value(), payloadType));
             } catch (Exception e) {
                 throw new IllegalStateException("Failed to deserialize Kafka queue message", e);
             }
         });
-        ConcurrentMessageListenerContainer<String, String> container =
+        ConcurrentMessageListenerContainer<String, byte[]> container =
                 new ConcurrentMessageListenerContainer<>(consumerFactory(group), containerProperties);
         container.setConcurrency(Math.max(1, concurrency));
         container.start();
@@ -69,25 +69,58 @@ public class KafkaQueueAdapter implements QueueAdapter {
     public <T> Subscription subscribeKeyed(String topic, String group, int concurrency, Class<T> payloadType, QueueMessageHandler<KeyedMessage<T>> handler) {
         ContainerProperties containerProperties = new ContainerProperties(topic);
         containerProperties.setGroupId(group);
-        containerProperties.setMessageListener((org.springframework.kafka.listener.MessageListener<String, String>) record -> {
+        containerProperties.setMessageListener((org.springframework.kafka.listener.MessageListener<String, byte[]>) record -> {
             try {
-                handler.handle(new KeyedMessage<>(record.key(), objectMapper.readValue(record.value(), payloadType)));
+                handler.handle(new KeyedMessage<>(record.key(), deserialize(record.value(), payloadType)));
             } catch (Exception e) {
                 throw new IllegalStateException("Failed to deserialize Kafka queue message", e);
             }
         });
-        ConcurrentMessageListenerContainer<String, String> container =
+        ConcurrentMessageListenerContainer<String, byte[]> container =
                 new ConcurrentMessageListenerContainer<>(consumerFactory(group), containerProperties);
         container.setConcurrency(Math.max(1, concurrency));
         container.start();
         return container::stop;
     }
 
-    private ConsumerFactory<String, String> consumerFactory(String group) {
+    /**
+     * 反序列化策略与 {@link com.cheeseocean.im.common.core.queue.chronicle.ChronicleQueueAdapter#deserialize}
+     * 对齐，保证 Kafka / Chronicle 两种队列后端对同一 payloadType 行为一致：
+     * <ul>
+     *   <li>{@code byte[]} → 透传原字节，由消费侧自行解析 protobuf（见
+     *       {@link com.cheeseocean.im.postman.listener.OfflinePushEventListener#onMessage(byte[])}）</li>
+     *   <li>{@link com.cheeseocean.im.common.api.dto.message.Message} / {@link com.cheeseocean.im.common.api.event.HistoryEvent} /
+     *       {@link com.cheeseocean.im.common.api.event.OfflinePushEvent} → 同样走 protobuf 原生解析，
+     *       修复 ASSESSMENT P1-6 提到的"Kafka 路径用 Jackson，Producer 发 Protobuf 字节端到端不兼容"</li>
+     *   <li>其它类型 → Jackson 兜底（兼容单元测试中传入的任意 DTO）</li>
+     * </ul>
+     */
+    @SuppressWarnings("unchecked")
+    private <T> T deserialize(byte[] payload, Class<T> payloadType) throws Exception {
+        if (payloadType == byte[].class) {
+            return (T) payload;
+        }
+        if (payloadType == com.cheeseocean.im.common.api.dto.message.Message.class) {
+            return (T) com.cheeseocean.im.common.api.protocol.ProtoMessageMapper.fromProto(
+                    com.cheeseocean.im.common.api.protocol.proto.ProtoMessage.parseFrom(payload));
+        }
+        if (payloadType == com.cheeseocean.im.common.api.event.HistoryEvent.class) {
+            return (T) com.cheeseocean.im.common.api.protocol.ProtoHistoryEventMapper.fromProto(
+                    com.cheeseocean.im.common.api.protocol.proto.ProtoHistoryEvent.parseFrom(payload));
+        }
+        if (payloadType == com.cheeseocean.im.common.api.event.OfflinePushEvent.class) {
+            return (T) com.cheeseocean.im.common.api.protocol.ProtoOfflinePushEventMapper.fromProto(
+                    com.cheeseocean.im.common.api.protocol.proto.ProtoOfflinePushEvent.parseFrom(payload));
+        }
+        return objectMapper.readValue(payload, payloadType);
+    }
+
+    private ConsumerFactory<String, byte[]> consumerFactory(String group) {
         Map<String, Object> config = new HashMap<>(kafkaProperties.buildConsumerProperties(null));
         config.put(ConsumerConfig.GROUP_ID_CONFIG, group);
         config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+                org.apache.kafka.common.serialization.ByteArrayDeserializer.class);
         config.putIfAbsent(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
         return new DefaultKafkaConsumerFactory<>(config);
     }

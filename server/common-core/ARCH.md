@@ -40,7 +40,7 @@
 
 ## 4. 队列与缓存
 
-- `QueueAdapter` 后端：Chronicle（默认，单机文件）/ Kafka（集群，但序列化当前不兼容，见 ASSESSMENT P1-6）
+- `QueueAdapter` 后端：Chronicle（默认，单机文件）/ Kafka（集群，P1-6 序列化已修复 2026-07-07，两种后端端到端一致）
 - 发送：`MessageProducer` 发 Protobuf bytes，key = `ConversationIdUtil.buildQueueKey`，保证同会话同 Kafka 分区
 - 消费：`@QueueListener`，批量 `batch=true, batchSize=500` 优先
 - 缓存写操作必须 `afterCommit` 删 key，避免脏读
