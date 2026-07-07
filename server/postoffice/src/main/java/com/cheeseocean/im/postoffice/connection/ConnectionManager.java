@@ -43,6 +43,9 @@ public class ConnectionManager {
      */
     @Autowired(required = false)
     private DeliveryDedupStore deliveryDedupStore;
+
+    @Autowired
+    private com.cheeseocean.im.postoffice.config.NodeIdentityProvider nodeIdentityProvider;
     
     /**
      * Connection ID to connection metadata.
@@ -494,7 +497,7 @@ public class ConnectionManager {
         RouteSnapshot snapshot = new RouteSnapshot();
         snapshot.setUserId(connection.getUserID());
         snapshot.setDeviceId(connection.getPlatformName().toLowerCase() + "-" + connection.getPlatformType());
-        snapshot.setGatewayNode("postoffice");
+        snapshot.setGatewayNode(nodeIdentityProvider.getNodeId());
         snapshot.setConnectedAt(connection.getConnectTime());
         snapshot.setHeartbeatAt(connection.getLastActiveTime());
         onlineRouteService.register(snapshot);

@@ -65,7 +65,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、当前实现态仍是单
 
 | 级别 | 问题 | 位置 | 影响 |
 | --- | --- | --- | --- |
-| **P0** | 跨节点在线投递失效：`gatewayNode` 硬编码 `"postoffice"`，Dubbo 默认 LB 随机选节点 | `ConnectionManager.java:486`、`OnlineDispatcherImpl.java:67` | 多节点下除命中本机的消息外，全部误判离线走 push |
+| ~~**P0**~~ | ~~跨节点在线投递失效：`gatewayNode` 硬编码 `"postoffice"`，Dubbo 默认 LB 随机选节点~~ | ~~`ConnectionManager.java:486`、`OnlineDispatcherImpl.java:67`~~ | **已修复 2026-07-07**：`NodeIdentityProvider` 写入真实节点 ID 到 `gatewayNode`；postman 按 `gatewayNode` 分组，通过 Redis LIST `delivery:node:{nodeId}` LPUSH/BRPOP 投递到正确节点；`NodeDeliveryPoller` 后台 daemon 线程消费并委托 `OnlineDispatcherImpl` 本地投递。跨节点在线投递不再依赖 Dubbo 随机 LB |
 | ~~**P0**~~ | ~~群投递被硬跳过~~ | ~~`DeliveryEventListener.java:59-61`~~ | **已修复 2026-07-06**：`IngressEventListener.fanoutGroupDelivery` 接通 `GroupFanoutPlanner`，NORMAL_GROUP 走写扩散按成员切片 publish N 个 keyed DeliveryEvent（`g:{groupId}:{memberId}`），SUPER_GROUP 走读扩散仅持久化，postman `DeliveryEventListener` 去除 `ChatType.GROUP` 跳过分支 |
 | ~~**P0**~~ | ~~路由表非原子 RMW + L1 无失效广播~~ | ~~`RedisOnlineRouteService.java:25,35,47`、`MultiLevelCacheService.java:45`~~ | **已修复 2026-07-06**：`RedisOnlineRouteService` 改为单脚本 Lua 原 子 HASH 双字段（route/heartbeat），不再走 `MultiLevelCacheService` L1 缓存，见 `postoffice/ARCH.md` §3 |
 | **P1** | ConnectionManager 全局 `synchronized` | `ConnectionManager.java:139,203` | 重连风暴下吞吐塌缩 |
@@ -120,7 +120,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、当前实现态仍是单
 
 ### P0 — 修正"伪集群"（必做，2-4 周）
 
-1. **节点身份贯通**：`RouteSnapshot.gatewayNode` 写入真实节点 id（Nacos 实例 id 或启动随机 UUID 注册到 Redis）。postman 根据 `gatewayNode` 选择 Dubbo 服务组，或改"每节点专属 topic + 节点订阅"直投。
+1. ~~**节点身份贯通**：`RouteSnapshot.gatewayNode` 写入真实节点 id（Nacos 实例 id 或启动随机 UUID 注册到 Redis）。postman 根据 `gatewayNode` 选择 Dubbo 服务组，或改"每节点专属 topic + 节点订阅"直投。~~ **已完成 2026-07-07**：`NodeIdentityProvider` 提供节点 ID（配置或 UUID）；`ConnectionManager.registerOnlineRoute` 写入真实 nodeId；`NodeDeliveryService` + `RedisNodeDeliveryService` 提供按节点投递抽象；`NodeDeliveryPoller` 在 postoffice 后台 BRPOP 消费 `delivery:node:{nodeId}` Redis LIST 并委托 `OnlineDispatcherImpl` 本地投递；`DeliveryEventListener.deliverToUser` 按 gatewayNode 分组路由。all-in-one 模式下 Redis LIST 路径透明兼容，`NodeDeliveryService` 不可用时降级为直接 Dubbo 调用。
 2. ~~**群扩散闭环**：在 `IngressEventListener.handleMessage` 调用 `GroupFanoutPlanner`。普通群（`GroupTypeEnum.NORMAL_GROUP`）走写扩散，产出 N 个 keyed `DeliveryEvent`；超级群（`SUPER_GROUP`）走读扩散，仅持久化 + 客户端按 seq 拉取。~~ **已完成 2026-07-06**：`fanoutGroupDelivery` 接通 `GroupFanoutPlanner.partition` + `deliveryKey`，经 `GroupMembershipFacade.loadGroupType` 分流 NORMAL_GROUP（写扩散）/ SUPER_GROUP（读扩散）/ null（按 NORMAL 兜底）；`MessageProducer.publishForMember` 复用 protobuf builder 替换 `receiverId`，避免 Java 侧深拷贝；postman `DeliveryEventListener` 去除 `ChatType.GROUP` 跳过分支。
 3. ~~**路由表原子化**：把 `RedisOnlineRouteService` 的 register/refresh/kick 改写为单脚本 Lua（类比 seq 分配器的工作模式），消除 RMW 竞态。~~ **已完成 2026-07-06**：`register`/`refresh`/`unregister` 走单脚本 Lua；存储改为 Redis HASH 双字段（`route:{deviceId}` JSON + `heartbeat:{deviceId}` 时间戳），不再依赖 `MultiLevelCacheService` L1。
 4. **连接管理去全局锁**：`ConnectionManager` 按 `userId hash` 分片到 N 个 `ShardedConnectionManager`，分片锁 + 分片清理线程，连接增删并发提升 N 倍。
@@ -201,3 +201,4 @@ CheeseIM 是一个**架构骨架已经为集群设计、当前实现态仍是单
   - 可用性：P0-3 + P0-5 让 Redis 成为在线投递链路的硬依赖（路由表 + 去重）。`RedisDeliveryDedupStore.markIfAbsent` 当前不加 try/catch，Redis 不可达时 `setIfAbsent` 抛 `RedisConnectionFailureException` 会被 `DeliveryEventListener.onMessage` 的 catch 吞掉，等同停所有在线投递。如要 fail-open（Redis 不可达时容忍重复推送），可在 `markIfAbsent` 中 catch `RedisConnectionFailureException` 返回 `true`。本权衡按 ASSESSMENT 接受硬依赖，未改。
   - 命名：`ConnectionManager.markDeliveryIfAbsent` 第三参 `deviceId` 实为 `connectionId`（per-connection 粒度）。新接口 `DeliveryDedupStore` docstring 已明示此历史遗留，未重命名以免破坏既有调用方。
   - 死代码：`GroupMembershipFacade.loadDeliveryTargets`（无人调用）已删除。
+- 2026-07-07：P0-1 跨节点在线投递已完成。`NodeIdentityProvider` 提供节点唯一 ID（配置或自动 UUID）；`ConnectionManager.registerOnlineRoute` 写入真实 nodeId 替代硬编码 `"postoffice"`；`NodeDeliveryService` 接口（common-api）+ `RedisNodeDeliveryService` 实现（postman）提供按节点投递抽象，通过 `StringRedisTemplate` LPUSH 到 `delivery:node:{gatewayNode}` Redis LIST；`NodeDeliveryPoller`（postoffice）后台 daemon 线程 BRPOP 消费并委托 `OnlineDispatcherImpl` 本地投递；`DeliveryEventListener.deliverToUser` 按 gatewayNode 分组路由，`NodeDeliveryService` 不可用时降级为直接 Dubbo 调用。新增 Redis key `delivery:node:{nodeId}`（`RedisKeys.deliveryNodeQueue`）。all-in-one 模式透明兼容（单 JVM 共享 Redis LIST）。原 ASSESSMENT P0-1 表格项已划除，演进路线 P0 §1 已划除并标注完成日期。P0 全部四项阻断问题现已修复完毕。

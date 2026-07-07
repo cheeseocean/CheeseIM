@@ -159,7 +159,7 @@ api-server Controller  ──HTTP──> Facade ──Dubbo──> business / po
 | api-server | 嵌入 bootstrap-all | – | HTTP 18079 | – |
 
 中间件事实：
-- `all-in-one`：Chronicle + injvm Dubbo；Redis 在 P0-3（路由表）/P0-5（投递去重）之后已是**在线投递链路的硬依赖**——详见 `postoffice/ARCH.md` §3、§6，部署时必须启动。Mongo 仍可选（无消息历史时长会话 × 首次会话查询会失败）。
+- `all-in-one`：Chronicle + injvm Dubbo；Redis 在 P0-1（节点投递队列）/P0-3（路由表）/P0-5（投递去重）之后已是**在线投递链路的硬依赖**——详见 `postoffice/ARCH.md` §3、§6，部署时必须启动。Mongo 仍可选（无消息历史时长会话 × 首次会话查询会失败）。
 - 分模块部署：Nacos 注册 + 配置中心 + Dubbo 远程；Kafka bootstrap 在 `common.yml` 当前是注释，需要手动解开并配合序列化修复；Mongo 仅单点，无副本集（需补 cluster profile）。
 - 任何 `localhost:27017` / `localhost:6379` 写死都不可入默认 profile，应走 `${env:...}`。
 

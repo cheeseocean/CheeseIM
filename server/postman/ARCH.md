@@ -15,16 +15,17 @@
 | `PushDecisionService` | `service/PushDecisionService.java:13` | 推送决策（依赖 `DeliveryState` 与 attempt 记录） |
 | `provider/*` | `provider/` | 5 个厂商真实实现 |
 
-## 2. 在线投递链路（**当前不可靠**）
+## 2. 在线投递链路（**P0-1 已修复 2026-07-07**）
 
-`DeliveryEventListener.deliverToUser`（line 69）：
-1. `onlineRouteQueryService.findByUser(userId)` 查 Redis 路由
-2. `onlineDispatcher.dispatchMessage(req)` 通过 Dubbo 调用
-3. `OnlineDispatcherImpl.dispatchMessage` 仅取本地 `connectionManager.getUserConnections`（`OnlineDispatcherImpl.java:67`）
+`DeliveryEventListener.deliverToUser`：
+1. `onlineRouteQueryService.findByUser(userId)` 查 Redis 路由（含真实 `gatewayNode`）
+2. 按 `gatewayNode` 分组路由
+3. 对每个节点：
+   - 如果 `NodeDeliveryService` 可用且 gatewayNode 非空 → LPUSH `DispatchMessageReq` JSON 到 `delivery:node:{gatewayNode}` Redis LIST
+   - 否则降级为直接 Dubbo 调用（all-in-one / gatewayNode 为空的历史数据）
+4. 目标 postoffice 节点的 `NodeDeliveryPoller` 后台 daemon 线程 BRPOP 消费，委托 `OnlineDispatcherImpl` 本地投递
 
-❌ Dubbo 默认随机 LB，命中非持有连接的节点会得到空列表 → `hasSuccessfulDispatch=false` → 误判离线走 push。
-
-**修复见 ASSESSMENT P0-1**：`RouteSnapshot.gatewayNode` 写真实节点 id + postman 按 node 选 Dubbo 服务组或 per-node topic 直投。
+✅ 跨节点在线投递已修复：postman 按路由表中的真实节点 ID 精准投递，不再依赖 Dubbo 随机 LB。
 
 ## 3. 群投递（**硬跳过**）
 

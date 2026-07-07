@@ -238,4 +238,19 @@ public final class RedisKeys {
     public static String groupRoleLevelMemberIds(String groupId, int roleLevel) {
         return AUTH_PREFIX + ":group_role_members:" + groupId + ":" + roleLevel;
     }
+
+    /**
+     * 按节点投递队列 key（P0-1 跨节点在线投递修复）。
+     *
+     * <p>存储结构：Redis LIST。
+     * postman 通过 LPUSH 将 {@code DispatchMessageReq} JSON 推入目标节点的队列；
+     * postoffice 的 {@code NodeDeliveryPoller} 通过 BRPOP 消费并本地投递。
+     *
+     * <p>格式：delivery:node:{nodeId}
+     *
+     * @param nodeId 目标 postoffice 节点标识（来自 RouteSnapshot.gatewayNode）
+     */
+    public static String deliveryNodeQueue(String nodeId) {
+        return "delivery:node:" + nodeId;
+    }
 }

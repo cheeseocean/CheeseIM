@@ -9,6 +9,7 @@ import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.api.event.OfflinePushEvent;
 import com.cheeseocean.im.common.api.protocol.ProtoOfflinePushEventMapper;
 import com.cheeseocean.im.common.api.route.OnlineRouteQueryService;
+import com.cheeseocean.im.common.api.rpc.NodeDeliveryService;
 import com.cheeseocean.im.common.api.rpc.OnlineDispatcher;
 import com.cheeseocean.im.common.core.constants.TopicNames;
 import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
@@ -16,11 +17,15 @@ import com.cheeseocean.im.common.core.queue.annotation.QueueListener;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import com.cheeseocean.im.common.core.util.ConversationIdUtil;
 import org.slf4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Component
 public class DeliveryEventListener {
@@ -28,6 +33,8 @@ public class DeliveryEventListener {
     private final OnlineRouteQueryService onlineRouteQueryService;
     private final OnlineDispatcher        onlineDispatcher;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    @Autowired(required = false)
+    private NodeDeliveryService nodeDeliveryService;
 
     public DeliveryEventListener(OnlineRouteQueryService onlineRouteQueryService,
                                  OnlineDispatcher onlineDispatcher,
@@ -65,6 +72,23 @@ public class DeliveryEventListener {
         return List.of(message.getReceiverId());
     }
 
+    /**
+     * P0-1 修复：按 gatewayNode 分组路由，将投递请求发送到持有目标用户连接的 postoffice 节点。
+     *
+     * <p>投递策略：
+     * <ol>
+     *   <li>查路由表获取用户在线设备及所在节点</li>
+     *   <li>如果路由为空 → 用户离线，走离线推送</li>
+     *   <li>按 gatewayNode 分组路由</li>
+     *   <li>对每个节点：
+     *     <ul>
+     *       <li>如果 NodeDeliveryService 可用且 gatewayNode 非空 → LPUSH 到目标节点的 Redis LIST</li>
+     *       <li>否则降级为直接 Dubbo 调用（all-in-one 模式或 gatewayNode 为空的历史数据）</li>
+     *     </ul>
+     *   </li>
+     *   <li>有任一投递成功 → 不推送离线；全部失败 → 走离线推送兜底</li>
+     * </ol>
+     */
     private void deliverToUser(String userId, Message message) {
         List<RouteSnapshot> routes = onlineRouteQueryService.findByUser(userId);
         if (routes == null || routes.isEmpty()) {
@@ -72,14 +96,46 @@ public class DeliveryEventListener {
             return;
         }
 
+        // 按 gatewayNode 分组（空 node 归到 "" 组，后续走 Dubbo 降级）
+        Map<String, List<RouteSnapshot>> routesByNode = routes.stream()
+                .collect(Collectors.groupingBy(r ->
+                        r.getGatewayNode() != null && !r.getGatewayNode().isBlank()
+                                ? r.getGatewayNode() : ""));
+
+        boolean anyDelivered = false;
+        for (Map.Entry<String, List<RouteSnapshot>> entry : routesByNode.entrySet()) {
+            String gatewayNode = entry.getKey();
+            DispatchMessageReq req = buildDispatchReq(userId, entry.getValue(), message);
+
+            if (!gatewayNode.isEmpty() && nodeDeliveryService != null) {
+                // P0-1: 按节点路由投递（Redis LIST）
+                anyDelivered |= nodeDeliveryService.deliver(gatewayNode, req);
+            } else {
+                // 降级：直接 Dubbo（all-in-one / gatewayNode 为空的历史数据 / NodeDeliveryService 不可用）
+                DispatchMessageResp resp = onlineDispatcher.dispatchMessage(req);
+                anyDelivered |= hasSuccessfulDispatch(resp);
+            }
+        }
+
+        if (!anyDelivered) {
+            // 极端兜底：所有节点投递均失败，走离线推送
+            emitOfflinePushIfNeeded(userId, message);
+        }
+    }
+
+    /**
+     * 为同一节点上的路由列表构建投递请求。
+     *
+     * <p>如果同一节点上有多个设备在线，将 connectionIds 全部传入，
+     * OnlineDispatcherImpl 会逐条投递并返回每个设备的结果。
+     */
+    private DispatchMessageReq buildDispatchReq(String userId, List<RouteSnapshot> nodeRoutes, Message message) {
         DispatchMessageReq req = new DispatchMessageReq();
         req.setUserId(userId);
         req.setPayload(toDispatchPayload(message));
-
-        DispatchMessageResp resp = onlineDispatcher.dispatchMessage(req);
-        if (!hasSuccessfulDispatch(resp)) {
-            emitOfflinePushIfNeeded(userId, message);
-        }
+        // 不设置 connectionIds——让 OnlineDispatcherImpl 通过 userId 查本地连接
+        // （节点路由已保证投递到正确节点，按 userId 全量投递即可）
+        return req;
     }
 
     private boolean hasSuccessfulDispatch(DispatchMessageResp resp) {

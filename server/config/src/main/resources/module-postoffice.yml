@@ -7,6 +7,8 @@ spring:
 
 cheeseim:
   postoffice:
+    # 节点唯一标识。留空则自动生成 UUID。生产环境建议设为 hostname 或 k8s pod name。
+    node-id: ${CHEESEIM_POSTOFFICE_NODE_ID:}
     websocket:
       enabled: true
       port: 5147

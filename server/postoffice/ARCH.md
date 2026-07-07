@@ -33,8 +33,8 @@
 - 不再使用 `MultiLevelCacheService` L1 Caffeine：路由是跨节点共享真相，L1 本地缓存会让多节点 1-5min 不一致；读写都直连 Redis
 - `findByUser` 走 `HGETALL`，Java 侧合并 `route:` / `heartbeat:` 双字段，按 `deviceId` 排序
 - 使用方：`OnlineDispatcherImpl.java:67` 仅取 `userId` 查本地连接，**`gatewayNode` 字段当前未被任何消费者读取**
-- `gatewayNode` 在 `ConnectionManager.java:486` 硬编码 `"postoffice"`，是 P0 阻断性问题（ASSESSMENT P0-1，尚未修复）
-- 不要把 `gatewayNode` 改成任意字符串；需配合 postman 路由整体修复
+- `gatewayNode` 经 `NodeIdentityProvider` 写入真实节点 ID（配置或 UUID），不再是硬编码（ASSESSMENT P0-1，**已修复 2026-07-07**）
+- postman 按 `gatewayNode` 分组路由，通过 Redis LIST `delivery:node:{nodeId}` 投递到正确节点
 
 ## 4. 多端登录策略
 
@@ -60,7 +60,7 @@
 ## 7. 修复优先级（按 ASSESSMENT）
 
 1. ~~P0-3 路由注册改 Lua 原子~~（已修复 2026-07-06）
-2. P0-1 真实 gatewayNode + Dubbo 服务组路由 / per-node topic 直投
+2. ~~P0-1 真实 gatewayNode + Redis LIST 按节点投递~~（已修复 2026-07-07）
 3. P1 ConnectionManager 分片去 global lock
 4. P1 踢下线跨节点
 
