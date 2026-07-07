@@ -70,6 +70,18 @@ public final class RedisKeys {
         return "online:user:v2:" + userId;
     }
 
+    /**
+     * 会话到在线路由的辅助索引。
+     *
+     * <p>踢下线命令有时只携带 sessionId，无法从 {@code online:user:v2:{userId}} 反查。
+     * postoffice 在连接注册时写入该 key，让 session revoke 可以按 gatewayNode 定向到持有连接的节点。
+     * 该 key 使用 Redis HASH，field 为 {@code userId:deviceId}，value 为 {@code RouteSnapshot} JSON，
+     * 同一 session 多连接/多节点时可以保留多条路由。
+     */
+    public static String onlineSession(String sessionId) {
+        return "online:session:v1:" + sessionId;
+    }
+
     public static String onlineConn(String connectionId) {
         return "online:conn:" + connectionId;
     }
@@ -240,11 +252,12 @@ public final class RedisKeys {
     }
 
     /**
-     * 按节点投递队列 key（P0-1 跨节点在线投递修复）。
+     * 按节点队列 key（P0-1 跨节点在线投递修复 + P1 跨节点踢下线）。
      *
      * <p>存储结构：Redis LIST。
      * postman 通过 LPUSH 将 {@code DispatchMessageReq} JSON 推入目标节点的队列；
-     * postoffice 的 {@code NodeDeliveryPoller} 通过 BRPOP 消费并本地投递。
+     * postoffice 控制命令通过 {@code NodeQueueMessage} envelope 入队；
+     * postoffice 的 {@code NodeDeliveryPoller} 通过 BRPOP 消费并本地执行。
      *
      * <p>格式：delivery:node:{nodeId}
      *

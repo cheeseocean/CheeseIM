@@ -27,6 +27,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * CheeseBox 历史消息查询服务。
@@ -36,8 +39,14 @@ import java.util.List;
 @Service
 public class HistoryQueryService {
 
+    private static final int DEFAULT_HISTORY_LIMIT = 50;
+    private static final int MAX_HISTORY_LIMIT = 200;
+    private static final int MAX_RECENT_BLOCK_WINDOWS = 16;
+    private static final int PERMISSION_CACHE_TTL_MILLIS = 30_000;
+
     private final MongoTemplate mongoTemplate;
     private final MessagePreviewResolver messagePreviewResolver;
+    private final ConcurrentMap<PermissionCacheKey, PermissionCacheValue> permissionCache = new ConcurrentHashMap<>();
 
     @DubboReference(check = false)
     private ConversationPermissionDubboService conversationPermissionDubboService;
@@ -54,9 +63,8 @@ public class HistoryQueryService {
         if (!allow(session, conversationId)) {
             return new ArrayList<>();
         }
-        Query query = Query.query(Criteria.where("conversationId").is(conversationId))
-                .with(Sort.by(Sort.Direction.DESC, "blockNo"));
-        List<MessageBlockDoc> blocks = mongoTemplate.find(query, MessageBlockDoc.class);
+        int effectiveLimit = effectiveHistoryLimit(limit);
+        List<MessageBlockDoc> blocks = findRecentBlocks(conversationId, effectiveLimit);
 
         List<MessageSlot> slots = new ArrayList<>();
         for (MessageBlockDoc block : blocks) {
@@ -74,11 +82,71 @@ public class HistoryQueryService {
         List<HistoryMessage> responses = new ArrayList<>();
         for (MessageSlot slot : slots) {
             responses.add(toHistoryMessage(slot, session.getUserId()));
-            if (responses.size() >= limit) {
+            if (responses.size() >= effectiveLimit) {
                 break;
             }
         }
         return responses;
+    }
+
+    private List<MessageBlockDoc> findRecentBlocks(String conversationId, int limit) {
+        if (conversationId == null || conversationId.isBlank()) {
+            return new ArrayList<>();
+        }
+        Long latestBlockNo = findLatestBlockNo(conversationId);
+        if (latestBlockNo == null) {
+            return new ArrayList<>();
+        }
+
+        List<MessageBlockDoc> blocks = new ArrayList<>();
+        long cursorBlockNo = latestBlockNo;
+        int windowSize = Math.max(1, (int) Math.ceil((double) limit / BlockIndexUtil.BLOCK_SIZE));
+        int scannedWindows = 0;
+        while (cursorBlockNo >= 0 && countSlots(blocks) < limit && scannedWindows < MAX_RECENT_BLOCK_WINDOWS) {
+            long beginBlockNo = Math.max(0, cursorBlockNo - windowSize + 1L);
+            blocks.addAll(findBlocksByRange(conversationId, beginBlockNo, cursorBlockNo));
+            cursorBlockNo = beginBlockNo - 1L;
+            scannedWindows++;
+        }
+        return blocks;
+    }
+
+    private Long findLatestBlockNo(String conversationId) {
+        Query query = Query.query(Criteria.where("conversationId").is(conversationId))
+                .with(Sort.by(Sort.Direction.DESC, "blockNo"))
+                .limit(1);
+        query.fields().include("blockNo");
+        MessageBlockDoc latest = mongoTemplate.findOne(query, MessageBlockDoc.class);
+        return latest == null ? null : latest.getBlockNo();
+    }
+
+    private List<MessageBlockDoc> findBlocksByRange(String conversationId, long beginBlockNo, long endBlockNo) {
+        Query query = Query.query(Criteria.where("conversationId").is(conversationId)
+                        .and("blockNo").gte(beginBlockNo).lte(endBlockNo))
+                .with(Sort.by(Sort.Direction.DESC, "blockNo"));
+        return mongoTemplate.find(query, MessageBlockDoc.class);
+    }
+
+    private int countSlots(List<MessageBlockDoc> blocks) {
+        int count = 0;
+        for (MessageBlockDoc block : blocks) {
+            if (block == null || block.getMessages() == null) {
+                continue;
+            }
+            for (MessageSlot slot : block.getMessages()) {
+                if (slot != null) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    private int effectiveHistoryLimit(int limit) {
+        if (limit <= 0) {
+            return DEFAULT_HISTORY_LIMIT;
+        }
+        return Math.min(limit, MAX_HISTORY_LIMIT);
     }
 
     /**
@@ -196,8 +264,12 @@ public class HistoryQueryService {
     }
 
     private boolean allow(SessionPrincipal session, String conversationId) {
+        PermissionCacheKey cacheKey = PermissionCacheKey.from(session, conversationId);
+        if (cacheKey == null) {
+            return false;
+        }
         if (conversationPermissionDubboService == null) {
-            return true;
+            return cachedDecision(cacheKey);
         }
         ConversationPermissionRequest request = new ConversationPermissionRequest();
         request.setTenantId(session.getTenantId());
@@ -208,9 +280,46 @@ public class HistoryQueryService {
             PermissionCheckResult result = raw instanceof PermissionCheckResult permissionCheckResult
                     ? permissionCheckResult
                     : null;
-            return result == null || result.isAllowed();
+            if (result == null) {
+                return cachedDecision(cacheKey);
+            }
+            cacheDecision(cacheKey, result.isAllowed());
+            return result.isAllowed();
         } catch (RpcException ignored) {
-            return true;
+            return cachedDecision(cacheKey);
+        } catch (RuntimeException ignored) {
+            return cachedDecision(cacheKey);
         }
+    }
+
+    private void cacheDecision(PermissionCacheKey cacheKey, boolean allowed) {
+        permissionCache.put(cacheKey, new PermissionCacheValue(allowed, System.currentTimeMillis() + PERMISSION_CACHE_TTL_MILLIS));
+    }
+
+    private boolean cachedDecision(PermissionCacheKey cacheKey) {
+        PermissionCacheValue value = permissionCache.get(cacheKey);
+        long now = System.currentTimeMillis();
+        if (value == null || value.expireAtMillis() <= now) {
+            permissionCache.remove(cacheKey);
+            return false;
+        }
+        return value.allowed();
+    }
+
+    private record PermissionCacheKey(String tenantId, String userId, String conversationId) {
+
+        private static PermissionCacheKey from(SessionPrincipal session, String conversationId) {
+            if (session == null || session.getUserId() == null || session.getUserId().isBlank()
+                    || conversationId == null || conversationId.isBlank()) {
+                return null;
+            }
+            return new PermissionCacheKey(
+                    Objects.toString(session.getTenantId(), ""),
+                    session.getUserId(),
+                    conversationId);
+        }
+    }
+
+    private record PermissionCacheValue(boolean allowed, long expireAtMillis) {
     }
 }

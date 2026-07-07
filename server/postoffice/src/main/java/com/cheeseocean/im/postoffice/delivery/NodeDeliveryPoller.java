@@ -2,10 +2,14 @@ package com.cheeseocean.im.postoffice.delivery;
 
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchMessageReq;
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchMessageResp;
+import com.cheeseocean.im.common.api.dto.route.NodeQueueMessage;
+import com.cheeseocean.im.common.api.dto.user.KickoffCommand;
+import com.cheeseocean.im.common.api.enums.NodeQueueMessageType;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import com.cheeseocean.im.postoffice.api.OnlineDispatcherImpl;
 import com.cheeseocean.im.postoffice.config.NodeIdentityProvider;
+import com.cheeseocean.im.postoffice.connection.ConnectionManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -46,6 +50,7 @@ public class NodeDeliveryPoller {
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
     private final OnlineDispatcherImpl onlineDispatcher;
+    private final ConnectionManager connectionManager;
     private final String queueKey;
     private final Thread pollerThread;
     private volatile boolean running = true;
@@ -53,10 +58,12 @@ public class NodeDeliveryPoller {
     public NodeDeliveryPoller(StringRedisTemplate redisTemplate,
                               ObjectMapper objectMapper,
                               OnlineDispatcherImpl onlineDispatcher,
+                              ConnectionManager connectionManager,
                               NodeIdentityProvider nodeIdentityProvider) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.onlineDispatcher = onlineDispatcher;
+        this.connectionManager = connectionManager;
         this.queueKey = RedisKeys.deliveryNodeQueue(nodeIdentityProvider.getNodeId());
         this.pollerThread = new Thread(this::pollLoop, "node-delivery-poller");
         this.pollerThread.setDaemon(true);
@@ -101,13 +108,49 @@ public class NodeDeliveryPoller {
      */
     private void dispatchLocally(String json) {
         try {
-            DispatchMessageReq req = objectMapper.readValue(json, DispatchMessageReq.class);
-            DispatchMessageResp resp = onlineDispatcher.dispatchMessage(req);
-            if (resp == null || resp.getResults() == null || resp.getResults().isEmpty()) {
-                log.debug("NodeDeliveryPoller: dispatch returned empty for userId={}", req.getUserId());
+            NodeQueueMessage message = objectMapper.readValue(json, NodeQueueMessage.class);
+            NodeQueueMessageType type = NodeQueueMessageType.fromCode(message.getType());
+            if (type == NodeQueueMessageType.KICKOFF) {
+                executeKickoff(message.getPayload());
+                return;
             }
+            if (type == NodeQueueMessageType.DELIVERY) {
+                dispatchMessage(message.getPayload());
+                return;
+            }
+            dispatchMessage(json);
         } catch (Exception e) {
-            log.error("NodeDeliveryPoller: failed to deserialize or dispatch, queueKey={}", queueKey, e);
+            // 兼容 P0-1 已上线的裸 DispatchMessageReq JSON，避免队列内旧消息无法消费。
+            dispatchLegacyMessage(json, e);
+        }
+    }
+
+    private void dispatchLegacyMessage(String json, Exception envelopeError) {
+        try {
+            dispatchMessage(json);
+        } catch (Exception dispatchError) {
+            log.error("NodeDeliveryPoller: failed to deserialize or dispatch, queueKey={}", queueKey, envelopeError);
+            log.error("NodeDeliveryPoller: legacy dispatch also failed, queueKey={}", queueKey, dispatchError);
+        }
+    }
+
+    private void dispatchMessage(String json) throws Exception {
+        DispatchMessageReq req = objectMapper.readValue(json, DispatchMessageReq.class);
+        DispatchMessageResp resp = onlineDispatcher.dispatchMessage(req);
+        if (resp == null || resp.getResults() == null || resp.getResults().isEmpty()) {
+            log.debug("NodeDeliveryPoller: dispatch returned empty for userId={}", req.getUserId());
+        }
+    }
+
+    private void executeKickoff(String json) throws Exception {
+        KickoffCommand command = objectMapper.readValue(json, KickoffCommand.class);
+        if (command.getDeviceId() != null && !command.getDeviceId().isBlank()
+                && command.getUserId() != null && !command.getUserId().isBlank()) {
+            connectionManager.kickDeviceConnections(command.getUserId(), command.getDeviceId(), command.getReason());
+        } else if (command.getSessionId() != null && !command.getSessionId().isBlank()) {
+            connectionManager.kickSessionConnections(command.getSessionId(), command.getReason());
+        } else if (command.getUserId() != null && !command.getUserId().isBlank()) {
+            connectionManager.kickUserConnections(command.getUserId(), command.getReason());
         }
     }
 }

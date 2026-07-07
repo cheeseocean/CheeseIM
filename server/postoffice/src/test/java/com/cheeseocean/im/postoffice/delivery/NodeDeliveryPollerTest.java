@@ -6,6 +6,7 @@ import com.cheeseocean.im.common.api.dto.dispatch.DispatchResult;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.postoffice.api.OnlineDispatcherImpl;
 import com.cheeseocean.im.postoffice.config.NodeIdentityProvider;
+import com.cheeseocean.im.postoffice.connection.ConnectionManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +43,7 @@ class NodeDeliveryPollerTest {
     private ListOperations<String, String> listOps;
     private ObjectMapper objectMapper;
     private OnlineDispatcherImpl onlineDispatcher;
+    private ConnectionManager connectionManager;
     private NodeIdentityProvider nodeIdentityProvider;
     private NodeDeliveryPoller poller;
 
@@ -52,6 +54,7 @@ class NodeDeliveryPollerTest {
         listOps = mock(ListOperations.class);
         objectMapper = new ObjectMapper();
         onlineDispatcher = mock(OnlineDispatcherImpl.class);
+        connectionManager = mock(ConnectionManager.class);
         nodeIdentityProvider = mock(NodeIdentityProvider.class);
 
         when(redisTemplate.opsForList()).thenReturn(listOps);
@@ -82,7 +85,8 @@ class NodeDeliveryPollerTest {
         resp.setResults(List.of(new DispatchResult("conn-1", true, "OK", "delivered")));
         when(onlineDispatcher.dispatchMessage(any(DispatchMessageReq.class))).thenReturn(resp);
 
-        poller = new NodeDeliveryPoller(redisTemplate, objectMapper, onlineDispatcher, nodeIdentityProvider);
+        poller = new NodeDeliveryPoller(redisTemplate, objectMapper, onlineDispatcher, connectionManager,
+                nodeIdentityProvider);
         poller.start();
 
         // 等待消息消费完成
@@ -102,7 +106,8 @@ class NodeDeliveryPollerTest {
                     return null;
                 });
 
-        poller = new NodeDeliveryPoller(redisTemplate, objectMapper, onlineDispatcher, nodeIdentityProvider);
+        poller = new NodeDeliveryPoller(redisTemplate, objectMapper, onlineDispatcher, connectionManager,
+                nodeIdentityProvider);
         poller.start();
 
         // 等待 poller 完成
@@ -125,7 +130,8 @@ class NodeDeliveryPollerTest {
                     return null;
                 });
 
-        poller = new NodeDeliveryPoller(redisTemplate, objectMapper, onlineDispatcher, nodeIdentityProvider);
+        poller = new NodeDeliveryPoller(redisTemplate, objectMapper, onlineDispatcher, connectionManager,
+                nodeIdentityProvider);
         poller.start();
 
         assertTrue(latch.await(5, TimeUnit.SECONDS));

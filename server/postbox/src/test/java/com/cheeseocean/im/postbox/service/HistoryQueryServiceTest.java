@@ -24,6 +24,8 @@ class HistoryQueryServiceTest {
     @Test
     void getConversationMessagesShouldReadDescendingMessagesFromBlockHistory() {
         MongoTemplate mongoTemplate = mock(MongoTemplate.class);
+        when(mongoTemplate.findOne(any(), org.mockito.ArgumentMatchers.eq(MessageBlockDoc.class)))
+                .thenReturn(block(1L, messages()));
         when(mongoTemplate.find(any(), org.mockito.ArgumentMatchers.eq(MessageBlockDoc.class)))
                 .thenReturn(List.of(block(1L, messages(
                         slot(101L, "s-101", "c-101", "userA", "userB", "hello 101"),
@@ -47,6 +49,8 @@ class HistoryQueryServiceTest {
     @Test
     void getConversationMessagesShouldRenderReadableContentForSpecialMessageTypes() {
         MongoTemplate mongoTemplate = mock(MongoTemplate.class);
+        when(mongoTemplate.findOne(any(), org.mockito.ArgumentMatchers.eq(MessageBlockDoc.class)))
+                .thenReturn(block(1L, messages()));
         when(mongoTemplate.find(any(), org.mockito.ArgumentMatchers.eq(MessageBlockDoc.class)))
                 .thenReturn(List.of(block(1L, messages(
                         slot(103L, "s-103", "c-103", "userA", "userB", "raw-system", ContentType.SYSTEM_NOTIFY.getCode()),
@@ -71,7 +75,7 @@ class HistoryQueryServiceTest {
     }
 
     @Test
-    void getConversationMessagesShouldFallbackWhenPermissionProviderIsUnavailable() {
+    void getConversationMessagesShouldDenyWhenPermissionProviderIsUnavailableWithoutCache() {
         MongoTemplate mongoTemplate = mock(MongoTemplate.class);
         when(mongoTemplate.find(any(), org.mockito.ArgumentMatchers.eq(MessageBlockDoc.class)))
                 .thenReturn(List.of(block(1L, messages(
@@ -84,6 +88,30 @@ class HistoryQueryServiceTest {
         HistoryQueryService service = new HistoryQueryService(mongoTemplate, new MessagePreviewResolver());
         org.springframework.test.util.ReflectionTestUtils.setField(service, "conversationPermissionDubboService", permissionService);
 
+        List<HistoryMessage> messages = service.getConversationMessages(session("userB"), "single:userA:userB", 1);
+
+        assertEquals(0, messages.size());
+    }
+
+    @Test
+    void getConversationMessagesShouldUseShortPermissionCacheWhenProviderFailsAfterSuccess() {
+        MongoTemplate mongoTemplate = mock(MongoTemplate.class);
+        when(mongoTemplate.findOne(any(), org.mockito.ArgumentMatchers.eq(MessageBlockDoc.class)))
+                .thenReturn(block(1L, messages()));
+        when(mongoTemplate.find(any(), org.mockito.ArgumentMatchers.eq(MessageBlockDoc.class)))
+                .thenReturn(List.of(block(1L, messages(
+                        slot(101L, "s-101", "c-101", "userA", "userB", "hello 101")
+                ))));
+
+        var permissionService = mock(com.cheeseocean.im.common.api.permission.ConversationPermissionDubboService.class);
+        when(permissionService.check(any()))
+                .thenReturn(PermissionCheckResult.allow())
+                .thenThrow(new RpcException("no provider"));
+
+        HistoryQueryService service = new HistoryQueryService(mongoTemplate, new MessagePreviewResolver());
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "conversationPermissionDubboService", permissionService);
+
+        service.getConversationMessages(session("userB"), "single:userA:userB", 1);
         List<HistoryMessage> messages = service.getConversationMessages(session("userB"), "single:userA:userB", 1);
 
         assertEquals(1, messages.size());

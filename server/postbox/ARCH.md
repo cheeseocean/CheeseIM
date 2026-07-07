@@ -31,10 +31,10 @@
 
 ## 4. 历史查询链路
 
-- `getConversationMessages`（line 53）：当前**拉全部 block 内存排序再截 limit**，长会话 O(n)。ASSESSMENT P1-9 修复项 → 改 blockNo range 二分定位。
+- `getConversationMessages`：已改为先查 latest `blockNo`，再按 `conversationId + blockNo range` 窗口读取并按 seq 倒序裁剪 limit；`limit` 最大 200，最近页最多扫描 16 个窗口，避免长会话全扫和恶意大分页。
 - `pullMessagesBySeqRange`（line 89）：block-range-bounded，gap repair 用，健康。
 - `BlockMessageQueryService.findAttachmentCandidates`（line 60）：`content.regex` 全表扫，**不可扩展到百万量级**，ASSESSMENT P1-10 修复项 → 附件元数据表。
-- 权限校验 `allow`（line 198）：`RpcException` 时 `return true`，**安全洞**，ASSESSMENT P1-11 修复项。
+- 权限校验 `allow`：provider 缺失、RPC 异常、非预期返回时默认拒绝；仅在 30s 本地权限缓存未过期时兜底放行。
 
 ## 5. 边界
 

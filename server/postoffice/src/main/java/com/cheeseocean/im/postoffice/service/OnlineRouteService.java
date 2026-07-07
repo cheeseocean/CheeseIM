@@ -10,7 +10,9 @@ public interface OnlineRouteService {
 
     void refresh(String userId, String deviceId, long heartbeatAt);
 
-    void unregister(String userId, String deviceId);
+    void unregister(String userId, String deviceId, String connectionId);
 
     List<RouteSnapshot> findByUser(String userId);
+
+    List<RouteSnapshot> findBySession(String sessionId);
 }

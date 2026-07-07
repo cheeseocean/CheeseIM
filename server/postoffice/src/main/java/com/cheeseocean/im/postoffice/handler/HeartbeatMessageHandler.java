@@ -4,6 +4,7 @@ import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.common.api.enums.CommandType;
 import com.cheeseocean.im.postoffice.auth.ConnectionSessionGuard;
+import com.cheeseocean.im.postoffice.connection.ConnectionManager;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.postoffice.service.OnlineRouteService;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
@@ -40,9 +41,10 @@ public class HeartbeatMessageHandler implements MessageHandler {
 
             // 更新连接的最后活跃时间
             connection.incrementHeartbeat();
-            if (onlineRouteService != null && connection.getUserID() != null && connection.getPlatformType() != null) {
+            String deviceId = ConnectionManager.routeDeviceId(connection);
+            if (onlineRouteService != null && connection.getUserID() != null && deviceId != null) {
                 onlineRouteService.refresh(connection.getUserID(),
-                        connection.getPlatformName().toLowerCase() + "-" + connection.getPlatformType(),
+                        deviceId,
                         connection.getLastActiveTime());
             }
             

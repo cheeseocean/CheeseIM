@@ -117,8 +117,15 @@ class RedisOnlineRouteServiceTest {
     }
 
     @Test
-    void unregisterShouldExecuteLuaScriptToDeleteRouteAndHeartbeat() {
-        service.unregister("u1", "ios-1");
+    void unregisterShouldExecuteLuaScriptToDeleteRouteAndHeartbeat() throws Exception {
+        RouteSnapshot stored = new RouteSnapshot();
+        stored.setUserId("u1");
+        stored.setConnectionId("conn-1");
+        stored.setDeviceId("ios-1");
+        when(hashOps.get(RedisKeys.onlineUser("u1"), "route:ios-1"))
+                .thenReturn(new ObjectMapper().writeValueAsString(stored));
+
+        service.unregister("u1", "ios-1", "conn-1");
 
         verify(redisTemplate).execute(
                 any(RedisScript.class),
@@ -182,6 +189,34 @@ class RedisOnlineRouteServiceTest {
         assertEquals(2, result.size());
         assertEquals("aaa-1", result.get(0).getDeviceId());
         assertEquals("zzz-1", result.get(1).getDeviceId());
+    }
+
+    @Test
+    void findBySessionShouldReturnAllRouteSnapshots() throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        RouteSnapshot first = new RouteSnapshot();
+        first.setUserId("u1");
+        first.setSessionId("sess-1");
+        first.setDeviceId("ios-1");
+        first.setGatewayNode("node-a");
+        RouteSnapshot second = new RouteSnapshot();
+        second.setUserId("u1");
+        second.setSessionId("sess-1");
+        second.setDeviceId("android-1");
+        second.setGatewayNode("node-b");
+
+        Map<Object, Object> entries = new LinkedHashMap<>();
+        entries.put("u1:ios-1", mapper.writeValueAsString(first));
+        entries.put("u1:android-1", mapper.writeValueAsString(second));
+        when(hashOps.entries(RedisKeys.onlineSession("sess-1"))).thenReturn(entries);
+
+        List<RouteSnapshot> result = service.findBySession("sess-1");
+
+        assertEquals(2, result.size());
+        assertEquals("android-1", result.get(0).getDeviceId());
+        assertEquals("node-b", result.get(0).getGatewayNode());
+        assertEquals("ios-1", result.get(1).getDeviceId());
+        assertEquals("node-a", result.get(1).getGatewayNode());
     }
 
     @Test

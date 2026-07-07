@@ -111,6 +111,7 @@ public class RedisOnlineRouteService implements OnlineRouteService {
                 String.valueOf(heartbeatAt),
                 String.valueOf(routeTtl.toSeconds())
         );
+        registerSessionIndex(snapshot, routeJson);
     }
 
     @Override
@@ -129,12 +130,17 @@ public class RedisOnlineRouteService implements OnlineRouteService {
                 String.valueOf(heartbeatAt),
                 String.valueOf(routeTtl.toSeconds())
         );
+        refreshSessionIndex(userId, deviceId, heartbeatAt);
     }
 
     @Override
-    public void unregister(String userId, String deviceId) {
+    public void unregister(String userId, String deviceId, String connectionId) {
         // 同 refresh，热路径静默；unregister 对未存在的 hash 字段本就是 NOOP，无需区分。
         if (userId == null || deviceId == null) {
+            return;
+        }
+        RouteSnapshot snapshot = findRouteByDevice(userId, deviceId);
+        if (!matchesConnection(snapshot, connectionId)) {
             return;
         }
         redisTemplate.execute(
@@ -143,6 +149,7 @@ public class RedisOnlineRouteService implements OnlineRouteService {
                 deviceId,
                 String.valueOf(routeTtl.toSeconds())
         );
+        unregisterSessionIndex(snapshot);
     }
 
     @Override
@@ -174,6 +181,28 @@ public class RedisOnlineRouteService implements OnlineRouteService {
                 logger.warn("Failed to deserialize RouteSnapshot: userId={}, field={}", userId, field, e);
             } catch (NumberFormatException e) {
                 logger.warn("Failed to parse heartbeat timestamp: userId={}, field={}", userId, field, e);
+            }
+        }
+        sortByDevice(snapshots);
+        return snapshots;
+    }
+
+    @Override
+    public List<RouteSnapshot> findBySession(String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) {
+            return List.of();
+        }
+        Map<Object, Object> entries = redisTemplate.opsForHash().entries(RedisKeys.onlineSession(sessionId));
+        if (entries == null || entries.isEmpty()) {
+            return List.of();
+        }
+        List<RouteSnapshot> snapshots = new ArrayList<>(entries.size());
+        for (Map.Entry<Object, Object> entry : entries.entrySet()) {
+            try {
+                snapshots.add(objectMapper.readValue(String.valueOf(entry.getValue()), RouteSnapshot.class));
+            } catch (JsonProcessingException e) {
+                logger.warn("Failed to deserialize session RouteSnapshot: sessionId={}, field={}",
+                        sessionId, entry.getKey(), e);
             }
         }
         sortByDevice(snapshots);
@@ -238,7 +267,75 @@ public class RedisOnlineRouteService implements OnlineRouteService {
                 """;
     }
 
+    private void registerSessionIndex(RouteSnapshot snapshot, String routeJson) {
+        if (snapshot.getSessionId() == null || snapshot.getSessionId().isBlank()) {
+            return;
+        }
+        String sessionKey = RedisKeys.onlineSession(snapshot.getSessionId());
+        redisTemplate.opsForHash().put(sessionKey, sessionField(snapshot.getUserId(), snapshot.getDeviceId()), routeJson);
+        redisTemplate.expire(sessionKey, routeTtl);
+    }
+
+    private void refreshSessionIndex(String userId, String deviceId, long heartbeatAt) {
+        RouteSnapshot snapshot = findRouteByDevice(userId, deviceId);
+        if (snapshot == null || snapshot.getSessionId() == null || snapshot.getSessionId().isBlank()) {
+            return;
+        }
+        snapshot.setHeartbeatAt(heartbeatAt);
+        try {
+            String sessionKey = RedisKeys.onlineSession(snapshot.getSessionId());
+            redisTemplate.opsForHash().put(sessionKey,
+                    sessionField(snapshot.getUserId(), snapshot.getDeviceId()),
+                    objectMapper.writeValueAsString(snapshot));
+            redisTemplate.expire(sessionKey, routeTtl);
+        } catch (JsonProcessingException e) {
+            logger.warn("Failed to refresh session route index: userId={}, deviceId={}", userId, deviceId, e);
+        }
+    }
+
+    private void unregisterSessionIndex(RouteSnapshot snapshot) {
+        if (snapshot == null || snapshot.getSessionId() == null || snapshot.getSessionId().isBlank()) {
+            return;
+        }
+        String sessionKey = RedisKeys.onlineSession(snapshot.getSessionId());
+        redisTemplate.opsForHash().delete(sessionKey, sessionField(snapshot.getUserId(), snapshot.getDeviceId()));
+        Long remaining = redisTemplate.opsForHash().size(sessionKey);
+        if (remaining == null || remaining == 0L) {
+            redisTemplate.delete(sessionKey);
+        }
+    }
+
+    private RouteSnapshot findRouteByDevice(String userId, String deviceId) {
+        if (userId == null || deviceId == null) {
+            return null;
+        }
+        Object routeJson = redisTemplate.opsForHash().get(RedisKeys.onlineUser(userId), ROUTE_PREFIX + deviceId);
+        if (routeJson == null) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(String.valueOf(routeJson), RouteSnapshot.class);
+        } catch (JsonProcessingException e) {
+            logger.warn("Failed to deserialize RouteSnapshot by device: userId={}, deviceId={}", userId, deviceId, e);
+            return null;
+        }
+    }
+
     private static void sortByDevice(List<RouteSnapshot> snapshots) {
         snapshots.sort(Comparator.comparing(RouteSnapshot::getDeviceId, Comparator.nullsLast(String::compareTo)));
+    }
+
+    private static String sessionField(String userId, String deviceId) {
+        return Objects.toString(userId, "") + ":" + Objects.toString(deviceId, "");
+    }
+
+    private static boolean matchesConnection(RouteSnapshot snapshot, String connectionId) {
+        if (snapshot == null) {
+            return false;
+        }
+        if (connectionId == null || connectionId.isBlank()) {
+            return true;
+        }
+        return connectionId.equals(snapshot.getConnectionId());
     }
 }

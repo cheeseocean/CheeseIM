@@ -18,6 +18,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 /**
@@ -27,6 +28,16 @@ import java.util.stream.Collectors;
 public class ConnectionManager {
     
     private static final Logger logger = CommonLoggers.POSTOFFICE;
+
+    /**
+     * 用户维度分片锁数量。连接注册/移除的热点是同一用户多端重连，不需要全局串行。
+     */
+    private static final int USER_LOCK_SHARDS = 64;
+
+    /**
+     * 未认证连接没有 userId，用 connectionId 分片保护 pending 索引。
+     */
+    private static final int CONNECTION_LOCK_SHARDS = 64;
     
     @Autowired
     private ObjectMapper objectMapper;
@@ -81,6 +92,10 @@ public class ConnectionManager {
      * Total active connection count.
      */
     private final AtomicLong totalConnectionCount = new AtomicLong(0);
+
+    private final ReentrantLock[] userLocks = createLocks(USER_LOCK_SHARDS);
+
+    private final ReentrantLock[] connectionLocks = createLocks(CONNECTION_LOCK_SHARDS);
     
     /**
      * Active multi-device conflict policy.
@@ -114,7 +129,9 @@ public class ConnectionManager {
     /**
      * 注册未认证连接，仅建立 connectionId 和 channel 的索引。
      */
-    public synchronized boolean registerPendingConnection(UserConnection connection) {
+    public boolean registerPendingConnection(UserConnection connection) {
+        ReentrantLock lock = connectionLock(connection == null ? null : connection.getConnectionID());
+        lock.lock();
         try {
             String connectionID = connection.getConnectionID();
             if (connectionID == null || connection.getChannel() == null) {
@@ -137,15 +154,24 @@ public class ConnectionManager {
                     connectionID, connection.getChannel().remoteAddress());
             return true;
         } catch (Exception e) {
-            logger.error("Failed to register pending connection: {}", connection.getConnectionID(), e);
+            logger.error("Failed to register pending connection: {}",
+                    connection == null ? null : connection.getConnectionID(), e);
             return false;
+        } finally {
+            lock.unlock();
         }
     }
 
     /**
      * 添加新连接
      */
-    public synchronized boolean addConnection(UserConnection connection) {
+    public boolean addConnection(UserConnection connection) {
+        ReentrantLock connectionLock = connectionLock(connection == null ? null : connection.getConnectionID());
+        ReentrantLock userLock = userLock(connection == null ? null : connection.getUserID());
+        List<UserConnection> connectionsToKick = List.of();
+        boolean added = false;
+        connectionLock.lock();
+        userLock.lock();
         try {
             String connectionID = connection.getConnectionID();
             String userID = connection.getUserID();
@@ -161,13 +187,8 @@ public class ConnectionManager {
             List<UserConnection> existingConnections = getUserConnections(userID);
             
             // 根据多端登录策略处理冲突
-            List<UserConnection> connectionsToKick = multiLoginStrategy.getConnectionsToKick(
+            connectionsToKick = multiLoginStrategy.getConnectionsToKick(
                     connection, existingConnections);
-            
-            // 踢掉需要踢掉的连接
-            for (UserConnection connToKick : connectionsToKick) {
-                kickConnection(connToKick, "新设备登录，当前连接被踢下线");
-            }
             
             // 添加或提升连接
             connectionMap.put(connectionID, connection);
@@ -197,21 +218,55 @@ public class ConnectionManager {
             
             logger.info("Connection added: userID={}, connectionID={}, platform={}, total={}", 
                        userID, connectionID, connection.getPlatformName(), totalConnectionCount.get());
-            
-            return true;
+            added = true;
             
         } catch (Exception e) {
-            logger.error("Failed to add connection: {}", connection.getConnectionID(), e);
+            logger.error("Failed to add connection: {}",
+                    connection == null ? null : connection.getConnectionID(), e);
             return false;
+        } finally {
+            userLock.unlock();
+            connectionLock.unlock();
         }
+        // 旧连接踢下线会再次进入 removeConnection。放在分片锁外执行，避免与并发断线形成 connection -> user / user -> connection 反向等待。
+        for (UserConnection connToKick : connectionsToKick) {
+            kickConnection(connToKick, "新设备登录，当前连接被踢下线");
+        }
+        return added;
     }
     
     /**
      * 移除连接
      */
-    public synchronized boolean removeConnection(String connectionID) {
+    public boolean removeConnection(String connectionID) {
+        ReentrantLock connectionLock = connectionLock(connectionID);
+        connectionLock.lock();
         try {
-            UserConnection connection = connectionMap.remove(connectionID);
+            UserConnection current = connectionMap.get(connectionID);
+            if (current == null) {
+                return false;
+            }
+            ReentrantLock userLock = current.getUserID() == null ? null : userLock(current.getUserID());
+            if (userLock != null) {
+                userLock.lock();
+            }
+            try {
+                return removeConnectionLocked(connectionID);
+            } finally {
+                if (userLock != null) {
+                    userLock.unlock();
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Failed to remove connection: {}", connectionID, e);
+            return false;
+        } finally {
+            connectionLock.unlock();
+        }
+    }
+
+    private boolean removeConnectionLocked(String connectionID) {
+        UserConnection connection = connectionMap.remove(connectionID);
             if (connection == null) {
                 return false;
             }
@@ -253,11 +308,6 @@ public class ConnectionManager {
                        userID, connectionID, connection.getPlatformName(), totalConnectionCount.get());
             
             return true;
-            
-        } catch (Exception e) {
-            logger.error("Failed to remove connection: {}", connectionID, e);
-            return false;
-        }
     }
     
     /**
@@ -491,12 +541,15 @@ public class ConnectionManager {
     }
     
     private void registerOnlineRoute(UserConnection connection) {
-        if (onlineRouteService == null || connection.getUserID() == null || connection.getPlatformType() == null) {
+        String deviceId = routeDeviceId(connection);
+        if (onlineRouteService == null || connection.getUserID() == null || deviceId == null) {
             return;
         }
         RouteSnapshot snapshot = new RouteSnapshot();
         snapshot.setUserId(connection.getUserID());
-        snapshot.setDeviceId(connection.getPlatformName().toLowerCase() + "-" + connection.getPlatformType());
+        snapshot.setConnectionId(connection.getConnectionID());
+        snapshot.setSessionId(connection.getSessionId());
+        snapshot.setDeviceId(deviceId);
         snapshot.setGatewayNode(nodeIdentityProvider.getNodeId());
         snapshot.setConnectedAt(connection.getConnectTime());
         snapshot.setHeartbeatAt(connection.getLastActiveTime());
@@ -504,11 +557,11 @@ public class ConnectionManager {
     }
 
     private void unregisterOnlineRoute(UserConnection connection) {
-        if (onlineRouteService == null || connection.getUserID() == null || connection.getPlatformType() == null) {
+        String deviceId = routeDeviceId(connection);
+        if (onlineRouteService == null || connection.getUserID() == null || deviceId == null) {
             return;
         }
-        onlineRouteService.unregister(connection.getUserID(),
-                connection.getPlatformName().toLowerCase() + "-" + connection.getPlatformType());
+        onlineRouteService.unregister(connection.getUserID(), deviceId, connection.getConnectionID());
     }
     
     // ============ Getter and Setter ============
@@ -577,5 +630,39 @@ public class ConnectionManager {
             return null;
         }
         return userID + ":" + deviceID;
+    }
+
+    public static String routeDeviceId(UserConnection connection) {
+        if (connection == null) {
+            return null;
+        }
+        if (connection.getDeviceId() != null && !connection.getDeviceId().isBlank()) {
+            return connection.getDeviceId();
+        }
+        if (connection.getPlatformType() == null) {
+            return null;
+        }
+        return connection.getPlatformName().toLowerCase() + "-" + connection.getPlatformType();
+    }
+
+    private static ReentrantLock[] createLocks(int shardCount) {
+        ReentrantLock[] locks = new ReentrantLock[shardCount];
+        for (int i = 0; i < shardCount; i++) {
+            locks[i] = new ReentrantLock();
+        }
+        return locks;
+    }
+
+    private ReentrantLock userLock(String userID) {
+        return lockFor(userLocks, userID);
+    }
+
+    private ReentrantLock connectionLock(String connectionID) {
+        return lockFor(connectionLocks, connectionID);
+    }
+
+    private ReentrantLock lockFor(ReentrantLock[] locks, String key) {
+        int hash = key == null ? 0 : key.hashCode();
+        return locks[Math.floorMod(hash, locks.length)];
     }
 }

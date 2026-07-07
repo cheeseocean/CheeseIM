@@ -7,6 +7,8 @@ public class RouteSnapshot implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private String userId;
+    private String connectionId;
+    private String sessionId;
     private String deviceId;
     private String gatewayNode;
     private Long connectedAt;
@@ -18,6 +20,22 @@ public class RouteSnapshot implements Serializable {
 
     public void setUserId(String userId) {
         this.userId = userId;
+    }
+
+    public String getConnectionId() {
+        return connectionId;
+    }
+
+    public void setConnectionId(String connectionId) {
+        this.connectionId = connectionId;
+    }
+
+    public String getSessionId() {
+        return sessionId;
+    }
+
+    public void setSessionId(String sessionId) {
+        this.sessionId = sessionId;
     }
 
     public String getDeviceId() {

@@ -17,10 +17,10 @@
 
 | 组件 | 文件 | 职责 |
 | --- | --- | --- |
-| `ConnectionManager` | `connection/ConnectionManager.java:39` | 6 张本地 `ConcurrentHashMap` 持连接态，`addConnection/removeConnection` 用 `synchronized` |
+| `ConnectionManager` | `connection/ConnectionManager.java` | 6 张本地 `ConcurrentHashMap` 持连接态，connection/user 分片锁保护 pending 注册、认证提升、移除 |
 | `RedisOnlineRouteService` | `service/RedisOnlineRouteService.java` | 在线路由注册/刷新/踢下线（**Lua 原子脚本**，HASH + 双字段：route/heartbeat） |
 | `OnlineDispatcherImpl` | `api/OnlineDispatcherImpl.java:67` | Dubbo 投递入口，仅本地 dispatch |
-| `KickoffCommandServiceImpl` | `kickoff/KickoffCommandServiceImpl.java:8` | Dubbo 踢下线接口 |
+| `KickoffCommandServiceImpl` | `kickoff/KickoffCommandServiceImpl.java` | Dubbo 踢下线接口，按 `gatewayNode` 定向本地执行或节点队列转发 |
 | `HeartbeatMessageHandler` | `handler/HeartbeatMessageHandler.java:42` | 心跳处理 |
 | `TcpEnvelopeEncoder` / `Decoder` | `codec/` | Protobuf wire 编解码 |
 
@@ -32,9 +32,9 @@
 - 原子性：`register` / `refresh` / `unregister` 均走单脚本 Lua（参见 `RedisOnlineRouteService`），消除原 `MultiLevelCacheService` 「读-改-写」竞态与 L1 无失效广播问题（ASSESSMENT P0-3 已修复）
 - 不再使用 `MultiLevelCacheService` L1 Caffeine：路由是跨节点共享真相，L1 本地缓存会让多节点 1-5min 不一致；读写都直连 Redis
 - `findByUser` 走 `HGETALL`，Java 侧合并 `route:` / `heartbeat:` 双字段，按 `deviceId` 排序
-- 使用方：`OnlineDispatcherImpl.java:67` 仅取 `userId` 查本地连接，**`gatewayNode` 字段当前未被任何消费者读取**
 - `gatewayNode` 经 `NodeIdentityProvider` 写入真实节点 ID（配置或 UUID），不再是硬编码（ASSESSMENT P0-1，**已修复 2026-07-07**）
 - postman 按 `gatewayNode` 分组路由，通过 Redis LIST `delivery:node:{nodeId}` 投递到正确节点
+- `OnlineDispatcherImpl.java:67` 仍只做本地连接查找；跨节点命中由 postman 的 `gatewayNode` 分组 + `NodeDeliveryPoller` 节点队列保证
 
 ## 4. 多端登录策略
 
@@ -61,8 +61,8 @@
 
 1. ~~P0-3 路由注册改 Lua 原子~~（已修复 2026-07-06）
 2. ~~P0-1 真实 gatewayNode + Redis LIST 按节点投递~~（已修复 2026-07-07）
-3. P1 ConnectionManager 分片去 global lock
-4. P1 踢下线跨节点
+3. ~~P1 ConnectionManager 分片去 global lock~~（已修复 2026-07-07）
+4. ~~P1 踢下线跨节点~~（已修复 2026-07-07，复用 `delivery:node:{nodeId}` 节点队列）
 
 ## 8. 改动评估 checklist
 

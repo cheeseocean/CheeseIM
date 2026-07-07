@@ -1,7 +1,7 @@
 # postman/ARCH.md — 投递与离线推送事实快照
 
 > 在线投递执行 + 离线厂商推送（APNs/FCM/Huawei/Xiaomi/JPush）。
-> 跨节点在线投递当前不可靠，见 `server/docs/architecture/ASSESSMENT.md` P0-1。
+> 跨节点在线投递 P0-1 代码路径已接通；长压/chaos 验证和剩余多副本一致性待办见 `server/docs/architecture/ASSESSMENT.md`。
 
 ## 1. 核心组件
 
@@ -39,7 +39,7 @@ postman `DeliveryEventListener.resolveTargets` 已**移除** `ChatType.GROUP` �
 
 ## 4. 投递去重
 
-`ConnectionManager.markDeliveryIfAbsent`（postoffice 模块，`ConnectionManager.java:322`）用 `deliveredMessageKeys = ConcurrentHashMap.newKeySet()`，**无界本地**。
+`ConnectionManager.markDeliveryIfAbsent`（postoffice 模块）已委托 `DeliveryDedupStore`；生产环境注入 `RedisDeliveryDedupStore`，用 Redis `SET NX EX` 做跨节点去重并通过 TTL 自动回收（ASSESSMENT P0-5 已修复）。
 
 `MessagePushServiceImpl.attempts` / `deliveryStates`（line 31-32）也是 `ConcurrentHashMap` 本地存储，**多副本会重复推送**。ASSESSMENT P4-24 修复项 → 迁 Redis。
 

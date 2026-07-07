@@ -1,6 +1,8 @@
 package com.cheeseocean.im.postbox.history;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
@@ -16,6 +18,9 @@ import java.util.Map;
  * @author xxxcrel
  */
 @Document("message_block")
+@CompoundIndexes({
+        @CompoundIndex(name = "idx_message_block_conversation_block", def = "{'conversationId': 1, 'blockNo': -1}")
+})
 public class MessageBlockDoc {
 
     @Id
