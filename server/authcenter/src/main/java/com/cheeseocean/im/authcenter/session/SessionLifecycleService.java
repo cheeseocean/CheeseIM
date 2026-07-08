@@ -59,10 +59,12 @@ public class SessionLifecycleService {
         principal.setDeviceId(request.getDeviceId());
         principal.setPlatform(PlatformType.fromCode(request.getPlatformId()).getWireName());
         principal.setAccessToken("login-bootstrap");
+        principal.setTokenVersion(userSecurityRepository.tokenVersion(request.getUserId()));
 
         SessionPrincipal session = sessionTicketService.buildSession(principal, request.getDeviceId(),
                 principal.getPlatform(), request.getClientVersion());
         session.setSessionId("sess:" + UUID.randomUUID());
+        principal.setSessionId(session.getSessionId());
         session.setStatus(SessionStatus.ACTIVE);
 
         JwtTokenIssuer.TokenPair tokenPair = jwtTokenIssuer.issue(session);
@@ -87,6 +89,12 @@ public class SessionLifecycleService {
         SessionPrincipal session = sessionRepository.findBySessionId(sessionId);
         if (session == null || !session.isActive()) {
             throw new IllegalStateException("session invalid");
+        }
+        if (userSecurityRepository.isBanned(session.getUserId())) {
+            throw new IllegalStateException("user banned");
+        }
+        if (!userSecurityRepository.matchesTokenVersion(session.getUserId(), session.getTokenVersion())) {
+            throw new IllegalStateException("token version mismatch");
         }
         JwtTokenIssuer.TokenPair tokenPair = jwtTokenIssuer.issue(session);
         refreshTokenRepository.save(tokenPair.getRefreshToken(), session.getSessionId(), tokenPair.getRefreshExpireAt() - System.currentTimeMillis());

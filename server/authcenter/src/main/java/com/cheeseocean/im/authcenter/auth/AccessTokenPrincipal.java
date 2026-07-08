@@ -8,6 +8,8 @@ public class AccessTokenPrincipal {
     private String deviceId;
     private String platform;
     private Long expireAt;
+    private String sessionId;
+    private Long tokenVersion;
 
     public String getAccessToken() {
         return accessToken;
@@ -55,5 +57,21 @@ public class AccessTokenPrincipal {
 
     public void setExpireAt(Long expireAt) {
         this.expireAt = expireAt;
+    }
+
+    public String getSessionId() {
+        return sessionId;
+    }
+
+    public void setSessionId(String sessionId) {
+        this.sessionId = sessionId;
+    }
+
+    public Long getTokenVersion() {
+        return tokenVersion;
+    }
+
+    public void setTokenVersion(Long tokenVersion) {
+        this.tokenVersion = tokenVersion;
     }
 }

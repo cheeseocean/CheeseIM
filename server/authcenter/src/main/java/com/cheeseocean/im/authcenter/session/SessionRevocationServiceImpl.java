@@ -3,6 +3,7 @@ package com.cheeseocean.im.authcenter.session;
 import com.cheeseocean.im.common.api.connection.KickoffCommandService;
 import com.cheeseocean.im.common.api.session.SessionRevocationService;
 import com.cheeseocean.im.authcenter.repository.SessionRepository;
+import com.cheeseocean.im.authcenter.repository.UserSecurityRepository;
 import com.cheeseocean.im.common.api.dto.user.KickoffCommand;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import com.cheeseocean.im.common.api.enums.SessionStatus;
@@ -15,12 +16,15 @@ import org.springframework.stereotype.Service;
 public class SessionRevocationServiceImpl implements SessionRevocationService {
 
     private final SessionRepository sessionRepository;
+    private final UserSecurityRepository userSecurityRepository;
 
     @DubboReference(check = false)
     private KickoffCommandService kickoffCommandService;
 
-    public SessionRevocationServiceImpl(SessionRepository sessionRepository) {
+    public SessionRevocationServiceImpl(SessionRepository sessionRepository,
+                                        UserSecurityRepository userSecurityRepository) {
         this.sessionRepository = sessionRepository;
+        this.userSecurityRepository = userSecurityRepository;
     }
 
     @Override
@@ -40,6 +44,7 @@ public class SessionRevocationServiceImpl implements SessionRevocationService {
 
     @Override
     public void revokeUserSessions(String userId, String reason) {
+        userSecurityRepository.bumpTokenVersion(userId);
         for (SessionPrincipal session : sessionRepository.findByUserId(userId)) {
             revokeSession(session.getSessionId(), reason);
         }

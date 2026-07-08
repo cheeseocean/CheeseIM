@@ -43,10 +43,16 @@ class SessionQueryServiceImplTest {
         tokenPrincipal.setUserId("u1");
         tokenPrincipal.setDeviceId("d1");
         tokenPrincipal.setPlatform("android");
+        tokenPrincipal.setSessionId("sess:u1:d1");
+        tokenPrincipal.setTokenVersion(1L);
         when(accessTokenService.validate("token-1")).thenReturn(tokenPrincipal);
+        when(userSecurityRepository.matchesTokenVersion("u1", 1L)).thenReturn(true);
 
         SessionPrincipal cached = new SessionPrincipal();
         cached.setSessionId("sess:u1:d1");
+        cached.setUserId("u1");
+        cached.setTokenVersion(1L);
+        cached.setStatus(com.cheeseocean.im.common.api.enums.SessionStatus.ACTIVE);
         when(sessionRepository.findBySessionId("sess:u1:d1")).thenReturn(cached);
 
         SessionQueryServiceImpl service = new SessionQueryServiceImpl(

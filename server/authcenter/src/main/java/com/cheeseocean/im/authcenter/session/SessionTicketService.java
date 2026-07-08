@@ -2,6 +2,7 @@ package com.cheeseocean.im.authcenter.session;
 
 import com.cheeseocean.im.authcenter.auth.AccessTokenPrincipal;
 import com.cheeseocean.im.authcenter.config.AuthCenterConfig;
+import com.cheeseocean.im.authcenter.repository.UserSecurityRepository;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import com.cheeseocean.im.common.api.dto.user.WsTicketPrincipal;
 import com.cheeseocean.im.common.api.enums.SessionStatus;
@@ -13,20 +14,26 @@ import java.util.UUID;
 public class SessionTicketService {
 
     private final AuthCenterConfig authCenterConfig;
+    private final UserSecurityRepository userSecurityRepository;
 
-    public SessionTicketService(AuthCenterConfig authCenterConfig) {
+    public SessionTicketService(AuthCenterConfig authCenterConfig,
+                                UserSecurityRepository userSecurityRepository) {
         this.authCenterConfig = authCenterConfig;
+        this.userSecurityRepository = userSecurityRepository;
     }
 
     public SessionPrincipal buildSession(AccessTokenPrincipal principal, String deviceId, String platform, String clientVersion) {
         SessionPrincipal session = new SessionPrincipal();
         session.setUserId(principal.getUserId());
         session.setTenantId("default");
-        session.setSessionId("sess:" + principal.getUserId() + ":" + (deviceId == null || deviceId.isBlank() ? principal.getDeviceId() : deviceId));
-        session.setDeviceId(deviceId == null || deviceId.isBlank() ? principal.getDeviceId() : deviceId);
+        String resolvedDeviceId = deviceId == null || deviceId.isBlank() ? principal.getDeviceId() : deviceId;
+        session.setSessionId(principal.getSessionId() == null || principal.getSessionId().isBlank()
+                ? "sess:" + principal.getUserId() + ":" + resolvedDeviceId
+                : principal.getSessionId());
+        session.setDeviceId(resolvedDeviceId);
         session.setPlatform(platform == null || platform.isBlank() ? principal.getPlatform() : platform);
         session.setClientVersion(clientVersion);
-        session.setTokenVersion(1L);
+        session.setTokenVersion(resolveTokenVersion(principal));
         session.setPermissionVersion(1L);
         session.setPasswordVersion(1L);
         session.setStatus(SessionStatus.ACTIVE);
@@ -52,5 +59,12 @@ public class SessionTicketService {
 
     public long wsTicketTtlMs() {
         return authCenterConfig.getWsTicket().getTtlMs();
+    }
+
+    private long resolveTokenVersion(AccessTokenPrincipal principal) {
+        if (principal.getTokenVersion() != null) {
+            return principal.getTokenVersion();
+        }
+        return userSecurityRepository.tokenVersion(principal.getUserId());
     }
 }

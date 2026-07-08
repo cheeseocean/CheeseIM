@@ -19,7 +19,7 @@ public class SessionStateValidator {
         if (sessionQueryService.isUserBanned(session.getUserId())) {
             throw new IllegalStateException("user banned");
         }
-        if (tokenVersion != null && !sessionQueryService.matchesTokenVersion(session.getSessionId(), tokenVersion)) {
+        if (tokenVersion == null || !sessionQueryService.matchesTokenVersion(session.getSessionId(), tokenVersion)) {
             throw new IllegalStateException("token version mismatch");
         }
     }

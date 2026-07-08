@@ -3,6 +3,7 @@ package com.cheeseocean.im.authcenter.session;
 import com.cheeseocean.im.authcenter.auth.AccessTokenPrincipal;
 import com.cheeseocean.im.authcenter.auth.AccessTokenService;
 import com.cheeseocean.im.authcenter.repository.SessionRepository;
+import com.cheeseocean.im.authcenter.repository.UserSecurityRepository;
 import com.cheeseocean.im.common.api.session.SessionIssueService;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import com.cheeseocean.im.common.api.dto.user.WsTicketPrincipal;
@@ -16,19 +17,28 @@ public class SessionIssueServiceImpl implements SessionIssueService {
     private final AccessTokenService accessTokenService;
     private final SessionTicketService sessionTicketService;
     private final SessionRepository sessionRepository;
+    private final UserSecurityRepository userSecurityRepository;
 
     public SessionIssueServiceImpl(AccessTokenService accessTokenService,
                                    SessionTicketService sessionTicketService,
-                                   SessionRepository sessionRepository) {
+                                   SessionRepository sessionRepository,
+                                   UserSecurityRepository userSecurityRepository) {
         this.accessTokenService = accessTokenService;
         this.sessionTicketService = sessionTicketService;
         this.sessionRepository = sessionRepository;
+        this.userSecurityRepository = userSecurityRepository;
     }
 
     @Override
     public WsTicketPrincipal issueWsTicket(String accessToken, String deviceId, String platform, String clientVersion) {
         AccessTokenPrincipal principal = accessTokenService.validate(accessToken);
-        SessionPrincipal session = sessionTicketService.buildSession(principal, deviceId, platform, clientVersion);
+        if (userSecurityRepository.isBanned(principal.getUserId())) {
+            throw new IllegalStateException("user banned");
+        }
+        if (!userSecurityRepository.matchesTokenVersion(principal.getUserId(), principal.getTokenVersion())) {
+            throw new IllegalStateException("token version mismatch");
+        }
+        SessionPrincipal session = resolveSession(principal, deviceId, platform, clientVersion);
         sessionRepository.save(session, accessTokenService.getTokenExpirationMs());
 
         WsTicketPrincipal ticket = sessionTicketService.buildTicket(session);
@@ -38,16 +48,20 @@ public class SessionIssueServiceImpl implements SessionIssueService {
 
     @Override
     public WsTicketPrincipal consumeWsTicket(String ticket) {
-        WsTicketPrincipal principal = sessionRepository.findWsTicket(ticket);
-        if (principal == null) {
-            return null;
+        return sessionRepository.consumeWsTicket(ticket);
+    }
+
+    private SessionPrincipal resolveSession(AccessTokenPrincipal principal, String deviceId, String platform, String clientVersion) {
+        if (principal.getSessionId() == null || principal.getSessionId().isBlank()) {
+            return sessionTicketService.buildSession(principal, deviceId, platform, clientVersion);
         }
-        if (principal.isUsed()) {
-            return principal;
+        SessionPrincipal session = sessionRepository.findBySessionId(principal.getSessionId());
+        if (session == null || !session.isActive()) {
+            throw new IllegalStateException("session invalid");
         }
-        principal.setUsed(true);
-        long ttl = Math.max(1L, principal.getExpireAt() - System.currentTimeMillis());
-        sessionRepository.saveWsTicket(principal, ttl);
-        return principal;
+        if (!userSecurityRepository.matchesTokenVersion(session.getUserId(), principal.getTokenVersion())) {
+            throw new IllegalStateException("token version mismatch");
+        }
+        return session;
     }
 }

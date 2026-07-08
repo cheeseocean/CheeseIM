@@ -1,0 +1,90 @@
+app:
+  runtime:
+    mode: cluster
+
+cheeseim:
+  runtime:
+    mode: cluster
+  queue:
+    type: ${CHEESEIM_QUEUE_TYPE:kafka}
+  conversation-seq:
+    deployment-mode: cluster
+
+spring:
+  data:
+    mongodb:
+      uri: ${MONGODB_URI}
+    redis:
+      password: ${REDIS_PASSWORD:}
+      timeout: ${REDIS_TIMEOUT:3000ms}
+      lettuce:
+        pool:
+          max-active: ${REDIS_POOL_MAX_ACTIVE:64}
+          max-idle: ${REDIS_POOL_MAX_IDLE:32}
+          min-idle: ${REDIS_POOL_MIN_IDLE:8}
+          max-wait: ${REDIS_POOL_MAX_WAIT:3000ms}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    producer:
+      acks: ${KAFKA_PRODUCER_ACKS:all}
+      retries: ${KAFKA_PRODUCER_RETRIES:3}
+      batch-size: ${KAFKA_PRODUCER_BATCH_SIZE:16384}
+      linger-ms: ${KAFKA_PRODUCER_LINGER_MS:1}
+      buffer-memory: ${KAFKA_PRODUCER_BUFFER_MEMORY:33554432}
+    consumer:
+      auto-offset-reset: ${KAFKA_CONSUMER_AUTO_OFFSET_RESET:latest}
+      enable-auto-commit: ${KAFKA_CONSUMER_ENABLE_AUTO_COMMIT:false}
+
+dubbo:
+  registry:
+    address: nacos://${NACOS_SERVER_ADDR}
+    register: true
+    subscribe: true
+    parameters:
+      namespace: ${NACOS_NAMESPACE}
+      group: ${NACOS_GROUP:DEFAULT_GROUP}
+  config-center:
+    address: nacos://${NACOS_SERVER_ADDR}
+    namespace: ${NACOS_NAMESPACE}
+    group: ${NACOS_GROUP:DEFAULT_GROUP}
+  metadata-report:
+    address: nacos://${NACOS_SERVER_ADDR}
+    parameters:
+      namespace: ${NACOS_NAMESPACE}
+      group: ${NACOS_GROUP:DEFAULT_GROUP}
+  protocol:
+    name: dubbo
+    injvm: false
+  consumer:
+    injvm: false
+
+jetcache:
+  remote:
+    default:
+      broadcastChannel: ${JETCACHE_BROADCAST_CHANNEL:cheeseim-cluster}
+      host: ${JETCACHE_REDIS_HOST}
+      port: ${JETCACHE_REDIS_PORT}
+      password: ${JETCACHE_REDIS_PASSWORD:${REDIS_PASSWORD:}}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: redis-sentinel
+  data:
+    redis:
+      sentinel:
+        master: ${REDIS_SENTINEL_MASTER}
+        nodes: ${REDIS_SENTINEL_NODES}
+        password: ${REDIS_SENTINEL_PASSWORD:${REDIS_PASSWORD:}}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: redis-cluster
+  data:
+    redis:
+      cluster:
+        nodes: ${REDIS_CLUSTER_NODES}
+        max-redirects: ${REDIS_CLUSTER_MAX_REDIRECTS:5}

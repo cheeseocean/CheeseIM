@@ -35,6 +35,9 @@ public class AccessTokenService {
                     .getPayload();
             String userId = claims.getSubject();
             Integer platformId = claims.get("platformID", Integer.class);
+            String sessionId = claims.get("sid", String.class);
+            String deviceId = claims.get("did", String.class);
+            Long tokenVersion = readLongClaim(claims.get("tokenVersion"));
             Date expiration = claims.getExpiration();
             if (userId == null || platformId == null) {
                 throw new IllegalStateException("access token invalid");
@@ -49,8 +52,10 @@ public class AccessTokenService {
             principal.setPlatformId(platformId);
             principal.setExpireAt(expiration == null ? null : expiration.getTime());
             PlatformType platformType = PlatformType.fromCode(platformId);
-            principal.setDeviceId(platformType.getWireName() + "-" + platformId);
+            principal.setSessionId(sessionId);
+            principal.setDeviceId(deviceId == null || deviceId.isBlank() ? platformType.getWireName() + "-" + platformId : deviceId);
             principal.setPlatform(platformType.getWireName());
+            principal.setTokenVersion(tokenVersion);
             return principal;
         } catch (ExpiredJwtException e) {
             throw new IllegalStateException("access token expired");
@@ -68,6 +73,16 @@ public class AccessTokenService {
             secretKey = Keys.hmacShaKeyFor(authCenterConfig.getSecurity().getJwtSecret().getBytes());
         }
         return secretKey;
+    }
+
+    private Long readLongClaim(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            return Long.parseLong(text);
+        }
+        return null;
     }
 
 }

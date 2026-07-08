@@ -49,7 +49,7 @@
 ## 5. 伸缩性约束（曰前）
 
 - `ReadSeqPersistenceWriter` / `UserMaxSeqPersistenceWriter` 单线程 drain + 有界队列，超限丢弃（Redis 仍权威），见 ASSESSMENT P1-13
-- `ConversationVersionLogDoc` 无 TTL（ASSESSMENT P1-12 是修复项）
+- `ConversationVersionLogDoc.createdAt` 有 180 天 TTL 索引，版本日志只保留增量同步窗口；长期历史仍以会话与消息主表为准。
 - 用 Mongo 时不要假设单节点；新代码按可分片原则写
 
 ## 6. 改动评估 checklist

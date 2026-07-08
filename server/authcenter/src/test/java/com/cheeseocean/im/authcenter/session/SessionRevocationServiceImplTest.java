@@ -1,6 +1,7 @@
 package com.cheeseocean.im.authcenter.session;
 
 import com.cheeseocean.im.authcenter.repository.SessionRepository;
+import com.cheeseocean.im.authcenter.repository.UserSecurityRepository;
 import com.cheeseocean.im.common.api.connection.KickoffCommandService;
 import com.cheeseocean.im.common.api.dto.user.KickoffCommand;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
@@ -18,14 +19,15 @@ class SessionRevocationServiceImplTest {
     @Test
     void revokeSessionShouldMarkTheStoredSessionRevoked() {
         SessionRepository sessionRepository = mock(SessionRepository.class);
+        UserSecurityRepository userSecurityRepository = mock(UserSecurityRepository.class);
         SessionPrincipal session = new SessionPrincipal();
         session.setSessionId("s1");
         session.setStatus(SessionStatus.ACTIVE);
         when(sessionRepository.findBySessionId("s1")).thenReturn(session);
 
-        SessionRevocationServiceImpl service                    = new SessionRevocationServiceImpl(sessionRepository);
-        KickoffCommandServiceStub    kickoffCommandDubboService = new KickoffCommandServiceStub();
-        ReflectionTestUtils.setField(service, "kickoffCommandDubboService", kickoffCommandDubboService);
+        SessionRevocationServiceImpl service = new SessionRevocationServiceImpl(sessionRepository, userSecurityRepository);
+        KickoffCommandServiceStub kickoffCommandDubboService = new KickoffCommandServiceStub();
+        ReflectionTestUtils.setField(service, "kickoffCommandService", kickoffCommandDubboService);
 
         service.revokeSession("s1", "logout");
 

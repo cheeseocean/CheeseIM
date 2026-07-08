@@ -134,7 +134,7 @@ api-server Controller  ──HTTP──> Facade ──Dubbo──> business / po
 
 - 后端切换：`cheeseim.queue.type=chronicle`（默认，单机文件）→ `=kafka`（集群）。
 - **Chronicle 仅 dev/单机**，禁止生产使用。
-- Kafka 路径当前存在序列化不兼容问题（见 ASSESSMENT P1-6），修复前不要在默认 profile 启用 Kafka。
+- Kafka 路径 P0-6 已修复；集群部署用 `application-cluster.yml` 通过环境变量启用 `cheeseim.queue.type=kafka` 与 `spring.kafka.bootstrap-servers`，默认 all-in-one 仍保持 Chronicle。
 - Topic 命名集中在 `TopicNames`；`buildQueueKey` 用 `ConversationIdUtil`，保证同会话同一 Kafka 分区。
 - 消费者用 `@QueueListener`，批量消费 `batch=true` 优先。
 
@@ -157,11 +157,14 @@ api-server Controller  ──HTTP──> Facade ──Dubbo──> business / po
 | postmaster | `application-postmaster.yml` | `module-postmaster.yml` | – | 20881 |
 | postman | `application-postman.yml` | `module-postman.yml` | – + actuator | 20883 |
 | api-server | 嵌入 bootstrap-all | – | HTTP 18079 | – |
+| cluster overlay | `application-cluster.yml` | 与分模块 profile 叠加 | 沿用模块端口 | 沿用模块端口 |
 
 中间件事实：
 - `all-in-one`：Chronicle + injvm Dubbo；Redis 在 P0-1（节点投递队列）/P0-3（路由表）/P0-5（投递去重）之后已是**在线投递链路的硬依赖**——详见 `postoffice/ARCH.md` §3、§6，部署时必须启动。Mongo 仍可选（无消息历史时长会话 × 首次会话查询会失败）。
-- 分模块部署：Nacos 注册 + 配置中心 + Dubbo 远程；Kafka 路径 P0-6 已修复序列化不兼容与 `DeliveryEventListener.emitOfflinePushIfNeeded` 的 `KafkaTemplate` 直调旁路，只需在 `common.yml` 启用 `cheeseim.queue.type=kafka` 并确保 Kafka bootstrap 配置可用即可上集群；Mongo 仅单点，无副本集（需补 cluster profile）。
-- 任何 `localhost:27017` / `localhost:6379` 写死都不可入默认 profile，应走 `${env:...}`。
+- 分模块 standalone：Nacos 注册 + 配置中心 + Dubbo 远程；保留既有 `localhost` 便捷默认，仅用于本地单机拆模块联调。
+- authcenter 单独启动需要 Mongo 支撑 `user_security_state`；standalone 保留本地 `mongodb://localhost:27017/cheese_im` 便捷默认，cluster 必须由 `AUTHCENTER_MONGODB_URI` 或 `MONGODB_URI` 覆盖。
+- 分模块 cluster：在模块 profile 外叠加 `cluster`，并按 Redis 形态追加 `redis-sentinel` 或 `redis-cluster`。`application-cluster.yml` 不提供 `localhost` 默认值，必须通过 `MONGODB_URI`、`KAFKA_BOOTSTRAP_SERVERS`、`NACOS_SERVER_ADDR`、`NACOS_NAMESPACE`、`REDIS_SENTINEL_*` 或 `REDIS_CLUSTER_*` 配置；JetCache 远端缓存另需 `JETCACHE_REDIS_HOST` / `JETCACHE_REDIS_PORT` 指向可达 Redis endpoint。该 profile 默认 `CHEESEIM_QUEUE_TYPE=kafka`、`cheeseim.conversation-seq.deployment-mode=cluster`。
+- 任何新的生产/集群配置不得写死 `localhost:27017` / `localhost:6379`，应走环境变量。
 
 ## 10. Protobuf 协议
 

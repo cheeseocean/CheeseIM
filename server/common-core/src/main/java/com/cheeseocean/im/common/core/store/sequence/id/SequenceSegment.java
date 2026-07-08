@@ -5,11 +5,11 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * 内存中的一个号段区间 [start, end]
  * <p>
- * {@code cursor} 初始化为 {@code start - 1}，每次 {@link #next()} 原子递增后返回。
- * 当返回值超过 {@code end} 时，表示该号段已耗尽，需要 refill。
+ * {@code cursor} 初始化为 {@code start - 1}，每次 {@link #next()} 用 CAS 原子推进后返回。
+ * 当返回 -1 时，表示该号段已耗尽，需要 refill。
  * <p>
  * 并发语义：{@link #next()} 是无锁操作，多线程安全；
- * 若多个线程同时耗尽号段（cursor 超出 end），多出的 cursor 值被丢弃（产生 ID 空洞，属于预期行为）。
+ * 多个线程同时耗尽号段时，只有成功 CAS 的线程能取得 ID，cursor 不会越过 end。
  */
 class SequenceSegment {
 
@@ -38,10 +38,19 @@ class SequenceSegment {
     /**
      * 无锁获取下一个 ID
      * <p>
-     * 返回值若 &gt; {@code end}，表示号段耗尽，调用方需进入慢路径 refill。
+     * 返回 -1 表示号段耗尽，调用方需进入慢路径 refill。
      */
     long next() {
-        return cursor.incrementAndGet();
+        while (true) {
+            long current = cursor.get();
+            if (current >= end) {
+                return -1L;
+            }
+            long next = current + 1;
+            if (cursor.compareAndSet(current, next)) {
+                return next;
+            }
+        }
     }
 
     /**

@@ -187,7 +187,7 @@ public class SequenceIdGenerator {
         SequenceSegment current = state.current;
         if (current != null) {
             long id = current.next();
-            if (id <= current.end) {
+            if (id > 0) {
                 countAllocation(name);
                 // 剩余不足时异步预取（不阻塞当前请求）
                 maybeAsyncPrefetch(name, state, current, rangeSize);
@@ -214,7 +214,7 @@ public class SequenceIdGenerator {
             SequenceSegment nowCurrent = state.current;
             if (nowCurrent != null && nowCurrent != exhausted) {
                 long id = nowCurrent.next();
-                if (id <= nowCurrent.end) {
+                if (id > 0) {
                     countAllocation(name);
                     return id;
                 }
@@ -229,7 +229,7 @@ public class SequenceIdGenerator {
                 // 避免与正在运行的预取任务产生竞争
 
                 long id = state.current.next();
-                if (id <= state.current.end) {
+                if (id > 0) {
                     countAllocation(name);
                     maybeAsyncPrefetch(name, state, state.current, rangeSize);
                     return id;

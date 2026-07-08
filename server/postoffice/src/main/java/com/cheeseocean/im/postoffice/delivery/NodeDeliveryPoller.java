@@ -90,9 +90,6 @@ public class NodeDeliveryPoller {
                 if (json != null && !json.isEmpty()) {
                     dispatchLocally(json);
                 }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
             } catch (Exception e) {
                 log.error("NodeDeliveryPoller error, queueKey={}", queueKey, e);
             }

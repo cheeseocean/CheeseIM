@@ -43,4 +43,8 @@ public class SessionRepository {
     public WsTicketPrincipal findWsTicket(String ticket) {
         return sessionStateStore.findWsTicket(ticket);
     }
+
+    public WsTicketPrincipal consumeWsTicket(String ticket) {
+        return sessionStateStore.consumeWsTicket(ticket);
+    }
 }

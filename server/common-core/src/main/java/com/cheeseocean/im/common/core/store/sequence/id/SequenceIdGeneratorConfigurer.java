@@ -1,14 +1,15 @@
 package com.cheeseocean.im.common.core.store.sequence.id;
 
 import com.cheeseocean.im.common.core.store.config.StateStoreProperties;
+import com.cheeseocean.im.common.core.store.config.RedisConfigurationConditions;
 import com.cheeseocean.im.common.core.store.sequence.SequenceStore;
 import com.cheeseocean.im.common.core.store.sequence.redis.RedisSequenceStore;
 import com.cheeseocean.im.common.core.store.sequence.rocksdb.RocksDbSequenceStore;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
@@ -19,7 +20,7 @@ import java.time.Duration;
  * <p>
  * 根据是否配置 Redis 选择不同的分配策略：
  * <ul>
- *   <li>配置了 {@code spring.redis.host}：Redis 主路径 + RocksDB 降级，后台健康探活</li>
+ *   <li>配置了 Redis：Redis 主路径 + RocksDB 降级，后台健康探活</li>
  *   <li>未配置 Redis：仅使用 RocksDB，无探活开销</li>
  * </ul>
  */
@@ -32,7 +33,7 @@ public class SequenceIdGeneratorConfigurer {
      */
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "spring.redis", name = "host")
+    @Conditional(RedisConfigurationConditions.RedisConfigured.class)
     public SequenceIdGenerator sequenceIdGenerator(
             StringRedisTemplate stringRedisTemplate,
             StateStoreProperties storeProperties,
@@ -56,7 +57,7 @@ public class SequenceIdGeneratorConfigurer {
      */
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "spring.redis", name = "host", matchIfMissing = true, havingValue = "")
+    @Conditional(RedisConfigurationConditions.RedisNotConfigured.class)
     public SequenceIdGenerator rocksDbOnlySequenceIdGenerator(
             StateStoreProperties storeProperties,
             SequenceIdGeneratorProperties properties,

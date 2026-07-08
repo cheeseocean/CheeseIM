@@ -32,6 +32,7 @@ public class JwtTokenIssuer {
                 .claim("platformID", platformId(session.getPlatform()))
                 .claim("sid", session.getSessionId())
                 .claim("did", session.getDeviceId())
+                .claim("tokenVersion", session.getTokenVersion())
                 .setIssuedAt(new Date(now))
                 .setExpiration(new Date(accessExpireAt))
                 .signWith(getSecretKey(), SignatureAlgorithm.HS256)

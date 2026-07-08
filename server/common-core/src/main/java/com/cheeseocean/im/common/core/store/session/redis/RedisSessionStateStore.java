@@ -5,8 +5,10 @@ import com.cheeseocean.im.common.api.dto.user.WsTicketPrincipal;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.common.core.store.session.SessionStateStore;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -14,9 +16,11 @@ import java.util.concurrent.TimeUnit;
 public class RedisSessionStateStore implements SessionStateStore {
 
     private final RedisTemplate<String, Object> redisTemplate;
+    private final DefaultRedisScript<Object> consumeWsTicketScript;
 
     public RedisSessionStateStore(RedisTemplate<String, Object> redisTemplate) {
         this.redisTemplate = redisTemplate;
+        this.consumeWsTicketScript = new DefaultRedisScript<>(consumeWsTicketLua(), Object.class);
     }
 
     @Override
@@ -68,5 +72,33 @@ public class RedisSessionStateStore implements SessionStateStore {
     @Override
     public WsTicketPrincipal findWsTicket(String ticket) {
         return (WsTicketPrincipal) redisTemplate.opsForValue().get(RedisKeys.wsTicket(ticket));
+    }
+
+    @Override
+    public WsTicketPrincipal consumeWsTicket(String ticket) {
+        if (ticket == null || ticket.isBlank()) {
+            return null;
+        }
+        Object value = redisTemplate.execute(
+                consumeWsTicketScript,
+                Collections.singletonList(RedisKeys.wsTicket(ticket))
+        );
+        if (!(value instanceof WsTicketPrincipal principal)) {
+            return null;
+        }
+        principal.setUsed(true);
+        return principal;
+    }
+
+    private String consumeWsTicketLua() {
+        return """
+                local key = KEYS[1]
+                local value = redis.call('GET', key)
+                if not value then
+                    return nil
+                end
+                redis.call('DEL', key)
+                return value
+                """;
     }
 }

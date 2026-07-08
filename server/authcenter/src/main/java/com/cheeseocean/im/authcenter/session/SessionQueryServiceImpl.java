@@ -31,8 +31,15 @@ public class SessionQueryServiceImpl implements SessionQueryService {
     @Override
     public SessionPrincipal getByAccessToken(String accessToken) {
         AccessTokenPrincipal principal = accessTokenService.validate(accessToken);
-        SessionPrincipal cached = getBySessionId("sess:" + principal.getUserId() + ":" + principal.getDeviceId());
+        validatePrincipalSecurity(principal);
+        SessionPrincipal cached = principal.getSessionId() == null ? null : getBySessionId(principal.getSessionId());
         if (cached != null) {
+            if (!cached.isActive()) {
+                throw new IllegalStateException("session invalid");
+            }
+            if (!userSecurityRepository.matchesTokenVersion(cached.getUserId(), principal.getTokenVersion())) {
+                throw new IllegalStateException("token version mismatch");
+            }
             return cached;
         }
         return sessionTicketService.buildSession(principal, principal.getDeviceId(), principal.getPlatform(), null);
@@ -46,7 +53,10 @@ public class SessionQueryServiceImpl implements SessionQueryService {
     @Override
     public boolean isSessionValid(String sessionId) {
         SessionPrincipal session = getBySessionId(sessionId);
-        return session != null && session.isActive();
+        return session != null
+                && session.isActive()
+                && !userSecurityRepository.isBanned(session.getUserId())
+                && userSecurityRepository.matchesTokenVersion(session.getUserId(), session.getTokenVersion());
     }
 
     @Override
@@ -61,8 +71,17 @@ public class SessionQueryServiceImpl implements SessionQueryService {
             return false;
         }
         if (tokenVersion == null) {
-            return true;
+            return false;
         }
-        return tokenVersion.equals(session.getTokenVersion());
+        return userSecurityRepository.matchesTokenVersion(session.getUserId(), tokenVersion);
+    }
+
+    private void validatePrincipalSecurity(AccessTokenPrincipal principal) {
+        if (userSecurityRepository.isBanned(principal.getUserId())) {
+            throw new IllegalStateException("user banned");
+        }
+        if (!userSecurityRepository.matchesTokenVersion(principal.getUserId(), principal.getTokenVersion())) {
+            throw new IllegalStateException("token version mismatch");
+        }
     }
 }

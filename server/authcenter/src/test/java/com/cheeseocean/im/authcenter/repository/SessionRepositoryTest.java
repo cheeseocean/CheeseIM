@@ -1,6 +1,7 @@
 package com.cheeseocean.im.authcenter.repository;
 
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
+import com.cheeseocean.im.common.api.dto.user.WsTicketPrincipal;
 import com.cheeseocean.im.common.core.store.session.SessionStateStore;
 import org.junit.jupiter.api.Test;
 
@@ -20,5 +21,17 @@ class SessionRepositoryTest {
         SessionRepository repository = new SessionRepository(store);
 
         assertThat(repository.findBySessionId("s1")).isSameAs(principal);
+    }
+
+    @Test
+    void consumeWsTicketShouldDelegateToSessionStateStore() {
+        SessionStateStore store = mock(SessionStateStore.class);
+        WsTicketPrincipal ticket = new WsTicketPrincipal();
+        ticket.setTicket("t1");
+        when(store.consumeWsTicket("t1")).thenReturn(ticket);
+
+        SessionRepository repository = new SessionRepository(store);
+
+        assertThat(repository.consumeWsTicket("t1")).isSameAs(ticket);
     }
 }

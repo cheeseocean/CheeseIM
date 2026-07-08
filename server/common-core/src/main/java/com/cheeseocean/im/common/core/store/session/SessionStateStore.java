@@ -20,4 +20,11 @@ public interface SessionStateStore {
     void saveWsTicket(WsTicketPrincipal ticket, long ttlMs);
 
     WsTicketPrincipal findWsTicket(String ticket);
+
+    /**
+     * 原子消费一次性长连接 ticket。
+     *
+     * <p>返回非空表示调用方拿到 ticket 所有权；后续相同 ticket 应返回空，避免 read-then-write 重放窗口。
+     */
+    WsTicketPrincipal consumeWsTicket(String ticket);
 }

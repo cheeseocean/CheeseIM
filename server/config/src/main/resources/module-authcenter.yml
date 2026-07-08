@@ -1,6 +1,9 @@
 spring:
   application:
     name: cheese-im-authcenter
+  data:
+    mongodb:
+      uri: ${AUTHCENTER_MONGODB_URI:${MONGODB_URI:mongodb://localhost:27017/cheese_im}}
 
 app:
   modules:

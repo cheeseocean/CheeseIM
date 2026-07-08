@@ -10,7 +10,7 @@
 CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已补齐多节点能力**的早期开源 IM 服务端。其模块边界（postoffice / postbox / postmaster / postman / authcenter / business / common-api / common-core）和"邮政"隐喻清晰，业内少见。
 
 - 单节点 `postoffice` + Redis + Mongo 的实测上限大致在 **10-30 万并发长连接**。
-- P0 主链路（节点身份、群扩散、路由原子化、投递去重、Kafka 端到端）已修复；P1 中的 ConnectionManager 分片锁、跨节点踢下线、HistoryQuery fail-closed/分页已完成，当前瓶颈转为 **存储分片、集群 profile、WS ticket 原子 consume、tokenVersion/ban 持久化与长压验证**。
+- P0 主链路（节点身份、群扩散、路由原子化、投递去重、Kafka 端到端）已修复；P1 中的 ConnectionManager 分片锁、跨节点踢下线、HistoryQuery fail-closed/分页已完成，authcenter `tokenVersion`/ban 持久化与 WS ticket 原子 consume 已完成，当前瓶颈转为 **存储分片、MessageIdMapping 批量写、多副本推送状态与长压验证**。
 - 架构骨架本身可演进到百万级，**不需要推倒重写**；后续以容量压测和 P1/P2 瓶颈治理为主。
 
 ---
@@ -42,16 +42,16 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 | 踢下线（KickoffCommandService） | 已按 `gatewayNode` 定向入节点队列，Redis 不可用或部分节点入队失败时仍只能退化为本节点尝试 |
 | 连接管理（ConnectionManager） | 已由全局 `synchronized` 改为 connection/user 分片锁；仍需长压/重连风暴验证 |
 | 二级缓存（MultiLevelCacheService） | L1 Caffeine 本地，无 pub/sub 失效广播，远端写入最长 1-5min 才一致 |
-| 队列抽象（QueueAdapter） | Chronicle 仍是单机文件默认后端；Kafka 端到端已修复，独立部署需显式启用 `cheeseim.queue.type=kafka` 并配置 bootstrap |
-| WS ticket 一次性 consume | read-then-write 非原子，有重放窗口 |
-| `tokenVersion` 踢下线校验 | 硬编码 `1L`，基于版本号的踢下线形同虚设 |
-| 用户封禁标志 | 只存 Redis 缓存（`loader = () -> null`），flush 即解封 |
+| 队列抽象（QueueAdapter） | Chronicle 仍是单机文件默认后端；Kafka 端到端已修复，集群 profile 默认启用 `cheeseim.queue.type=kafka` 并要求通过环境变量配置 bootstrap |
+| WS ticket 一次性 consume | **已修复 2026-07-08**：Redis Lua `GET` + `DEL` 单脚本，RocksDB fallback 同步删除后返回 |
+| `tokenVersion` 踢下线校验 | **已修复 2026-07-08**：用户级版本落 Mongo，登录/签票/校验读取同一版本 |
+| 用户封禁标志 | **已修复 2026-07-08**：封禁标志落 Mongo `user_security_state`，Redis 仅作缓存 |
 | 好友 accept 非事务 | `acceptFriendRequest` 双向写无 `@Transactional`，部分失败留单边好友 |
 | ~~History 查询全扫~~ | **已修复 2026-07-07**：`getConversationMessages` 按 latest blockNo + range 窗口读取，不再拉全量 block |
 | ~~权限校验失败放行~~ | **已修复 2026-07-07**：`HistoryQueryService.allow` 改为 fail-closed，RPC 异常仅使用短 TTL 本地缓存兜底 |
 | MessageIdMappingDoc 逐条 save | 非 `bulkOps`，50k msg/s 写不动 |
 | UserMaxSeq / ReadSeq 写 behind | 单线程 drain + 有界队列，超限丢弃（Redis 仍权威） |
-| ConversationVersionLog | 无 TTL，长期增长 |
+| ~~ConversationVersionLog 无 TTL~~ | **已修复 2026-07-08**：`ConversationVersionLogDoc.createdAt` 增 180 天 TTL 索引 |
 
 ### C. 已声明协议但未在链路上接通
 
@@ -82,12 +82,12 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 
 - `MessageIdMappingDoc` 逐条 `save` → 单 Mongo 节点 50k msg/s 写不动。
 - `UserMaxSeqPersistenceWriter` / `ReadSeqPersistenceWriter` 单线程 drain + 有界队列超限丢弃。
-- `ConversationVersionLog` 无 TTL 长期增长。
-- Kafka 配置在 `common.yml` 中被注释，独立模块启动队列为空。
-- Mongo 仅 `localhost:27017` 单点，无副本集、无分片声明。
-- WS ticket consume 非原子，有重放窗口。
-- `tokenVersion` 恒 1L，版本号踢下线形同虚设。
-- 用户封禁仅 Redis 缓存，flush 即解封。
+- ~~`ConversationVersionLog` 无 TTL 长期增长。~~ **已修复 2026-07-08**：`createdAt` 加 180 天 TTL 索引。
+- ~~Kafka 配置在 `common.yml` 中被注释，独立模块启动队列为空。~~ **已修复 2026-07-08**：`application-cluster.yml` 提供 Kafka bootstrap 环境变量配置，cluster profile 默认 `cheeseim.queue.type=kafka`；`common.yml` 的注释样例已删除。
+- ~~Mongo 仅 `localhost:27017` 单点，无副本集 profile。~~ **已部分修复 2026-07-08**：cluster profile 改用 `MONGODB_URI` 注入副本集 URI；分片声明仍属 P1-7。
+- ~~WS ticket consume 非原子，有重放窗口。~~ **已修复 2026-07-08**：`SessionIssueServiceImpl.consumeWsTicket` 委托 `SessionStateStore.consumeWsTicket`，Redis 后端用 Lua 原子 `GET` + `DEL`，RocksDB dev 后端同步删除后返回，ticket 重放只能成功一次。
+- ~~`tokenVersion` 恒 1L，版本号踢下线形同虚设。~~ **已修复 2026-07-08**：access token / WS ticket / session 校验统一比较用户级 `tokenVersion`，`kickoffAll` bump 后旧令牌失效。
+- ~~用户封禁仅 Redis 缓存，flush 即解封。~~ **已修复 2026-07-08**：用户安全状态落 Mongo `user_security_state`，Redis 缓存 flush 后可回源恢复。
 - `ConversationIdUtil` 用 `s:/g:/n:/ng:`，但 `GroupController.resolveGroupId` 还在检查 `c2:` 前缀（死分支）。
 - `OfflinePushServiceImpl` 日计数增量是非原子 read-modify-write。
 
@@ -114,7 +114,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 | 协议 | 控制面无 Protobuf | gRPC 全栈 | WebSocket | gRPC + Protobuf 全栈 |
 | 多端策略 | 每节点 10 连接，无全局计数 | 全局在线表 | N/A | 在线表 Lua 维护 `connectionCount` |
 | 踢下线 | Dubbo 随机节点 | Redis pub/sub 到 gateway | N/A | per-node topic + 节点订阅 |
-| 集群部署 | localhost 默认，无 cluster profile | 完整 k8s/helm | 完整 | Sentinel/Cluster + namespace 隔离 |
+| 集群部署 | 已有 `application-cluster.yml`，Redis Sentinel/Cluster、Mongo replica URI、Kafka bootstrap、Nacos namespace 走环境变量；k8s/helm 未落地 | 完整 k8s/helm | 完整 | Sentinel/Cluster + namespace 隔离 |
 
 ---
 
@@ -136,7 +136,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 9. ~~**历史分页改 blockNo range**：`getConversationMessages` 改为按 block 二分定位起始块再顺序读，避免全扫。~~ **已完成 2026-07-07**：按 latest blockNo + range 窗口读取，`message_block` 增 `conversationId + blockNo` 复合索引。
 10. **附件查询去 regex**：`BlockMessageQueryService.findAttachmentCandidates` 的 `content.regex` 改为附件元数据表（`_id=attachmentId`）。
 11. ~~**权限校验失败拒绝**：`HistoryQueryService.allow` 在异常时 `return false`，加本地兜底缓存降级。~~ **已完成 2026-07-07**：RPC 异常/provider 缺失默认拒绝，仅使用 30s 本地权限缓存兜底。
-12. **`ConversationVersionLog` TTL 索引**：`createdAt` 加 `expireAfterSeconds`，或加定期 compact job。
+12. ~~**`ConversationVersionLog` TTL 索引**：`createdAt` 加 `expireAfterSeconds`，或加定期 compact job。~~ **已完成 2026-07-08**：`ConversationVersionLogDoc.createdAt` 声明 `@Indexed(expireAfterSeconds = 180 天)`，避免版本日志长期无界增长。
 13. **read-seq 写并发化**：`ReadSeqPersistenceWriter` 改按 `userId` 分桶的多线程 drain 或走 Kafka 通道。
 
 ### P2 — 链路性能（8-16 周）
@@ -156,9 +156,9 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 ### P4 — 运维与一致性
 
 22. **限流/幂等**：api-server 入口 RateLimiter + Redis SETNX 幂等 key。
-23. **集群部署 profile**：新增 `application-cluster.yml`，含 Redis Sentinel/Cluster、Mongo replica URI、Kafka bootstrap、Nacos namespace 分离；删除 `common.yml` 中注释掉的 Redis/Kafka。
-24. **多副本一致性**：`MessagePushServiceImpl.attempts/deliveryStates` 迁到 Redis；`tokenVersion` 真正 bump；ban 标志落 Mongo 持久化。
-25. **WS ticket 用 Lua 原子 consume**。
+23. ~~**集群部署 profile**：新增 `application-cluster.yml`，含 Redis Sentinel/Cluster、Mongo replica URI、Kafka bootstrap、Nacos namespace 分离；删除 `common.yml` 中注释掉的 Redis/Kafka。~~ **已完成 2026-07-08**：`application-cluster.yml` 作为分模块 profile overlay，默认 `cheeseim.queue.type=kafka` 与 `cheeseim.conversation-seq.deployment-mode=cluster`；`MONGODB_URI`、`KAFKA_BOOTSTRAP_SERVERS`、`NACOS_SERVER_ADDR`、`NACOS_NAMESPACE`、`REDIS_SENTINEL_*` / `REDIS_CLUSTER_*`、`JETCACHE_REDIS_HOST` / `JETCACHE_REDIS_PORT` 均走环境变量，不向 cluster 默认写入 localhost。
+24. **多副本一致性**：`MessagePushServiceImpl.attempts/deliveryStates` 迁到 Redis；~~`tokenVersion` 真正 bump；ban 标志落 Mongo 持久化~~（2026-07-08 已完成 authcenter 用户级安全状态持久化）。
+25. ~~**WS ticket 用 Lua 原子 consume**。~~ **已完成 2026-07-08**：`SessionStateStore` 增加原子 consume 契约，Redis/RocksDB 两种后端均实现一次性消费。
 26. **Mongo 副本 + 查询 secondary 读偏好** 读写分离。
 27. **指标分级**：已有 actuator + Prometheus，补齐 per-conversation seq lag、queue lag、online route hit/miss、push attempt counter。Grafana dashboard 模板。
 28. **集群 chaos + 1M 长压脚本**：jmeter/gatling 长连接压测，多节点断网/重启验证。
@@ -182,7 +182,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 
 ## 七、一句话方向
 
-**短期继续补集群 profile、WS ticket 原子 consume、tokenVersion/ban 持久化与长压验证，中长期把存储分片化 + 控制面 Protobuf 化 + 多副本一致性补齐**，架构骨架本身已够支撑百万级演进，不需要推倒重写。
+**短期继续补 MessageIdMapping 批量写、多副本推送状态迁移与长压验证，中长期把存储分片化 + 控制面 Protobuf 化 + 多副本一致性补齐**，架构骨架本身已够支撑百万级演进，不需要推倒重写。
 
 ---
 

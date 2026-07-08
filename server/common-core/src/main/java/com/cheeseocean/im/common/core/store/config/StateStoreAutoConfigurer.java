@@ -15,9 +15,9 @@ import com.cheeseocean.im.common.core.store.session.redis.RedisSessionStateStore
 import com.cheeseocean.im.common.core.store.session.rocksdb.RocksDbSessionStateStore;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -28,42 +28,42 @@ public class StateStoreAutoConfigurer {
 
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "spring.redis", name = "host")
+    @Conditional(RedisConfigurationConditions.RedisConfigured.class)
     public SessionStateStore redisSessionStateStore(RedisTemplate<String, Object> redisTemplate) {
         return new RedisSessionStateStore(redisTemplate);
     }
 
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "spring.redis", name = "host", matchIfMissing = true, havingValue = "")
+    @Conditional(RedisConfigurationConditions.RedisNotConfigured.class)
     public SessionStateStore rocksDbSessionStateStore(StateStoreProperties properties, ObjectMapper objectMapper) {
         return new RocksDbSessionStateStore(properties.resolve("session"), objectMapper);
     }
 
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "spring.redis", name = "host")
+    @Conditional(RedisConfigurationConditions.RedisConfigured.class)
     public IdempotencyStore redisIdempotencyStore(StringRedisTemplate redisTemplate) {
         return new RedisIdempotencyStore(redisTemplate);
     }
 
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "spring.redis", name = "host", matchIfMissing = true, havingValue = "")
+    @Conditional(RedisConfigurationConditions.RedisNotConfigured.class)
     public IdempotencyStore rocksDbIdempotencyStore(StateStoreProperties properties, ObjectMapper objectMapper) {
         return new RocksDbIdempotencyStore(properties.resolve("idempotency"), objectMapper);
     }
 
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "spring.redis", name = "host")
+    @Conditional(RedisConfigurationConditions.RedisConfigured.class)
     public SequenceStore redisSequenceStore(StringRedisTemplate redisTemplate) {
         return new RedisSequenceStore(redisTemplate);
     }
 
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "spring.redis", name = "host", matchIfMissing = true, havingValue = "")
+    @Conditional(RedisConfigurationConditions.RedisNotConfigured.class)
     public SequenceStore rocksDbSequenceStore(StateStoreProperties properties, ObjectMapper objectMapper) {
         return new RocksDbSequenceStore(properties.resolve("sequence"), objectMapper);
     }
@@ -77,15 +77,21 @@ public class StateStoreAutoConfigurer {
 
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "spring.redis", name = "host")
+    @Conditional(RedisConfigurationConditions.RedisConfigured.class)
     public ConversationStateStore redisConversationStateStore(StringRedisTemplate redisTemplate) {
         return new RedisConversationStateStore(redisTemplate);
     }
 
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(prefix = "spring.redis", name = "host", matchIfMissing = true, havingValue = "")
+    @Conditional(RedisConfigurationConditions.RedisNotConfigured.class)
     public ConversationStateStore rocksDbConversationStateStore(StateStoreProperties properties, ObjectMapper objectMapper) {
         return new RocksDbConversationStateStore(properties.resolve("conversation"), objectMapper);
+    }
+
+    @Bean
+    @Conditional(RedisConfigurationConditions.ClusterModeWithoutRedis.class)
+    public Object clusterStateStoreRequiresRedis() {
+        throw new IllegalStateException("cluster mode requires spring.data.redis host/url/sentinel/cluster configuration");
     }
 }

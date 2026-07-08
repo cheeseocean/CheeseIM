@@ -76,4 +76,16 @@ public class RocksDbSessionStateStore implements SessionStateStore {
     public WsTicketPrincipal findWsTicket(String ticket) {
         return support.get(RedisKeys.wsTicket(ticket), WsTicketPrincipal.class);
     }
+
+    @Override
+    public synchronized WsTicketPrincipal consumeWsTicket(String ticket) {
+        String key = RedisKeys.wsTicket(ticket);
+        WsTicketPrincipal principal = support.get(key, WsTicketPrincipal.class);
+        if (principal == null) {
+            return null;
+        }
+        support.delete(key);
+        principal.setUsed(true);
+        return principal;
+    }
 }
