@@ -1,5 +1,6 @@
 package com.cheeseocean.im.postmaster.listener;
 
+import com.cheeseocean.im.common.api.conversation.ConversationService;
 import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.dto.message.MessageOptions;
 import com.cheeseocean.im.common.api.enums.ContentType;
@@ -183,12 +184,16 @@ class IngressEventListenerTest {
         QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
+        ConversationService conversationService = mock(ConversationService.class);
         when(conversationSeqService.allocateBatch("s:userA:userB", 1)).thenReturn(seqBatch(1L, 1L));
 
         IngressEventListener listener = listener(
-                queueAdapter, groupMembershipFacade, conversationSeqService);
+                queueAdapter, groupMembershipFacade, conversationSeqService, conversationService);
 
         listener.handle(List.of(singleMessage()));
+
+        verify(conversationService).createSingleChatConversation(
+                "userA", "userB", "s:userA:userB", ChatType.PRIVATE.getCode());
     }
 
     @Test
@@ -196,17 +201,19 @@ class IngressEventListenerTest {
         QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
+        ConversationService conversationService = mock(ConversationService.class);
         when(groupMembershipFacade.loadGroupType("crew")).thenReturn(com.cheeseocean.im.common.api.enums.GroupTypeEnum.NORMAL_GROUP);
         when(groupMembershipFacade.loadGroupMembers("crew")).thenReturn(List.of("u1", "u2", "u3"));
         when(conversationSeqService.allocateBatch("g:crew", 1)).thenReturn(seqBatch(1L, 1L));
 
         IngressEventListener listener = listener(
-                queueAdapter, groupMembershipFacade, conversationSeqService);
+                queueAdapter, groupMembershipFacade, conversationSeqService, conversationService);
 
         listener.handle(List.of(groupMessage()));
 
         // 首条群消息：一次用于 createConversationIfNeeded，一次用于 fanout
         verify(groupMembershipFacade, times(2)).loadGroupMembers("crew");
+        verify(conversationService).createGroupChatConversations("crew", "g:crew", List.of("u1", "u2", "u3"));
     }
 
     @Test
@@ -275,13 +282,22 @@ class IngressEventListenerTest {
     private static IngressEventListener listener(QueueAdapter queueAdapter,
                                                  GroupMembershipFacade groupMembershipFacade,
                                                  ConversationSeqService conversationSeqService) {
+        return listener(queueAdapter, groupMembershipFacade, conversationSeqService,
+                mock(ConversationService.class));
+    }
+
+    private static IngressEventListener listener(QueueAdapter queueAdapter,
+                                                 GroupMembershipFacade groupMembershipFacade,
+                                                 ConversationSeqService conversationSeqService,
+                                                 ConversationService conversationService) {
         return new IngressEventListener(
                 new MessageProducer(queueAdapter),
                 new HistoryEventProducer(queueAdapter),
                 groupMembershipFacade,
                 conversationSeqService,
                 new DefaultMessagePolicyEngine(),
-                new com.cheeseocean.im.postmaster.service.GroupFanoutPlanner(500)
+                new com.cheeseocean.im.postmaster.service.GroupFanoutPlanner(500),
+                conversationService
         );
     }
 

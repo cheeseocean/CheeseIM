@@ -11,7 +11,7 @@ public class DefaultMessagePolicyEngine implements MessagePolicyEngine {
     public MessageRouteDecision decide(Message event) {
         MessageOptions options = event == null || event.getOptions() == null ? new MessageOptions() : event.getOptions();
         return new MessageRouteDecision(
-                !Boolean.FALSE.equals(options.getNotification()),
+                !Boolean.FALSE.equals(options.getNeedHistory()),
                 !Boolean.FALSE.equals(options.getNeedConversation()),
                 !Boolean.FALSE.equals(options.getNeedUnreadCount()),
                 !Boolean.FALSE.equals(options.getNeedOnlinePush()),

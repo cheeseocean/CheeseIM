@@ -52,6 +52,19 @@ public class IngressEventListener {
         this.groupFanoutPlanner = groupFanoutPlanner;
     }
 
+    // 包级可见，供测试注入 ConversationService（生产路径由 @DubboReference 注入字段）
+    IngressEventListener(MessageProducer messageProducer,
+                         HistoryEventProducer historyEventProducer,
+                         GroupMembershipFacade groupMembershipFacade,
+                         ConversationSeqService conversationSeqService,
+                         MessagePolicyEngine messagePolicyEngine,
+                         GroupFanoutPlanner groupFanoutPlanner,
+                         ConversationService conversationService) {
+        this(messageProducer, historyEventProducer, groupMembershipFacade,
+                conversationSeqService, messagePolicyEngine, groupFanoutPlanner);
+        this.conversationService = conversationService;
+    }
+
     // 消费 INGRESS 队列，批量接收同一会话的消息
     @QueueListener(topic = TopicNames.INGRESS, group = "postman-ingress", concurrency = 1, batch = true, batchSize = 500)
     public void onMessage(List<Message> msgs) {
