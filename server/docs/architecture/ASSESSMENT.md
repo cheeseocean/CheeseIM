@@ -80,7 +80,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 
 ### 3.2 容量与正确性隐患
 
-- `MessageIdMappingDoc` 逐条 `save` → 单 Mongo 节点 50k msg/s 写不动。
+- ~~`MessageIdMappingDoc` 逐条 `save` → 单 Mongo 节点 50k msg/s 写不动。~~ **已修复 2026-07-08**：并入 P1-8 批量写，id mapping 与 message block 各走一个 unordered `bulkOps` upsert。
 - `UserMaxSeqPersistenceWriter` / `ReadSeqPersistenceWriter` 单线程 drain + 有界队列超限丢弃。
 - ~~`ConversationVersionLog` 无 TTL 长期增长。~~ **已修复 2026-07-08**：`createdAt` 加 180 天 TTL 索引。
 - ~~Kafka 配置在 `common.yml` 中被注释，独立模块启动队列为空。~~ **已修复 2026-07-08**：`application-cluster.yml` 提供 Kafka bootstrap 环境变量配置，cluster profile 默认 `cheeseim.queue.type=kafka`；`common.yml` 的注释样例已删除。
@@ -132,7 +132,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 ### P1 — 存储与索引（4-8 周）
 
 7. **Mongo 副本集 + 分片**：声明 `sh.shardCollection`。`message_block` 按 `conversationId hash` 分片，`message_id_mapping` 按 `serverMsgId hash` 分片，`UserConversationDoc` 按 `ownerUserId hash`。
-8. **历史块批量写**：`BlockHistoryPersistenceService` 收批后 unordered bulk insert。
+8. ~~**历史块批量写**：`BlockHistoryPersistenceService` 收批后 unordered bulk insert。~~ **已完成 2026-07-08**：一个 `HistoryEvent` 内 id mapping 与按 blockNo 分桶的块更新各合入一个 unordered `bulkOps` upsert（`_id` 幂等，重放安全）；删除循环逐条 `mappingRepository.save`，`MessageIdMappingRepository` 无使用点一并删除。
 9. ~~**历史分页改 blockNo range**：`getConversationMessages` 改为按 block 二分定位起始块再顺序读，避免全扫。~~ **已完成 2026-07-07**：按 latest blockNo + range 窗口读取，`message_block` 增 `conversationId + blockNo` 复合索引。
 10. **附件查询去 regex**：`BlockMessageQueryService.findAttachmentCandidates` 的 `content.regex` 改为附件元数据表（`_id=attachmentId`）。
 11. ~~**权限校验失败拒绝**：`HistoryQueryService.allow` 在异常时 `return false`，加本地兜底缓存降级。~~ **已完成 2026-07-07**：RPC 异常/provider 缺失默认拒绝，仅使用 30s 本地权限缓存兜底。
@@ -148,10 +148,10 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 
 ### P3 — 功能补齐
 
-18. **协议补全**：在 `message_protocol.proto` 为 `CHAT_READ/CHAT_REVOKE/FORCE_LOGOUT` 增加类型化 payload；conversation sync / friend / group 控制面用 Protobuf 表达，便于多语言客户端。
+18. **协议补全**：在 `message_protocol.proto` 为 `CHAT_READ/CHAT_REVOKE/FORCE_LOGOUT` 增加类型化 payload；conversation sync / friend / group 控制面用 Protobuf 表达，便于多语言客户端。已读/撤回的产品与架构决策见 `server/docs/architecture/read-revoke-design.md`。
 19. **WS 协议统一为 Protobuf**（当前 JSON），与 TCP 一致。
-20. **已读回执链路**：接通 `IngressEventListener.preProcessReadReceipts` 与 `messageStateService`。
-21. **消息撤回/编辑、富媒体（图片/文件上传 token 服务）、会话删除入口**（README 已承认缺）。
+20. **已读回执链路**：按 `read-revoke-design.md` 落 `ReadStateService`，单聊默认公开 peer readSeq，群聊第一阶段只维护个人 read cursor。
+21. **消息撤回/编辑、富媒体（图片/文件上传 token 服务）、会话删除入口**：撤回按 `message_mutation(REVOKED)` overlay 设计，第一阶段支持 2 分钟内发送者撤回给所有人。
 
 ### P4 — 运维与一致性
 
@@ -207,3 +207,4 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 - 2026-07-07：P0-1 跨节点在线投递已完成。`NodeIdentityProvider` 提供节点唯一 ID（配置或自动 UUID）；`ConnectionManager.registerOnlineRoute` 写入真实 nodeId 替代硬编码 `"postoffice"`；`NodeDeliveryService` 接口（common-api）+ `RedisNodeDeliveryService` 实现（postman）提供按节点投递抽象，通过 `StringRedisTemplate` LPUSH 到 `delivery:node:{gatewayNode}` Redis LIST；`NodeDeliveryPoller`（postoffice）后台 daemon 线程 BRPOP 消费并委托 `OnlineDispatcherImpl` 本地投递；`DeliveryEventListener.deliverToUser` 按 gatewayNode 分组路由，`NodeDeliveryService` 不可用时降级为直接 Dubbo 调用。新增 Redis key `delivery:node:{nodeId}`（`RedisKeys.deliveryNodeQueue`）。all-in-one 模式透明兼容（单 JVM 共享 Redis LIST）。原 ASSESSMENT P0-1 表格项已划除，演进路线 P0 §1 已划除并标注完成日期。
 - 2026-07-07：P1 ConnectionManager 去全局锁与跨节点踢下线已完成。`ConnectionManager` 将 pending 注册、认证提升、移除连接从方法级 `synchronized` 改为 connection/user 分片 `ReentrantLock`；认证提升和移除都按 connection → user 顺序加锁，避免断线移除 pending 与认证提升并发交错。`RouteSnapshot` 增加 `sessionId`，`RedisOnlineRouteService` 维护 `online:session:v1:{sessionId}` HASH 辅助索引，同一 session 可保存多条 `userId:deviceId` 路由；`KickoffCommandServiceImpl` 按 user/device/session 查询 `gatewayNode`，本节点直接踢线，远端节点通过 `NodeCommandPublisher` 入队 `NodeQueueMessage(KICKOFF)`，`NodeDeliveryPoller` 消费后委托 `ConnectionManager` 本地踢线；旧裸 `DispatchMessageReq` JSON 保持兼容。
 - 2026-07-07：P1/P2 HistoryQuery fail-closed 与分页改造已完成。`HistoryQueryService.allow` 在 provider 缺失、RPC 异常、非预期返回时默认拒绝，只复用 30s 未过期本地权限缓存；`getConversationMessages` 不再拉全量 block，而是先查 latest `blockNo`，按 `conversationId + blockNo range` 窗口读取并按 seq 倒序裁剪；`limit` 钳制到 200，最近页最多扫描 16 个窗口，避免恶意大 limit 或稀疏 block 退化；`MessageBlockDoc` 增加 `idx_message_block_conversation_block` 复合索引。
+- 2026-07-08：P1-8 历史块批量写已完成。`BlockHistoryPersistenceService.persist` 在一个 `HistoryEvent` 内先把全部 `MessageIdMappingDoc` upsert 合入一个 unordered `bulkOps`，再把按 blockNo 分桶的块更新合入第二个 unordered `bulkOps`，替代原「循环里逐条 `mappingRepository.save` + 逐块 `mongoTemplate.upsert`」；两类文档 `_id` 均确定性拼接（`{convId}:{clientMsgId}` / `{convId}:{blockNo}`），队列重放幂等。`MessageIdMappingRepository` 已无使用点，删除（`findByServerMsgId` 若撤回链路需要按 P3-21 再引入）。

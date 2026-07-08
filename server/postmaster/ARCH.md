@@ -12,7 +12,7 @@
 | `HistoryEventListener` | `listener/HistoryEventListener.java:23` | 消费 history topic，写入 `message_block` |
 | `DeliveryEventListener` | `listener/DeliveryEventListener.java:40` | **postman 在本模块** ⚠️ 实际在 postman，见 postman/ARCH.md |
 | `ConversationSeqService` | `service/ConversationSeqService.java:20` | seq 分配薄包装，委托 `ConversationSeqAllocator`（common-core） |
-| `BlockHistoryPersistenceService` | `history/BlockHistoryPersistenceService.java:29` | 历史块 upsert + message id mapping 保存 |
+| `BlockHistoryPersistenceService` | `history/BlockHistoryPersistenceService.java:25` | 历史块 + message id mapping 双 unordered bulk upsert（2026-07-08 P1-8 修复） |
 | `DefaultMessagePolicyEngine` | `policy/DefaultMessagePolicyEngine.java:11` | 输出 `MessageRouteDecision`（persistHistory/notification/sendDelivery/needOfflinePush/senderSync） |
 | `GroupFanoutPlanner` | `service/GroupFanoutPlanner.java` | 群扩散规划器：成员切片 + delivery key 生成（`g:{groupId}:{memberId}`）；2026-07-06 P0-2 修复接通 |
 | `UserMaxSeqPersistenceWriter` | `service/UserMaxSeqPersistenceWriter.java` | 用户 maxSeq 异步写 Mongo（单线程 drain + 2000 队列） |
@@ -44,7 +44,7 @@
 - 每条消息块内字段：`messages.{seq-offset}`
 - 单独 `MessageIdMappingDoc` 保存 `serverMsgId ⇄ {convId, seq, blockNo, offset}` 映射
 
-⚠️ 当前 `BlockHistoryPersistenceService.java:55` 在循环里**逐条 `mappingRepository.save`**，未用 `bulkOps`，是写吞吐瓶颈。ASSESSMENT P1-8 修复项。
+**批量写（2026-07-08 P1-8 修复）**：一个 `HistoryEvent` 内先把全部 id mapping 合入一个 unordered `bulkOps` upsert（`_id = {convId}:{clientMsgId}` 幂等），再把按 blockNo 分桶后的块更新合入第二个 unordered `bulkOps` upsert；不再循环逐条 `save`/`upsert`。原 `MessageIdMappingRepository` 已删除（无其它使用点）。
 
 ## 5. 群扩散（**已闭环 2026-07-06**）
 
