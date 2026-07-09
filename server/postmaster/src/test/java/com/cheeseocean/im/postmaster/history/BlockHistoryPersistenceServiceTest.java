@@ -8,6 +8,7 @@ import com.cheeseocean.im.common.api.enums.MessageSource;
 import com.cheeseocean.im.common.api.enums.MessageStatus;
 import com.cheeseocean.im.common.api.enums.PlatformType;
 import com.cheeseocean.im.common.api.event.HistoryEvent;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.bson.Document;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.mongodb.core.BulkOperations;
@@ -39,7 +40,7 @@ class BlockHistoryPersistenceServiceTest {
         BulkOperations blockOps = mock(BulkOperations.class);
         when(mongoTemplate.bulkOps(BulkOperations.BulkMode.UNORDERED, MessageIdMappingDoc.class)).thenReturn(mappingOps);
         when(mongoTemplate.bulkOps(BulkOperations.BulkMode.UNORDERED, MessageBlockDoc.class)).thenReturn(blockOps);
-        BlockHistoryPersistenceService service = new BlockHistoryPersistenceService(mongoTemplate);
+        BlockHistoryPersistenceService service = new BlockHistoryPersistenceService(mongoTemplate, new ObjectMapper());
 
         HistoryEvent event = new HistoryEvent();
         event.setConversationId("s:u100:u200");
@@ -96,7 +97,7 @@ class BlockHistoryPersistenceServiceTest {
         BulkOperations blockOps = mock(BulkOperations.class);
         when(mongoTemplate.bulkOps(BulkOperations.BulkMode.UNORDERED, MessageIdMappingDoc.class)).thenReturn(mappingOps);
         when(mongoTemplate.bulkOps(BulkOperations.BulkMode.UNORDERED, MessageBlockDoc.class)).thenReturn(blockOps);
-        BlockHistoryPersistenceService service = new BlockHistoryPersistenceService(mongoTemplate);
+        BlockHistoryPersistenceService service = new BlockHistoryPersistenceService(mongoTemplate, new ObjectMapper());
 
         HistoryEvent event = new HistoryEvent();
         event.setConversationId("s:u100:u200");
@@ -118,9 +119,69 @@ class BlockHistoryPersistenceServiceTest {
     }
 
     @Test
+    void persistShouldWriteAttachmentMetadataForAttachmentMessages() {
+        MongoTemplate mongoTemplate = mock(MongoTemplate.class);
+        BulkOperations mappingOps = mock(BulkOperations.class);
+        BulkOperations blockOps = mock(BulkOperations.class);
+        BulkOperations attachmentOps = mock(BulkOperations.class);
+        when(mongoTemplate.bulkOps(BulkOperations.BulkMode.UNORDERED, MessageIdMappingDoc.class)).thenReturn(mappingOps);
+        when(mongoTemplate.bulkOps(BulkOperations.BulkMode.UNORDERED, MessageBlockDoc.class)).thenReturn(blockOps);
+        when(mongoTemplate.bulkOps(BulkOperations.BulkMode.UNORDERED, AttachmentMetadataDoc.class)).thenReturn(attachmentOps);
+        BlockHistoryPersistenceService service = new BlockHistoryPersistenceService(mongoTemplate, new ObjectMapper());
+
+        Message image = message(101L, "smsg-1", "cmsg-1");
+        image.setContentType(ContentType.IMAGE);
+        image.setContent("{\"attachmentId\":\"att-1\",\"storageKey\":\"oss/a\"}".getBytes());
+        // 附件类型但 content 非 JSON：跳过，不阻断持久化
+        Message broken = message(102L, "smsg-2", "cmsg-2");
+        broken.setContentType(ContentType.FILE);
+        broken.setContent("not-json".getBytes());
+
+        HistoryEvent event = new HistoryEvent();
+        event.setConversationId("s:u100:u200");
+        event.setBeginSeq(101L);
+        event.setEndSeq(102L);
+        event.setMessages(List.of(image, broken));
+
+        service.persist(event);
+
+        var queryCaptor = forClass(Query.class);
+        var updateCaptor = forClass(Update.class);
+        verify(attachmentOps, times(1)).upsert(queryCaptor.capture(), updateCaptor.capture());
+        verify(attachmentOps).execute();
+
+        assertEquals("att-1", queryCaptor.getValue().getQueryObject().getString("_id"));
+        Document set = updateCaptor.getValue().getUpdateObject().get("$set", Document.class);
+        assertEquals("s:u100:u200", set.getString("conversationId"));
+        assertEquals("smsg-1", set.getString("serverMsgId"));
+        assertEquals(101L, set.getLong("seq"));
+        assertEquals(ContentType.IMAGE.getCode(), set.getInteger("contentType"));
+    }
+
+    @Test
+    void persistShouldSkipAttachmentBulkWhenNoAttachmentMessages() {
+        MongoTemplate mongoTemplate = mock(MongoTemplate.class);
+        BulkOperations mappingOps = mock(BulkOperations.class);
+        BulkOperations blockOps = mock(BulkOperations.class);
+        when(mongoTemplate.bulkOps(BulkOperations.BulkMode.UNORDERED, MessageIdMappingDoc.class)).thenReturn(mappingOps);
+        when(mongoTemplate.bulkOps(BulkOperations.BulkMode.UNORDERED, MessageBlockDoc.class)).thenReturn(blockOps);
+        BlockHistoryPersistenceService service = new BlockHistoryPersistenceService(mongoTemplate, new ObjectMapper());
+
+        HistoryEvent event = new HistoryEvent();
+        event.setConversationId("s:u100:u200");
+        event.setBeginSeq(101L);
+        event.setEndSeq(101L);
+        event.setMessages(List.of(message(101L, "smsg-1", "cmsg-1")));
+
+        service.persist(event);
+
+        verify(mongoTemplate, never()).bulkOps(BulkOperations.BulkMode.UNORDERED, AttachmentMetadataDoc.class);
+    }
+
+    @Test
     void persistShouldSkipEmptyEvent() {
         MongoTemplate mongoTemplate = mock(MongoTemplate.class);
-        BlockHistoryPersistenceService service = new BlockHistoryPersistenceService(mongoTemplate);
+        BlockHistoryPersistenceService service = new BlockHistoryPersistenceService(mongoTemplate, new ObjectMapper());
 
         HistoryEvent event = new HistoryEvent();
         event.setConversationId("s:u100:u200");

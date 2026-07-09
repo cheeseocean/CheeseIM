@@ -46,6 +46,8 @@
 
 **批量写（2026-07-08 P1-8 修复）**：一个 `HistoryEvent` 内先把全部 id mapping 合入一个 unordered `bulkOps` upsert（`_id = {convId}:{clientMsgId}` 幂等），再把按 blockNo 分桶后的块更新合入第二个 unordered `bulkOps` upsert；不再循环逐条 `save`/`upsert`。原 `MessageIdMappingRepository` 已删除（无其它使用点）。
 
+**附件元数据（2026-07-08 P1-10）**：`ContentType.hasAttachment()`（IMAGE/VOICE/VIDEO/FILE）的消息，从 content JSON 提取 `attachmentId` 后批量 upsert `attachment_metadata`（`_id = attachmentId`，含 conversationId/serverMsgId/seq/senderId/contentType/sendTime）；content 非 JSON 或缺 `attachmentId` 静默跳过。postbox 附件鉴权按 `_id` 点查（见 `postbox/ARCH.md` §4）。
+
 ## 5. 群扩散（**已闭环 2026-07-06**）
 
 - `GroupFanoutPlanner.partition(memberIds)` 把成员按 `cheeseim.delivery.group-fanout.batch-size`（默认 500）切片

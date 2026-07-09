@@ -10,7 +10,7 @@
 | `MessageSenderImpl` | `service/MessageSenderImpl.java:57` | `@DubboService`，统一消息发送入口 |
 | `IngressMessagePublisher` | `service/IngressMessagePublisher.java:23` | 发布 ingress event（Protobuf bytes）到 `TopicNames.INGRESS` |
 | `HistoryQueryService` | `service/HistoryQueryService.java:53` | 历史消息查询 |
-| `BlockMessageQueryService` | `service/BlockMessageQueryService.java:60` | block 维度查询 + 附件候选 |
+| `BlockMessageQueryService` | `service/BlockMessageQueryService.java:23` | block 维度查询 + 附件候选（`attachment_metadata` 点查，2026-07-08 P1-10） |
 | `Postbox` | `Postbox.java:19` | 启动类，开 Kafka/Dubbo/Mongo Repos |
 
 ## 2. 发送热路径（`MessageSenderImpl.sendMessage`）
@@ -33,7 +33,8 @@
 
 - `getConversationMessages`：已改为先查 latest `blockNo`，再按 `conversationId + blockNo range` 窗口读取并按 seq 倒序裁剪 limit；`limit` 最大 200，最近页最多扫描 16 个窗口，避免长会话全扫和恶意大分页。
 - `pullMessagesBySeqRange`（line 89）：block-range-bounded，gap repair 用，健康。
-- `BlockMessageQueryService.findAttachmentCandidates`（line 60）：`content.regex` 全表扫，**不可扩展到百万量级**，ASSESSMENT P1-10 修复项 → 附件元数据表。
+- `BlockMessageQueryService.findAttachmentCandidate`：按 `attachment_metadata._id = attachmentId` 点查后 `findSlot` 还原内容（2026-07-08 P1-10 修复，替代原 `message_id_mapping` 上的 `content.regex` 全扫——该 regex 查的 `content` 字段在 mapping 文档上并不存在，属死查询）。元数据由 postmaster `BlockHistoryPersistenceService` 对 `ContentType.hasAttachment()` 消息随历史持久化批量写入。
+- `BlockMessageQueryService.findSlot`：按 `BlockIndexUtil.docId` 点查 `_id`（修复原 `((seq-1)/100)+1` 与 `BlockIndexUtil.blockNo` 差一导致永远查错块的 bug）。
 - 权限校验 `allow`：provider 缺失、RPC 异常、非预期返回时默认拒绝；仅在 30s 本地权限缓存未过期时兜底放行。
 
 ## 5. 边界

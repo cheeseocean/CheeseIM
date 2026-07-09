@@ -106,6 +106,15 @@ public enum ContentType implements IEnum {
         return desc;
     }
 
+    /**
+     * 是否为携带附件的富媒体消息（图片/语音/视频/文件）。
+     * 此类消息的 content JSON 中含 {@code attachmentId} 字段，
+     * 历史持久化时会同步写入 {@code attachment_metadata} 集合供附件鉴权点查。
+     */
+    public boolean hasAttachment() {
+        return this == IMAGE || this == VOICE || this == VIDEO || this == FILE;
+    }
+
     public static ContentType fromCode(int code) {
         return Arrays.stream(values())
                 .filter(value -> value.code == code)
