@@ -43,13 +43,15 @@ public class MessageSendPermissionServiceImpl implements MessageSendPermissionSe
                     ReceiveOption.BLOCK.getCode(),
                     ReceiveOption.BLOCK.getCode());
         }
+        if (friendRelationService.isBlocked(request.getSenderId(), request.getReceiverId())) {
+            return MessageSendPermissionResult.blocked(
+                    ReceiveOption.BLOCK.getCode(),
+                    ReceiveOption.BLOCK.getCode());
+        }
         int globalReceiveOption = userInfoService.getReceiveOptions(request.getReceiverId());
         int conversationReceiveOption = conversationService.getReceiveOption(
                 request.getReceiverId(),
                 request.getConversationId());
-        if (friendRelationService.isBlocked(request.getSenderId(), request.getReceiverId())) {
-            return MessageSendPermissionResult.blocked(globalReceiveOption, conversationReceiveOption);
-        }
         return MessageSendPermissionResult.allow(globalReceiveOption, conversationReceiveOption);
     }
 }

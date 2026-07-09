@@ -2,8 +2,10 @@ package com.cheeseocean.im.postmaster.service;
 
 import com.cheeseocean.im.common.core.business.repository.UserConversationSyncPointRepository;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
+import com.cheeseocean.im.postmaster.config.UserMaxSeqPersistenceWriterProperties;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -24,8 +26,6 @@ public class UserMaxSeqPersistenceWriter {
 
     private static final Logger log = CommonLoggers.POSTMASTER;
 
-    private static final int  WORKER_COUNT              = 4;
-    private static final int  QUEUE_CAPACITY_PER_WORKER = 2000;
     private static final int  DRAIN_BATCH_SIZE = 200;
     private static final long POLL_TIMEOUT_MS  = 1000;
 
@@ -36,8 +36,13 @@ public class UserMaxSeqPersistenceWriter {
     private final List<Thread> drainThreads;
     private volatile boolean running = true;
 
-    public UserMaxSeqPersistenceWriter(UserConversationSyncPointRepository syncPointRepository) {
-        this(syncPointRepository, WORKER_COUNT, QUEUE_CAPACITY_PER_WORKER, true);
+    @Autowired
+    public UserMaxSeqPersistenceWriter(UserConversationSyncPointRepository syncPointRepository,
+                                       UserMaxSeqPersistenceWriterProperties properties) {
+        this(syncPointRepository,
+                properties.getWorkerCount(),
+                properties.getQueueCapacityPerWorker(),
+                true);
     }
 
     UserMaxSeqPersistenceWriter(UserConversationSyncPointRepository syncPointRepository,

@@ -3,8 +3,10 @@ package com.cheeseocean.im.business.service.conversation;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import com.cheeseocean.im.common.core.business.repository.UserConversationSyncPointRepository;
 import com.cheeseocean.im.common.core.business.repository.UserConversationRepository;
+import com.cheeseocean.im.business.config.ReadSeqPersistenceWriterProperties;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -32,8 +34,6 @@ public class ReadSeqPersistenceWriter {
 
     private static final Logger log = CommonLoggers.SOCIAL;
 
-    private static final int  WORKER_COUNT              = 4;
-    private static final int  QUEUE_CAPACITY_PER_WORKER = 1000;
     private static final int  DRAIN_BATCH_SIZE = 100;
     private static final long POLL_TIMEOUT_MS  = 1000;
 
@@ -45,9 +45,15 @@ public class ReadSeqPersistenceWriter {
     private final List<Thread> drainThreads;
     private volatile boolean running = true;
 
+    @Autowired
     public ReadSeqPersistenceWriter(UserConversationSyncPointRepository offsetRepository,
-                                    UserConversationRepository stateRepository) {
-        this(offsetRepository, stateRepository, WORKER_COUNT, QUEUE_CAPACITY_PER_WORKER, true);
+                                    UserConversationRepository stateRepository,
+                                    ReadSeqPersistenceWriterProperties properties) {
+        this(offsetRepository,
+                stateRepository,
+                properties.getWorkerCount(),
+                properties.getQueueCapacityPerWorker(),
+                true);
     }
 
     ReadSeqPersistenceWriter(UserConversationSyncPointRepository offsetRepository,

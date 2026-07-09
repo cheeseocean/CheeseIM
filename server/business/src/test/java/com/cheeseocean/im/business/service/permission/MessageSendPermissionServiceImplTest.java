@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class MessageSendPermissionServiceImplTest {
@@ -47,13 +48,12 @@ class MessageSendPermissionServiceImplTest {
                 userInfoService,
                 conversationService);
         MessageSendPermissionRequest request = request();
-        when(userInfoService.getReceiveOptions("u2")).thenReturn(ReceiveOption.RECEIVE.getCode());
-        when(conversationService.getReceiveOption("u2", "s:u1:u2")).thenReturn(ReceiveOption.RECEIVE.getCode());
         when(friendRelationService.isBlocked("u1", "u2")).thenReturn(true);
 
         MessageSendPermissionResult result = service.check(request);
 
         assertTrue(result.isBlockedByReceiver());
+        verifyNoInteractions(userInfoService, conversationService);
     }
 
     private MessageSendPermissionRequest request() {

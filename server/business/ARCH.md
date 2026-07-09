@@ -45,8 +45,8 @@
 
 - **会话元数据同步**：服务端维护 `ownerUserId` 维度的 `ConversationVersionLog`，客户端用 cursor 做增量同步，超过 200 条回退全量（`ConversationServiceImpl.fillFullSync` line 469）
 - **消息同步**：会话维度 seq/range/maxSeq，客户端按会话拉缺口消息
-- **readSeq**：Redis 即写（`ackReadSeq` line 144）+ Mongo 写 behind（`ReadSeqPersistenceWriter` 按 userId 分桶多线程 drain，单桶聚合最大 readSeq，Redis 仍权威）
-- **发送权限聚合**：`MessageSendPermissionServiceImpl` 聚合 `FriendRelationService` / `UserInfoService` / `ConversationService` 本地调用，让 postbox 发送热路径从三次 Dubbo 收敛为一次。
+- **readSeq**：Redis 即写（`ackReadSeq` line 144）+ Mongo 写 behind（`ReadSeqPersistenceWriter` 按 userId 分桶多线程 drain，单桶聚合最大 readSeq，workerCount/queueCapacity 可配，Redis 仍权威）
+- **发送权限聚合**：`MessageSendPermissionServiceImpl` 聚合 `FriendRelationService` / `UserInfoService` / `ConversationService` 本地调用，让 postbox 发送热路径从三次 Dubbo 收敛为一次；黑名单先短路，避免无谓的接收选项查询。
 
 ## 4. JetCache 用法
 
