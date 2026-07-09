@@ -48,7 +48,7 @@
 
 ## 5. 伸缩性约束（曰前）
 
-- `ReadSeqPersistenceWriter` / `UserMaxSeqPersistenceWriter` 单线程 drain + 有界队列，超限丢弃（Redis 仍权威），见 ASSESSMENT P1-13
+- ~~`ReadSeqPersistenceWriter` / `UserMaxSeqPersistenceWriter` 单线程 drain + 有界队列~~：**已修复 2026-07-09**，两个 writer 均按 userId hash 分桶多线程 drain，同桶内聚合最大水位，见 ASSESSMENT P1-13
 - `ConversationVersionLogDoc.createdAt` 有 180 天 TTL 索引，版本日志只保留增量同步窗口；长期历史仍以会话与消息主表为准。
 - 用 Mongo 时不要假设单节点；新代码按可分片原则写
 

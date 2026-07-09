@@ -24,47 +24,74 @@ public class UserMaxSeqPersistenceWriter {
 
     private static final Logger log = CommonLoggers.POSTMASTER;
 
-    private static final int  QUEUE_CAPACITY   = 2000;
+    private static final int  WORKER_COUNT              = 4;
+    private static final int  QUEUE_CAPACITY_PER_WORKER = 2000;
     private static final int  DRAIN_BATCH_SIZE = 200;
     private static final long POLL_TIMEOUT_MS  = 1000;
 
     record UserMaxSeqEntry(String userId, String conversationId, long maxSeq) {}
 
     private final UserConversationSyncPointRepository syncPointRepository;
-    private final LinkedBlockingQueue<UserMaxSeqEntry> queue;
-    private final Thread drainThread;
+    private final List<LinkedBlockingQueue<UserMaxSeqEntry>> queues;
+    private final List<Thread> drainThreads;
     private volatile boolean running = true;
 
     public UserMaxSeqPersistenceWriter(UserConversationSyncPointRepository syncPointRepository) {
+        this(syncPointRepository, WORKER_COUNT, QUEUE_CAPACITY_PER_WORKER, true);
+    }
+
+    UserMaxSeqPersistenceWriter(UserConversationSyncPointRepository syncPointRepository,
+                                int workerCount,
+                                int queueCapacityPerWorker,
+                                boolean startWorkers) {
+        if (workerCount <= 0) {
+            throw new IllegalArgumentException("workerCount must be positive");
+        }
+        if (queueCapacityPerWorker <= 0) {
+            throw new IllegalArgumentException("queueCapacityPerWorker must be positive");
+        }
         this.syncPointRepository = syncPointRepository;
-        this.queue = new LinkedBlockingQueue<>(QUEUE_CAPACITY);
-        this.drainThread = new Thread(this::drainLoop, "user-max-seq-drain");
-        this.drainThread.setDaemon(true);
-        this.drainThread.start();
+        this.queues = new ArrayList<>(workerCount);
+        this.drainThreads = new ArrayList<>(workerCount);
+        for (int i = 0; i < workerCount; i++) {
+            LinkedBlockingQueue<UserMaxSeqEntry> queue = new LinkedBlockingQueue<>(queueCapacityPerWorker);
+            queues.add(queue);
+            Thread drainThread = new Thread(() -> drainLoop(queue), "user-max-seq-drain-" + i);
+            drainThread.setDaemon(true);
+            drainThreads.add(drainThread);
+            if (startWorkers) {
+                drainThread.start();
+            }
+        }
     }
 
     /**
      * 将一条 user maxSeq 更新入队；队列已满时丢弃，由 Redis 热状态继续承担短期权威值。
      */
     public void enqueue(String userId, String conversationId, long maxSeq) {
+        LinkedBlockingQueue<UserMaxSeqEntry> queue = queues.get(bucketIndex(userId));
         boolean offered = queue.offer(new UserMaxSeqEntry(userId, conversationId, maxSeq));
         if (!offered) {
-            log.warn("UserMaxSeqPersistenceWriter 队列已满，丢弃持久化：userId={} convId={}", userId, conversationId);
+            log.warn("UserMaxSeqPersistenceWriter 分桶队列已满，丢弃持久化：userId={} convId={}", userId, conversationId);
         }
     }
 
     @PreDestroy
     public void shutdown() {
         running = false;
-        drainThread.interrupt();
+        for (Thread drainThread : drainThreads) {
+            drainThread.interrupt();
+        }
         List<UserMaxSeqEntry> remaining = new ArrayList<>();
-        queue.drainTo(remaining);
+        for (LinkedBlockingQueue<UserMaxSeqEntry> queue : queues) {
+            queue.drainTo(remaining);
+        }
         if (!remaining.isEmpty()) {
             persist(remaining);
         }
     }
 
-    private void drainLoop() {
+    private void drainLoop(LinkedBlockingQueue<UserMaxSeqEntry> queue) {
         while (running) {
             try {
                 UserMaxSeqEntry first = queue.poll(POLL_TIMEOUT_MS, TimeUnit.MILLISECONDS);
@@ -82,6 +109,10 @@ public class UserMaxSeqPersistenceWriter {
                 log.error("UserMaxSeqPersistenceWriter drain 异常", e);
             }
         }
+    }
+
+    int bucketIndex(String userId) {
+        return Math.floorMod(userId.hashCode(), queues.size());
     }
 
     private void persist(List<UserMaxSeqEntry> entries) {

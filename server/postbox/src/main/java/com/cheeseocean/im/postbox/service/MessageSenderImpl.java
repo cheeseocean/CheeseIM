@@ -4,17 +4,16 @@ import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.dto.message.MessageOptions;
 import com.cheeseocean.im.common.api.dto.message.SendMessageReq;
 import com.cheeseocean.im.common.api.dto.message.SendMessageResp;
-import com.cheeseocean.im.common.api.conversation.ConversationService;
 import com.cheeseocean.im.common.api.enums.ChatType;
-import com.cheeseocean.im.common.api.friend.FriendRelationService;
+import com.cheeseocean.im.common.api.permission.MessageSendPermissionRequest;
+import com.cheeseocean.im.common.api.permission.MessageSendPermissionResult;
+import com.cheeseocean.im.common.api.permission.MessageSendPermissionService;
 import com.cheeseocean.im.common.api.rpc.MessageSender;
 import com.cheeseocean.im.common.api.enums.ReceiveOption;
 import com.cheeseocean.im.common.core.util.ConversationIdUtil;
 import com.cheeseocean.im.common.core.util.IdGenerator;
-import com.cheeseocean.im.postbox.facade.UserServiceFacade;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.apache.dubbo.config.annotation.DubboService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -24,13 +23,7 @@ public class MessageSenderImpl implements MessageSender {
     private final IngressMessagePublisher ingressMessagePublisher;
 
     @DubboReference
-    private FriendRelationService friendRelationService;
-
-    @DubboReference
-    private ConversationService conversationService;
-
-    @Autowired
-    private UserServiceFacade userServiceFacade;
+    private MessageSendPermissionService messageSendPermissionService;
 
     public MessageSenderImpl(IngressMessagePublisher ingressMessagePublisher) {
         this.ingressMessagePublisher = ingressMessagePublisher;
@@ -86,13 +79,17 @@ public class MessageSenderImpl implements MessageSender {
     }
 
     /**
-     * 单聊消息发送权限校验：
+     * 单聊消息发送权限校验。
      * <p>
-     * 1. 黑名单检查  — recvId 将 senderId 加入黑名单则直接拒绝。
-     * 2. 用户接收配置
+     * 发送热路径只向 business 发起一次聚合权限查询，避免黑名单、用户接收配置、
+     * 会话接收配置三段同步 Dubbo 放大 RTT。
+     *
+     * <p>聚合结果语义：
+     * 1. 黑名单：recvId 将 senderId 加入黑名单则直接拒绝。
+     * 2. 用户接收配置：
      * BLOCK (1)        → 直接拒绝
      * DO_NOT_DISTURB (2) → 关闭离线推送，继续投递
-     * 3. 会话级接收配置（全局通过后才检查）：
+     * 3. 会话级接收配置：
      * BLOCK (1)        → 直接拒绝（已读回执除外）
      * DO_NOT_DISTURB (2) → 关闭离线推送，继续投递
      * <p>
@@ -105,13 +102,18 @@ public class MessageSenderImpl implements MessageSender {
         String senderId = req.getSenderId();
         String receiverId   = req.getReceiverId();
 
-        // 1. 黑名单
-        if (friendRelationService.isBlocked(senderId, receiverId)) {
+        MessageSendPermissionRequest request = new MessageSendPermissionRequest();
+        request.setSenderId(senderId);
+        request.setReceiverId(receiverId);
+        request.setConversationId(conversationId);
+        MessageSendPermissionResult permission = messageSendPermissionService.check(request);
+
+        if (permission == null || permission.isBlockedByReceiver()) {
             return rejectedResp(req);
         }
 
         // 2. 用户级别接收配置
-        ReceiveOption globalOpt = ReceiveOption.fromCode(userServiceFacade.getReceiveOptions(receiverId));
+        ReceiveOption globalOpt = ReceiveOption.fromCode(permission.getGlobalReceiveOption());
         if (globalOpt == ReceiveOption.BLOCK) {
             return rejectedResp(req);
         }
@@ -120,7 +122,7 @@ public class MessageSenderImpl implements MessageSender {
         }
 
         // 3. 会话级接收配置
-        ReceiveOption convOpt = ReceiveOption.fromCode(conversationService.getReceiveOption(receiverId, conversationId));
+        ReceiveOption convOpt = ReceiveOption.fromCode(permission.getConversationReceiveOption());
         if (convOpt == ReceiveOption.BLOCK) {
             // 已读回执绕过会话级屏蔽
             if (!MessageOptionPolicy.isReadReceipt(req.getContentType())) {

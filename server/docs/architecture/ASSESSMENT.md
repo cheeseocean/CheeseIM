@@ -50,7 +50,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 | ~~History 查询全扫~~ | **已修复 2026-07-07**：`getConversationMessages` 按 latest blockNo + range 窗口读取，不再拉全量 block |
 | ~~权限校验失败放行~~ | **已修复 2026-07-07**：`HistoryQueryService.allow` 改为 fail-closed，RPC 异常仅使用短 TTL 本地缓存兜底 |
 | MessageIdMappingDoc 逐条 save | 非 `bulkOps`，50k msg/s 写不动 |
-| UserMaxSeq / ReadSeq 写 behind | 单线程 drain + 有界队列，超限丢弃（Redis 仍权威） |
+| ~~UserMaxSeq / ReadSeq 写 behind~~ | **已修复 2026-07-09**：按 userId 分桶多线程 drain，同桶内聚合最大水位，跨用户并行写 Mongo |
 | ~~ConversationVersionLog 无 TTL~~ | **已修复 2026-07-08**：`ConversationVersionLogDoc.createdAt` 增 180 天 TTL 索引 |
 
 ### C. 已声明协议但未在链路上接通
@@ -76,12 +76,12 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 | ~~**P1**~~ | ~~默认队列 Chronicle（单机）+ Kafka 路径序列化不兼容~~ | ~~`QueueAutoConfigurer.java:28`、`KafkaQueueAdapter.java:54` vs `MessageProducer.java:27`~~ | **已修复 2026-07-07**：`KafkaQueueAdapter` 反序列化对齐 Chronicle（protobuf 原生 / byte[] 透传），`byteKafkaTemplate` 修复泛型不匹配，DeliveryEventListener 改走 `OfflinePushEventProducer` → `QueueAdapter.send`（详见 `postman/ARCH.md` §7）。多节点下队列通道已就绪，只需在 `common.yml` 启用 `cheeseim.queue.type=kafka` 并确保 Kafka bootstrap 配置可用即可上集群。
 | ~~**P2**~~ | ~~历史分页全扫~~ | ~~`HistoryQueryService.java:53-82`~~ | **已修复 2026-07-07**：先定位 latest blockNo，再按 conversationId + blockNo range 窗口读取并裁剪 limit |
 | ~~**P2**~~ | ~~权限校验失败放行~~ | ~~`HistoryQueryService.java:213`~~ | **已修复 2026-07-07**：RPC/provider 异常默认拒绝，仅复用未过期本地权限缓存 |
-| **P2** | MessageSender 三次同步 Dubbo | `MessageSenderImpl.java:109-123` | 发送热路径 RTT ×3 |
+| ~~**P2**~~ | ~~MessageSender 三次同步 Dubbo~~ | ~~`MessageSenderImpl.java:109-123`~~ | **已修复 2026-07-09**：postbox 改为一次 `MessageSendPermissionService.check` 聚合查询，business 本地合并黑名单、用户 receiveOpt、会话 receiveOpt |
 
 ### 3.2 容量与正确性隐患
 
 - ~~`MessageIdMappingDoc` 逐条 `save` → 单 Mongo 节点 50k msg/s 写不动。~~ **已修复 2026-07-08**：并入 P1-8 批量写，id mapping 与 message block 各走一个 unordered `bulkOps` upsert。
-- `UserMaxSeqPersistenceWriter` / `ReadSeqPersistenceWriter` 单线程 drain + 有界队列超限丢弃。
+- ~~`UserMaxSeqPersistenceWriter` / `ReadSeqPersistenceWriter` 单线程 drain + 有界队列超限丢弃。~~ **已修复 2026-07-09**：两个 writer 均改为 userId hash 分桶，多 worker 并行 drain；单桶内仍按 `(userId, conversationId)` 聚合最大水位，Redis/RocksDB 热状态继续承担短期权威值。
 - ~~`ConversationVersionLog` 无 TTL 长期增长。~~ **已修复 2026-07-08**：`createdAt` 加 180 天 TTL 索引。
 - ~~Kafka 配置在 `common.yml` 中被注释，独立模块启动队列为空。~~ **已修复 2026-07-08**：`application-cluster.yml` 提供 Kafka bootstrap 环境变量配置，cluster profile 默认 `cheeseim.queue.type=kafka`；`common.yml` 的注释样例已删除。
 - ~~Mongo 仅 `localhost:27017` 单点，无副本集 profile。~~ **已部分修复 2026-07-08**：cluster profile 改用 `MONGODB_URI` 注入副本集 URI；分片声明仍属 P1-7。
@@ -137,11 +137,11 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 10. ~~**附件查询去 regex**：`BlockMessageQueryService.findAttachmentCandidates` 的 `content.regex` 改为附件元数据表（`_id=attachmentId`）。~~ **已完成 2026-07-08**：新增 `attachment_metadata` 集合（`_id=attachmentId`），postmaster 历史持久化时对 `ContentType.hasAttachment()`（IMAGE/VOICE/VIDEO/FILE）消息从 content JSON 提取 `attachmentId` 批量 upsert；postbox `findAttachmentCandidate` 改为点查。原 regex 查询的 `content` 字段在 `message_id_mapping` 上并不存在，属死查询。
 11. ~~**权限校验失败拒绝**：`HistoryQueryService.allow` 在异常时 `return false`，加本地兜底缓存降级。~~ **已完成 2026-07-07**：RPC 异常/provider 缺失默认拒绝，仅使用 30s 本地权限缓存兜底。
 12. ~~**`ConversationVersionLog` TTL 索引**：`createdAt` 加 `expireAfterSeconds`，或加定期 compact job。~~ **已完成 2026-07-08**：`ConversationVersionLogDoc.createdAt` 声明 `@Indexed(expireAfterSeconds = 180 天)`，避免版本日志长期无界增长。
-13. **read-seq 写并发化**：`ReadSeqPersistenceWriter` 改按 `userId` 分桶的多线程 drain 或走 Kafka 通道。
+13. ~~**read-seq 写并发化**：`ReadSeqPersistenceWriter` 改按 `userId` 分桶的多线程 drain 或走 Kafka 通道。~~ **已完成 2026-07-09**：`ReadSeqPersistenceWriter` 与同类 `UserMaxSeqPersistenceWriter` 均改为 userId hash 分桶多线程 drain，shutdown drain 全部分桶，单桶内聚合最大水位避免乱序回退。
 
 ### P2 — 链路性能（8-16 周）
 
-14. **MessageSender 权限链合并**：黑名单/用户 receiveOpt/会话 receiveOpt 合并为单个 Dubbo `PermissionAggregate` 一次性返回；本地 Caffeine + 异步刷新。
+14. ~~**MessageSender 权限链合并**：黑名单/用户 receiveOpt/会话 receiveOpt 合并为单个 Dubbo `PermissionAggregate` 一次性返回；本地 Caffeine + 异步刷新。~~ **已完成 2026-07-09**：新增 `MessageSendPermissionService` 聚合契约，business 本地复用 friend/user/conversation 服务与缓存，postbox 发送热路径只保留一次同步 Dubbo。
 15. **Ingress batch 内批量 seq + 批量 Mongo upsert + 批量 delivery publish**（当前 delivery 是 per-message publish）。
 16. **postoffice 单机 C100K+**：Netty business pool 独立、`ConnectedChannel` 池化、对业务线程 bounded queue + 背压。
 17. **路由表 L1 加 pub/sub 失效广播**：复用 JetCache `broadcastChannel`，监听失效消息清 L1。

@@ -68,7 +68,7 @@ class HistoryQueryServiceTest {
 
         assertEquals("系统通知", messages.get(0).getContent());
         assertEquals(MessagePreviewType.SYSTEM, messages.get(0).getPreviewType());
-        assertEquals("你撤回了一条消息", messages.get(1).getContent());
+        assertEquals("对方撤回了一条消息", messages.get(1).getContent());
         assertEquals(MessagePreviewType.REVOKE, messages.get(1).getPreviewType());
         assertEquals("[已读回执]", messages.get(2).getContent());
         assertEquals(MessagePreviewType.READ_RECEIPT, messages.get(2).getPreviewType());

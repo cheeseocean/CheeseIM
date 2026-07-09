@@ -29,6 +29,7 @@ public final class MessageOptionPolicy {
         applyDefault(options::getSenderSync, options::setSenderSync, defaultSenderSync(contentType, chatType));
         applyDefault(options::getNotification, options::setNotification, defaultNotification(contentType, chatType));
         applyDefault(options::getNeedLastMessage, options::setNeedLastMessage, defaultNeedLastMessage(contentType));
+        message.setOptions(options);
         return options;
     }
 

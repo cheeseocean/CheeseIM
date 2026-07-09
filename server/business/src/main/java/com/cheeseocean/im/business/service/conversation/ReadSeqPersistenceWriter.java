@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit;
  * <p>流程：
  * <ol>
  *   <li>{@link ConversationSyncServiceImpl#markRead} 调用 {@link #enqueue} 入队。</li>
- *   <li>后台 drain 线程按 (userId, conversationId) 聚合取最大 readSeq。</li>
+ *   <li>后台 drain 线程按 userId 分桶并行写入，同桶内按 (userId, conversationId) 聚合取最大 readSeq。</li>
  *   <li>将 readSeq 写入 {@link UserConversationSyncPointRepository}（轻量偏移量表）。</li>
  *   <li>同时重置 {@link UserConversationRepository} 的未读计数为 0。</li>
  * </ol>
@@ -32,7 +32,8 @@ public class ReadSeqPersistenceWriter {
 
     private static final Logger log = CommonLoggers.SOCIAL;
 
-    private static final int  QUEUE_CAPACITY   = 1000;
+    private static final int  WORKER_COUNT              = 4;
+    private static final int  QUEUE_CAPACITY_PER_WORKER = 1000;
     private static final int  DRAIN_BATCH_SIZE = 100;
     private static final long POLL_TIMEOUT_MS  = 1000;
 
@@ -40,27 +41,50 @@ public class ReadSeqPersistenceWriter {
 
     private final UserConversationSyncPointRepository offsetRepository;
     private final UserConversationRepository stateRepository;
-    private final LinkedBlockingQueue<ReadSeqEntry> queue;
-    private final Thread drainThread;
+    private final List<LinkedBlockingQueue<ReadSeqEntry>> queues;
+    private final List<Thread> drainThreads;
     private volatile boolean running = true;
 
     public ReadSeqPersistenceWriter(UserConversationSyncPointRepository offsetRepository,
                                     UserConversationRepository stateRepository) {
+        this(offsetRepository, stateRepository, WORKER_COUNT, QUEUE_CAPACITY_PER_WORKER, true);
+    }
+
+    ReadSeqPersistenceWriter(UserConversationSyncPointRepository offsetRepository,
+                             UserConversationRepository stateRepository,
+                             int workerCount,
+                             int queueCapacityPerWorker,
+                             boolean startWorkers) {
+        if (workerCount <= 0) {
+            throw new IllegalArgumentException("workerCount must be positive");
+        }
+        if (queueCapacityPerWorker <= 0) {
+            throw new IllegalArgumentException("queueCapacityPerWorker must be positive");
+        }
         this.offsetRepository = offsetRepository;
         this.stateRepository = stateRepository;
-        this.queue = new LinkedBlockingQueue<>(QUEUE_CAPACITY);
-        this.drainThread = new Thread(this::drainLoop, "read-seq-drain");
-        this.drainThread.setDaemon(true);
-        this.drainThread.start();
+        this.queues = new ArrayList<>(workerCount);
+        this.drainThreads = new ArrayList<>(workerCount);
+        for (int i = 0; i < workerCount; i++) {
+            LinkedBlockingQueue<ReadSeqEntry> queue = new LinkedBlockingQueue<>(queueCapacityPerWorker);
+            queues.add(queue);
+            Thread drainThread = new Thread(() -> drainLoop(queue), "read-seq-drain-" + i);
+            drainThread.setDaemon(true);
+            drainThreads.add(drainThread);
+            if (startWorkers) {
+                drainThread.start();
+            }
+        }
     }
 
     /**
      * 将一条 readSeq 更新入队。队列已满时丢弃并打印警告——Redis 已持有权威值。
      */
     public void enqueue(String userId, String conversationId, long readSeq) {
+        LinkedBlockingQueue<ReadSeqEntry> queue = queues.get(bucketIndex(userId));
         boolean offered = queue.offer(new ReadSeqEntry(userId, conversationId, readSeq));
         if (!offered) {
-            log.warn("ReadSeqPersistenceWriter 队列已满，丢弃 readSeq 持久化：userId={} convId={}",
+            log.warn("ReadSeqPersistenceWriter 分桶队列已满，丢弃 readSeq 持久化：userId={} convId={}",
                     userId, conversationId);
         }
     }
@@ -68,9 +92,13 @@ public class ReadSeqPersistenceWriter {
     @PreDestroy
     public void shutdown() {
         running = false;
-        drainThread.interrupt();
+        for (Thread drainThread : drainThreads) {
+            drainThread.interrupt();
+        }
         List<ReadSeqEntry> remaining = new ArrayList<>();
-        queue.drainTo(remaining);
+        for (LinkedBlockingQueue<ReadSeqEntry> queue : queues) {
+            queue.drainTo(remaining);
+        }
         if (!remaining.isEmpty()) {
             persist(remaining);
         }
@@ -78,7 +106,7 @@ public class ReadSeqPersistenceWriter {
 
     // ── 内部实现 ──────────────────────────────────────────────────────────────
 
-    private void drainLoop() {
+    private void drainLoop(LinkedBlockingQueue<ReadSeqEntry> queue) {
         while (running) {
             try {
                 ReadSeqEntry first = queue.poll(POLL_TIMEOUT_MS, TimeUnit.MILLISECONDS);
@@ -94,6 +122,10 @@ public class ReadSeqPersistenceWriter {
                 log.error("ReadSeqPersistenceWriter drain 异常", e);
             }
         }
+    }
+
+    int bucketIndex(String userId) {
+        return Math.floorMod(userId.hashCode(), queues.size());
     }
 
     private void persist(List<ReadSeqEntry> entries) {

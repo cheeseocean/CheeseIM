@@ -11,6 +11,7 @@
 | `service/conversation/` | 会话 CRUD + 增量同步（version-log）+ sync point |
 | `service/group/` | 群成员查询（最小集，群管理入群申请待补） |
 | `service/user/` | 用户信息 + 全局 receiveOpt |
+| `service/permission/` | 发送权限聚合：黑名单 + 用户 receiveOpt + 会话 receiveOpt 一次性返回给 postbox |
 | `service/blacklist/` | 黑名单 |
 | `domain/` | 与 common-api `business/domain` 镜像的业务方法 |
 
@@ -44,7 +45,8 @@
 
 - **会话元数据同步**：服务端维护 `ownerUserId` 维度的 `ConversationVersionLog`，客户端用 cursor 做增量同步，超过 200 条回退全量（`ConversationServiceImpl.fillFullSync` line 469）
 - **消息同步**：会话维度 seq/range/maxSeq，客户端按会话拉缺口消息
-- **readSeq**：Redis 即写（`ackReadSeq` line 144）+ Mongo 写 behind（`ReadSeqPersistenceWriter` 单线程 drain + 1000 队列，超限丢，Redis 仍权威）
+- **readSeq**：Redis 即写（`ackReadSeq` line 144）+ Mongo 写 behind（`ReadSeqPersistenceWriter` 按 userId 分桶多线程 drain，单桶聚合最大 readSeq，Redis 仍权威）
+- **发送权限聚合**：`MessageSendPermissionServiceImpl` 聚合 `FriendRelationService` / `UserInfoService` / `ConversationService` 本地调用，让 postbox 发送热路径从三次 Dubbo 收敛为一次。
 
 ## 4. JetCache 用法
 
@@ -69,7 +71,7 @@ shard-friendly 但**未声明 sharding**，ASSESSMENT P1-7 修复项。
 | --- | --- | --- |
 | `acceptFriendRequest` 非事务 | `FriendRelationServiceImpl.java:179` | ASSESSMENT §3.2 |
 | `ConversationVersionLog` 无 TTL | `ConversationVersionLogDoc.java:16` | P1-12 |
-| `ReadSeqPersistenceWriter` 单线程 | `ReadSeqPersistenceWriter.java:31` | P1-13 |
+| ~~`ReadSeqPersistenceWriter` 单线程~~ | ~~`ReadSeqPersistenceWriter.java:31`~~ | **已修复 2026-07-09**：按 userId hash 分桶多线程 drain |
 | `getOfflinePushUserIds` Mongo 全扫 | | 索引补全 |
 
 ## 7. 边界

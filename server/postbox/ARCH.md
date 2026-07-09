@@ -16,12 +16,10 @@
 ## 2. 发送热路径（`MessageSenderImpl.sendMessage`）
 
 1. 生成 `serverMsgId`（`IdGenerator.generateMsgId()`，line 71）
-2. 黑名单校验 Dubbo `friendRelationService.isBlocked`（line 109）
-3. 用户 receiveOpt Dubbo `userServiceFacade.getReceiveOptions`（line 114）
-4. 会话 receiveOpt Dubbo `conversationService.getReceiveOption`（line 123）
-5. 发布 ingress event
+2. 单聊权限聚合 Dubbo `MessageSendPermissionService.check`：一次返回黑名单、用户 receiveOpt、会话 receiveOpt（2026-07-09 P2-14）
+3. 发布 ingress event
 
-⚠️ **三次同步 Dubbo 是发送 RTT 瓶颈**。ASSESSMENT P2-14 是合并项；新代码**不要**再加同步 Dubbo 调用。
+~~三次同步 Dubbo 是发送 RTT 瓶颈。~~ **已修复 2026-07-09**：发送热路径不再分别调用 `FriendRelationService` / `UserInfoService` / `ConversationService`，统一由 business 聚合。
 
 ## 3. Ingress 事件分区
 
@@ -52,5 +50,6 @@
 ## 7. 改动评估 checklist
 
 - [ ] 改 `MessageSender` 签名会同时影响 api-server、postmaster、NotificationSender
+- [ ] 改 `MessageSendPermissionService` 返回语义需同步 business 聚合实现与 postbox 判定逻辑
 - [ ] 改 ingress event 结构需同步 `IngressEventListener`（postmaster）
 - [ ] 改历史 block 切分逻辑需同步客户端按 seq range 拉取逻辑
