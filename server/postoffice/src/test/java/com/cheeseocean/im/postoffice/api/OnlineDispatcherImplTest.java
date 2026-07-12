@@ -146,7 +146,7 @@ class OnlineDispatcherImplTest {
         OnlineDispatcherImpl service = new OnlineDispatcherImpl(connectionManager);
 
         DispatchPayload payload = payload("friend-evt-1", "refresh");
-        payload.getExt().put("notificationType", "friend_request_created");
+        payload.getMsg().getAttributes().put("notificationType", "friend_request_created");
 
         DispatchMessageReq req = new DispatchMessageReq();
         req.setUserId("userB");
@@ -164,17 +164,21 @@ class OnlineDispatcherImplTest {
         assertEquals(CommandType.CHAT_RECV.getCode(), frame.get("command"));
         @SuppressWarnings("unchecked")
         Map<String, Object> body = (Map<String, Object>) frame.get("body");
-        assertEquals("friend_request_created", ((Map<?, ?>) body.get("ext")).get("notificationType"));
+        assertEquals("friend_request_created", ((Map<?, ?>) body.get("msg")).get("attributes") instanceof Map<?, ?> attributes
+                ? attributes.get("notificationType") : null);
     }
 
     private static DispatchPayload payload(String serverMsgId, String content) {
         DispatchPayload payload = new DispatchPayload();
-        payload.setServerMsgId(serverMsgId);
-        payload.setConversationId("single:userA:userB");
-        payload.setSeq(1L);
-        payload.setContentType(101);
-        payload.setContent(content);
-        payload.setSendTime(System.currentTimeMillis());
+        com.cheeseocean.im.common.api.dto.message.Message message = new com.cheeseocean.im.common.api.dto.message.Message();
+        message.setServerMsgId(serverMsgId);
+        message.setContent(content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        message.setContentType(com.cheeseocean.im.common.api.enums.ContentType.TEXT);
+        message.setChatType(com.cheeseocean.im.common.api.enums.ChatType.PRIVATE);
+        message.setSeq(1L);
+        message.setSendTime(System.currentTimeMillis());
+        message.setAttributes(new java.util.HashMap<>());
+        payload.setMsg(message);
         return payload;
     }
 }

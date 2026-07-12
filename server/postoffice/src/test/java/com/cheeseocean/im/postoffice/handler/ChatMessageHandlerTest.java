@@ -3,21 +3,21 @@ package com.cheeseocean.im.postoffice.handler;
 import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.dto.message.SendMessageResp;
 import com.cheeseocean.im.common.api.enums.ChatType;
-import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
-import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
-import com.cheeseocean.im.common.api.rpc.MessageSender;
 import com.cheeseocean.im.common.api.enums.CommandType;
 import com.cheeseocean.im.common.api.enums.ConnectionState;
 import com.cheeseocean.im.common.api.enums.ContentType;
+import com.cheeseocean.im.common.api.enums.PlatformType;
+import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
+import com.cheeseocean.im.common.api.protocol.ProtoMessageMapper;
+import com.cheeseocean.im.common.api.rpc.MessageSender;
 import com.cheeseocean.im.postoffice.auth.ConnectionSessionGuard;
 import com.cheeseocean.im.postoffice.connection.ConnectionContext;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
@@ -30,91 +30,69 @@ class ChatMessageHandlerTest {
 
     @Test
     void normalChatSendShouldReturnChatSendEnvelope() {
-        MessageSender messageSender = mock(MessageSender.class);
+        MessageSender sender = mock(MessageSender.class);
         ConnectionSessionGuard guard = mock(ConnectionSessionGuard.class);
         doNothing().when(guard).ensureAuthenticated(any(UserConnection.class));
-        when(messageSender.sendMessage(any())).thenAnswer(invocation -> {
-            SendMessageResp resp = new SendMessageResp();
-            resp.setAccepted(true);
-            resp.setServerMsgId("server-1");
-            return resp;
-        });
+        SendMessageResp response = new SendMessageResp();
+        response.setAccepted(true);
+        response.setServerMsgId("server-1");
+        when(sender.sendMessage(any())).thenReturn(response);
 
-        ChatMessageHandler handler = new ChatMessageHandler();
-        ReflectionTestUtils.setField(handler, "messageSender", messageSender);
-        ReflectionTestUtils.setField(handler, "objectMapper", new ObjectMapper());
-        ReflectionTestUtils.setField(handler, "messageSendReqMapper", new MessageSendReqMapper());
-        ReflectionTestUtils.setField(handler, "connectionSessionGuard", guard);
-
-        MessageHandler.HandleResult result = handler.handle(authenticatedConnection(), textEnvelope());
+        MessageHandler.HandleResult result = handler(sender, guard).handle(connection(), envelope(message("user-2")));
 
         assertTrue(result.isSuccess());
-        ServerEnvelope responseEnvelope = result.getResponseEnvelope();
-        assertNotNull(responseEnvelope);
-        assertEquals(CommandType.CHAT_SEND, responseEnvelope.getCommand());
-        verify(messageSender).sendMessage(any());
+        assertEquals(CommandType.CHAT_SEND_ACK, result.getResponseEnvelope().getCommand());
+        verify(sender).sendMessage(any());
     }
 
     @Test
-    void invalidSessionShouldReturnErrorEnvelopeWithoutCallingMessageSender() {
-        MessageSender messageSender = mock(MessageSender.class);
+    void invalidPrivateMessageShouldReturnErrorWithoutSending() {
+        MessageSender sender = mock(MessageSender.class);
         ConnectionSessionGuard guard = mock(ConnectionSessionGuard.class);
         doNothing().when(guard).ensureAuthenticated(any(UserConnection.class));
 
-        ChatMessageHandler handler = new ChatMessageHandler();
-        ReflectionTestUtils.setField(handler, "messageSender", messageSender);
-        ReflectionTestUtils.setField(handler, "objectMapper", new ObjectMapper());
-        ReflectionTestUtils.setField(handler, "messageSendReqMapper", new MessageSendReqMapper());
-        ReflectionTestUtils.setField(handler, "connectionSessionGuard", guard);
+        MessageHandler.HandleResult result = handler(sender, guard).handle(connection(), envelope(message("")));
 
-        MessageHandler.HandleResult result = handler.handle(authenticatedConnection(), invalidEnvelope());
-
-        assertTrue(!result.isSuccess());
+        assertFalse(result.isSuccess());
         assertEquals(CommandType.ERROR, result.getResponseEnvelope().getCommand());
-        verifyNoInteractions(messageSender);
+        verifyNoInteractions(sender);
     }
 
-    private static ClientEnvelope textEnvelope() {
-        Message request = new Message();
-        request.setChatType(ChatType.PRIVATE.getCode());
-        request.setReceiverId("user-2");
-        request.setClientMsgId("client-1");
-        request.setContentType(ContentType.TEXT.getCode());
-        request.setContent("hello");
+    private static ChatMessageHandler handler(MessageSender sender, ConnectionSessionGuard guard) {
+        ChatMessageHandler handler = new ChatMessageHandler();
+        ReflectionTestUtils.setField(handler, "messageSender", sender);
+        ReflectionTestUtils.setField(handler, "connectionSessionGuard", guard);
+        return handler;
+    }
 
+    private static ClientEnvelope envelope(Message message) {
         ClientEnvelope envelope = new ClientEnvelope();
         envelope.setCommand(CommandType.CHAT_SEND);
-        envelope.setRequestId("op-chat-1");
-        envelope.setBody(request);
+        envelope.setRequestId("chat-1");
+        envelope.setBody(ProtoMessageMapper.toProto(message).toByteArray());
         return envelope;
     }
 
-    private static ClientEnvelope invalidEnvelope() {
-        Message request = new Message();
-        request.setChatType(ChatType.PRIVATE.getCode());
-        request.setClientMsgId("client-1");
-        request.setContentType(ContentType.TEXT.getCode());
-        request.setContent("hello");
-
-        ClientEnvelope envelope = new ClientEnvelope();
-        envelope.setCommand(CommandType.CHAT_SEND);
-        envelope.setRequestId("op-invalid-1");
-        envelope.setBody(request);
-        return envelope;
+    private static Message message(String receiverId) {
+        Message message = new Message();
+        message.setClientMsgId("client-1");
+        message.setReceiverId(receiverId);
+        message.setContent("hello".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        message.setContentType(ContentType.TEXT);
+        message.setChatType(ChatType.PRIVATE);
+        return message;
     }
 
-    private static UserConnection authenticatedConnection() {
+    private static UserConnection connection() {
         UserConnection connection = new UserConnection();
         connection.setConnectionID("conn-1");
         connection.setUserID("user-1");
         connection.setAuthenticated("token");
-
         ConnectionContext context = new ConnectionContext();
         context.setConnId("conn-1");
         context.setUserId("user-1");
         context.setSessionId("session-1");
-        context.setDeviceId("device-1");
-        context.setPlatformCode(2);
+        context.setPlatformCode(PlatformType.IOS);
         context.setState(ConnectionState.AUTHENTICATED);
         connection.setContext(context);
         return connection;

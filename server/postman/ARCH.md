@@ -41,7 +41,7 @@ postman `DeliveryEventListener.resolveTargets` 已**移除** `ChatType.GROUP` �
 
 `ConnectionManager.markDeliveryIfAbsent`（postoffice 模块）已委托 `DeliveryDedupStore`；生产环境注入 `RedisDeliveryDedupStore`，用 Redis `SET NX EX` 做跨节点去重并通过 TTL 自动回收（ASSESSMENT P0-5 已修复）。
 
-`MessagePushServiceImpl.attempts` / `deliveryStates`（line 31-32）也是 `ConcurrentHashMap` 本地存储，**多副本会重复推送**。ASSESSMENT P4-24 修复项 → 迁 Redis。
+`MessagePushServiceImpl` 已通过 `PushStateStore` 使用 Redis 维护 attempt 与 delivery state（2026-07-11，ASSESSMENT P4-24）。同一 `serverMsgId` 的状态放入一个 Redis HASH，Lua claim 会先拒绝 `ONLINE_CONFIRMED` / `READ`，再原子检查并写入 `attempt:{userId}`；多 postman 副本中只有一个能调用厂商推送。状态默认保留 24 小时，可用 `CHEESEIM_PUSH_STATE_TTL_SECONDS` 调整。
 
 ## 5. 离线推送 5 厂商
 

@@ -99,12 +99,58 @@ message ProtoChatSendAck {
   int64 send_time = 3;
 }
 
+// 会话已读高水位命令。业务处理尚未启用时，网关必须拒绝 CHAT_READ。
+message ProtoChatReadCommand {
+  string conversation_id = 1;
+  int64 read_seq = 2;
+  string device_id = 3;
+  string op_id = 4;
+}
+
+// 已读状态变更通知，单聊可通知对端，群聊第一阶段仅同步阅读者自身设备。
+message ProtoChatReadNotify {
+  string conversation_id = 1;
+  string reader_id = 2;
+  int64 read_seq = 3;
+  int64 updated_at = 4;
+}
+
+// 撤回命令。server_msg_id 定位历史消息，conversation_id 防止跨会话误操作。
+message ProtoChatRevokeCommand {
+  string conversation_id = 1;
+  string server_msg_id = 2;
+  string op_id = 3;
+  string reason = 4;
+}
+
+// 撤回 mutation 通知，不作为普通聊天消息写入历史块。
+message ProtoChatRevokeNotify {
+  string conversation_id = 1;
+  string server_msg_id = 2;
+  string operator_user_id = 3;
+  string operator_name = 4;
+  string target_sender_id = 5;
+  string target_sender_name = 6;
+  int64 revoked_at = 7;
+  int64 mutation_version = 8;
+}
+
+// 强制下线通知。reason 面向用户展示，session/device 用于客户端精确清理本地状态。
+message ProtoForceLogoutNotify {
+  string reason = 1;
+  string session_id = 2;
+  string device_id = 3;
+  int64 occurred_at = 4;
+}
+
 message ProtoClientEnvelope {
   int32 command = 1;
   string request_id = 2;
   oneof payload {
     ProtoAuthRequest auth = 10;
     ProtoMessage chat_message = 11;
+    ProtoChatReadCommand chat_read = 12;
+    ProtoChatRevokeCommand chat_revoke = 13;
   }
 }
 
@@ -118,5 +164,8 @@ message ProtoServerEnvelope {
     ProtoChatSendAck chat_send_ack = 12;
     ProtoMessage chat_message = 13;
     ProtoErrorResponse error = 14;
+    ProtoChatReadNotify chat_read_notify = 15;
+    ProtoChatRevokeNotify chat_revoke_notify = 16;
+    ProtoForceLogoutNotify force_logout = 17;
   }
 }

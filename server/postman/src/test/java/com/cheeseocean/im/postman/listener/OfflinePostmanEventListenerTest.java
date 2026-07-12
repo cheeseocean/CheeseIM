@@ -7,6 +7,7 @@ import com.cheeseocean.im.common.api.protocol.ProtoOfflinePushEventMapper;
 import com.cheeseocean.im.common.api.route.OnlineRouteQueryService;
 import com.cheeseocean.im.postman.service.impl.MessagePushServiceImpl;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 
@@ -24,7 +25,7 @@ class OfflinePostmanEventListenerTest {
         when(onlineRouteQueryService.findByUser("userB")).thenReturn(List.of(new RouteSnapshot()));
 
         MessagePushServiceImpl messagePushService = mock(MessagePushServiceImpl.class);
-        OfflinePushEventListener listener = new OfflinePushEventListener(messagePushService, onlineRouteQueryService);
+        OfflinePushEventListener listener = listener(messagePushService, onlineRouteQueryService);
 
         listener.onMessage(ProtoOfflinePushEventMapper.toProto(event()).toByteArray());
 
@@ -39,7 +40,7 @@ class OfflinePostmanEventListenerTest {
         MessagePushServiceImpl messagePushService = mock(MessagePushServiceImpl.class);
         when(messagePushService.pushOffline(any(OfflinePushEvent.class))).thenReturn(PushResult.success("userB", "offline-push"));
 
-        OfflinePushEventListener listener = new OfflinePushEventListener(messagePushService, onlineRouteQueryService);
+        OfflinePushEventListener listener = listener(messagePushService, onlineRouteQueryService);
         listener.onMessage(ProtoOfflinePushEventMapper.toProto(event()).toByteArray());
 
         verify(messagePushService).pushOffline(any(OfflinePushEvent.class));
@@ -53,5 +54,12 @@ class OfflinePostmanEventListenerTest {
         event.setServerMsgId("msg-1");
         event.setContent("hello");
         return event;
+    }
+
+    private static OfflinePushEventListener listener(MessagePushServiceImpl messagePushService,
+                                                      OnlineRouteQueryService onlineRouteQueryService) {
+        OfflinePushEventListener listener = new OfflinePushEventListener(messagePushService);
+        ReflectionTestUtils.setField(listener, "onlineRouteQueryService", onlineRouteQueryService);
+        return listener;
     }
 }

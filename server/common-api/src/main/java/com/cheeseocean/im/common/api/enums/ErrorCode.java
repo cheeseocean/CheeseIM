@@ -19,7 +19,11 @@ public enum ErrorCode implements IEnum {
     /** 消息发送失败。 */
     MSG_SEND_FAILED(1004, "消息发送失败"),
     /** 系统内部错误。 */
-    INTERNAL_ERROR(1005, "系统内部错误");
+    INTERNAL_ERROR(1005, "系统内部错误"),
+    /** 请求频率超过服务保护阈值。 */
+    RATE_LIMITED(1006, "请求过于频繁"),
+    /** 幂等键已被同一请求使用。 */
+    IDEMPOTENCY_CONFLICT(1007, "请求正在处理或已处理");
 
     private final int code;
     private final String desc;

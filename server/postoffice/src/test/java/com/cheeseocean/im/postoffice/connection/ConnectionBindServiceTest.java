@@ -1,6 +1,7 @@
 package com.cheeseocean.im.postoffice.connection;
 
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
+import com.cheeseocean.im.common.api.enums.PlatformType;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -35,7 +36,7 @@ class ConnectionBindServiceTest {
         ArgumentCaptor<UserConnection> captor = ArgumentCaptor.forClass(UserConnection.class);
         verify(connectionManager).addConnection(captor.capture());
         UserConnection bound = captor.getValue();
-        assertEquals(2, bound.getPlatformType());
-        assertEquals(2, bound.getContext().getPlatformCode());
+        assertEquals(PlatformType.ANDROID, bound.getPlatformType());
+        assertEquals(PlatformType.ANDROID, bound.getContext().getPlatformCode());
     }
 }

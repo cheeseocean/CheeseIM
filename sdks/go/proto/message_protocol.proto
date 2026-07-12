@@ -97,12 +97,53 @@ message ProtoChatSendAck {
   int64 send_time = 3;
 }
 
+message ProtoChatReadCommand {
+  string conversation_id = 1;
+  int64 read_seq = 2;
+  string device_id = 3;
+  string op_id = 4;
+}
+
+message ProtoChatReadNotify {
+  string conversation_id = 1;
+  string reader_id = 2;
+  int64 read_seq = 3;
+  int64 updated_at = 4;
+}
+
+message ProtoChatRevokeCommand {
+  string conversation_id = 1;
+  string server_msg_id = 2;
+  string op_id = 3;
+  string reason = 4;
+}
+
+message ProtoChatRevokeNotify {
+  string conversation_id = 1;
+  string server_msg_id = 2;
+  string operator_user_id = 3;
+  string operator_name = 4;
+  string target_sender_id = 5;
+  string target_sender_name = 6;
+  int64 revoked_at = 7;
+  int64 mutation_version = 8;
+}
+
+message ProtoForceLogoutNotify {
+  string reason = 1;
+  string session_id = 2;
+  string device_id = 3;
+  int64 occurred_at = 4;
+}
+
 message ProtoClientEnvelope {
   int32 command = 1;
   string request_id = 2;
   oneof payload {
     ProtoAuthRequest auth = 10;
     ProtoMessage chat_message = 11;
+    ProtoChatReadCommand chat_read = 12;
+    ProtoChatRevokeCommand chat_revoke = 13;
   }
 }
 
@@ -116,5 +157,8 @@ message ProtoServerEnvelope {
     ProtoChatSendAck chat_send_ack = 12;
     ProtoMessage chat_message = 13;
     ProtoErrorResponse error = 14;
+    ProtoChatReadNotify chat_read_notify = 15;
+    ProtoChatRevokeNotify chat_revoke_notify = 16;
+    ProtoForceLogoutNotify force_logout = 17;
   }
 }

@@ -10,9 +10,14 @@ public class PushAttempt {
     private boolean cancelled;
 
     public PushAttempt(String serverMsgId, String userId) {
+        this(serverMsgId, userId, Instant.now(), false);
+    }
+
+    public PushAttempt(String serverMsgId, String userId, Instant createdAt, boolean cancelled) {
         this.serverMsgId = serverMsgId;
         this.userId = userId;
-        this.createdAt = Instant.now();
+        this.createdAt = createdAt;
+        this.cancelled = cancelled;
     }
 
     public String getServerMsgId() {

@@ -30,6 +30,8 @@ CheeseIM 的 TCP 与 WebSocket 长连接协议统一使用 Protobuf envelope。�
 | `auth` | 长连接认证请求，包含 HTTP 签发的 ticket。 |
 | `heartbeat` | 心跳。 |
 | `chat_message` | 客户端发送的 `ProtoMessage`。 |
+| `chat_read` | 已读高水位控制命令。**当前仅声明协议，服务端尚未启用。** |
+| `chat_revoke` | 消息撤回控制命令。**当前仅声明协议，服务端尚未启用。** |
 
 服务端下行使用 `ProtoServerEnvelope`：
 
@@ -41,6 +43,9 @@ CheeseIM 的 TCP 与 WebSocket 长连接协议统一使用 Protobuf envelope。�
 | `chat_send_ack` | 客户端发送消息后的 ACK。 |
 | `chat_message` | 服务端投递给客户端的消息。 |
 | `error` | 协议或业务错误。 |
+| `chat_read_notify` | 已读高水位变更通知。当前由后续已读链路启用。 |
+| `chat_revoke_notify` | 撤回 mutation 通知。当前由后续撤回链路启用。 |
+| `force_logout` | 强制下线通知，含 reason/session/device/occurred_at。 |
 
 ## Message
 
@@ -65,4 +70,5 @@ CheeseIM 的 TCP 与 WebSocket 长连接协议统一使用 Protobuf envelope。�
 - 客户端不能自增或信任本地 seq，最终 seq 由 `postmaster` 分配。
 - 客户端发送消息后应以 `chat_send_ack` 判断服务端接入结果。
 - 历史同步通过 HTTP 会话同步接口按 seq range 拉取，不通过长连接补偿全部历史。
+- `chat_read` / `chat_revoke` 已具备类型化 payload，但在 `ReadStateService` / `MessageMutationService` 实现前仍会被网关拒绝；客户端不可将其视为已上线能力。
 - 已废弃 JSON 命令体和旧回执枚举等历史协议概念。

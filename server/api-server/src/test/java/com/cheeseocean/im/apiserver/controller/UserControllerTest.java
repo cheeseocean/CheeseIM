@@ -35,7 +35,7 @@ class UserControllerTest {
 
         mockMvc.perform(get("/api/im/user/settings").header("Authorization", "Bearer token"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.globalRecvMsgOpt").value(2));
+                .andExpect(jsonPath("$.receiveOpt").value(2));
     }
 
     private static SessionPrincipal session(String userId) {

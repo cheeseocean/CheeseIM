@@ -3,6 +3,7 @@ package com.cheeseocean.im.business.service.conversation;
 import com.cheeseocean.im.common.api.business.domain.UserConversation;
 import com.cheeseocean.im.common.api.conversation.ConversationService;
 import com.cheeseocean.im.common.api.dto.conversation.PullMessages;
+import com.cheeseocean.im.common.api.dto.conversation.ReadSeqUpdate;
 import com.cheeseocean.im.common.api.dto.conversation.SeqRangeRequest;
 import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.enums.ContentType;
@@ -167,8 +168,10 @@ class ConversationSyncServiceImplTest {
                 readSeqPersistenceWriter
         );
 
-        service.ackReadSeq("u100", "s:u100:u200", 9L);
+        ReadSeqUpdate update = service.ackReadSeq("u100", "s:u100:u200", 9L);
 
+        assertTrue(update.isChanged());
+        assertEquals(9L, update.getReadSeq());
         verify(stateStore).setUserReadSeq("u100", "s:u100:u200", 9L);
         verify(stateStore).setUnread("u100", "s:u100:u200", 1);
         verify(readSeqPersistenceWriter).enqueue("u100", "s:u100:u200", 9L);

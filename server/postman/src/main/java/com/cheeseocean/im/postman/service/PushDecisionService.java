@@ -1,23 +1,21 @@
 package com.cheeseocean.im.postman.service;
 
-import com.cheeseocean.im.common.api.dto.push.OfflinePushReq;
 import com.cheeseocean.im.common.api.enums.DeliveryState;
 import com.cheeseocean.im.postman.entity.PushAttempt;
+import com.cheeseocean.im.postman.state.PushStateStore;
 import org.springframework.stereotype.Service;
-
-import java.util.Optional;
 
 @Service
 public class PushDecisionService {
 
-    public PushDecision decide(String userId, OfflinePushReq message, DeliveryState deliveryState, Optional<PushAttempt> existingAttempt) {
-        if (deliveryState == DeliveryState.ONLINE_CONFIRMED || deliveryState == DeliveryState.READ) {
+    public PushDecision decide(PushStateStore.PushClaim claim) {
+        if (claim.deliveryState() == DeliveryState.ONLINE_CONFIRMED || claim.deliveryState() == DeliveryState.READ) {
             return new PushDecision(false, null, "already-confirmed");
         }
-        if (existingAttempt.isPresent()) {
-            return new PushDecision(false, existingAttempt.get(), "duplicate-attempt");
+        if (claim.duplicateAttempt()) {
+            return new PushDecision(false, null, "duplicate-attempt");
         }
-        return new PushDecision(true, new PushAttempt(message.getServerMsgId(), userId), "created");
+        return new PushDecision(claim.claimed(), claim.claimedAttempt(), claim.claimed() ? "created" : "claim-rejected");
     }
 
     public record PushDecision(boolean shouldPush, PushAttempt attempt, String reason) {

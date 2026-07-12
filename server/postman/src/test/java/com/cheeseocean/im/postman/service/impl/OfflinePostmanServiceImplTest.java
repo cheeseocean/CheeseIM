@@ -1,6 +1,7 @@
 package com.cheeseocean.im.postman.service.impl;
 
 import com.cheeseocean.im.common.api.dto.message.Message;
+import com.cheeseocean.im.common.api.dto.message.MessageOptions;
 import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.core.constants.MessageDisplayConstants;
 import com.cheeseocean.im.common.api.enums.ContentType;
@@ -25,6 +26,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -69,10 +71,10 @@ class OfflinePostmanServiceImplTest {
         testMessage.setServerMsgId("test-msg-123");
         testMessage.setSenderId("sender-123");
         testMessage.setReceiverId("receiver-123");
-        testMessage.setContent("Test message content");
-        testMessage.setContentType(ContentType.TEXT.getCode());
-        testMessage.setChatType(ChatType.PRIVATE.getCode());
-        testMessage.setSenderNickname("Test Sender");
+        testMessage.setContent("Test message content".getBytes(StandardCharsets.UTF_8));
+        testMessage.setContentType(ContentType.TEXT);
+        testMessage.setChatType(ChatType.PRIVATE);
+        testMessage.setSenderNickName("Test Sender");
 
         // 设置目标用户
         targetUsers = Arrays.asList("user1", "user2");
@@ -170,10 +172,10 @@ class OfflinePostmanServiceImplTest {
         notificationMessage.setServerMsgId("notification-msg-1");
         notificationMessage.setSenderId("system");
         notificationMessage.setReceiverId("user1");
-        notificationMessage.setContent("Your policy was updated");
-        notificationMessage.setContentType(ContentType.SYSTEM_NOTIFY.getCode());
-        notificationMessage.setChatType(ChatType.NOTIFICATION.getCode());
-        notificationMessage.setOptions(Map.of("notification", true));
+        notificationMessage.setContent("Your policy was updated".getBytes(StandardCharsets.UTF_8));
+        notificationMessage.setContentType(ContentType.SYSTEM_NOTIFY);
+        notificationMessage.setChatType(ChatType.NOTIFICATION);
+        notificationMessage.setOptions(notificationOptions());
 
         OfflinePushResult result = offlinePushService.pushMessageToUsers(notificationMessage, List.of("user1"));
 
@@ -205,10 +207,10 @@ class OfflinePostmanServiceImplTest {
         notificationMessage.setServerMsgId("notification-msg-2");
         notificationMessage.setSenderId("system");
         notificationMessage.setReceiverId("user1");
-        notificationMessage.setContent("   ");
-        notificationMessage.setContentType(ContentType.FORCE_LOGOUT.getCode());
-        notificationMessage.setChatType(ChatType.NOTIFICATION.getCode());
-        notificationMessage.setOptions(Map.of("notification", true));
+        notificationMessage.setContent("   ".getBytes(StandardCharsets.UTF_8));
+        notificationMessage.setContentType(ContentType.FORCE_LOGOUT);
+        notificationMessage.setChatType(ChatType.NOTIFICATION);
+        notificationMessage.setOptions(notificationOptions());
 
         OfflinePushResult result = offlinePushService.pushMessageToUsers(notificationMessage, List.of("user1"));
 
@@ -239,10 +241,10 @@ class OfflinePostmanServiceImplTest {
         imageMessage.setServerMsgId("image-msg-1");
         imageMessage.setSenderId("userA");
         imageMessage.setReceiverId("user1");
-        imageMessage.setContent("");
-        imageMessage.setContentType(ContentType.IMAGE.getCode());
-        imageMessage.setChatType(ChatType.GROUP.getCode());
-        imageMessage.setSenderNickname(null);
+        imageMessage.setContent(new byte[0]);
+        imageMessage.setContentType(ContentType.IMAGE);
+        imageMessage.setChatType(ChatType.GROUP);
+        imageMessage.setSenderNickName(null);
 
         OfflinePushResult result = offlinePushService.pushMessageToUsers(imageMessage, List.of("user1"));
 
@@ -273,9 +275,9 @@ class OfflinePostmanServiceImplTest {
         messageWithoutSessionType.setServerMsgId("missing-session-type");
         messageWithoutSessionType.setSenderId("userA");
         messageWithoutSessionType.setReceiverId("user1");
-        messageWithoutSessionType.setContent("hello");
-        messageWithoutSessionType.setContentType(ContentType.TEXT.getCode());
-        messageWithoutSessionType.setSenderNickname("userA");
+        messageWithoutSessionType.setContent("hello".getBytes(StandardCharsets.UTF_8));
+        messageWithoutSessionType.setContentType(ContentType.TEXT);
+        messageWithoutSessionType.setSenderNickName("userA");
 
         OfflinePushResult result = offlinePushService.pushMessageToUsers(messageWithoutSessionType, List.of("user1"));
 
@@ -385,5 +387,11 @@ class OfflinePostmanServiceImplTest {
         assertTrue(result);
         verify(hashOperations).putAll(anyString(), any(Map.class));
         verify(redisTemplate).expire(anyString(), anyLong(), any());
+    }
+
+    private static MessageOptions notificationOptions() {
+        MessageOptions options = new MessageOptions();
+        options.setNotification(true);
+        return options;
     }
 }

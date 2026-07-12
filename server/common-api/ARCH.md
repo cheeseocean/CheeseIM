@@ -19,7 +19,7 @@
 
 - 文件：`src/main/proto/message_protocol.proto`，包 `cheeseim.protocol`。
 - 两个顶层 envelope：`ProtoClientEnvelope`（C→S）、`ProtoServerEnvelope`（S→C），均用 `oneof payload`。
-- `CommandType` 声明了 `CHAT_READ(33)/CHAT_REVOKE(34)/FORCE_LOGOUT(35)` 但 proto 里**没有对应 payload 消息**，未补齐前不要在线路上启用。
+- `CHAT_READ(33)` / `CHAT_REVOKE(34)` / `FORCE_LOGOUT(35)` 已有类型化 command/notify payload（2026-07-11）；`CHAT_READ` / `CHAT_REVOKE` 的 handler 与业务服务尚未实现，未启用前网关仍会拒绝命令。
 - 控制面（conversation sync / friend / group）当前**只走 Java Dubbo POJO**，未在 proto 中表达，多语言客户端需自行映射。
 
 ## 3. ConversationId 规范（强约束）

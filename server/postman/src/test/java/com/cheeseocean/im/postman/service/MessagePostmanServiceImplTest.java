@@ -10,6 +10,7 @@ import com.cheeseocean.im.common.api.enums.DeliveryState;
 import com.cheeseocean.im.postman.entity.OfflinePushResult;
 import com.cheeseocean.im.postman.entity.PushAttempt;
 import com.cheeseocean.im.postman.service.impl.MessagePushServiceImpl;
+import com.cheeseocean.im.postman.state.PushStateStore;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -29,7 +30,7 @@ class MessagePostmanServiceImplTest {
     void shouldNotPushWhenAnotherDeviceAlreadyConfirmedReceipt() {
         OfflinePushService offlinePushService = mock(OfflinePushService.class);
         PushDecisionService decisionService = new PushDecisionService();
-        MessagePushServiceImpl service = new MessagePushServiceImpl(offlinePushService, decisionService);
+        MessagePushServiceImpl service = service(offlinePushService, decisionService);
 
         OfflinePushReq message = new OfflinePushReq();
         message.setServerMsgId("s-1");
@@ -47,7 +48,7 @@ class MessagePostmanServiceImplTest {
         OfflinePushService offlinePushService = mock(OfflinePushService.class);
         when(offlinePushService.pushMessageToUser(any(), eq("userB"))).thenReturn(OfflinePushResult.success(java.util.List.of("userB")));
 
-        MessagePushServiceImpl service = new MessagePushServiceImpl(offlinePushService, new PushDecisionService());
+        MessagePushServiceImpl service = service(offlinePushService, new PushDecisionService());
 
         OfflinePushReq message = new OfflinePushReq();
         message.setServerMsgId("s-2");
@@ -66,7 +67,7 @@ class MessagePostmanServiceImplTest {
         OfflinePushService offlinePushService = mock(OfflinePushService.class);
         when(offlinePushService.pushMessageToUser(any(), eq("userB"))).thenReturn(OfflinePushResult.success(java.util.List.of("userB")));
 
-        MessagePushServiceImpl service = new MessagePushServiceImpl(offlinePushService, new PushDecisionService());
+        MessagePushServiceImpl service = service(offlinePushService, new PushDecisionService());
 
         OfflinePushReq message = new OfflinePushReq();
         message.setServerMsgId("s-3");
@@ -84,7 +85,7 @@ class MessagePostmanServiceImplTest {
         OfflinePushService offlinePushService = mock(OfflinePushService.class);
         when(offlinePushService.pushMessageToUser(any(), eq("userB"))).thenReturn(OfflinePushResult.success(java.util.List.of("userB")));
 
-        MessagePushServiceImpl service = new MessagePushServiceImpl(offlinePushService, new PushDecisionService());
+        MessagePushServiceImpl service = service(offlinePushService, new PushDecisionService());
 
         OfflinePushEvent task = new OfflinePushEvent();
         task.setServerMsgId("s-4");
@@ -106,5 +107,52 @@ class MessagePostmanServiceImplTest {
         assertTrue(options != null && Boolean.TRUE.equals(options.getNotification()));
         assertEquals(ChatType.NOTIFICATION, messageCaptor.getValue().getChatType());
         assertEquals(ContentType.SYSTEM_NOTIFY, messageCaptor.getValue().getContentType());
+    }
+
+    private static MessagePushServiceImpl service(OfflinePushService offlinePushService,
+                                                  PushDecisionService decisionService) {
+        return new MessagePushServiceImpl(offlinePushService, decisionService, new InMemoryPushStateStore());
+    }
+
+    private static final class InMemoryPushStateStore implements PushStateStore {
+        private final java.util.Map<String, PushAttempt> attempts = new java.util.HashMap<>();
+        private final java.util.Map<String, DeliveryState> states = new java.util.HashMap<>();
+
+        @Override
+        public synchronized PushClaim claimPush(String serverMsgId, String userId) {
+            String key = key(serverMsgId, userId);
+            DeliveryState state = states.getOrDefault(key, DeliveryState.INBOXED);
+            if (state == DeliveryState.ONLINE_CONFIRMED || state == DeliveryState.READ) {
+                return new PushClaim(null, state, false);
+            }
+            if (attempts.containsKey(key)) return new PushClaim(null, state, true);
+            PushAttempt attempt = new PushAttempt(serverMsgId, userId);
+            attempts.put(key, attempt);
+            return new PushClaim(attempt, state, false);
+        }
+
+        @Override
+        public void cancelAttempt(String serverMsgId, String userId) {
+            attempts.computeIfAbsent(key(serverMsgId, userId), ignored -> new PushAttempt(serverMsgId, userId)).cancel();
+        }
+
+        @Override
+        public void recordDeliveryState(String serverMsgId, String userId, DeliveryState state) {
+            states.put(key(serverMsgId, userId), state);
+        }
+
+        @Override
+        public java.util.Optional<PushAttempt> findAttempt(String serverMsgId, String userId) {
+            return java.util.Optional.ofNullable(attempts.get(key(serverMsgId, userId)));
+        }
+
+        @Override
+        public java.util.Optional<PushAttempt> findAnyAttempt(String serverMsgId) {
+            return attempts.values().stream().filter(attempt -> attempt.getServerMsgId().equals(serverMsgId)).findFirst();
+        }
+
+        private String key(String serverMsgId, String userId) {
+            return serverMsgId + ":" + userId;
+        }
     }
 }

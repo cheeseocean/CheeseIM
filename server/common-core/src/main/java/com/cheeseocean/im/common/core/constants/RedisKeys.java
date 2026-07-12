@@ -142,6 +142,30 @@ public final class RedisKeys {
         return "idem:delivery:" + serverMsgId + ":" + userId + ":" + connectionId;
     }
 
+    /**
+     * postman 离线推送的跨副本状态。
+     *
+     * <p>一个 serverMsgId 对应一个 HASH，field 按 userId 区分 attempt 与 delivery state，
+     * 以便 Lua 在单 key 内原子判断“已读/已确认”和“是否已有推送尝试”。
+     */
+    public static String postmanPushState(String serverMsgId) {
+        return "push:state:" + serverMsgId;
+    }
+
+    /**
+     * HTTP API 固定窗口限流计数器。
+     *
+     * <p>来源地址在进入 Redis 前已散列，避免把原始网络地址作为持久化 key 的一部分。
+     */
+    public static String apiRateLimit(String clientFingerprint, long windowBucket) {
+        return "rate:api:" + clientFingerprint + ":" + windowBucket;
+    }
+
+    /** HTTP 写接口幂等占位 key。 */
+    public static String apiIdempotency(String userId, String method, String path, String keyFingerprint) {
+        return "idem:api:" + userId + ":" + method + ":" + path + ":" + keyFingerprint;
+    }
+
     public static String consumerDedup(String consumerGroup, String eventId) {
         return "idem:consumer:" + consumerGroup + ":" + eventId;
     }

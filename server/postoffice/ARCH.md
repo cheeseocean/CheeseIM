@@ -22,6 +22,7 @@
 | `OnlineDispatcherImpl` | `api/OnlineDispatcherImpl.java:67` | Dubbo 投递入口，仅本地 dispatch |
 | `KickoffCommandServiceImpl` | `kickoff/KickoffCommandServiceImpl.java` | Dubbo 踢下线接口，按 `gatewayNode` 定向本地执行或节点队列转发 |
 | `HeartbeatMessageHandler` | `handler/HeartbeatMessageHandler.java:42` | 心跳处理 |
+| `ChatReadMessageHandler` | `handler/ChatReadMessageHandler.java` | 已读命令入口：认证、payload 校验、调用共享 readSeq 状态服务并返回 typed ACK |
 | `TcpEnvelopeEncoder` / `Decoder` | `codec/` | Protobuf wire 编解码 |
 
 ## 3. 路由表契约

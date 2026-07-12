@@ -10,7 +10,7 @@
 CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已补齐多节点能力**的早期开源 IM 服务端。其模块边界（postoffice / postbox / postmaster / postman / authcenter / business / common-api / common-core）和"邮政"隐喻清晰，业内少见。
 
 - 单节点 `postoffice` + Redis + Mongo 的实测上限大致在 **10-30 万并发长连接**。
-- P0 主链路（节点身份、群扩散、路由原子化、投递去重、Kafka 端到端）已修复；P1 中的 ConnectionManager 分片锁、跨节点踢下线、HistoryQuery fail-closed/分页已完成，authcenter `tokenVersion`/ban 持久化与 WS ticket 原子 consume 已完成，当前瓶颈转为 **存储分片、MessageIdMapping 批量写、多副本推送状态与长压验证**。
+- P0 主链路（节点身份、群扩散、路由原子化、投递去重、Kafka 端到端）已修复；P1 中的 ConnectionManager 分片锁、跨节点踢下线、HistoryQuery fail-closed/分页、MessageIdMapping 批量写已完成，authcenter `tokenVersion`/ban 持久化与 WS ticket 原子 consume 已完成，当前瓶颈转为 **存储分片、多副本推送状态与长压验证**。
 - 架构骨架本身可演进到百万级，**不需要推倒重写**；后续以容量压测和 P1/P2 瓶颈治理为主。
 
 ---
@@ -55,7 +55,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 
 ### C. 已声明协议但未在链路上接通
 
-- `CommandType.CHAT_READ(33) / CHAT_REVOKE(34) / FORCE_LOGOUT(35)` 在 `message_protocol.proto` 中**无对应 payload 消息**，链路上未实现。
+- `CHAT_READ` / `CHAT_REVOKE` 的业务链路仍未实现；其 typed command/notify payload 与 `FORCE_LOGOUT` notify payload 已补入 `message_protocol.proto`（2026-07-11），但在 `ReadStateService` / `MessageMutationService` 落地前网关继续拒绝这两个命令。
 - `IngressEventListener.preProcessReadReceipts` 注释掉，已读回执链路未闭环。
 - WS 路径实际走 JSON（`ConnectionManager.sendTransportMessage` 的 ObjectMapper 分支），未统一为 Protobuf。
 
@@ -131,7 +131,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 
 ### P1 — 存储与索引（4-8 周）
 
-7. **Mongo 副本集 + 分片**：声明 `sh.shardCollection`。`message_block` 按 `conversationId hash` 分片，`message_id_mapping` 按 `serverMsgId hash` 分片，`UserConversationDoc` 按 `ownerUserId hash`。
+7. ~~**Mongo 副本集 + 分片**：声明 `sh.shardCollection`。~~ **仓库侧已完成 2026-07-11**：新增 `distro/mongo/enable-im-sharding.js`，在已就绪的 mongos 上幂等声明 `message_block(conversationId hashed)`、`message_id_mapping(serverMsgId hashed)`、`conversation(ownerUserId hashed)`，并补齐对应查询索引。实际生产集群执行仍由部署流程负责，脚本遇到已有不兼容 shard key 会失败，避免静默漂移。
 8. ~~**历史块批量写**：`BlockHistoryPersistenceService` 收批后 unordered bulk insert。~~ **已完成 2026-07-08**：一个 `HistoryEvent` 内 id mapping 与按 blockNo 分桶的块更新各合入一个 unordered `bulkOps` upsert（`_id` 幂等，重放安全）；删除循环逐条 `mappingRepository.save`，`MessageIdMappingRepository` 无使用点一并删除。
 9. ~~**历史分页改 blockNo range**：`getConversationMessages` 改为按 block 二分定位起始块再顺序读，避免全扫。~~ **已完成 2026-07-07**：按 latest blockNo + range 窗口读取，`message_block` 增 `conversationId + blockNo` 复合索引。
 10. ~~**附件查询去 regex**：`BlockMessageQueryService.findAttachmentCandidates` 的 `content.regex` 改为附件元数据表（`_id=attachmentId`）。~~ **已完成 2026-07-08**：新增 `attachment_metadata` 集合（`_id=attachmentId`），postmaster 历史持久化时对 `ContentType.hasAttachment()`（IMAGE/VOICE/VIDEO/FILE）消息从 content JSON 提取 `attachmentId` 批量 upsert；postbox `findAttachmentCandidate` 改为点查。原 regex 查询的 `content` 字段在 `message_id_mapping` 上并不存在，属死查询。
@@ -148,16 +148,16 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 
 ### P3 — 功能补齐
 
-18. **协议补全**：在 `message_protocol.proto` 为 `CHAT_READ/CHAT_REVOKE/FORCE_LOGOUT` 增加类型化 payload；conversation sync / friend / group 控制面用 Protobuf 表达，便于多语言客户端。已读/撤回的产品与架构决策见 `server/docs/architecture/read-revoke-design.md`。
+18. **协议补全**：~~在 `message_protocol.proto` 为 `CHAT_READ/CHAT_REVOKE/FORCE_LOGOUT` 增加类型化 payload；~~ **已完成 2026-07-11**：新增 typed command/notify payload 并写入 client/server envelope oneof，Java/Go 生成产物同步。conversation sync / friend / group 控制面仍待 Protobuf 表达。已读/撤回的产品与架构决策见 `server/docs/architecture/read-revoke-design.md`。
 19. **WS 协议统一为 Protobuf**（当前 JSON），与 TCP 一致。
-20. **已读回执链路**：按 `read-revoke-design.md` 落 `ReadStateService`，单聊默认公开 peer readSeq，群聊第一阶段只维护个人 read cursor。
+20. **已读回执链路**：**部分完成 2026-07-11**：TCP `CHAT_READ` 已解码 typed payload 并复用 `ConversationSyncService.ackReadSeq` 做会话可见性校验、maxSeq 截断、Redis 单调 readSeq 推进与 Mongo write-behind，向请求端返回 typed read ACK；单聊 peer readSeq fanout、群聊其他端同步与 `ReadStateService` 独立契约仍待完成。
 21. **消息撤回/编辑、富媒体（图片/文件上传 token 服务）、会话删除入口**：撤回按 `message_mutation(REVOKED)` overlay 设计，第一阶段支持 2 分钟内发送者撤回给所有人。
 
 ### P4 — 运维与一致性
 
-22. **限流/幂等**：api-server 入口 RateLimiter + Redis SETNX 幂等 key。
+22. ~~**限流/幂等**：api-server 入口 RateLimiter + Redis SETNX 幂等 key。~~ **已完成 2026-07-11**：Redis Lua 固定窗口 RateLimiter 按来源地址散列后的 key 在多副本间共享计数，超额返回 HTTP 429，Redis 不可用时放行；携带 `Idempotency-Key` 的鉴权 POST/PUT/DELETE 以 `userId + method + path + key 指纹` 做 Redis SETNX，重复请求返回 HTTP 409。当前不缓存首次响应，客户端需要响应重放时需另行设计状态/响应缓存协议。
 23. ~~**集群部署 profile**：新增 `application-cluster.yml`，含 Redis Sentinel/Cluster、Mongo replica URI、Kafka bootstrap、Nacos namespace 分离；删除 `common.yml` 中注释掉的 Redis/Kafka。~~ **已完成 2026-07-08**：`application-cluster.yml` 作为分模块 profile overlay，默认 `cheeseim.queue.type=kafka` 与 `cheeseim.conversation-seq.deployment-mode=cluster`；`MONGODB_URI`、`KAFKA_BOOTSTRAP_SERVERS`、`NACOS_SERVER_ADDR`、`NACOS_NAMESPACE`、`REDIS_SENTINEL_*` / `REDIS_CLUSTER_*`、`JETCACHE_REDIS_HOST` / `JETCACHE_REDIS_PORT` 均走环境变量，不向 cluster 默认写入 localhost。
-24. **多副本一致性**：`MessagePushServiceImpl.attempts/deliveryStates` 迁到 Redis；~~`tokenVersion` 真正 bump；ban 标志落 Mongo 持久化~~（2026-07-08 已完成 authcenter 用户级安全状态持久化）。
+24. ~~**多副本一致性**：`MessagePushServiceImpl.attempts/deliveryStates` 迁到 Redis；~~`tokenVersion` 真正 bump；ban 标志落 Mongo 持久化~~。~~ **已完成 2026-07-11**：新增 `PushStateStore` / `RedisPushStateStore`，以每个 serverMsgId 一个 Redis HASH 存 attempt 与 per-user delivery state；Lua 在单 key 内原子拒绝 `ONLINE_CONFIRMED`/`READ` 或既有 attempt，只有一个 postman 副本可取得离线推送 claim。状态默认 TTL 24h，可由 `CHEESEIM_PUSH_STATE_TTL_SECONDS` 调整。
 25. ~~**WS ticket 用 Lua 原子 consume**。~~ **已完成 2026-07-08**：`SessionStateStore` 增加原子 consume 契约，Redis/RocksDB 两种后端均实现一次性消费。
 26. **Mongo 副本 + 查询 secondary 读偏好** 读写分离。
 27. **指标分级**：已有 actuator + Prometheus，补齐 per-conversation seq lag、queue lag、online route hit/miss、push attempt counter。Grafana dashboard 模板。

@@ -63,6 +63,10 @@ cheese:
         cache-expire-days: 7
         default-group-chat-read-type: READ_ALL
 
+cheeseim:
+  push-state:
+    ttl-seconds: ${CHEESEIM_PUSH_STATE_TTL_SECONDS:86400}
+
 management:
   endpoints:
     web:

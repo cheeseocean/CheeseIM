@@ -1,6 +1,7 @@
 package com.cheeseocean.im.apiserver.auth;
 
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.MethodParameter;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.support.WebDataBinderFactory;
@@ -30,6 +31,13 @@ public class CurrentPrincipalArgumentResolver implements HandlerMethodArgumentRe
                                   ModelAndViewContainer mavContainer,
                                   NativeWebRequest webRequest,
                                   WebDataBinderFactory binderFactory) {
+        HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
+        if (request != null) {
+            Object cached = request.getAttribute(AccessTokenSessionResolver.REQUEST_PRINCIPAL_ATTRIBUTE);
+            if (cached instanceof SessionPrincipal principal) {
+                return principal;
+            }
+        }
         return accessTokenSessionResolver.resolve(webRequest.getHeader("Authorization"));
     }
 }

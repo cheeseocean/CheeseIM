@@ -5,10 +5,13 @@ import com.cheeseocean.im.common.api.enums.CommandType;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoAuthRequest;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoAuthResponse;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoChatSendAck;
+import com.cheeseocean.im.common.api.protocol.proto.ProtoChatReadNotify;
+import com.cheeseocean.im.common.api.protocol.proto.ProtoChatRevokeNotify;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoClientEnvelope;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoConnectResponse;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoErrorResponse;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoHeartbeatResponse;
+import com.cheeseocean.im.common.api.protocol.proto.ProtoForceLogoutNotify;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoServerEnvelope;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -42,6 +45,9 @@ public final class ProtoEnvelopeMapper {
             case HEARTBEAT -> builder.setHeartbeat(toHeartbeatResponse(envelope.getBody()));
             case CHAT_SEND_ACK -> builder.setChatSendAck(toChatSendAck(envelope.getBody()));
             case CHAT_RECV -> builder.setChatMessage(ProtoMessageMapper.toProto(toDispatchPayload(envelope.getBody()).getMsg()));
+            case CHAT_READ -> builder.setChatReadNotify(toChatReadNotify(envelope.getBody()));
+            case CHAT_REVOKE -> builder.setChatRevokeNotify(toChatRevokeNotify(envelope.getBody()));
+            case FORCE_LOGOUT -> builder.setForceLogout(toForceLogoutNotify(envelope.getBody()));
             case ERROR -> builder.setError(toErrorResponse(envelope.getBody()));
             default -> builder.setError(ProtoErrorResponse.newBuilder()
                     .setCode(500)
@@ -55,6 +61,8 @@ public final class ProtoEnvelopeMapper {
         return switch (proto.getPayloadCase()) {
             case AUTH -> proto.getAuth().toByteArray();
             case CHAT_MESSAGE -> proto.getChatMessage().toByteArray();
+            case CHAT_READ -> proto.getChatRead().toByteArray();
+            case CHAT_REVOKE -> proto.getChatRevoke().toByteArray();
             case PAYLOAD_NOT_SET -> null;
         };
     }
@@ -121,6 +129,40 @@ public final class ProtoEnvelopeMapper {
         return builder.build();
     }
 
+    private static ProtoChatReadNotify toChatReadNotify(Object body) {
+        Map<?, ?> map = OBJECT_MAPPER.convertValue(body, Map.class);
+        return ProtoChatReadNotify.newBuilder()
+                .setConversationId(stringValue(map.get("conversationId")))
+                .setReaderId(stringValue(map.get("readerId")))
+                .setReadSeq(longValue(map.get("readSeq")))
+                .setUpdatedAt(longValue(map.get("updatedAt")))
+                .build();
+    }
+
+    private static ProtoChatRevokeNotify toChatRevokeNotify(Object body) {
+        Map<?, ?> map = OBJECT_MAPPER.convertValue(body, Map.class);
+        return ProtoChatRevokeNotify.newBuilder()
+                .setConversationId(stringValue(map.get("conversationId")))
+                .setServerMsgId(stringValue(map.get("serverMsgId")))
+                .setOperatorUserId(stringValue(map.get("operatorUserId")))
+                .setOperatorName(stringValue(map.get("operatorName")))
+                .setTargetSenderId(stringValue(map.get("targetSenderId")))
+                .setTargetSenderName(stringValue(map.get("targetSenderName")))
+                .setRevokedAt(longValue(map.get("revokedAt")))
+                .setMutationVersion(longValue(map.get("mutationVersion")))
+                .build();
+    }
+
+    private static ProtoForceLogoutNotify toForceLogoutNotify(Object body) {
+        Map<?, ?> map = OBJECT_MAPPER.convertValue(body, Map.class);
+        return ProtoForceLogoutNotify.newBuilder()
+                .setReason(stringValue(map.get("reason")))
+                .setSessionId(stringValue(map.get("sessionId")))
+                .setDeviceId(stringValue(map.get("deviceId")))
+                .setOccurredAt(longValue(map.get("occurredAt")))
+                .build();
+    }
+
     private static DispatchPayload toDispatchPayload(Object body) {
         return OBJECT_MAPPER.convertValue(body, DispatchPayload.class);
     }
@@ -139,5 +181,9 @@ public final class ProtoEnvelopeMapper {
 
     private static String stringValue(Object value) {
         return value == null ? "" : String.valueOf(value);
+    }
+
+    private static long longValue(Object value) {
+        return value instanceof Number number ? number.longValue() : 0L;
     }
 }

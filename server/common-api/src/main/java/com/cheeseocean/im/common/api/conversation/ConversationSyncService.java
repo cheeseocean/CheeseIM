@@ -2,6 +2,7 @@ package com.cheeseocean.im.common.api.conversation;
 
 import com.cheeseocean.im.common.api.dto.conversation.ConversationReadSnapshot;
 import com.cheeseocean.im.common.api.dto.conversation.PullMessages;
+import com.cheeseocean.im.common.api.dto.conversation.ReadSeqUpdate;
 import com.cheeseocean.im.common.api.dto.conversation.SeqRangeRequest;
 
 import java.util.List;
@@ -37,5 +38,5 @@ public interface ConversationSyncService {
     /**
      * 确认用户在指定会话中的已读位点。
      */
-    void ackReadSeq(String userId, String conversationId, long readSeq);
+    ReadSeqUpdate ackReadSeq(String userId, String conversationId, long readSeq);
 }

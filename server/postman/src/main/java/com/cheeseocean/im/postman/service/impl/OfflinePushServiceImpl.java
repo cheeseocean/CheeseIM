@@ -17,12 +17,12 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.nio.charset.StandardCharsets;
 
 /**
  * 离线推送服务实现
@@ -303,7 +303,7 @@ public class OfflinePushServiceImpl implements OfflinePushService {
         if (isNotificationMessage(message)) {
             return MessageDisplayConstants.PUSH_TITLE_SYSTEM_NOTIFICATION;
         }
-        ChatType chatType = message.getChatType();
+        ChatType chatType = message.getChatType() == null ? ChatType.PRIVATE : message.getChatType();
         if (chatType == ChatType.PRIVATE) {
             // 单聊
             return message.getSenderNickName() != null ? message.getSenderNickName() : MessageDisplayConstants.PUSH_TITLE_NEW_MESSAGE;
@@ -319,8 +319,9 @@ public class OfflinePushServiceImpl implements OfflinePushService {
      * 生成推送内容
      */
     private String generatePushContent(Message message) {
-        String content = Arrays.toString(message.getContent());
-        if (content == null || content.trim().isEmpty()) {
+        byte[] rawContent = message.getContent();
+        String content = rawContent == null ? "" : new String(rawContent, StandardCharsets.UTF_8);
+        if (content.isBlank()) {
             if (isNotificationMessage(message)) {
                 return MessageDisplayConstants.PUSH_CONTENT_NEW_SYSTEM_NOTIFICATION;
             }
@@ -376,11 +377,13 @@ public class OfflinePushServiceImpl implements OfflinePushService {
             pushMessage.setPlatformID(platformID);
 
             if (originalMessage != null) {
-                ChatType chatType = originalMessage.getChatType();
+                ChatType chatType = originalMessage.getChatType() == null
+                        ? ChatType.PRIVATE : originalMessage.getChatType();
+                ContentType contentType = originalMessage.getContentType();
                 pushMessage.setMessageID(originalMessage.getServerMsgId());
                 pushMessage.setSenderID(originalMessage.getSenderId());
                 pushMessage.setSenderNickname(originalMessage.getSenderNickName());
-                pushMessage.setMessageType(originalMessage.getContentType().getCode());
+                pushMessage.setMessageType(contentType == null ? ContentType.TEXT.getCode() : contentType.getCode());
                 pushMessage.setConversationType(chatType.getCode());
 
                 if (chatType == ChatType.PRIVATE) {

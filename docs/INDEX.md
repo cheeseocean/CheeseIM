@@ -70,6 +70,7 @@
 | 路径 | 状态 | 说明 |
 | --- | --- | --- |
 | `distro/docker/docker-compose.middleware.yml` | 权威 | 中间件本地启动 |
+| `distro/mongo/enable-im-sharding.js` | 权威 | 已就绪 Mongo 分片集群的 CheeseIM 集合分片与索引初始化脚本 |
 | `server/config/src/main/resources/application-*.yml` | 权威 | 模块配置（详见 `server/AGENTS.md`） |
 
 ## 六、缺失文档（建议补）
