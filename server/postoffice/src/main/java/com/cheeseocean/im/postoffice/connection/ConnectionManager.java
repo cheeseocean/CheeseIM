@@ -1,12 +1,12 @@
 package com.cheeseocean.im.postoffice.connection;
 
 import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
+import com.cheeseocean.im.common.api.protocol.ProtoEnvelopeMapper;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.postoffice.dedup.DeliveryDedupStore;
 import com.cheeseocean.im.postoffice.service.OnlineRouteService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.channel.Channel;
-import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,9 +39,6 @@ public class ConnectionManager {
      */
     private static final int CONNECTION_LOCK_SHARDS = 64;
     
-    @Autowired
-    private ObjectMapper objectMapper;
-
     @Autowired(required = false)
     private OnlineRouteService onlineRouteService;
 
@@ -447,8 +444,9 @@ public class ConnectionManager {
             if ("TCP".equalsIgnoreCase(connection.getProtocol())) {
                 connection.getChannel().writeAndFlush(envelope);
             } else {
-                String messageJson = objectMapper.writeValueAsString(serializeEnvelope(envelope));
-                connection.getChannel().writeAndFlush(new TextWebSocketFrame(messageJson));
+                byte[] payload = ProtoEnvelopeMapper.toProto(envelope).toByteArray();
+                connection.getChannel().writeAndFlush(new BinaryWebSocketFrame(
+                        connection.getChannel().alloc().buffer(payload.length).writeBytes(payload)));
             }
             connection.incrementSendMsg();
             
@@ -460,14 +458,6 @@ public class ConnectionManager {
         }
     }
 
-    private Map<String, Object> serializeEnvelope(ServerEnvelope envelope) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("command", envelope.getCommand() == null ? null : envelope.getCommand().getCode());
-        payload.put("requestId", envelope.getRequestId());
-        payload.put("body", envelope.getBody());
-        return payload;
-    }
-    
     /**
      * 向用户的所有连接发送消息
      */

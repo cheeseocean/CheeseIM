@@ -9,6 +9,8 @@ spring:
       group-id: postman-delivery-group
 
 cheeseim:
+  message:
+    revoke-window-seconds: ${CHEESEIM_MESSAGE_REVOKE_WINDOW_SECONDS:120}
   postman:
 
 logging:

@@ -9,10 +9,10 @@ import com.cheeseocean.im.postman.entity.OfflinePushConfig;
 import com.cheeseocean.im.postman.entity.OfflinePushResult;
 import com.cheeseocean.im.postman.entity.PushMessage;
 import com.cheeseocean.im.postman.service.OfflinePushService;
+import com.cheeseocean.im.postman.state.PushStateStore;
 import com.cheeseocean.im.postman.provider.PushProvider;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -35,14 +35,20 @@ public class OfflinePushServiceImpl implements OfflinePushService {
     
     private static final Logger logger = CommonLoggers.POSTMAN;
     
-    @Autowired
-    private List<PushProvider> pushProviders;
-    
-    @Autowired
-    private DeviceTokenServiceImpl deviceTokenService;
+    private final List<PushProvider> pushProviders;
+    private final DeviceTokenServiceImpl deviceTokenService;
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final PushStateStore pushStateStore;
 
-    @Autowired
-    private RedisTemplate<String, Object> redisTemplate;
+    public OfflinePushServiceImpl(List<PushProvider> pushProviders,
+                                  DeviceTokenServiceImpl deviceTokenService,
+                                  RedisTemplate<String, Object> redisTemplate,
+                                  PushStateStore pushStateStore) {
+        this.pushProviders = pushProviders;
+        this.deviceTokenService = deviceTokenService;
+        this.redisTemplate = redisTemplate;
+        this.pushStateStore = pushStateStore;
+    }
     
     /**
      * 用户离线推送配置缓存Key前缀
@@ -98,15 +104,6 @@ public class OfflinePushServiceImpl implements OfflinePushService {
                             return;
                         }
                         
-                        // 检查是否达到每日推送上限
-                        if (config.isReachedDailyLimit()) {
-                            synchronized (failedUsers) {
-                                failedUsers.add(userID);
-                                userErrors.put(userID, "已达到每日推送上限");
-                            }
-                            return;
-                        }
-                        
                         // 生成推送内容
                         String title = generatePushTitle(message);
                         String content = generatePushContent(message);
@@ -122,50 +119,59 @@ public class OfflinePushServiceImpl implements OfflinePushService {
                             }
                             return;
                         }
+
+                        // 先原子预占配额，避免多个 postman 副本同时越过每日上限。
+                        int maxDailyCount = config.getMaxDailyCount() == null ? 0 : config.getMaxDailyCount();
+                        if (!pushStateStore.claimDailyQuota(userID, maxDailyCount)) {
+                            synchronized (failedUsers) {
+                                failedUsers.add(userID);
+                                userErrors.put(userID, "已达到每日推送上限");
+                            }
+                            return;
+                        }
                         
                         // 发送推送消息
                         boolean userPushSuccess = false;
                         StringBuilder userErrorBuilder = new StringBuilder();
-                        
-                        for (PushMessage pushMessage : pushMessages) {
-                            // 选择推送提供商
-                            PushProvider provider = selectPushProvider(pushMessage.getPlatformType());
-                            if (provider == null) {
-                                userErrorBuilder.append("平台").append(pushMessage.getPlatformType().getDisplayName())
-                                               .append("无可用推送提供商; ");
-                                continue;
-                            }
-                            
-                            // 发送推送
-                            PushProvider.PushResult pushResult = provider.sendPush(pushMessage);
-                            
-                            synchronized (providerResults) {
-                                providerResults.put(userID + "_" + provider.getProviderName(), 
-                                                  pushResult.isSuccess() ? "成功" : pushResult.getErrorMessage());
-                            }
-                            
-                            if (pushResult.isSuccess()) {
-                                userPushSuccess = true;
-                                break; // 任意一个平台推送成功即可
-                            } else {
+                        try {
+                            for (PushMessage pushMessage : pushMessages) {
+                                // 选择推送提供商
+                                PushProvider provider = selectPushProvider(pushMessage.getPlatformType());
+                                if (provider == null) {
+                                    userErrorBuilder.append("平台").append(pushMessage.getPlatformType().getDisplayName())
+                                            .append("无可用推送提供商; ");
+                                    continue;
+                                }
+
+                                // 发送推送
+                                PushProvider.PushResult pushResult = provider.sendPush(pushMessage);
+
+                                synchronized (providerResults) {
+                                    providerResults.put(userID + "_" + provider.getProviderName(),
+                                            pushResult.isSuccess() ? "成功" : pushResult.getErrorMessage());
+                                }
+
+                                if (pushResult.isSuccess()) {
+                                    userPushSuccess = true;
+                                    break; // 任意一个平台推送成功即可
+                                }
                                 userErrorBuilder.append(provider.getProviderName())
-                                               .append(": ").append(pushResult.getErrorMessage()).append("; ");
+                                        .append(": ").append(pushResult.getErrorMessage()).append("; ");
                             }
-                        }
-                        
-                        if (userPushSuccess) {
-                            synchronized (successUsers) {
-                                successUsers.add(userID);
+
+                            if (userPushSuccess) {
+                                synchronized (successUsers) {
+                                    successUsers.add(userID);
+                                }
+                            } else {
+                                synchronized (failedUsers) {
+                                    failedUsers.add(userID);
+                                    userErrors.put(userID, userErrorBuilder.toString());
+                                }
                             }
-                            
-                            // 更新用户每日推送计数
-                            config.setCurrentDailyCount(config.getCurrentDailyCount() + 1);
-                            updateUserOfflinePushConfig(userID, config);
-                            
-                        } else {
-                            synchronized (failedUsers) {
-                                failedUsers.add(userID);
-                                userErrors.put(userID, userErrorBuilder.toString());
+                        } finally {
+                            if (!userPushSuccess) {
+                                pushStateStore.releaseDailyQuota(userID);
                             }
                         }
                         
@@ -239,11 +245,14 @@ public class OfflinePushServiceImpl implements OfflinePushService {
             Map<Object, Object> configMap = redisTemplate.opsForHash().entries(configKey);
             
             if (configMap != null && !configMap.isEmpty()) {
-                return mapToOfflinePushConfig(configMap);
+                OfflinePushConfig config = mapToOfflinePushConfig(configMap);
+                config.setCurrentDailyCount(pushStateStore.getDailyPushCount(userID));
+                return config;
             }
             
             // 缓存未命中，创建默认配置
             OfflinePushConfig config = new OfflinePushConfig(userID);
+            config.setCurrentDailyCount(pushStateStore.getDailyPushCount(userID));
             
             // 缓存配置
             Map<String, Object> configData = offlinePushConfigToMap(config);
@@ -492,7 +501,6 @@ public class OfflinePushServiceImpl implements OfflinePushService {
         map.put("userID", config.getUserID());
         map.put("enabled", config.isEnabled());
         map.put("maxDailyCount", config.getMaxDailyCount());
-        map.put("currentDailyCount", config.getCurrentDailyCount());
         map.put("quietStartTime", config.getQuietStartTime());
         map.put("quietEndTime", config.getQuietEndTime());
         map.put("allowDuringQuietTime", config.isAllowDuringQuietTime());

@@ -482,11 +482,17 @@ public class ConversationServiceImpl implements ConversationService {
             return;
         }
         Map<String, ConversationVersionOperation> lastOperationByConversation = new LinkedHashMap<>();
+        Set<String> readStateChangedConversationIds = new LinkedHashSet<>();
         for (ConversationVersionLog log : logs) {
             if (log != null && !isBlank(log.getConversationId()) && log.getOperation() != null) {
+                if (log.getOperation() == ConversationVersionOperation.READ_STATE_UPDATED) {
+                    readStateChangedConversationIds.add(log.getConversationId());
+                    continue;
+                }
                 lastOperationByConversation.put(log.getConversationId(), log.getOperation());
             }
         }
+        result.setReadStateChangedConversationIds(new ArrayList<>(readStateChangedConversationIds));
         List<String> upsertIds = lastOperationByConversation.entrySet().stream()
                 .filter(entry -> entry.getValue() != ConversationVersionOperation.DELETE)
                 .map(Map.Entry::getKey)

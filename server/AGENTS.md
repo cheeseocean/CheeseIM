@@ -171,8 +171,8 @@ api-server Controller  ──HTTP──> Facade ──Dubbo──> business / po
 - 协议源在 `server/common-api/src/main/proto/message_protocol.proto`。
 - 改完必须 `./gradlew :common-api:generateProto` 重生成；不要手改 `protocol/` 目录下生成代码。
 - 新字段用类型化 nested message，不要用 `int32` 套复杂结构。
-- `CHAT_READ/CHAT_REVOKE/FORCE_LOGOUT` 当前缺 payload message，**协议字段未补齐前不要在线路上启用**（见 ASSESSMENT P3-18）。
-- WS 当前混 JSON，新代码不要再新增 JSON 路径（见根 AGENTS 第 6 条）。
+- `CHAT_READ/CHAT_REVOKE/FORCE_LOGOUT` 均已有 typed payload；`CHAT_READ` 与 `CHAT_REVOKE` 已接通，撤回历史必须 merge mutation overlay，禁止物理删除原消息块。
+- TCP/WS 当前均使用 typed Protobuf envelope，WS 为 Binary Frame；新代码禁止重新引入 JSON 客户端命令路径。
 
 ## 11. 测试
 

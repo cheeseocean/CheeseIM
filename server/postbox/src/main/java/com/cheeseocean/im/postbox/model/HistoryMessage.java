@@ -18,4 +18,9 @@ public class HistoryMessage {
     private String content;
     private MessagePreviewType previewType;
     private Long sendTime;
+    private boolean revoked;
+    private String revokeOperatorUserId;
+    private String revokeOperatorName;
+    private Long revokedAt;
+    private Long mutationVersion;
 }

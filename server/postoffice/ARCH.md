@@ -8,10 +8,10 @@
 | 协议 | 端口 | path | 编码 |
 | --- | --- | --- | --- |
 | TCP | 5148 | – | Protobuf（`TcpEnvelopeCodecSupport`） |
-| WS | 5147 | `/ws` | 当前 JSON（`ConnectionManager.sendTransportMessage` 的 ObjectMapper 分支） |
+| WS | 5147 | `/ws` | Protobuf Binary WebSocket Frame |
 | TLS | 可选 | – | 见 `module-postoffice.yml` |
 
-⚠️ WS 当前是 JSON，与 TCP 不一致。新代码不要再加 JSON 路径，统一向 Protobuf 收敛（根 AGENTS 第 6 条）。
+TCP/WS 共用 `ProtoClientEnvelope` / `ProtoServerEnvelope`；异步在线投递同样经 `ProtoEnvelopeMapper` 编码为 Binary Frame，不再存在 JSON 命令体分支。
 
 ## 2. 核心组件
 
@@ -23,6 +23,10 @@
 | `KickoffCommandServiceImpl` | `kickoff/KickoffCommandServiceImpl.java` | Dubbo 踢下线接口，按 `gatewayNode` 定向本地执行或节点队列转发 |
 | `HeartbeatMessageHandler` | `handler/HeartbeatMessageHandler.java:42` | 心跳处理 |
 | `ChatReadMessageHandler` | `handler/ChatReadMessageHandler.java` | 已读命令入口：认证、payload 校验、调用共享 readSeq 状态服务并返回 typed ACK |
+| `BusinessMessageExecutor` | `server/BusinessMessageExecutor.java` | connection hash 分片的有界单线程队列；业务命令离开 Netty EventLoop，同连接保序，满载返回 503 |
+| `ReadNotifyDispatcher` | `delivery/ReadNotifyDispatcher.java` | 已读位点推进后，单聊通知 peer + 阅读者其他端，群聊只同步阅读者其他端；按 gatewayNode 跨节点投递 |
+| `ChatRevokeMessageHandler` | `handler/ChatRevokeMessageHandler.java` | typed 撤回入口：认证、调用 `MessageMutationService`、返回 ACK 并触发在线通知 |
+| `RevokeNotifyDispatcher` | `delivery/RevokeNotifyDispatcher.java` | 单聊/普通群撤回按 gatewayNode 通知在线端；超级群以 mutation + 历史同步收敛 |
 | `TcpEnvelopeEncoder` / `Decoder` | `codec/` | Protobuf wire 编解码 |
 
 ## 3. 路由表契约
@@ -64,6 +68,7 @@
 2. ~~P0-1 真实 gatewayNode + Redis LIST 按节点投递~~（已修复 2026-07-07）
 3. ~~P1 ConnectionManager 分片去 global lock~~（已修复 2026-07-07）
 4. ~~P1 踢下线跨节点~~（已修复 2026-07-07，复用 `delivery:node:{nodeId}` 节点队列）
+5. ~~P2-16 Netty 业务线程隔离 + bounded queue 背压~~（已修复 2026-07-13）
 
 ## 8. 改动评估 checklist
 

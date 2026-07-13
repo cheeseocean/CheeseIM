@@ -30,7 +30,9 @@ public enum MessageStatus implements IEnum {
     /**
      * 处理或投递失败。
      */
-    FAILED(4, "失败");
+    FAILED(4, "失败"),
+    /** 原消息仍保留在历史块，但展示必须套用撤回 tombstone。 */
+    REVOKED(5, "已撤回");
 
     private final int code;
     private final String desc;

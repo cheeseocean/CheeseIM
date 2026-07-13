@@ -33,6 +33,7 @@
 - `pullMessagesBySeqRange`（line 89）：block-range-bounded，gap repair 用，健康。
 - `BlockMessageQueryService.findAttachmentCandidate`：按 `attachment_metadata._id = attachmentId` 点查后 `findSlot` 还原内容（2026-07-08 P1-10 修复，替代原 `message_id_mapping` 上的 `content.regex` 全扫——该 regex 查的 `content` 字段在 mapping 文档上并不存在，属死查询）。元数据由 postmaster `BlockHistoryPersistenceService` 对 `ContentType.hasAttachment()` 消息随历史持久化批量写入。
 - `BlockMessageQueryService.findSlot`：按 `BlockIndexUtil.docId` 点查 `_id`（修复原 `((seq-1)/100)+1` 与 `BlockIndexUtil.blockNo` 差一导致永远查错块的 bug）。
+- 历史页与 seq-range gap repair 会按本批 serverMsgId 一次查询 `message_mutation`，将 `REVOKED` overlay 合并为 tombstone；原 `message_block` 不物理改写。
 - 权限校验 `allow`：provider 缺失、RPC 异常、非预期返回时默认拒绝；仅在 30s 本地权限缓存未过期时兜底放行。
 
 ## 5. 边界

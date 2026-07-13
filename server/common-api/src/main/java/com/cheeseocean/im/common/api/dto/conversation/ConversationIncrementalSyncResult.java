@@ -46,4 +46,7 @@ public class ConversationIncrementalSyncResult implements Serializable {
      * 删除或隐藏的会话 ID。
      */
     private List<String> delete = new ArrayList<>();
+
+    /** readSeq 已变化的会话 ID；客户端据此按需刷新 read snapshot。 */
+    private List<String> readStateChangedConversationIds = new ArrayList<>();
 }

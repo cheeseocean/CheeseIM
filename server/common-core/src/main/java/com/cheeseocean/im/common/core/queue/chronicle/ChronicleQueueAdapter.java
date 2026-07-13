@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -50,6 +51,27 @@ public class ChronicleQueueAdapter implements QueueAdapter {
             context.wire().write("payload").bytes(message);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to write Chronicle queue message", e);
+        }
+    }
+
+    @Override
+    public void sendBatch(String topic, List<KeyedMessage<byte[]>> messages) {
+        if (messages == null || messages.isEmpty()) {
+            return;
+        }
+        ExcerptAppender appender = appender(topic);
+        try {
+            for (KeyedMessage<byte[]> message : messages) {
+                if (message == null) {
+                    continue;
+                }
+                try (DocumentContext context = appender.writingDocument()) {
+                    context.wire().write("key").text(message.key());
+                    context.wire().write("payload").bytes(message.payload());
+                }
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to write Chronicle queue message batch", e);
         }
     }
 

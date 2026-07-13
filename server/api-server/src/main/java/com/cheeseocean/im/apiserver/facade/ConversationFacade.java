@@ -209,6 +209,11 @@ public class ConversationFacade {
                     response.setContent(message.getContent());
                     response.setPreviewType(message.getPreviewType());
                     response.setSendTime(message.getSendTime());
+                    response.setRevoked(message.isRevoked());
+                    response.setRevokeOperatorUserId(message.getRevokeOperatorUserId());
+                    response.setRevokeOperatorName(message.getRevokeOperatorName());
+                    response.setRevokedAt(message.getRevokedAt());
+                    response.setMutationVersion(message.getMutationVersion());
                     return response;
                 })
                 .toList();

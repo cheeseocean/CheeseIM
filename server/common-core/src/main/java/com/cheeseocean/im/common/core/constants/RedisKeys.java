@@ -152,6 +152,11 @@ public final class RedisKeys {
         return "push:state:" + serverMsgId;
     }
 
+    /** 用户在指定自然日内已占用的离线推送配额。 */
+    public static String postmanDailyPushQuota(String userId, String date) {
+        return "push:daily:" + date + ":" + userId;
+    }
+
     /**
      * HTTP API 固定窗口限流计数器。
      *

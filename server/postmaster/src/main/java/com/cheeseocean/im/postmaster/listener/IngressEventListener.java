@@ -9,6 +9,7 @@ import com.cheeseocean.im.common.api.event.HistoryEvent;
 import com.cheeseocean.im.common.core.constants.TopicNames;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import com.cheeseocean.im.common.core.queue.annotation.QueueListener;
+import com.cheeseocean.im.common.core.queue.KeyedMessage;
 import com.cheeseocean.im.common.core.util.ConversationIdUtil;
 import com.cheeseocean.im.postmaster.sender.HistoryEventProducer;
 import com.cheeseocean.im.postmaster.sender.MessageProducer;
@@ -22,7 +23,9 @@ import org.slf4j.Logger;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Component
@@ -140,17 +143,23 @@ public class IngressEventListener {
         publishHistoryEvent(storageMsgList, seqBatch);
         publishHistoryEvent(storageNotificationList, notificationSeqBatch);
 
-        // 在线推送：群聊按 NORMAL_GROUP/SUPER_GROUP 分流；其它会话按消息原样 per-message publish
+        // 在线推送：按批次聚合，群聊同一 groupId 只查询一次群类型和成员。
+        List<KeyedMessage<Message>> directDeliveries = new ArrayList<>();
+        Map<String, List<Message>> groupDeliveries = new LinkedHashMap<>();
         for (EventCtx p : storageList) {
             if (!p.decision().sendDelivery()) {
                 continue;
             }
             if (p.msg().getChatType() == ChatType.GROUP) {
-                fanoutGroupDelivery(p.msg());
+                String groupId = p.msg().getGroupId();
+                groupDeliveries.computeIfAbsent(groupId == null ? "" : groupId,
+                        ignored -> new ArrayList<>()).add(p.msg());
             } else {
-                messageProducer.publish(p.convId(), p.msg());
+                directDeliveries.add(new KeyedMessage<>(p.convId(), p.msg()));
             }
         }
+        messageProducer.publishBatch(directDeliveries);
+        groupDeliveries.forEach(this::fanoutGroupDeliveryBatch);
     }
 
     /**
@@ -168,10 +177,11 @@ public class IngressEventListener {
      * 因此本方法内捕获 Dubbo/查询异常并降级为"无投递"，仅在日志记录；客户端按 seq 同步自愈。
      * 单聊的原 per-message publish 等价语义不受影响。
      */
-    private void fanoutGroupDelivery(Message groupMsg) {
-        String groupId = groupMsg.getGroupId();
+    private void fanoutGroupDeliveryBatch(String groupId, List<Message> groupMessages) {
+        Message sample = groupMessages == null || groupMessages.isEmpty() ? null : groupMessages.get(0);
         if (groupId == null || groupId.isBlank()) {
-            log.warn("Group delivery skipped: groupId is missing, serverMsgId={}", groupMsg.getServerMsgId());
+            log.warn("Group delivery skipped: groupId is missing, serverMsgId={}",
+                    sample == null ? null : sample.getServerMsgId());
             return;
         }
         GroupTypeEnum groupType;
@@ -184,8 +194,8 @@ public class IngressEventListener {
         }
         if (groupType == GroupTypeEnum.SUPER_GROUP) {
             // 读扩散：仅持久化，客户端按 seq 拉取。无投递事件 publish。
-            log.debug("Group message sent in read-fanout mode (SUPER_GROUP): groupId={}, seq={}",
-                    groupId, groupMsg.getSeq());
+            log.debug("Group messages sent in read-fanout mode (SUPER_GROUP): groupId={}, messages={}",
+                    groupId, groupMessages.size());
             return;
         }
         // null 或 NORMAL_GROUP：写扩散
@@ -197,18 +207,20 @@ public class IngressEventListener {
             return;
         }
         if (members == null || members.isEmpty()) {
-            log.warn("Group has no members to fan out: groupId={}, serverMsgId={}", groupId, groupMsg.getServerMsgId());
+            log.warn("Group has no members to fan out: groupId={}, serverMsgId={}", groupId,
+                    sample == null ? null : sample.getServerMsgId());
             return;
         }
         List<List<String>> batches = groupFanoutPlanner.partition(members);
         for (List<String> batch : batches) {
+            List<KeyedMessage<String>> targets = new ArrayList<>(batch.size());
             for (String memberId : batch) {
-                // 自发送者已在成员列表中，senderSync 由 delivery 链路按 receiverId == senderId 时自行决定
-                messageProducer.publishForMember(groupFanoutPlanner.deliveryKey(groupId, memberId), groupMsg, memberId);
+                targets.add(new KeyedMessage<>(groupFanoutPlanner.deliveryKey(groupId, memberId), memberId));
             }
+            messageProducer.publishForTargets(groupMessages, targets);
         }
-        log.debug("Group message fanned out: groupId={}, members={}, batches={}, seq={}",
-                groupId, members.size(), batches.size(), groupMsg.getSeq());
+        log.debug("Group messages fanned out: groupId={}, members={}, batches={}, messages={}",
+                groupId, members.size(), batches.size(), groupMessages.size());
     }
 
     // ── 共用私有方法 ──────────────────────────────────────────────────────────
@@ -227,10 +239,12 @@ public class IngressEventListener {
     }
 
     private void pushTransient(List<EventCtx> transientList) {
+        List<KeyedMessage<Message>> deliveries = new ArrayList<>();
         for (EventCtx ctx : transientList) {
             if (!ctx.decision().sendDelivery()) continue;
-            messageProducer.publish(ctx.convId, ctx.msg());
+            deliveries.add(new KeyedMessage<>(ctx.convId, ctx.msg()));
         }
+        messageProducer.publishBatch(deliveries);
     }
 
     private void bindSeqs(List<EventCtx> ctxList, long startSeq) {

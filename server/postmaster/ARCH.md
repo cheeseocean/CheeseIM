@@ -16,6 +16,7 @@
 | `DefaultMessagePolicyEngine` | `policy/DefaultMessagePolicyEngine.java:11` | 输出 `MessageRouteDecision`（persistHistory/notification/sendDelivery/needOfflinePush/senderSync） |
 | `GroupFanoutPlanner` | `service/GroupFanoutPlanner.java` | 群扩散规划器：成员切片 + delivery key 生成（`g:{groupId}:{memberId}`）；2026-07-06 P0-2 修复接通 |
 | `UserMaxSeqPersistenceWriter` | `service/UserMaxSeqPersistenceWriter.java` | 用户 maxSeq 异步写 Mongo（按 userId 分桶多线程 drain + 单桶聚合最大水位，workerCount/queueCapacity 可配） |
+| `MessageMutationServiceImpl` | `mutation/MessageMutationServiceImpl.java` | 按 serverMsgId 点查原消息，校验发送者/会话/两分钟窗口，幂等 upsert `message_mutation(REVOKED)` |
 
 ## 2. Ingress 处理流程（`IngressEventListener.handle`）
 
@@ -25,13 +26,13 @@
 4. 每组申请一批 seq（`ConversationSeqAllocator.allocateBatch`）并按顺序绑 seq（line 153）
 5. `createConversationIfNeeded` 同步 Dubbo 创建会话（line 173）——同步链路
 6. publish history event（per-batch）
-7. delivery 发布分两路：
+7. delivery 发布分两路（2026-07-13 已接入 `QueueAdapter.sendBatch`）：
    - 群聊（`ChatType.GROUP`）走 `fanoutGroupDelivery`：根据 `GroupMembershipFacade.loadGroupType` 返回的 `GroupTypeEnum` 选择
-     - `NORMAL_GROUP`：调 `loadGroupMembers` 查询成员 → `GroupFanoutPlanner.partition` 切片 →
-       每成员 `MessageProducer.publishForMember("g:{groupId}:{memberId}", template, memberId)` 发一份 keyed DeliveryEvent（**写扩散**）
+     - `NORMAL_GROUP`：同一 ingress 批次按 groupId 聚合，仅查询一次群类型/成员 → `GroupFanoutPlanner.partition` 切片 →
+       `MessageProducer.publishForTargets` 复用 protobuf 模板并批量发送成员级 keyed DeliveryEvent（**写扩散**）
      - `SUPER_GROUP`：不投递，仅持久化（**读扩散**），客户端按 seq 拉取
      - `null`（群不存在/Dubbo 异常）：按 NORMAL_GROUP 兜底，避免投递丢失
-   - 非群聊（单聊/通知）走原 per-message `MessageProducer.publish(convId, msg)`
+   - 非群聊（单聊/通知）聚合为 `MessageProducer.publishBatch`，同 key 顺序不变
 
 ## 3. seq 分配（生产级，委托 common-core）
 

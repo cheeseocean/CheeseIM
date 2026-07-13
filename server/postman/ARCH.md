@@ -61,7 +61,7 @@ postman `DeliveryEventListener.resolveTargets` 已**移除** `ChatType.GROUP` �
 
 - `OfflinePushServiceImpl.java:58` 用 `CompletableFuture.runAsync` 并发 fan-out
 - ⚠️ 使用 **common ForkJoinPool**（无显式 executor），1M 级 fan-out 会饿死其它 CompletableFuture 用户
-- 日推送计数（line 162）是**非原子 read-modify-write**，多副本会出错
+- 日推送计数通过 `PushStateStore.claimDailyQuota` 的 Redis Lua 在发送前原子预占，按用户/自然日计数并在次日自动过期；厂商全部失败时归还配额，多副本不会越过上限
 
 ## 7. Kafka 序列化绕过 QueueAdapter（**已修复 2026-07-07**，P0-6）
 

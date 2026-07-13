@@ -18,6 +18,7 @@ import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
 import org.springframework.kafka.listener.ContainerProperties;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class KafkaQueueAdapter implements QueueAdapter {
@@ -40,6 +41,23 @@ public class KafkaQueueAdapter implements QueueAdapter {
             kafkaTemplate.send(topic, key, message);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to publish Kafka queue message", e);
+        }
+    }
+
+    @Override
+    public void sendBatch(String topic, List<KeyedMessage<byte[]>> messages) {
+        if (messages == null || messages.isEmpty()) {
+            return;
+        }
+        try {
+            for (KeyedMessage<byte[]> message : messages) {
+                if (message != null) {
+                    // 连续提交给同一 producer，Kafka 按 batch.size/linger.ms 自动合批。
+                    kafkaTemplate.send(topic, message.key(), message.payload());
+                }
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to publish Kafka queue message batch", e);
         }
     }
 

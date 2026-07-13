@@ -10,6 +10,7 @@ import com.cheeseocean.im.postman.entity.OfflinePushConfig;
 import com.cheeseocean.im.postman.entity.OfflinePushResult;
 import com.cheeseocean.im.postman.entity.PushMessage;
 import com.cheeseocean.im.postman.provider.PushProvider;
+import com.cheeseocean.im.postman.state.PushStateStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -58,6 +59,9 @@ class OfflinePostmanServiceImplTest {
     @Mock
     private PushProvider pushProvider;
 
+    @Mock
+    private PushStateStore pushStateStore;
+
     @InjectMocks
     private OfflinePushServiceImpl offlinePushService;
 
@@ -84,6 +88,7 @@ class OfflinePostmanServiceImplTest {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(pushProviders.isEmpty()).thenReturn(false);
         when(pushProviders.iterator()).thenReturn(List.of(pushProvider).iterator());
+        when(pushStateStore.claimDailyQuota(anyString(), anyInt())).thenReturn(true);
     }
 
     @Test
@@ -345,6 +350,7 @@ class OfflinePostmanServiceImplTest {
         configMap.put("maxDailyCount", "100");
         configMap.put("currentDailyCount", "5");
         when(hashOperations.entries(anyString())).thenReturn(configMap);
+        when(pushStateStore.getDailyPushCount("user1")).thenReturn(5);
 
         // 执行测试
         OfflinePushConfig config = offlinePushService.getUserOfflinePushConfig("user1");
@@ -355,6 +361,42 @@ class OfflinePostmanServiceImplTest {
         assertTrue(config.isEnabled());
         assertEquals(100, config.getMaxDailyCount());
         assertEquals(5, config.getCurrentDailyCount());
+    }
+
+    @Test
+    void pushMessageToUsersShouldStopBeforeProviderWhenDailyQuotaIsExhausted() {
+        when(hashOperations.entries(anyString())).thenReturn(enabledConfig("user1", 1));
+        when(deviceTokenService.getUserDeviceTokens("user1")).thenReturn(Map.of(1, "ios-token-1"));
+        when(pushStateStore.claimDailyQuota("user1", 1)).thenReturn(false);
+
+        OfflinePushResult result = offlinePushService.pushMessageToUsers(testMessage, List.of("user1"));
+
+        assertTrue(result.getFailedUsers().contains("user1"));
+        verify(pushProvider, never()).sendPush(any());
+    }
+
+    @Test
+    void pushMessageToUsersShouldReleaseQuotaWhenProviderFails() {
+        when(hashOperations.entries(anyString())).thenReturn(enabledConfig("user1", 10));
+        when(deviceTokenService.getUserDeviceTokens("user1")).thenReturn(Map.of(1, "ios-token-1"));
+        when(pushProvider.supportsPlatform(PlatformType.IOS)).thenReturn(true);
+        when(pushProvider.isAvailable()).thenReturn(true);
+        when(pushProvider.getProviderName()).thenReturn("TestProvider");
+        when(pushProvider.sendPush(any(PushMessage.class)))
+                .thenReturn(PushProvider.PushResult.failure("VENDOR_UNAVAILABLE", "vendor unavailable"));
+
+        OfflinePushResult result = offlinePushService.pushMessageToUsers(testMessage, List.of("user1"));
+
+        assertTrue(result.getFailedUsers().contains("user1"));
+        verify(pushStateStore).releaseDailyQuota("user1");
+    }
+
+    private static Map<Object, Object> enabledConfig(String userId, int maxDailyCount) {
+        Map<Object, Object> config = new HashMap<>();
+        config.put("userID", userId);
+        config.put("enabled", "true");
+        config.put("maxDailyCount", String.valueOf(maxDailyCount));
+        return config;
     }
 
     @Test

@@ -25,7 +25,8 @@ public class OnlineDispatcherImpl implements OnlineDispatcher {
     @Override
     public DispatchMessageResp dispatchMessage(DispatchMessageReq req) {
         DispatchMessageResp resp = new DispatchMessageResp();
-        if (req == null || req.getUserId() == null || req.getPayload() == null) {
+        if (req == null || req.getUserId() == null || req.getPayload() == null
+                || (req.getPayload().getMsg() == null && req.getPayload().getEnvelope() == null)) {
             return resp;
         }
 
@@ -69,11 +70,16 @@ public class OnlineDispatcherImpl implements OnlineDispatcher {
 
     private DispatchResult dispatch(UserConnection connection, String userId, DispatchPayload payload) {
         String connectionId = connection.getConnectionID();
-        String serverMsgId = payload.getMsg() == null ? null : payload.getMsg().getServerMsgId();
-        if (!connectionManager.markDeliveryIfAbsent(serverMsgId, userId, connectionId)) {
+        String deliveryId = payload.getDeliveryId();
+        if (deliveryId == null && payload.getMsg() != null) {
+            deliveryId = payload.getMsg().getServerMsgId();
+        }
+        if (!connectionManager.markDeliveryIfAbsent(deliveryId, userId, connectionId)) {
             return new DispatchResult(connectionId, true, "DUPLICATE", "delivery already recorded");
         }
-        ServerEnvelope envelope = ServerEnvelope.chatRecv(serverMsgId, payload);
+        ServerEnvelope envelope = payload.getEnvelope() != null
+                ? payload.getEnvelope()
+                : ServerEnvelope.chatRecv(deliveryId, payload);
         boolean success = connectionManager.sendMessageToConnection(
                 connection,
                 envelope);

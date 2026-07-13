@@ -22,7 +22,6 @@ import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import org.slf4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.net.InetSocketAddress;
@@ -40,10 +39,17 @@ public class WsServerHandler extends SimpleChannelInboundHandler<BinaryWebSocket
 
     private static final Logger logger = CommonLoggers.POSTOFFICE;
 
-    @Autowired
-    private ConnectionManager     connectionManager;
-    @Autowired
-    private MessageHandlerFactory messageHandlerFactory;
+    private final ConnectionManager connectionManager;
+    private final MessageHandlerFactory messageHandlerFactory;
+    private final BusinessMessageExecutor businessMessageExecutor;
+
+    public WsServerHandler(ConnectionManager connectionManager,
+                           MessageHandlerFactory messageHandlerFactory,
+                           BusinessMessageExecutor businessMessageExecutor) {
+        this.connectionManager = connectionManager;
+        this.messageHandlerFactory = messageHandlerFactory;
+        this.businessMessageExecutor = businessMessageExecutor;
+    }
 
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
@@ -80,7 +86,12 @@ public class WsServerHandler extends SimpleChannelInboundHandler<BinaryWebSocket
             connection.updateLastActiveTime();
             connection.incrementRecvMsg();
 
-            handleMessage(ctx, connection, envelope);
+            if (!businessMessageExecutor.submit(ctx.channel(),
+                    () -> handleMessage(ctx, connection, envelope))) {
+                logger.warn("WebSocket business queue is full: connectionID={}, command={}",
+                        connection.getConnectionID(), envelope.getCommand());
+                sendErrorResponse(ctx, envelope.getRequestId(), 503, "服务繁忙，请稍后重试");
+            }
 
         } catch (Exception e) {
             logger.error("Failed to process message from {}", ctx.channel().remoteAddress(), e);
@@ -253,9 +264,13 @@ public class WsServerHandler extends SimpleChannelInboundHandler<BinaryWebSocket
      * 发送错误响应
      */
     private void sendErrorResponse(ChannelHandlerContext ctx, String operationID, String errorMessage) {
+        sendErrorResponse(ctx, operationID, 500, errorMessage);
+    }
+
+    private void sendErrorResponse(ChannelHandlerContext ctx, String operationID, int code, String errorMessage) {
         ServerEnvelope envelope = ServerEnvelope.error(
                 operationID == null || operationID.isBlank() ? "system" : operationID,
-                500,
+                code,
                 errorMessage
         );
         sendMessage(ctx, envelope);

@@ -19,6 +19,20 @@ public class ServerProperties {
     private final WebSocketConfig  websocket  = new WebSocketConfig();
     private final SecurityConfig   security   = new SecurityConfig();
     private final ConnectionConfig connection = new ConnectionConfig();
+    private final BusinessConfig   business   = new BusinessConfig();
+
+    /** 长连接命令处理线程池配置，独立于 Netty EventLoop。 */
+    @Data
+    public static class BusinessConfig {
+        private int threads = 0;
+        private int queueCapacity = 20000;
+
+        public int getActualThreads() {
+            return threads <= 0
+                    ? Math.max(2, Runtime.getRuntime().availableProcessors() * 2)
+                    : threads;
+        }
+    }
 
     @Data
     public static class ConnectionConfig {

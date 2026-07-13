@@ -53,11 +53,11 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 | ~~UserMaxSeq / ReadSeq 写 behind~~ | **已修复 2026-07-09**：按 userId 分桶多线程 drain，同桶内聚合最大水位，跨用户并行写 Mongo |
 | ~~ConversationVersionLog 无 TTL~~ | **已修复 2026-07-08**：`ConversationVersionLogDoc.createdAt` 增 180 天 TTL 索引 |
 
-### C. 已声明协议但未在链路上接通
+### C. 已声明协议但未在链路上接通或尚未完全统一
 
-- `CHAT_READ` / `CHAT_REVOKE` 的业务链路仍未实现；其 typed command/notify payload 与 `FORCE_LOGOUT` notify payload 已补入 `message_protocol.proto`（2026-07-11），但在 `ReadStateService` / `MessageMutationService` 落地前网关继续拒绝这两个命令。
-- `IngressEventListener.preProcessReadReceipts` 注释掉，已读回执链路未闭环。
-- WS 路径实际走 JSON（`ConnectionManager.sendTransportMessage` 的 ObjectMapper 分支），未统一为 Protobuf。
+- `CHAT_READ` 已接通 `ReadStateService`、跨节点 typed notify 与 version-log 增量信号；`CHAT_REVOKE` 已接通 `MessageMutationService`、两分钟发送者权限校验、跨节点 notify 与历史 overlay。
+- 旧 `IngressEventListener.preProcessReadReceipts` 仍是普通消息 `READ_RECEIPT` 遗留旁路；typed `CHAT_READ` 已改走独立 `ReadStateService`，不再依赖该注释路径。
+- ~~WS 异步投递路径走 JSON。~~ **已修复 2026-07-13**：`WsServerHandler` 入站/响应与 `ConnectionManager` 异步在线投递全部使用 Binary WebSocket Frame + `ProtoEnvelopeMapper`，TCP/WS 共用 typed protobuf envelope。
 
 ---
 
@@ -89,7 +89,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 - ~~`tokenVersion` 恒 1L，版本号踢下线形同虚设。~~ **已修复 2026-07-08**：access token / WS ticket / session 校验统一比较用户级 `tokenVersion`，`kickoffAll` bump 后旧令牌失效。
 - ~~用户封禁仅 Redis 缓存，flush 即解封。~~ **已修复 2026-07-08**：用户安全状态落 Mongo `user_security_state`，Redis 缓存 flush 后可回源恢复。
 - `ConversationIdUtil` 用 `s:/g:/n:/ng:`，但 `GroupController.resolveGroupId` 还在检查 `c2:` 前缀（死分支）。
-- `OfflinePushServiceImpl` 日计数增量是非原子 read-modify-write。
+- ~~`OfflinePushServiceImpl` 日计数增量是非原子 read-modify-write。~~ **已修复 2026-07-13**：`PushStateStore` 新增按用户/自然日的 Redis Lua 原子配额预占；发送前 claim，厂商全部失败时 release，计数在次日自动过期，多副本不会并发越过每日上限。
 
 ### 3.3 容量上限估算
 
@@ -142,16 +142,16 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 ### P2 — 链路性能（8-16 周）
 
 14. ~~**MessageSender 权限链合并**：黑名单/用户 receiveOpt/会话 receiveOpt 合并为单个 Dubbo `PermissionAggregate` 一次性返回；本地 Caffeine + 异步刷新。~~ **已完成 2026-07-09**：新增 `MessageSendPermissionService` 聚合契约，business 本地复用 friend/user/conversation 服务与缓存，postbox 发送热路径只保留一次同步 Dubbo。
-15. **Ingress batch 内批量 seq + 批量 Mongo upsert + 批量 delivery publish**（当前 delivery 是 per-message publish）。
-16. **postoffice 单机 C100K+**：Netty business pool 独立、`ConnectedChannel` 池化、对业务线程 bounded queue + 背压。
-17. **路由表 L1 加 pub/sub 失效广播**：复用 JetCache `broadcastChannel`，监听失效消息清 L1。
+15. ~~**Ingress batch 内批量 seq + 批量 Mongo upsert + 批量 delivery publish**。~~ **已完成 2026-07-13**：seq 已按会话整批申请，历史块与 id mapping 已走 unordered bulk upsert；本次新增 `QueueAdapter.sendBatch`，非群消息按 ingress 批次提交，普通群按 groupId 聚合后一次查询群类型/成员，复用 protobuf 模板向成员切片批量发布，消除逐消息重复 Dubbo 查询与完整序列化。
+16. **postoffice 单机 C100K+**：**线程隔离与背压已完成 2026-07-13**：新增 `BusinessMessageExecutor`，按 connection hash 路由到有界单线程分片，保证同连接命令顺序；TCP/WS 的 Dubbo/Redis 业务处理不再占用 Netty EventLoop，队列满立即返回 503。`ConnectedChannel`/连接对象池化仍待长压数据证明收益后再决定，避免提前引入对象生命周期复杂度。
+17. ~~**路由表 L1 加 pub/sub 失效广播**。~~ **不再适用**：P0-3 已将在线路由从 `MultiLevelCacheService` 迁为 `RedisOnlineRouteService` 直连 Redis HASH，当前链路不存在路由 L1，也就没有跨节点失效窗口；不要为完成旧路线重新引入本地缓存。
 
 ### P3 — 功能补齐
 
 18. **协议补全**：~~在 `message_protocol.proto` 为 `CHAT_READ/CHAT_REVOKE/FORCE_LOGOUT` 增加类型化 payload；~~ **已完成 2026-07-11**：新增 typed command/notify payload 并写入 client/server envelope oneof，Java/Go 生成产物同步。conversation sync / friend / group 控制面仍待 Protobuf 表达。已读/撤回的产品与架构决策见 `server/docs/architecture/read-revoke-design.md`。
-19. **WS 协议统一为 Protobuf**（当前 JSON），与 TCP 一致。
-20. **已读回执链路**：**部分完成 2026-07-11**：TCP `CHAT_READ` 已解码 typed payload 并复用 `ConversationSyncService.ackReadSeq` 做会话可见性校验、maxSeq 截断、Redis 单调 readSeq 推进与 Mongo write-behind，向请求端返回 typed read ACK；单聊 peer readSeq fanout、群聊其他端同步与 `ReadStateService` 独立契约仍待完成。
-21. **消息撤回/编辑、富媒体（图片/文件上传 token 服务）、会话删除入口**：撤回按 `message_mutation(REVOKED)` overlay 设计，第一阶段支持 2 分钟内发送者撤回给所有人。
+19. ~~**WS 协议统一为 Protobuf**。~~ **已完成 2026-07-13**：入站、同步响应、异步聊天/控制通知全部使用 Binary WebSocket Frame + typed protobuf envelope，与 TCP 一致。
+20. ~~**已读回执链路**。~~ **已完成 2026-07-13**：TCP/二进制 WS `CHAT_READ` 统一调用 `ReadStateService`，完成可见性校验、maxSeq 截断、Redis 单调推进与 Mongo write-behind；位点变化后通过通用 control dispatch 向单聊 peer、阅读者其他端跨 gatewayNode 推送 typed notify，群聊仅同步阅读者其他端。同步写入 `ConversationVersionLog.READ_STATE_UPDATED`，增量同步返回变化会话 ID，离线设备据此刷新 read snapshot。
+21. **消息撤回/编辑、富媒体与会话删除入口**：**撤回第一阶段已完成 2026-07-13**：`MessageMutationService` 按 serverMsgId 点查服务端 mapping，校验 conversation/发送者/服务端持久化时间两分钟窗口，以 `{serverMsgId}:REVOKED` 原子 upsert mutation；TCP/WS 返回 typed ACK，单聊/普通群跨节点通知在线端，超级群依靠 overlay 同步；历史页和 gap repair 批量 merge tombstone。消息编辑、上传 token 服务与会话删除 HTTP 入口仍待完成。
 
 ### P4 — 运维与一致性
 

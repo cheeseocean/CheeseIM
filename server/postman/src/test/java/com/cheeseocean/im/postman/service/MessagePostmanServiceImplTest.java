@@ -151,6 +151,20 @@ class MessagePostmanServiceImplTest {
             return attempts.values().stream().filter(attempt -> attempt.getServerMsgId().equals(serverMsgId)).findFirst();
         }
 
+        @Override
+        public boolean claimDailyQuota(String userId, int maxDailyCount) {
+            return true;
+        }
+
+        @Override
+        public void releaseDailyQuota(String userId) {
+        }
+
+        @Override
+        public int getDailyPushCount(String userId) {
+            return 0;
+        }
+
         private String key(String serverMsgId, String userId) {
             return serverMsgId + ":" + userId;
         }

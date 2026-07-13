@@ -15,7 +15,6 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import org.slf4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.net.InetSocketAddress;
@@ -32,11 +31,17 @@ public class TcpServerHandler extends SimpleChannelInboundHandler<ClientEnvelope
 
     private static final Logger logger = CommonLoggers.POSTOFFICE;
 
-    @Autowired
-    private ConnectionManager connectionManager;
+    private final ConnectionManager connectionManager;
+    private final MessageHandlerFactory messageHandlerFactory;
+    private final BusinessMessageExecutor businessMessageExecutor;
 
-    @Autowired
-    private MessageHandlerFactory messageHandlerFactory;
+    public TcpServerHandler(ConnectionManager connectionManager,
+                            MessageHandlerFactory messageHandlerFactory,
+                            BusinessMessageExecutor businessMessageExecutor) {
+        this.connectionManager = connectionManager;
+        this.messageHandlerFactory = messageHandlerFactory;
+        this.businessMessageExecutor = businessMessageExecutor;
+    }
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
@@ -119,8 +124,13 @@ public class TcpServerHandler extends SimpleChannelInboundHandler<ClientEnvelope
             // 更新连接活跃时间
             connection.updateLastActiveTime();
 
-            // 处理消息
-            handleMessage(ctx, connection, envelope);
+            // Dubbo/Redis 等阻塞业务离开 Netty EventLoop；同连接按分片保持顺序。
+            if (!businessMessageExecutor.submit(ctx.channel(),
+                    () -> handleMessage(ctx, connection, envelope))) {
+                logger.warn("TCP business queue is full: connectionID={}, command={}",
+                        connection.getConnectionID(), envelope.getCommand());
+                sendErrorResponse(ctx, envelope.getRequestId(), 503, "服务繁忙，请稍后重试");
+            }
 
         } catch (Exception e) {
             logger.error("Failed to process TCP message from {}", ctx.channel().remoteAddress(), e);
@@ -216,8 +226,12 @@ public class TcpServerHandler extends SimpleChannelInboundHandler<ClientEnvelope
      * 发送错误响应
      */
     private void sendErrorResponse(ChannelHandlerContext ctx, String operationID, String errorMessage) {
+        sendErrorResponse(ctx, operationID, 500, errorMessage);
+    }
+
+    private void sendErrorResponse(ChannelHandlerContext ctx, String operationID, int code, String errorMessage) {
         try {
-            ServerEnvelope errorMsg = ServerEnvelope.error(operationID, 500, errorMessage);
+            ServerEnvelope errorMsg = ServerEnvelope.error(operationID, code, errorMessage);
             sendMessage(ctx, errorMsg);
 
         } catch (Exception e) {

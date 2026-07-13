@@ -1,6 +1,6 @@
 # 已读与撤回控制事件设计草案
 
-> 状态：草案，未实现。
+> 状态：第一阶段已实现（2026-07-13）；HTTP fallback、群管理员撤回、隐私开关与群 read count 仍未实现。
 > 目标：为 `CHAT_READ` / `CHAT_REVOKE` 协议补全和服务端实现提供统一设计，避免后续把已读、撤回误建模为普通聊天消息。
 > 适用范围：CheeseIM 服务端 `postoffice` / `postbox` / `postmaster` / `postman` / `common-api`。
 

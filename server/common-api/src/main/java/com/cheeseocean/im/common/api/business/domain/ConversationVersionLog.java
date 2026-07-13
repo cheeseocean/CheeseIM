@@ -8,8 +8,9 @@ import java.io.Serializable;
 /**
  * 用户会话元数据变更日志。
  *
- * <p>该对象只记录用户维度会话列表和会话配置的变更，
- * 不参与消息 seq 同步。消息可靠同步仍由 maxSeq/readSeq 和历史消息拉取承担。
+ * <p>该对象记录用户维度会话列表、配置与 readSeq 变化信号。
+ * READ_STATE_UPDATED 只提示客户端刷新 read snapshot，不直接携带消息 seq 真相；消息可靠同步
+ * 仍由 maxSeq/readSeq 和历史消息拉取承担。
  */
 @Data
 public class ConversationVersionLog implements Serializable {

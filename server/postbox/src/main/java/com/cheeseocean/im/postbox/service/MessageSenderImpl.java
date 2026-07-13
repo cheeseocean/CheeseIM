@@ -61,7 +61,11 @@ public class MessageSenderImpl implements MessageSender {
         }
 
         // 生成服务端消息 ID，并将请求转换为统一入口事件投递到后续链路。
+        long serverTime = System.currentTimeMillis();
         msg.setServerMsgId(IdGenerator.generateMsgId());
+        // 客户端时间不参与撤回窗口和历史排序真相，统一由接入服务覆盖。
+        msg.setSendTime(serverTime);
+        msg.setCreateTime(serverTime);
         ingressMessagePublisher.publish(msg);
 
         // 消息进入入口队列即视为 accepted，响应仅回传基础确认信息。

@@ -48,7 +48,7 @@ Client ──TCP/WS──> postoffice ──> postbox ──ingress event──>
 3. **领域与持久化分离**：领域对象（domain）不得依赖 Mongo `Document` / Spring Data MongoDB 反向：领域对象不得 import `org.springframework.data.*`。
 4. **构造器注入**，禁止字段注入（`@Autowired` 字段注入）。
 5. **不要把 HTTP Request/Response 下沉**：HTTP DTO 只允许存在于 `api-server` Controller 层，下层 Service 返回领域对象或基础结果。
-6. **不要降级到 JSON 命令体**：TCP/WS 协议以 `message_protocol.proto` 为准。WS 当前仍混用 JSON，但**新代码禁止新增 JSON 路径**（视为待统一）。
+6. **不要降级到 JSON 命令体**：TCP/WS 协议以 `message_protocol.proto` 为准；两者当前均使用 typed Protobuf envelope，WS 使用 Binary Frame。节点内部 Redis 队列 JSON 不属于客户端命令协议。
 7. **不要写无意义注释**、不要重复样板注释、不要用注释替代 commit message。
 8. **不要尝试单测里硬连真实 Mongo/Redis**：用嵌入式或 mock，CI 不可依赖外部中间件。
 9. **不要为通用 `SequenceIdGenerator` 用普通 `INCRBY`**：会话 seq 必须走 `ConversationSeqAllocator`（Lua + Mongo `$inc`），见 `server/AGENTS.md`。

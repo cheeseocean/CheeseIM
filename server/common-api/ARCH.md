@@ -9,7 +9,7 @@
 | --- | --- | --- |
 | `business/domain/` | 领域 POJO：User/Friendship/FriendRequest/Blacklist/Group/GroupMember/GroupRequest/Conversation 系列 | 频繁 |
 | `dto/message/` | `Message` + `MessageOptions` + `OfflinePushInfo`（1:1 映射 `ProtoMessage`） | 与 proto 同步 |
-| `dto/dispatch/` | `DispatchPayload`（gateway→postbox 网内载荷） | 稳定 |
+| `dto/dispatch/` | `DispatchPayload`（聊天消息或 typed `ServerEnvelope` 控制通知，含统一 deliveryId） | 稳定 |
 | `event/` | `DeliveryEvent` / `OfflinePushEvent` / `HistoryEvent` / `ConversationSettingsEvent` / `UserSettingsEvent` / `FriendRelationEvent` | 稳定 |
 | `enums/` | `CommandType` `ChatType` `ContentType` `MessageStatus` `MessageSource` `PlatformType` `ConversationKind` `ConversationAction` `ConversationVersionOperation` `ReceiveOption` `DeliveryState` `SessionStatus` `ConnectionState` `GroupStatusEnum` `GroupTypeEnum` `GroupMemberRoleEnum` `GroupAtTypeEnum` `NeedVerificationEnum` `HandleResultEnum` `MessagePreviewType` `ErrorCode` | 稳定但会扩 |
 | `protocol/proto/` | `protoc` 生成的 Java 代码，**不要手改** | 不可手改 |
@@ -19,7 +19,7 @@
 
 - 文件：`src/main/proto/message_protocol.proto`，包 `cheeseim.protocol`。
 - 两个顶层 envelope：`ProtoClientEnvelope`（C→S）、`ProtoServerEnvelope`（S→C），均用 `oneof payload`。
-- `CHAT_READ(33)` / `CHAT_REVOKE(34)` / `FORCE_LOGOUT(35)` 已有类型化 command/notify payload（2026-07-11）；`CHAT_READ` / `CHAT_REVOKE` 的 handler 与业务服务尚未实现，未启用前网关仍会拒绝命令。
+- `CHAT_READ(33)` / `CHAT_REVOKE(34)` / `FORCE_LOGOUT(35)` 已有类型化 command/notify payload（2026-07-11）；`CHAT_READ` 已接通 `ReadStateService`，`CHAT_REVOKE` 已接通 `MessageMutationService`、overlay 与跨节点通知。
 - 控制面（conversation sync / friend / group）当前**只走 Java Dubbo POJO**，未在 proto 中表达，多语言客户端需自行映射。
 
 ## 3. ConversationId 规范（强约束）
@@ -47,6 +47,8 @@
 - `DeliveryEvent.targetUserIds` 空表示"群读扩散拉取"（待 `GroupFanoutPlanner` 接通）。
 - `OfflinePushEvent.sessionType` / `contentType` 暂用 `Integer`，是历史遗留，新增请保持一致。
 - `HistoryEvent.lastMaxSeq` 用于 sync 增量；`beginSeq`/`endSeq` 标识块范围。
+- `ReadStateService` 是所有已读入口的唯一共享契约；`ConversationSyncService.ackReadSeq` 暂保留兼容，新增入口禁止绕过前者复制推进逻辑。
+- `MessageMutationService` 是撤回入口唯一共享契约；撤回不改写 `message_block`，历史读取必须 merge `message_mutation`。
 
 ## 6. 改动评估 checklist
 

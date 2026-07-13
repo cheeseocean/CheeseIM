@@ -13,6 +13,7 @@ import com.cheeseocean.im.common.core.auth.PermissionCheckResult;
 import com.cheeseocean.im.common.core.util.BlockIndexUtil;
 import com.cheeseocean.im.postbox.history.MessageBlockDoc;
 import com.cheeseocean.im.postbox.history.MessageSlot;
+import com.cheeseocean.im.postbox.history.MessageMutationDoc;
 import com.cheeseocean.im.postbox.model.HistoryMessage;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.apache.dubbo.rpc.RpcException;
@@ -28,6 +29,10 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Map;
+import java.util.Set;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -78,10 +83,12 @@ public class HistoryQueryService {
             }
         }
         slots.sort(Comparator.comparing(MessageSlot::getSeq, Comparator.nullsLast(Long::compareTo)).reversed());
+        Map<String, MessageMutationDoc> mutations = findRevokedMutations(
+                slots.stream().map(MessageSlot::getServerMsgId).toList());
 
         List<HistoryMessage> responses = new ArrayList<>();
         for (MessageSlot slot : slots) {
-            responses.add(toHistoryMessage(slot, session.getUserId()));
+            responses.add(toHistoryMessage(slot, session.getUserId(), mutations.get(slot.getServerMsgId())));
             if (responses.size() >= effectiveLimit) {
                 break;
             }
@@ -173,6 +180,7 @@ public class HistoryQueryService {
         }
 
         List<Message> messages = new ArrayList<>();
+        boolean limitReached = false;
         for (MessageBlockDoc block : blocks) {
             if (block == null || block.getMessages() == null) {
                 continue;
@@ -186,14 +194,21 @@ public class HistoryQueryService {
                 }
                 messages.add(toMessage(slot));
                 if (messages.size() >= effectiveLimit) {
-                    return messages;
+                    limitReached = true;
+                    break;
                 }
             }
+            if (limitReached) {
+                break;
+            }
         }
+        applyMutations(messages);
         return messages;
     }
 
-    private HistoryMessage toHistoryMessage(MessageSlot slot, String viewerUserId) {
+    private HistoryMessage toHistoryMessage(MessageSlot slot,
+                                            String viewerUserId,
+                                            MessageMutationDoc mutation) {
         MessagePreviewResolver.Preview preview = messagePreviewResolver.resolve(slot, viewerUserId);
         HistoryMessage response = new HistoryMessage();
         response.setSequence(slot.getSeq());
@@ -203,7 +218,57 @@ public class HistoryQueryService {
         response.setContent(preview.text());
         response.setPreviewType(preview.type());
         response.setSendTime(slot.getSendTime());
+        if (mutation != null) {
+            response.setRevoked(true);
+            response.setContent("消息已撤回");
+            response.setPreviewType(com.cheeseocean.im.common.api.enums.MessagePreviewType.REVOKE);
+            response.setRevokeOperatorUserId(mutation.getOperatorUserId());
+            response.setRevokeOperatorName(mutation.getOperatorName());
+            response.setRevokedAt(mutation.getCreatedAt());
+            response.setMutationVersion(mutation.getMutationVersion());
+        }
         return response;
+    }
+
+    private void applyMutations(List<Message> messages) {
+        Map<String, MessageMutationDoc> mutations = findRevokedMutations(
+                messages.stream().map(Message::getServerMsgId).toList());
+        for (Message message : messages) {
+            MessageMutationDoc mutation = mutations.get(message.getServerMsgId());
+            if (mutation == null) {
+                continue;
+            }
+            message.setStatus(MessageStatus.REVOKED);
+            message.setContent(null);
+            Map<String, String> attributes = message.getAttributes() == null
+                    ? new LinkedHashMap<>() : new LinkedHashMap<>(message.getAttributes());
+            attributes.put("mutationType", "REVOKED");
+            attributes.put("mutationVersion", String.valueOf(mutation.getMutationVersion()));
+            attributes.put("revokedAt", String.valueOf(mutation.getCreatedAt()));
+            attributes.put("operatorUserId", Objects.toString(mutation.getOperatorUserId(), ""));
+            message.setAttributes(attributes);
+        }
+    }
+
+    private Map<String, MessageMutationDoc> findRevokedMutations(List<String> serverMsgIds) {
+        Set<String> ids = new HashSet<>();
+        for (String serverMsgId : serverMsgIds) {
+            if (serverMsgId != null && !serverMsgId.isBlank()) {
+                ids.add(serverMsgId + ":REVOKED");
+            }
+        }
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        List<MessageMutationDoc> mutations = mongoTemplate.find(
+                Query.query(Criteria.where("_id").in(ids)), MessageMutationDoc.class);
+        Map<String, MessageMutationDoc> byServerMsgId = new HashMap<>();
+        for (MessageMutationDoc mutation : mutations) {
+            if (mutation != null && mutation.getServerMsgId() != null) {
+                byServerMsgId.put(mutation.getServerMsgId(), mutation);
+            }
+        }
+        return byServerMsgId;
     }
 
     private Message toMessage(MessageSlot slot) {
