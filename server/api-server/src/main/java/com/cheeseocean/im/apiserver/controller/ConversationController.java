@@ -15,6 +15,7 @@ import com.cheeseocean.im.apiserver.model.response.ConversationMaxSeqResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationReadSnapshotResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationResponse;
 import com.cheeseocean.im.apiserver.model.response.HistoryMessageResponse;
+import com.cheeseocean.im.apiserver.model.response.MessageMutationSyncResponse;
 import com.cheeseocean.im.apiserver.model.response.PullMessagesResponse;
 import com.cheeseocean.im.common.api.dto.conversation.SetConversationRequest;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
@@ -144,5 +145,15 @@ public class ConversationController {
         request.setConversationId(conversationId);
         request.setLimit(limit);
         return conversationFacade.getConversationMessages(session, request);
+    }
+
+    @GetMapping("/{conversationId}/mutations")
+    public MessageMutationSyncResponse syncMutations(SessionPrincipal session,
+                                                     @PathVariable String conversationId,
+                                                     @RequestParam(defaultValue = "0") long afterCreatedAt,
+                                                     @RequestParam(required = false) String afterMutationId,
+                                                     @RequestParam(defaultValue = "100") int limit) {
+        return conversationFacade.syncMessageMutations(
+                session, conversationId, afterCreatedAt, afterMutationId, limit);
     }
 }

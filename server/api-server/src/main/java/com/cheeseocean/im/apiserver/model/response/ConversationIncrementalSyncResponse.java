@@ -39,4 +39,9 @@ public class ConversationIncrementalSyncResponse {
      * 删除或隐藏的会话 ID。
      */
     private List<String> delete = new ArrayList<>();
+
+    /**
+     * 已读状态发生变化的会话 ID；客户端应按需刷新对应 read snapshot。
+     */
+    private List<String> readStateChangedConversationIds = new ArrayList<>();
 }

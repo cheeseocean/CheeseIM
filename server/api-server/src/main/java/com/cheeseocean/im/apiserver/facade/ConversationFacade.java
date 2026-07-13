@@ -15,6 +15,8 @@ import com.cheeseocean.im.apiserver.model.response.ConversationMaxSeqResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationReadSnapshotResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationResponse;
 import com.cheeseocean.im.apiserver.model.response.HistoryMessageResponse;
+import com.cheeseocean.im.apiserver.model.response.MessageMutationResponse;
+import com.cheeseocean.im.apiserver.model.response.MessageMutationSyncResponse;
 import com.cheeseocean.im.apiserver.model.response.PullMessagesResponse;
 import com.cheeseocean.im.apiserver.model.response.PulledConversationMessagesResponse;
 import com.cheeseocean.im.apiserver.model.response.SyncMessageResponse;
@@ -22,13 +24,17 @@ import com.cheeseocean.im.common.api.business.domain.User;
 import com.cheeseocean.im.common.api.business.domain.UserConversation;
 import com.cheeseocean.im.common.api.conversation.ConversationService;
 import com.cheeseocean.im.common.api.conversation.ConversationSyncService;
+import com.cheeseocean.im.common.api.conversation.ReadStateService;
 import com.cheeseocean.im.common.api.dto.conversation.ConversationIncrementalSyncResult;
 import com.cheeseocean.im.common.api.dto.conversation.ConversationReadSnapshot;
 import com.cheeseocean.im.common.api.dto.conversation.PullMessages;
 import com.cheeseocean.im.common.api.dto.conversation.SeqRangeRequest;
 import com.cheeseocean.im.common.api.dto.message.Message;
+import com.cheeseocean.im.common.api.dto.message.MessageMutationResult;
+import com.cheeseocean.im.common.api.dto.message.MessageMutationSyncResult;
 import com.cheeseocean.im.common.api.enums.ConversationKind;
 import com.cheeseocean.im.common.api.permission.ConversationPermissionRequest;
+import com.cheeseocean.im.common.api.message.MessageMutationService;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import com.cheeseocean.im.common.api.user.UserInfoService;
 import com.cheeseocean.im.common.core.auth.PermissionCheckResult;
@@ -51,18 +57,24 @@ public class ConversationFacade {
 
     private final ConversationService conversationService;
     private final ConversationSyncService conversationSyncService;
+    private final ReadStateService readStateService;
     private final ConversationPermissionService permissionService;
     private final HistoryQueryService historyQueryService;
 
     @DubboReference(check = false)
     private UserInfoService userInfoService;
 
+    @DubboReference(check = false)
+    private MessageMutationService messageMutationService;
+
     public ConversationFacade(ConversationService conversationService,
                               ConversationSyncService conversationSyncService,
+                              ReadStateService readStateService,
                               ConversationPermissionService permissionService,
                               HistoryQueryService historyQueryService) {
         this.conversationService = conversationService;
         this.conversationSyncService = conversationSyncService;
+        this.readStateService = readStateService;
         this.permissionService = permissionService;
         this.historyQueryService = historyQueryService;
     }
@@ -125,6 +137,7 @@ public class ConversationFacade {
         response.setInsert(result.getInsert().stream().map(this::toConversationResponse).filter(Objects::nonNull).toList());
         response.setUpdate(result.getUpdate().stream().map(this::toConversationResponse).filter(Objects::nonNull).toList());
         response.setDelete(result.getDelete());
+        response.setReadStateChangedConversationIds(result.getReadStateChangedConversationIds());
         return response;
     }
 
@@ -195,7 +208,7 @@ public class ConversationFacade {
     }
 
     public void ackReadSeq(SessionPrincipal session, String conversationId, AckReadSeqRequest request) {
-        conversationSyncService.ackReadSeq(session.getUserId(), conversationId, request.getReadSeq());
+        readStateService.acknowledge(session.getUserId(), conversationId, request.getReadSeq());
     }
 
     public List<HistoryMessageResponse> getConversationMessages(SessionPrincipal session, ListConversationMessagesRequest request) {
@@ -217,6 +230,39 @@ public class ConversationFacade {
                     return response;
                 })
                 .toList();
+    }
+
+    public MessageMutationSyncResponse syncMessageMutations(SessionPrincipal session,
+                                                            String conversationId,
+                                                            long afterCreatedAt,
+                                                            String afterMutationId,
+                                                            int limit) {
+        MessageMutationSyncResult result = messageMutationService.sync(
+                session.getUserId(), conversationId, afterCreatedAt, afterMutationId, limit);
+        if (result == null || !result.isSuccess()) {
+            throw new IllegalStateException(result == null ? "mutation 同步失败" : result.getErrorMessage());
+        }
+        MessageMutationSyncResponse response = new MessageMutationSyncResponse();
+        response.setMutations(result.getMutations().stream().map(this::toMutationResponse).toList());
+        response.setNextCreatedAt(result.getNextCreatedAt());
+        response.setNextMutationId(result.getNextMutationId());
+        response.setHasMore(result.isHasMore());
+        return response;
+    }
+
+    private MessageMutationResponse toMutationResponse(MessageMutationResult mutation) {
+        MessageMutationResponse response = new MessageMutationResponse();
+        response.setMutationId(mutation.getMutationId());
+        response.setConversationId(mutation.getConversationId());
+        response.setServerMsgId(mutation.getServerMsgId());
+        response.setOperatorUserId(mutation.getOperatorUserId());
+        response.setOperatorName(mutation.getOperatorName());
+        response.setTargetSenderId(mutation.getTargetSenderId());
+        response.setTargetSenderName(mutation.getTargetSenderName());
+        response.setRevokedAt(mutation.getRevokedAt());
+        response.setMutationVersion(mutation.getMutationVersion());
+        response.setReason(mutation.getReason());
+        return response;
     }
 
     private ConversationResponse toConversationResponse(UserConversation conversation) {

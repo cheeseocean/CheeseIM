@@ -5,6 +5,7 @@ import com.cheeseocean.im.apiserver.model.response.ConversationIncrementalSyncRe
 import com.cheeseocean.im.common.api.business.domain.UserConversation;
 import com.cheeseocean.im.common.api.conversation.ConversationService;
 import com.cheeseocean.im.common.api.conversation.ConversationSyncService;
+import com.cheeseocean.im.common.api.conversation.ReadStateService;
 import com.cheeseocean.im.common.api.dto.conversation.ConversationIncrementalSyncResult;
 import com.cheeseocean.im.common.api.enums.SessionStatus;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
@@ -31,6 +32,7 @@ class ConversationFacadeTest {
         ConversationFacade facade = new ConversationFacade(
                 conversationService,
                 mock(ConversationSyncService.class),
+                mock(ReadStateService.class),
                 mock(ConversationPermissionService.class),
                 mock(HistoryQueryService.class)
         );
@@ -50,6 +52,7 @@ class ConversationFacadeTest {
         ConversationFacade facade = new ConversationFacade(
                 conversationService,
                 mock(ConversationSyncService.class),
+                mock(ReadStateService.class),
                 mock(ConversationPermissionService.class),
                 mock(HistoryQueryService.class)
         );
@@ -74,6 +77,7 @@ class ConversationFacadeTest {
         ConversationFacade facade = new ConversationFacade(
                 conversationService,
                 mock(ConversationSyncService.class),
+                mock(ReadStateService.class),
                 mock(ConversationPermissionService.class),
                 mock(HistoryQueryService.class)
         );
@@ -94,6 +98,7 @@ class ConversationFacadeTest {
         ConversationFacade facade = new ConversationFacade(
                 conversationService,
                 mock(ConversationSyncService.class),
+                mock(ReadStateService.class),
                 mock(ConversationPermissionService.class),
                 mock(HistoryQueryService.class)
         );

@@ -16,7 +16,7 @@
 | `DefaultMessagePolicyEngine` | `policy/DefaultMessagePolicyEngine.java:11` | 输出 `MessageRouteDecision`（persistHistory/notification/sendDelivery/needOfflinePush/senderSync） |
 | `GroupFanoutPlanner` | `service/GroupFanoutPlanner.java` | 群扩散规划器：成员切片 + delivery key 生成（`g:{groupId}:{memberId}`）；2026-07-06 P0-2 修复接通 |
 | `UserMaxSeqPersistenceWriter` | `service/UserMaxSeqPersistenceWriter.java` | 用户 maxSeq 异步写 Mongo（按 userId 分桶多线程 drain + 单桶聚合最大水位，workerCount/queueCapacity 可配） |
-| `MessageMutationServiceImpl` | `mutation/MessageMutationServiceImpl.java` | 按 serverMsgId 点查原消息，校验发送者/会话/两分钟窗口，幂等 upsert `message_mutation(REVOKED)` |
+| `MessageMutationServiceImpl` | `mutation/MessageMutationServiceImpl.java` | 按 serverMsgId 点查原消息，校验发送者/会话/两分钟窗口，幂等 upsert `message_mutation(REVOKED)`；按 `createdAt + mutationId` 复合游标提供离线增量同步并校验会话成员权限 |
 
 ## 2. Ingress 处理流程（`IngressEventListener.handle`）
 

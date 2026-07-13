@@ -26,7 +26,7 @@ TCP/WS 共用 `ProtoClientEnvelope` / `ProtoServerEnvelope`；异步在线投递
 | `BusinessMessageExecutor` | `server/BusinessMessageExecutor.java` | connection hash 分片的有界单线程队列；业务命令离开 Netty EventLoop，同连接保序，满载返回 503 |
 | `ReadNotifyDispatcher` | `delivery/ReadNotifyDispatcher.java` | 已读位点推进后，单聊通知 peer + 阅读者其他端，群聊只同步阅读者其他端；按 gatewayNode 跨节点投递 |
 | `ChatRevokeMessageHandler` | `handler/ChatRevokeMessageHandler.java` | typed 撤回入口：认证、调用 `MessageMutationService`、返回 ACK 并触发在线通知 |
-| `RevokeNotifyDispatcher` | `delivery/RevokeNotifyDispatcher.java` | 单聊/普通群撤回按 gatewayNode 通知在线端；超级群以 mutation + 历史同步收敛 |
+| `RevokeNotifyDispatcher` | `delivery/RevokeNotifyDispatcher.java` | 单聊/普通群撤回按 gatewayNode 通知在线端；超级群以 mutation 增量接口 + 历史 overlay 同步收敛 |
 | `TcpEnvelopeEncoder` / `Decoder` | `codec/` | Protobuf wire 编解码 |
 
 ## 3. 路由表契约

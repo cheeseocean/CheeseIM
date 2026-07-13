@@ -11,6 +11,7 @@ import com.cheeseocean.im.common.api.friend.FriendRelationService;
 import com.cheeseocean.im.common.core.business.repository.BlacklistRepository;
 import com.cheeseocean.im.common.core.business.repository.FriendRequestRepository;
 import com.cheeseocean.im.common.core.business.repository.FriendshipRepository;
+import com.cheeseocean.im.common.core.business.transaction.PersistenceTransactionExecutor;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -45,6 +46,7 @@ public class FriendRelationServiceImpl implements FriendRelationService {
     private final FriendRequestRepository            friendRequestRepository;
     private final BlacklistRepository                blacklistRepository;
     private final FriendRealtimeNotifier             friendRealtimeNotifier;
+    private final PersistenceTransactionExecutor     persistenceTransactionExecutor;
     private final Cache<String, Friendship>          friendshipCache;
     private final Cache<String, List<Friendship>>    friendListCache;
     private final Cache<String, List<FriendRequest>> incomingRequestCache;
@@ -54,11 +56,13 @@ public class FriendRelationServiceImpl implements FriendRelationService {
                                      FriendRequestRepository friendRequestRepository,
                                      BlacklistRepository blacklistRepository,
                                      FriendRealtimeNotifier friendRealtimeNotifier,
+                                     PersistenceTransactionExecutor persistenceTransactionExecutor,
                                      CacheManager cacheManager) {
         this.friendshipRepository = friendshipRepository;
         this.friendRequestRepository = friendRequestRepository;
         this.blacklistRepository = blacklistRepository;
         this.friendRealtimeNotifier = friendRealtimeNotifier;
+        this.persistenceTransactionExecutor = persistenceTransactionExecutor;
         this.friendshipCache = cacheManager.getOrCreateCache(
                 QuickConfig.newBuilder("business:friend:detail:")
                         .expire(Duration.ofSeconds(FRIEND_CACHE_EXPIRE_SECONDS))
@@ -168,13 +172,6 @@ public class FriendRelationServiceImpl implements FriendRelationService {
 
     @Override
     public Friendship acceptFriendRequest(String userId, String friendUserId) {
-        FriendRequest incoming = friendRequestRepository.find(friendUserId, userId);
-        if (incoming == null || !incoming.isPending()) {
-            throw new IllegalStateException("friend request not found");
-        }
-        incoming.setHandleResult(HandleResultEnum.ACCEPTED);
-        incoming.setUpdatedAt(System.currentTimeMillis());
-        friendRequestRepository.update(incoming);
         long       now  = System.currentTimeMillis();
         Friendship left = new Friendship();
         left.setUserId(userId);
@@ -187,7 +184,18 @@ public class FriendRelationServiceImpl implements FriendRelationService {
         List<Friendship> friendships = new ArrayList<>();
         friendships.add(left);
         friendships.add(right);
-        friendshipRepository.saveAll(friendships);
+        persistenceTransactionExecutor.execute(() -> {
+            FriendRequest incoming = friendRequestRepository.find(friendUserId, userId);
+            if (incoming == null || !incoming.isPending()) {
+                throw new IllegalStateException("friend request not found");
+            }
+            incoming.setHandleResult(HandleResultEnum.ACCEPTED);
+            incoming.setUpdatedAt(now);
+            friendRequestRepository.update(incoming);
+            friendshipRepository.saveAll(friendships);
+        });
+
+        // 通知和缓存失效只允许发生在数据库事务提交之后，避免回滚时暴露未生效关系。
         friendRealtimeNotifier.friendRequestAccepted(userId, friendUserId);
         Set<String> userIds = new LinkedHashSet<>();
         userIds.add(userId);

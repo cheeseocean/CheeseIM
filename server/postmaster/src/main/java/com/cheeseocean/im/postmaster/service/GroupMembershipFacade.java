@@ -33,6 +33,14 @@ public class GroupMembershipFacade {
         return groupMembershipQueryService.queryGroupMembers(groupId);
     }
 
+    /** 判断用户是否仍为群成员，供历史与 mutation 读路径做权限校验。 */
+    public boolean isGroupMember(String groupId, String userId) {
+        if (groupMembershipQueryService == null) {
+            throw new IllegalStateException("GroupMembershipQueryDubboService is not configured");
+        }
+        return groupMembershipQueryService.isGroupMember(groupId, userId);
+    }
+
     /**
      * 查询群类型，决定群消息扩散模式：
      * <ul>

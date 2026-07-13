@@ -30,7 +30,7 @@
 ### 2.2 好友/黑名单
 
 - 好友关系**双向写扩散**：`acceptFriendRequest` 写 `left` 和 `right` 两条（`FriendRelationServiceImpl.java:179`）
-- ⚠️ 双向写 + 请求更新 + 缓存失效**无 `@Transactional`**，部分失败留单边好友。ASSESSMENT §3.2 修复项。
+- 好友申请状态与双向好友关系在 cluster 模式下通过 MongoDB 事务原子提交；通知和缓存失效在提交后执行。all-in-one 单机 Mongo 默认关闭事务，可通过 `cheeseim.mongo.transactions-enabled` 覆盖。
 - 黑名单单向：`{ownerUserId}:{blockUserId}`
 
 ### 2.3 群
@@ -69,7 +69,7 @@ shard-friendly 但**未声明 sharding**，ASSESSMENT P1-7 修复项。
 
 | 缺陷 | 位置 | 修复项 |
 | --- | --- | --- |
-| `acceptFriendRequest` 非事务 | `FriendRelationServiceImpl.java:179` | ASSESSMENT §3.2 |
+| ~~`acceptFriendRequest` 非事务~~ | `FriendRelationServiceImpl.java:179` | **已修复 2026-07-13**：cluster 模式使用 MongoDB 事务，提交后再通知和失效缓存 |
 | `ConversationVersionLog` 无 TTL | `ConversationVersionLogDoc.java:16` | P1-12 |
 | ~~`ReadSeqPersistenceWriter` 单线程~~ | ~~`ReadSeqPersistenceWriter.java:31`~~ | **已修复 2026-07-09**：按 userId hash 分桶多线程 drain |
 | `getOfflinePushUserIds` Mongo 全扫 | | 索引补全 |

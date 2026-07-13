@@ -46,7 +46,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 | WS ticket 一次性 consume | **已修复 2026-07-08**：Redis Lua `GET` + `DEL` 单脚本，RocksDB fallback 同步删除后返回 |
 | `tokenVersion` 踢下线校验 | **已修复 2026-07-08**：用户级版本落 Mongo，登录/签票/校验读取同一版本 |
 | 用户封禁标志 | **已修复 2026-07-08**：封禁标志落 Mongo `user_security_state`，Redis 仅作缓存 |
-| 好友 accept 非事务 | `acceptFriendRequest` 双向写无 `@Transactional`，部分失败留单边好友 |
+| ~~好友 accept 非事务~~ | **已修复 2026-07-13**：cluster 模式下申请状态与双向好友关系通过 MongoDB 事务原子提交，通知及缓存失效延后至提交完成；all-in-one 单机 Mongo 默认关闭事务 |
 | ~~History 查询全扫~~ | **已修复 2026-07-07**：`getConversationMessages` 按 latest blockNo + range 窗口读取，不再拉全量 block |
 | ~~权限校验失败放行~~ | **已修复 2026-07-07**：`HistoryQueryService.allow` 改为 fail-closed，RPC 异常仅使用短 TTL 本地缓存兜底 |
 | MessageIdMappingDoc 逐条 save | 非 `bulkOps`，50k msg/s 写不动 |
@@ -151,7 +151,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 18. **协议补全**：~~在 `message_protocol.proto` 为 `CHAT_READ/CHAT_REVOKE/FORCE_LOGOUT` 增加类型化 payload；~~ **已完成 2026-07-11**：新增 typed command/notify payload 并写入 client/server envelope oneof，Java/Go 生成产物同步。conversation sync / friend / group 控制面仍待 Protobuf 表达。已读/撤回的产品与架构决策见 `server/docs/architecture/read-revoke-design.md`。
 19. ~~**WS 协议统一为 Protobuf**。~~ **已完成 2026-07-13**：入站、同步响应、异步聊天/控制通知全部使用 Binary WebSocket Frame + typed protobuf envelope，与 TCP 一致。
 20. ~~**已读回执链路**。~~ **已完成 2026-07-13**：TCP/二进制 WS `CHAT_READ` 统一调用 `ReadStateService`，完成可见性校验、maxSeq 截断、Redis 单调推进与 Mongo write-behind；位点变化后通过通用 control dispatch 向单聊 peer、阅读者其他端跨 gatewayNode 推送 typed notify，群聊仅同步阅读者其他端。同步写入 `ConversationVersionLog.READ_STATE_UPDATED`，增量同步返回变化会话 ID，离线设备据此刷新 read snapshot。
-21. **消息撤回/编辑、富媒体与会话删除入口**：**撤回第一阶段已完成 2026-07-13**：`MessageMutationService` 按 serverMsgId 点查服务端 mapping，校验 conversation/发送者/服务端持久化时间两分钟窗口，以 `{serverMsgId}:REVOKED` 原子 upsert mutation；TCP/WS 返回 typed ACK，单聊/普通群跨节点通知在线端，超级群依靠 overlay 同步；历史页和 gap repair 批量 merge tombstone。消息编辑、上传 token 服务与会话删除 HTTP 入口仍待完成。
+21. **消息撤回/编辑与富媒体**：**撤回闭环已完成 2026-07-13**：`MessageMutationService` 按 serverMsgId 点查服务端 mapping，校验 conversation/发送者/服务端持久化时间两分钟窗口，以 `{serverMsgId}:REVOKED` 原子 upsert mutation；TCP/WS 返回 typed ACK，单聊/普通群跨节点通知在线端；历史页和 gap repair 批量 merge tombstone。新增按 `createdAt + mutationId` 稳定复合游标的 mutation 增量同步、群成员权限校验和 HTTP 拉取入口，超级群离线客户端不依赖成员写扩散即可补齐撤回。会话删除 HTTP 入口已存在；消息编辑与上传 token 服务仍待完成。
 
 ### P4 — 运维与一致性
 
