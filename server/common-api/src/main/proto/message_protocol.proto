@@ -135,6 +135,21 @@ message ProtoChatRevokeNotify {
   int64 mutation_version = 8;
 }
 
+// 输入中是短生命周期控制信号，不生成普通消息、seq 或历史记录。
+message ProtoChatTypingCommand {
+  string conversation_id = 1;
+  int32 action = 2;
+  int32 ttl_seconds = 3;
+}
+
+// 输入中通知。START 的 expires_at 由服务端计算，客户端到期后必须自行隐藏状态。
+message ProtoChatTypingNotify {
+  string conversation_id = 1;
+  string sender_id = 2;
+  int32 action = 3;
+  int64 expires_at = 4;
+}
+
 // 强制下线通知。reason 面向用户展示，session/device 用于客户端精确清理本地状态。
 message ProtoForceLogoutNotify {
   string reason = 1;
@@ -151,6 +166,7 @@ message ProtoClientEnvelope {
     ProtoMessage chat_message = 11;
     ProtoChatReadCommand chat_read = 12;
     ProtoChatRevokeCommand chat_revoke = 13;
+    ProtoChatTypingCommand chat_typing = 14;
   }
 }
 
@@ -167,5 +183,6 @@ message ProtoServerEnvelope {
     ProtoChatReadNotify chat_read_notify = 15;
     ProtoChatRevokeNotify chat_revoke_notify = 16;
     ProtoForceLogoutNotify force_logout = 17;
+    ProtoChatTypingNotify chat_typing_notify = 18;
   }
 }

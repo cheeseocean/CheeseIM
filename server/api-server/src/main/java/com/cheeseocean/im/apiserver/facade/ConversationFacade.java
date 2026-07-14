@@ -12,6 +12,8 @@ import com.cheeseocean.im.apiserver.model.request.AckReadSeqRequest;
 import com.cheeseocean.im.apiserver.model.response.ConversationIdsHashResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationIdsResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationIncrementalSyncResponse;
+import com.cheeseocean.im.apiserver.model.response.ConversationControlEventResponse;
+import com.cheeseocean.im.apiserver.model.response.ConversationControlEventSyncResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationMaxSeqResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationReadSnapshotResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationResponse;
@@ -22,6 +24,7 @@ import com.cheeseocean.im.apiserver.model.response.PullMessagesResponse;
 import com.cheeseocean.im.apiserver.model.response.PulledConversationMessagesResponse;
 import com.cheeseocean.im.apiserver.model.response.SyncMessageResponse;
 import com.cheeseocean.im.common.api.business.domain.User;
+import com.cheeseocean.im.common.api.business.domain.ConversationControlEvent;
 import com.cheeseocean.im.common.api.business.domain.UserConversation;
 import com.cheeseocean.im.common.api.conversation.ConversationService;
 import com.cheeseocean.im.common.api.conversation.ConversationSyncService;
@@ -39,10 +42,12 @@ import com.cheeseocean.im.common.api.message.MessageMutationService;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import com.cheeseocean.im.common.api.user.UserInfoService;
 import com.cheeseocean.im.common.core.auth.PermissionCheckResult;
+import com.cheeseocean.im.common.core.business.repository.ConversationControlEventRepository;
 import com.cheeseocean.im.postbox.service.HistoryQueryService;
 import com.cheeseocean.im.postbox.service.ConversationPermissionService;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.Comparator;
 import java.util.ArrayList;
@@ -61,6 +66,7 @@ public class ConversationFacade {
     private final ReadStateService readStateService;
     private final ConversationPermissionService permissionService;
     private final HistoryQueryService historyQueryService;
+    private final ConversationControlEventRepository controlEventRepository;
 
     @DubboReference(check = false)
     private UserInfoService userInfoService;
@@ -73,11 +79,23 @@ public class ConversationFacade {
                               ReadStateService readStateService,
                               ConversationPermissionService permissionService,
                               HistoryQueryService historyQueryService) {
+        this(conversationService, conversationSyncService, readStateService, permissionService,
+                historyQueryService, null);
+    }
+
+    @Autowired
+    public ConversationFacade(ConversationService conversationService,
+                              ConversationSyncService conversationSyncService,
+                              ReadStateService readStateService,
+                              ConversationPermissionService permissionService,
+                              HistoryQueryService historyQueryService,
+                              ConversationControlEventRepository controlEventRepository) {
         this.conversationService = conversationService;
         this.conversationSyncService = conversationSyncService;
         this.readStateService = readStateService;
         this.permissionService = permissionService;
         this.historyQueryService = historyQueryService;
+        this.controlEventRepository = controlEventRepository;
     }
 
     public List<ConversationResponse> listConversations(SessionPrincipal session, ListConversationsRequest request) {
@@ -262,6 +280,22 @@ public class ConversationFacade {
         return response;
     }
 
+    public ConversationControlEventSyncResponse syncControlEvents(SessionPrincipal session,
+                                                                   long cursor,
+                                                                   int limit) {
+        if (controlEventRepository == null) {
+            throw new IllegalStateException("控制事件同步暂不可用");
+        }
+        int pageSize = Math.max(1, Math.min(limit, 200));
+        List<ConversationControlEvent> events = controlEventRepository.findAfter(
+                session.getUserId(), Math.max(0L, cursor), pageSize);
+        ConversationControlEventSyncResponse response = new ConversationControlEventSyncResponse();
+        response.setEvents(events.stream().map(this::toControlEventResponse).toList());
+        response.setNextCursor(events.isEmpty() ? Math.max(0L, cursor) : events.get(events.size() - 1).getCursor());
+        response.setHasMore(events.size() == pageSize);
+        return response;
+    }
+
     private MessageMutationResponse toMutationResponse(MessageMutationResult mutation) {
         MessageMutationResponse response = new MessageMutationResponse();
         response.setMutationId(mutation.getMutationId());
@@ -274,6 +308,18 @@ public class ConversationFacade {
         response.setRevokedAt(mutation.getRevokedAt());
         response.setMutationVersion(mutation.getMutationVersion());
         response.setReason(mutation.getReason());
+        return response;
+    }
+
+    private ConversationControlEventResponse toControlEventResponse(ConversationControlEvent event) {
+        ConversationControlEventResponse response = new ConversationControlEventResponse();
+        response.setEventId(event.getEventId());
+        response.setCursor(event.getCursor());
+        response.setConversationId(event.getConversationId());
+        response.setType(event.getType().getCode());
+        response.setPayload(event.getPayload());
+        response.setCreatedAt(event.getCreatedAt());
+        response.setExpiresAt(event.getExpiresAt());
         return response;
     }
 

@@ -11,7 +11,9 @@
 - **已读是 cursor**：维护 `(userId, conversationId) -> readSeq`，默认单聊向对方公开已读状态，群聊第一阶段只清自己的 unread，不做成员已读列表。
 - **撤回是 mutation**：写 `message_mutation(REVOKED)` overlay，不物理删除原消息；历史查询和增量同步都必须 merge mutation。
 - **入口可以多，核心只能一条**：WS/TCP 与 HTTP 均可作为入口，但必须收敛到同一个 `ReadStateService` / `MessageMutationService`。
-- **控制事件不进普通 message history**：它们不作为用户消息占用普通消息 seq，但必须进入 conversation version log，保证离线端同步。
+- **控制事件不进普通 message history**：它们不作为用户消息占用普通消息 seq；已读仍写 `ConversationVersionLog.READ_STATE_UPDATED` 以刷新会话快照，已读/撤回/输入中的可靠通知和补拉统一由 control-event outbox cursor 承担。
+
+实现补充（2026-07-14）：上述控制面统一追加 `conversation_control_event` outbox；服务端用全局递增 `cursor` 提供客户端补拉，用 claim lease + `markDelivered` 驱动 postman 重试。已读、撤回和输入中均复用该事件流；输入中仍使用短 TTL，过期后不再返回或投递。
 
 参考模型：
 
@@ -173,8 +175,8 @@ Client WS/TCP CHAT_REVOKE 或 HTTP revoke
   -> 校验权限：operator == sender
   -> 校验 now - sendTime <= 2 分钟
   -> upsert message_mutation(REVOKED)
-  -> 写 ConversationVersionLog: MESSAGE_REVOKED
-  -> fanout ChatRevokeNotify
+  -> 写入 mutation 增量同步数据
+  -> 追加 control-event outbox 并 fanout ChatRevokeNotify
 ```
 
 通知目标：
@@ -221,7 +223,7 @@ Client WS/TCP CHAT_REVOKE 或 HTTP revoke
 | `postbox` | 历史查询与 gap repair 合并 mutation overlay；不承载控制命令业务判断 |
 | `postmaster` | 负责撤回的消息映射查询、权限/窗口校验、mutation 写入与离线 mutation 同步 |
 | `business` | 负责已读 cursor、readSeq write-behind 和 `READ_STATE_UPDATED` 版本日志 |
-| `postman` | 投递 `ChatReadNotify` / `ChatRevokeNotify` 到在线端，必要时复用离线同步 |
+| `postman` | 投递 `ChatReadNotify` / `ChatRevokeNotify` / `ChatTypingNotify` 到在线端；outbox claim lease 补偿不触发离线厂商推送 |
 | `business` | 会话同步接口返回 read/revoke 增量或 merge 后的会话状态 |
 | SDK / CheeseBox | 展示已读状态、撤回 tombstone，并处理乱序 notify |
 
@@ -256,3 +258,4 @@ Client WS/TCP CHAT_REVOKE 或 HTTP revoke
 - 不做物理删除。
 - 不做管理员撤回成员消息。
 - 不把已读/撤回作为普通聊天消息写入 message block。
+- 不把 `TYPING` 作为普通消息进入 ingress/history/seq；只接受 typed `CHAT_TYPING` 控制命令。

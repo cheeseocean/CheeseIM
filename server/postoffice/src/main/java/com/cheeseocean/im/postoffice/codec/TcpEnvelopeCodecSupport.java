@@ -29,6 +29,8 @@ final class TcpEnvelopeCodecSupport {
     static final byte TCP_REVOKE_MSG_REQ = 34;
     static final byte TCP_REVOKE_MSG_NOTIFY = 35;
     static final byte TCP_READ_MSG_NOTIFY = 36;
+    static final byte TCP_TYPING_REQ = 37;
+    static final byte TCP_TYPING_NOTIFY = 38;
     static final byte TCP_FORCE_LOGOUT_NOTIFY = 42;
     static final byte TCP_FRIEND_APPLICATION_NOTIFY = 70;
     static final byte TCP_FRIEND_APPLICATION_PROCESSED_NOTIFY = 71;
@@ -75,6 +77,7 @@ final class TcpEnvelopeCodecSupport {
                 case TCP_SEND_MSG_REQ -> builder.setChatMessage(com.cheeseocean.im.common.api.protocol.proto.ProtoMessage.parseFrom(data));
                 case TCP_READ_MSG_REQ -> builder.setChatRead(com.cheeseocean.im.common.api.protocol.proto.ProtoChatReadCommand.parseFrom(data));
                 case TCP_REVOKE_MSG_REQ -> builder.setChatRevoke(com.cheeseocean.im.common.api.protocol.proto.ProtoChatRevokeCommand.parseFrom(data));
+                case TCP_TYPING_REQ -> builder.setChatTyping(com.cheeseocean.im.common.api.protocol.proto.ProtoChatTypingCommand.parseFrom(data));
                 default -> {
                 }
             }
@@ -95,6 +98,7 @@ final class TcpEnvelopeCodecSupport {
             case TCP_SEND_MSG_RESP -> ProtoEnvelopeMapper.toProto(envelope).getChatSendAck().toByteArray();
             case TCP_READ_MSG_NOTIFY -> ProtoEnvelopeMapper.toProto(envelope).getChatReadNotify().toByteArray();
             case TCP_REVOKE_MSG_NOTIFY -> ProtoEnvelopeMapper.toProto(envelope).getChatRevokeNotify().toByteArray();
+            case TCP_TYPING_NOTIFY -> ProtoEnvelopeMapper.toProto(envelope).getChatTypingNotify().toByteArray();
             case TCP_RECV_MSG_NOTIFY,
                     TCP_FRIEND_APPLICATION_NOTIFY,
                     TCP_FRIEND_APPLICATION_PROCESSED_NOTIFY,
@@ -112,6 +116,8 @@ final class TcpEnvelopeCodecSupport {
                 return CommandType.CHAT_READ;
             case TCP_REVOKE_MSG_REQ:
                 return CommandType.CHAT_REVOKE;
+            case TCP_TYPING_REQ:
+                return CommandType.CHAT_TYPING;
             case TCP_AUTH_REQ:
                 return CommandType.AUTH;
             case TCP_HEARTBEAT_REQ:
@@ -142,6 +148,8 @@ final class TcpEnvelopeCodecSupport {
                 return TCP_REVOKE_MSG_NOTIFY;
             case CHAT_READ:
                 return TCP_READ_MSG_NOTIFY;
+            case CHAT_TYPING:
+                return TCP_TYPING_NOTIFY;
             case FORCE_LOGOUT:
                 return TCP_FORCE_LOGOUT_NOTIFY;
             case ERROR:

@@ -13,6 +13,7 @@
 | `OfflinePushServiceImpl` | `service/impl/OfflinePushServiceImpl.java:58` | 多厂商推送 fan-out 编排 |
 | `MessagePushServiceImpl` | `service/impl/MessagePushServiceImpl.java:31` | 推送尝试记录 + 投递状态记录 |
 | `PushDecisionService` | `service/PushDecisionService.java:13` | 推送决策（依赖 `DeliveryState` 与 attempt 记录） |
+| `ControlEventDeliveryScheduler` | `task/ControlEventDeliveryScheduler.java` | claim `conversation_control_event` 后补偿在线控制通知；不触发离线推送 |
 | `provider/*` | `provider/` | 5 个厂商真实实现 |
 
 ## 2. 在线投递链路（**P0-1 已修复 2026-07-07**）
@@ -83,6 +84,7 @@ postman `DeliveryEventListener.resolveTargets` 已**移除** `ChatType.GROUP` �
 - 定时任务清理 `scheduled-tasks interval=6h`
 - Kafka `push-group`
 - actuator + Prometheus
+- 控制事件补偿：`cheeseim.control-event.delivery`，默认每秒扫描、每次 100 条、30 秒 claim lease、最多 3 次在线投递；超出次数的离线补齐交由客户端 control-events cursor 拉取。
 
 ## 9. 改动评估 checklist
 

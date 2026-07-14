@@ -26,6 +26,8 @@ public enum CommandType implements IEnum {
     CHAT_REVOKE(34, "撤回聊天消息"),
     /** 强制下线通知。 */
     FORCE_LOGOUT(35, "强制下线通知"),
+    /** 输入中瞬时控制信号。 */
+    CHAT_TYPING(36, "输入中"),
     /** 错误响应。 */
     ERROR(90, "错误响应");
 

@@ -62,9 +62,9 @@
 - postman `DeliveryEventListener.resolveTargets` 不再对 `ChatType.GROUP` 跳过——写扩散后每条 DeliveryEvent 已带 `receiverId`，直接按 receiverId 投递即可
 - 同步链路上每个群消息最多加 2 次 Dubbo：`loadGroupType` + `loadGroupMembers`（新会话已有后者用于 createConversation，复用可优化，留作 P2-14 合并 Dubbo 的后续工作）
 
-## 6. 已读回执（**残缺**）
+## 6. 控制事件边界
 
-`IngressEventListener.preProcessReadReceipts`（line 133-144）注释掉，`messageStateService` 未注入。ASSESSMENT P3-20 修复项。
+旧 `IngressEventListener.preProcessReadReceipts` 仍是普通消息 `READ_RECEIPT` 遗留旁路，不能作为已读实现。typed `CHAT_READ` 统一由 business 的 `ReadStateService` 处理；`CHAT_REVOKE` 由本模块的 `MessageMutationService` 处理；`CHAT_TYPING` 由 `TypingStateServiceImpl` 校验会话成员后以 3-5 秒短 TTL 通知在线目标。三者均追加 `conversation_control_event` 供 postman 补偿和客户端 cursor 补齐，输入中不写消息 history、ingress 或 seq。
 
 ## 7. 边界
 

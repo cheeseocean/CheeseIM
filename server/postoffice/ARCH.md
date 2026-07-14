@@ -23,10 +23,10 @@ TCP/WS 共用 `ProtoClientEnvelope` / `ProtoServerEnvelope`；异步在线投递
 | `KickoffCommandServiceImpl` | `kickoff/KickoffCommandServiceImpl.java` | Dubbo 踢下线接口，按 `gatewayNode` 定向本地执行或节点队列转发 |
 | `HeartbeatMessageHandler` | `handler/HeartbeatMessageHandler.java:42` | 心跳处理 |
 | `ChatReadMessageHandler` | `handler/ChatReadMessageHandler.java` | 已读命令入口：认证、payload 校验、调用共享 readSeq 状态服务并返回 typed ACK |
+| `ChatTypingMessageHandler` | `handler/ChatTypingMessageHandler.java` | 输入中命令入口：认证、payload 校验、调用短 TTL `TypingStateService`；不进入普通消息链路 |
 | `BusinessMessageExecutor` | `server/BusinessMessageExecutor.java` | connection hash 分片的有界单线程队列；业务命令离开 Netty EventLoop，同连接保序，满载返回 503 |
-| `ReadNotifyDispatcher` | `delivery/ReadNotifyDispatcher.java` | 已读位点推进后，单聊通知 peer + 阅读者其他端，群聊只同步阅读者其他端；按 gatewayNode 跨节点投递 |
 | `ChatRevokeMessageHandler` | `handler/ChatRevokeMessageHandler.java` | typed 撤回入口：认证、调用 `MessageMutationService`、返回 ACK 并触发在线通知 |
-| `RevokeNotifyDispatcher` | `delivery/RevokeNotifyDispatcher.java` | 单聊/普通群撤回按 gatewayNode 通知在线端；超级群以 mutation 增量接口 + 历史 overlay 同步收敛 |
+| `ControlNotificationDispatcher` | **在 postman** | 已读、撤回与输入中均经共享控制通知契约按 `gatewayNode` 跨节点投递；可靠补偿由 postman outbox scheduler 执行 |
 | `TcpEnvelopeEncoder` / `Decoder` | `codec/` | Protobuf wire 编解码 |
 
 ## 3. 路由表契约

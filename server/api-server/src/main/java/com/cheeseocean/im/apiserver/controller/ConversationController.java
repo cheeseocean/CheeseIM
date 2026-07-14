@@ -12,6 +12,7 @@ import com.cheeseocean.im.apiserver.model.request.SetConversationsRequest;
 import com.cheeseocean.im.apiserver.model.response.ConversationIdsHashResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationIdsResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationIncrementalSyncResponse;
+import com.cheeseocean.im.apiserver.model.response.ConversationControlEventSyncResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationMaxSeqResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationReadSnapshotResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationResponse;
@@ -89,6 +90,13 @@ public class ConversationController {
                                                                  @RequestParam(defaultValue = "0") long version,
                                                                  @RequestParam(defaultValue = "0") long idHash) {
         return conversationFacade.syncConversations(session, versionId, version, idHash);
+    }
+
+    @GetMapping("/control-events")
+    public ConversationControlEventSyncResponse syncControlEvents(SessionPrincipal session,
+                                                                  @RequestParam(defaultValue = "0") long cursor,
+                                                                  @RequestParam(defaultValue = "100") int limit) {
+        return conversationFacade.syncControlEvents(session, cursor, limit);
     }
 
     @GetMapping("/max-seqs")

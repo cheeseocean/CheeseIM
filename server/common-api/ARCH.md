@@ -7,11 +7,11 @@
 
 | 包 | 内容 | 是否可变 |
 | --- | --- | --- |
-| `business/domain/` | 领域 POJO：User/Friendship/FriendRequest/Blacklist/Group/GroupMember/GroupRequest/Conversation 系列 | 频繁 |
+| `business/domain/` | 领域 POJO：User/Friendship/FriendRequest/Blacklist/Group/GroupMember/GroupRequest/Conversation 系列，以及 `ConversationControlEvent` | 频繁 |
 | `dto/message/` | `Message` + `MessageOptions` + `OfflinePushInfo`（1:1 映射 `ProtoMessage`） | 与 proto 同步 |
 | `dto/dispatch/` | `DispatchPayload`（聊天消息或 typed `ServerEnvelope` 控制通知，含统一 deliveryId） | 稳定 |
 | `event/` | `DeliveryEvent` / `OfflinePushEvent` / `HistoryEvent` / `ConversationSettingsEvent` / `UserSettingsEvent` / `FriendRelationEvent` | 稳定 |
-| `enums/` | `CommandType` `ChatType` `ContentType` `MessageStatus` `MessageSource` `PlatformType` `ConversationKind` `ConversationAction` `ConversationVersionOperation` `ReceiveOption` `DeliveryState` `SessionStatus` `ConnectionState` `GroupStatusEnum` `GroupTypeEnum` `GroupMemberRoleEnum` `GroupAtTypeEnum` `NeedVerificationEnum` `HandleResultEnum` `MessagePreviewType` `ErrorCode` | 稳定但会扩 |
+| `enums/` | `CommandType` `ChatType` `ContentType` `MessageStatus` `MessageSource` `PlatformType` `ConversationKind` `ConversationAction` `ConversationVersionOperation` `ReceiveOption` `DeliveryState` `SessionStatus` `ConnectionState` `GroupStatusEnum` `GroupTypeEnum` `GroupMemberRoleEnum` `GroupAtTypeEnum` `NeedVerificationEnum` `HandleResultEnum` `MessagePreviewType` `TypingActionEnum` `ControlEventTypeEnum` `ControlEventDeliveryStateEnum` `ErrorCode` | 稳定但会扩 |
 | `protocol/proto/` | `protoc` 生成的 Java 代码，**不要手改** | 不可手改 |
 | `proto/` | `message_protocol.proto` 源文件 | 改需评估 + 重生成 |
 
@@ -19,7 +19,7 @@
 
 - 文件：`src/main/proto/message_protocol.proto`，包 `cheeseim.protocol`。
 - 两个顶层 envelope：`ProtoClientEnvelope`（C→S）、`ProtoServerEnvelope`（S→C），均用 `oneof payload`。
-- `CHAT_READ(33)` / `CHAT_REVOKE(34)` / `FORCE_LOGOUT(35)` 已有类型化 command/notify payload（2026-07-11）；`CHAT_READ` 已接通 `ReadStateService`，`CHAT_REVOKE` 已接通 `MessageMutationService`、overlay 与跨节点通知。
+- `CHAT_READ(33)` / `CHAT_REVOKE(34)` / `FORCE_LOGOUT(35)` / `CHAT_TYPING(36)` 已有类型化 command/notify payload；`CHAT_READ`、`CHAT_REVOKE` 与 `CHAT_TYPING` 均接通独立共享服务和跨节点控制通知。输入中是 3-5 秒短 TTL 瞬时状态，禁止写入普通消息链路。
 - 控制面（conversation sync / friend / group）当前**只走 Java Dubbo POJO**，未在 proto 中表达，多语言客户端需自行映射。
 
 ## 3. ConversationId 规范（强约束）
@@ -49,6 +49,7 @@
 - `HistoryEvent.lastMaxSeq` 用于 sync 增量；`beginSeq`/`endSeq` 标识块范围。
 - `ReadStateService` 是所有已读入口的唯一共享契约；`ConversationSyncService.ackReadSeq` 暂保留兼容，新增入口禁止绕过前者复制推进逻辑。
 - `MessageMutationService` 是撤回入口唯一共享契约；撤回不改写 `message_block`，历史读取必须 merge `message_mutation`。
+- `ConversationControlEvent` 是已读、撤回、输入中的可靠控制事件载荷；业务侧只 append，`common-core` 负责 Mongo outbox 的 cursor、claim 与交付状态，客户端可按 cursor 补齐。
 
 ## 6. 改动评估 checklist
 

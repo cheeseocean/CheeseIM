@@ -7,6 +7,7 @@ import com.cheeseocean.im.common.api.protocol.proto.ProtoAuthResponse;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoChatSendAck;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoChatReadNotify;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoChatRevokeNotify;
+import com.cheeseocean.im.common.api.protocol.proto.ProtoChatTypingNotify;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoClientEnvelope;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoConnectResponse;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoErrorResponse;
@@ -47,6 +48,7 @@ public final class ProtoEnvelopeMapper {
             case CHAT_RECV -> builder.setChatMessage(ProtoMessageMapper.toProto(toDispatchPayload(envelope.getBody()).getMsg()));
             case CHAT_READ -> builder.setChatReadNotify(toChatReadNotify(envelope.getBody()));
             case CHAT_REVOKE -> builder.setChatRevokeNotify(toChatRevokeNotify(envelope.getBody()));
+            case CHAT_TYPING -> builder.setChatTypingNotify(toChatTypingNotify(envelope.getBody()));
             case FORCE_LOGOUT -> builder.setForceLogout(toForceLogoutNotify(envelope.getBody()));
             case ERROR -> builder.setError(toErrorResponse(envelope.getBody()));
             default -> builder.setError(ProtoErrorResponse.newBuilder()
@@ -63,6 +65,7 @@ public final class ProtoEnvelopeMapper {
             case CHAT_MESSAGE -> proto.getChatMessage().toByteArray();
             case CHAT_READ -> proto.getChatRead().toByteArray();
             case CHAT_REVOKE -> proto.getChatRevoke().toByteArray();
+            case CHAT_TYPING -> proto.getChatTyping().toByteArray();
             case PAYLOAD_NOT_SET -> null;
         };
     }
@@ -150,6 +153,16 @@ public final class ProtoEnvelopeMapper {
                 .setTargetSenderName(stringValue(map.get("targetSenderName")))
                 .setRevokedAt(longValue(map.get("revokedAt")))
                 .setMutationVersion(longValue(map.get("mutationVersion")))
+                .build();
+    }
+
+    private static ProtoChatTypingNotify toChatTypingNotify(Object body) {
+        Map<?, ?> map = OBJECT_MAPPER.convertValue(body, Map.class);
+        return ProtoChatTypingNotify.newBuilder()
+                .setConversationId(stringValue(map.get("conversationId")))
+                .setSenderId(stringValue(map.get("senderId")))
+                .setAction((int) longValue(map.get("action")))
+                .setExpiresAt(longValue(map.get("expiresAt")))
                 .build();
     }
 

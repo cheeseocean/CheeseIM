@@ -5,6 +5,7 @@ import com.cheeseocean.im.common.api.dto.message.MessageOptions;
 import com.cheeseocean.im.common.api.dto.message.SendMessageReq;
 import com.cheeseocean.im.common.api.dto.message.SendMessageResp;
 import com.cheeseocean.im.common.api.enums.ChatType;
+import com.cheeseocean.im.common.api.enums.ContentType;
 import com.cheeseocean.im.common.api.permission.MessageSendPermissionRequest;
 import com.cheeseocean.im.common.api.permission.MessageSendPermissionResult;
 import com.cheeseocean.im.common.api.permission.MessageSendPermissionService;
@@ -49,6 +50,10 @@ public class MessageSenderImpl implements MessageSender {
     @Override
     public SendMessageResp sendMessage(SendMessageReq req) {
         Message msg = req.getMsg();
+        if (msg == null || msg.getContentType() == ContentType.TYPING) {
+            // 输入中只能走 CHAT_TYPING 控制命令，禁止混入 ingress/history/seq 主链路。
+            return rejectedResp(msg == null ? new Message() : msg);
+        }
         String         conversationId = ConversationIdUtil.buildConversationId(msg.getChatType(), msg.getSenderId(), msg.getReceiverId(), msg.getGroupId());
         MessageOptions options        = MessageOptionPolicy.fillDefaultOptions(msg);
 
