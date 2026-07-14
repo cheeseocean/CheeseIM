@@ -7,6 +7,7 @@ import com.cheeseocean.im.apiserver.model.request.GetConversationRequest;
 import com.cheeseocean.im.apiserver.model.request.ListConversationMessagesRequest;
 import com.cheeseocean.im.apiserver.model.request.ListConversationsRequest;
 import com.cheeseocean.im.apiserver.model.request.PullMessagesRequest;
+import com.cheeseocean.im.apiserver.model.request.RevokeMessageRequest;
 import com.cheeseocean.im.apiserver.model.request.SetConversationsRequest;
 import com.cheeseocean.im.apiserver.model.response.ConversationIdsHashResponse;
 import com.cheeseocean.im.apiserver.model.response.ConversationIdsResponse;
@@ -16,6 +17,8 @@ import com.cheeseocean.im.apiserver.model.response.ConversationReadSnapshotRespo
 import com.cheeseocean.im.apiserver.model.response.ConversationResponse;
 import com.cheeseocean.im.apiserver.model.response.HistoryMessageResponse;
 import com.cheeseocean.im.apiserver.model.response.MessageMutationSyncResponse;
+import com.cheeseocean.im.apiserver.model.response.MessageMutationResponse;
+import jakarta.validation.Valid;
 import com.cheeseocean.im.apiserver.model.response.PullMessagesResponse;
 import com.cheeseocean.im.common.api.dto.conversation.SetConversationRequest;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
@@ -135,6 +138,13 @@ public class ConversationController {
                            @PathVariable String conversationId,
                            @RequestBody AckReadSeqRequest request) {
         conversationFacade.ackReadSeq(session, conversationId, request);
+    }
+
+    @PostMapping("/{conversationId}/messages/revoke")
+    public MessageMutationResponse revokeMessage(SessionPrincipal session,
+                                                  @PathVariable String conversationId,
+                                                  @Valid @RequestBody RevokeMessageRequest request) {
+        return conversationFacade.revokeMessage(session, conversationId, request);
     }
 
     @GetMapping("/{conversationId}/messages")

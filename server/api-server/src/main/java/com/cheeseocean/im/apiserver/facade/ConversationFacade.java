@@ -2,6 +2,7 @@ package com.cheeseocean.im.apiserver.facade;
 
 import com.cheeseocean.im.apiserver.model.request.BatchGetConversationsRequest;
 import com.cheeseocean.im.apiserver.model.request.PullMessagesRequest;
+import com.cheeseocean.im.apiserver.model.request.RevokeMessageRequest;
 import com.cheeseocean.im.apiserver.model.request.SeqRangeItemRequest;
 import com.cheeseocean.im.apiserver.model.request.GetConversationRequest;
 import com.cheeseocean.im.apiserver.model.request.ListConversationMessagesRequest;
@@ -209,6 +210,17 @@ public class ConversationFacade {
 
     public void ackReadSeq(SessionPrincipal session, String conversationId, AckReadSeqRequest request) {
         readStateService.acknowledge(session.getUserId(), conversationId, request.getReadSeq());
+    }
+
+    public MessageMutationResponse revokeMessage(SessionPrincipal session,
+                                                 String conversationId,
+                                                 RevokeMessageRequest request) {
+        MessageMutationResult result = messageMutationService.revoke(
+                session.getUserId(), conversationId, request.getServerMsgId(), request.getReason());
+        if (result == null || !result.isSuccess()) {
+            throw new IllegalStateException(result == null ? "撤回失败" : result.getErrorMessage());
+        }
+        return toMutationResponse(result);
     }
 
     public List<HistoryMessageResponse> getConversationMessages(SessionPrincipal session, ListConversationMessagesRequest request) {

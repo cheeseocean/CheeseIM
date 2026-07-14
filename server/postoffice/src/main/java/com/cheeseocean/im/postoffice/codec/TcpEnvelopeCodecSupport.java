@@ -25,8 +25,10 @@ final class TcpEnvelopeCodecSupport {
     static final byte TCP_SEND_MSG_REQ = 30;
     static final byte TCP_SEND_MSG_RESP = 31;
     static final byte TCP_RECV_MSG_NOTIFY = 32;
+    static final byte TCP_READ_MSG_REQ = 33;
     static final byte TCP_REVOKE_MSG_REQ = 34;
     static final byte TCP_REVOKE_MSG_NOTIFY = 35;
+    static final byte TCP_READ_MSG_NOTIFY = 36;
     static final byte TCP_FORCE_LOGOUT_NOTIFY = 42;
     static final byte TCP_FRIEND_APPLICATION_NOTIFY = 70;
     static final byte TCP_FRIEND_APPLICATION_PROCESSED_NOTIFY = 71;
@@ -71,6 +73,8 @@ final class TcpEnvelopeCodecSupport {
             switch (msgType) {
                 case TCP_AUTH_REQ -> builder.setAuth(com.cheeseocean.im.common.api.protocol.proto.ProtoAuthRequest.parseFrom(data));
                 case TCP_SEND_MSG_REQ -> builder.setChatMessage(com.cheeseocean.im.common.api.protocol.proto.ProtoMessage.parseFrom(data));
+                case TCP_READ_MSG_REQ -> builder.setChatRead(com.cheeseocean.im.common.api.protocol.proto.ProtoChatReadCommand.parseFrom(data));
+                case TCP_REVOKE_MSG_REQ -> builder.setChatRevoke(com.cheeseocean.im.common.api.protocol.proto.ProtoChatRevokeCommand.parseFrom(data));
                 default -> {
                 }
             }
@@ -89,6 +93,8 @@ final class TcpEnvelopeCodecSupport {
             case TCP_AUTH_SUCCESS -> ProtoEnvelopeMapper.toProto(envelope).getAuth().toByteArray();
             case TCP_HEARTBEAT_RESP -> ProtoEnvelopeMapper.toProto(envelope).getHeartbeat().toByteArray();
             case TCP_SEND_MSG_RESP -> ProtoEnvelopeMapper.toProto(envelope).getChatSendAck().toByteArray();
+            case TCP_READ_MSG_NOTIFY -> ProtoEnvelopeMapper.toProto(envelope).getChatReadNotify().toByteArray();
+            case TCP_REVOKE_MSG_NOTIFY -> ProtoEnvelopeMapper.toProto(envelope).getChatRevokeNotify().toByteArray();
             case TCP_RECV_MSG_NOTIFY,
                     TCP_FRIEND_APPLICATION_NOTIFY,
                     TCP_FRIEND_APPLICATION_PROCESSED_NOTIFY,
@@ -102,6 +108,8 @@ final class TcpEnvelopeCodecSupport {
         switch (msgType) {
             case TCP_SEND_MSG_REQ:
                 return CommandType.CHAT_SEND;
+            case TCP_READ_MSG_REQ:
+                return CommandType.CHAT_READ;
             case TCP_REVOKE_MSG_REQ:
                 return CommandType.CHAT_REVOKE;
             case TCP_AUTH_REQ:
@@ -132,6 +140,8 @@ final class TcpEnvelopeCodecSupport {
                 return resolveChatRecvMsgType(envelope.getBody());
             case CHAT_REVOKE:
                 return TCP_REVOKE_MSG_NOTIFY;
+            case CHAT_READ:
+                return TCP_READ_MSG_NOTIFY;
             case FORCE_LOGOUT:
                 return TCP_FORCE_LOGOUT_NOTIFY;
             case ERROR:

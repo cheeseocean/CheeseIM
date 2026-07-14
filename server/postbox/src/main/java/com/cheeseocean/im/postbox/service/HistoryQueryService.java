@@ -224,7 +224,7 @@ public class HistoryQueryService {
             response.setPreviewType(com.cheeseocean.im.common.api.enums.MessagePreviewType.REVOKE);
             response.setRevokeOperatorUserId(mutation.getOperatorUserId());
             response.setRevokeOperatorName(mutation.getOperatorName());
-            response.setRevokedAt(mutation.getCreatedAt());
+            response.setRevokedAt(mutation.getCreatedAt() == null ? null : mutation.getCreatedAt().toEpochMilli());
             response.setMutationVersion(mutation.getMutationVersion());
         }
         return response;

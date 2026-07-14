@@ -1,6 +1,6 @@
 # 已读与撤回控制事件设计草案
 
-> 状态：第一阶段已实现（2026-07-13）；HTTP fallback、群管理员撤回、隐私开关与群 read count 仍未实现。
+> 状态：第一阶段已实现（2026-07-14）：typed Protobuf、TCP/WS/HTTP 统一核心入口、readSeq 单调推进、撤回 overlay、历史/gap repair 合并、mutation 增量同步及跨节点在线控制通知均已具备。群管理员撤回、隐私开关与群 read count 仍未实现。
 > 目标：为 `CHAT_READ` / `CHAT_REVOKE` 协议补全和服务端实现提供统一设计，避免后续把已读、撤回误建模为普通聊天消息。
 > 适用范围：CheeseIM 服务端 `postoffice` / `postbox` / `postmaster` / `postman` / `common-api`。
 
@@ -218,8 +218,9 @@ Client WS/TCP CHAT_REVOKE 或 HTTP revoke
 | `common-api` | 补 `message_protocol.proto` typed payload、领域事件与枚举 |
 | `postoffice` | 解析 WS/TCP 控制命令，做连接鉴权与 envelope ack，不承载业务判断 |
 | `api-server` | 提供 HTTP fallback/controller，调用同一 service，不复制业务逻辑 |
-| `postbox` | 将控制命令转 ingress control event，按 `conversationId` 分区 |
-| `postmaster` | 负责已读/撤回权限校验、状态更新、version log、notify event 生成 |
+| `postbox` | 历史查询与 gap repair 合并 mutation overlay；不承载控制命令业务判断 |
+| `postmaster` | 负责撤回的消息映射查询、权限/窗口校验、mutation 写入与离线 mutation 同步 |
+| `business` | 负责已读 cursor、readSeq write-behind 和 `READ_STATE_UPDATED` 版本日志 |
 | `postman` | 投递 `ChatReadNotify` / `ChatRevokeNotify` 到在线端，必要时复用离线同步 |
 | `business` | 会话同步接口返回 read/revoke 增量或 merge 后的会话状态 |
 | SDK / CheeseBox | 展示已读状态、撤回 tombstone，并处理乱序 notify |
@@ -244,8 +245,8 @@ Client WS/TCP CHAT_REVOKE 或 HTTP revoke
 4. 新增 `message_mutation` 持久化与唯一键。
 5. 历史查询 merge mutation overlay，返回 tombstone。
 6. conversation sync 带出 `READ_STATE_UPDATED` / `MESSAGE_REVOKED` 增量。
-7. Go SDK / CheeseBox 接入展示。
-8. 再评估 HTTP fallback、群管理员撤回、隐私开关、read count。
+7. Go SDK / CheeseBox 接入展示与乱序 tombstone 缓存。
+8. 再评估群管理员撤回、隐私开关、read count。
 
 ## 7. 当前不做
 

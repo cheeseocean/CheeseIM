@@ -150,8 +150,8 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 
 18. **协议补全**：~~在 `message_protocol.proto` 为 `CHAT_READ/CHAT_REVOKE/FORCE_LOGOUT` 增加类型化 payload；~~ **已完成 2026-07-11**：新增 typed command/notify payload 并写入 client/server envelope oneof，Java/Go 生成产物同步。conversation sync / friend / group 控制面仍待 Protobuf 表达。已读/撤回的产品与架构决策见 `server/docs/architecture/read-revoke-design.md`。
 19. ~~**WS 协议统一为 Protobuf**。~~ **已完成 2026-07-13**：入站、同步响应、异步聊天/控制通知全部使用 Binary WebSocket Frame + typed protobuf envelope，与 TCP 一致。
-20. ~~**已读回执链路**。~~ **已完成 2026-07-13**：TCP/二进制 WS `CHAT_READ` 统一调用 `ReadStateService`，完成可见性校验、maxSeq 截断、Redis 单调推进与 Mongo write-behind；位点变化后通过通用 control dispatch 向单聊 peer、阅读者其他端跨 gatewayNode 推送 typed notify，群聊仅同步阅读者其他端。同步写入 `ConversationVersionLog.READ_STATE_UPDATED`，增量同步返回变化会话 ID，离线设备据此刷新 read snapshot。
-21. **消息撤回/编辑与富媒体**：**撤回闭环已完成 2026-07-13**：`MessageMutationService` 按 serverMsgId 点查服务端 mapping，校验 conversation/发送者/服务端持久化时间两分钟窗口，以 `{serverMsgId}:REVOKED` 原子 upsert mutation；TCP/WS 返回 typed ACK，单聊/普通群跨节点通知在线端；历史页和 gap repair 批量 merge tombstone。新增按 `createdAt + mutationId` 稳定复合游标的 mutation 增量同步、群成员权限校验和 HTTP 拉取入口，超级群离线客户端不依赖成员写扩散即可补齐撤回。会话删除 HTTP 入口已存在；消息编辑与上传 token 服务仍待完成。
+20. ~~**已读回执链路**。~~ **已完成 2026-07-14**：TCP/二进制 WS/HTTP 统一调用 `ReadStateService`，完成可见性校验、maxSeq 截断、Redis 单调推进与 Mongo write-behind；同步写入 `ConversationVersionLog.READ_STATE_UPDATED`，增量同步返回变化会话 ID，离线设备据此刷新 read snapshot。结果经 postman `ControlNotificationDispatcher` 按 gatewayNode 推送 typed notify：单聊通知 peer 与阅读者在线端，群聊仅阅读者在线端。
+21. **消息撤回/编辑与富媒体**：**撤回闭环已完成 2026-07-14**：`MessageMutationService` 按 serverMsgId 点查服务端 mapping，校验 conversation/发送者/服务端持久化时间两分钟窗口，以 `{serverMsgId}:REVOKED` 原子 upsert mutation；TCP/WS/HTTP 统一返回结果；历史页和 gap repair 批量 merge tombstone。新增按 `createdAt + mutationId` 稳定复合游标的 mutation 增量同步、群成员权限校验和 HTTP 拉取入口；结果经 postman `ControlNotificationDispatcher` 对单聊双方、普通群在线成员按 gatewayNode 推送 typed notify，超级群仍以离线 mutation 同步收敛。消息编辑与上传 token 服务仍待完成。
 
 ### P4 — 运维与一致性
 

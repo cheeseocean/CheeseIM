@@ -3,7 +3,6 @@ package com.cheeseocean.im.postoffice.handler;
 import com.cheeseocean.im.common.api.enums.CommandType;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
@@ -23,10 +22,13 @@ public class MessageHandlerFactory {
     
     private static final Logger logger = CommonLoggers.POSTOFFICE;
     
-    @Autowired
-    private List<MessageHandler> messageHandlers;
+    private final List<MessageHandler> messageHandlers;
     
     private final Map<CommandType, MessageHandler> handlerMap = new EnumMap<>(CommandType.class);
+
+    public MessageHandlerFactory(List<MessageHandler> messageHandlers) {
+        this.messageHandlers = messageHandlers;
+    }
     
     /**
      * 初始化处理器映射

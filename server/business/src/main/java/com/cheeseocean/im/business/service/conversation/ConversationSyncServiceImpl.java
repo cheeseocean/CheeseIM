@@ -3,6 +3,7 @@ package com.cheeseocean.im.business.service.conversation;
 import com.cheeseocean.im.common.api.business.domain.UserConversation;
 import com.cheeseocean.im.common.api.conversation.ConversationService;
 import com.cheeseocean.im.common.api.conversation.ConversationSyncService;
+import com.cheeseocean.im.common.api.conversation.ReadStateService;
 import com.cheeseocean.im.common.api.dto.conversation.ConversationReadSnapshot;
 import com.cheeseocean.im.common.api.dto.conversation.ReadSeqUpdate;
 import com.cheeseocean.im.common.api.dto.conversation.PullMessages;
@@ -40,20 +41,20 @@ public class ConversationSyncServiceImpl implements ConversationSyncService {
     private final UserConversationSyncPointRepository syncPointRepository;
     private final ConversationStateStore conversationStateStore;
     private final HistoryQueryService historyQueryService;
-    private final ReadSeqPersistenceWriter readSeqPersistenceWriter;
+    private final ReadStateService readStateService;
 
     public ConversationSyncServiceImpl(ConversationService conversationService,
                                        ConversationSequenceRepository conversationSequenceRepository,
                                        UserConversationSyncPointRepository syncPointRepository,
                                        ConversationStateStore conversationStateStore,
                                        HistoryQueryService historyQueryService,
-                                       ReadSeqPersistenceWriter readSeqPersistenceWriter) {
+                                       ReadStateService readStateService) {
         this.conversationService = conversationService;
         this.conversationSequenceRepository = conversationSequenceRepository;
         this.syncPointRepository = syncPointRepository;
         this.conversationStateStore = conversationStateStore;
         this.historyQueryService = historyQueryService;
-        this.readSeqPersistenceWriter = readSeqPersistenceWriter;
+        this.readStateService = readStateService;
     }
 
     @Override
@@ -143,24 +144,7 @@ public class ConversationSyncServiceImpl implements ConversationSyncService {
 
     @Override
     public ReadSeqUpdate ackReadSeq(String userId, String conversationId, long readSeq) {
-        if (isBlank(userId) || isBlank(conversationId) || readSeq <= 0) {
-            return null;
-        }
-        UserConversation conversation = conversationService.getConversation(userId, conversationId);
-        if (conversation == null) {
-            return null;
-        }
-        long currentReadSeq = resolveReadSeq(userId, conversationId);
-        if (readSeq <= currentReadSeq) {
-            return readSeqUpdate(conversationId, currentReadSeq, false);
-        }
-        long maxSeq = resolveUserMaxSeq(userId, conversationId);
-        long boundedReadSeq = maxSeq > 0 ? Math.min(readSeq, maxSeq) : readSeq;
-        conversationStateStore.setUserReadSeq(userId, conversationId, boundedReadSeq);
-        int unreadCount = (int) Math.max(0L, maxSeq - boundedReadSeq);
-        conversationStateStore.setUnread(userId, conversationId, unreadCount);
-        readSeqPersistenceWriter.enqueue(userId, conversationId, boundedReadSeq);
-        return readSeqUpdate(conversationId, boundedReadSeq, true);
+        return readStateService.acknowledge(userId, conversationId, readSeq);
     }
 
     private List<String> resolveVisibleConversationIds(String userId, List<String> requestedConversationIds) {
@@ -212,11 +196,4 @@ public class ConversationSyncServiceImpl implements ConversationSyncService {
         return value == null || value.isBlank();
     }
 
-    private ReadSeqUpdate readSeqUpdate(String conversationId, long readSeq, boolean changed) {
-        ReadSeqUpdate update = new ReadSeqUpdate();
-        update.setConversationId(conversationId);
-        update.setReadSeq(readSeq);
-        update.setChanged(changed);
-        return update;
-    }
 }

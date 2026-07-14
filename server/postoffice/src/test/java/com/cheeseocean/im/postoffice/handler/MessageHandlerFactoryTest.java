@@ -2,7 +2,6 @@ package com.cheeseocean.im.postoffice.handler;
 
 import com.cheeseocean.im.common.api.enums.CommandType;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 
@@ -24,8 +23,7 @@ class MessageHandlerFactoryTest {
         when(heartbeatHandler.getSupportedCommand()).thenReturn(CommandType.HEARTBEAT);
         when(chatHandler.getSupportedCommand()).thenReturn(CommandType.CHAT_SEND);
 
-        MessageHandlerFactory factory = new MessageHandlerFactory();
-        ReflectionTestUtils.setField(factory, "messageHandlers", List.of(authHandler, heartbeatHandler, chatHandler));
+        MessageHandlerFactory factory = new MessageHandlerFactory(List.of(authHandler, heartbeatHandler, chatHandler));
         factory.init();
 
         assertSame(authHandler, factory.getHandler(CommandType.AUTH));

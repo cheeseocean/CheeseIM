@@ -15,6 +15,7 @@ import org.springframework.data.mongodb.core.BulkOperations;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.data.mongodb.core.index.Indexed;
 
 import java.util.List;
 import java.util.Map;
@@ -32,6 +33,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class BlockHistoryPersistenceServiceTest {
+
+    @Test
+    void messageIdMappingShouldIndexServerMessageIdForRevokeLookup() throws NoSuchFieldException {
+        Indexed indexed = MessageIdMappingDoc.class.getDeclaredField("serverMsgId").getAnnotation(Indexed.class);
+
+        assertTrue(indexed != null);
+    }
 
     @Test
     void persistShouldWriteAllMessageCoreFieldsIntoSlot() {

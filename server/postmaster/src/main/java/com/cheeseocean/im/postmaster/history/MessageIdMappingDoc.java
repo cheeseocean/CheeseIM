@@ -2,6 +2,7 @@ package com.cheeseocean.im.postmaster.history;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.index.Indexed;
 
 import java.time.Instant;
 
@@ -12,6 +13,8 @@ public class MessageIdMappingDoc {
     private String id;
     private String conversationId;
     private String clientMsgId;
+    /** 服务端消息 ID 是撤回的点查入口。 */
+    @Indexed
     private String serverMsgId;
     private Long seq;
     private String senderId;

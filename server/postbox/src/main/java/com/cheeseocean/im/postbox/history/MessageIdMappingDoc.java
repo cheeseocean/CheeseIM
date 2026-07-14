@@ -2,6 +2,7 @@ package com.cheeseocean.im.postbox.history;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.index.Indexed;
 
 import java.time.Instant;
 
@@ -17,6 +18,8 @@ public class MessageIdMappingDoc {
     private String id;
     private String conversationId;
     private String clientMsgId;
+    /** 与 postmaster 持久化模型一致，供按服务端消息 ID 点查。 */
+    @Indexed
     private String serverMsgId;
     private Long seq;
     private String senderId;

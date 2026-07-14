@@ -2,6 +2,7 @@ package com.cheeseocean.im.business.service.conversation;
 
 import com.cheeseocean.im.common.api.business.domain.UserConversation;
 import com.cheeseocean.im.common.api.conversation.ConversationService;
+import com.cheeseocean.im.common.api.conversation.ReadStateService;
 import com.cheeseocean.im.common.api.dto.conversation.PullMessages;
 import com.cheeseocean.im.common.api.dto.conversation.ReadSeqUpdate;
 import com.cheeseocean.im.common.api.dto.conversation.SeqRangeRequest;
@@ -20,7 +21,6 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ConversationSyncServiceImplTest {
@@ -32,7 +32,7 @@ class ConversationSyncServiceImplTest {
         UserConversationSyncPointRepository syncPointRepository = mock(UserConversationSyncPointRepository.class);
         ConversationStateStore stateStore = mock(ConversationStateStore.class);
         HistoryQueryService historyQueryService = mock(HistoryQueryService.class);
-        ReadSeqPersistenceWriter readSeqPersistenceWriter = mock(ReadSeqPersistenceWriter.class);
+        ReadStateService readStateService = mock(ReadStateService.class);
 
         when(conversationService.getConversationIds("u100")).thenReturn(List.of("s:u100:u200"));
         when(stateStore.getUserMaxSeq("u100", "s:u100:u200")).thenReturn(12L);
@@ -43,7 +43,7 @@ class ConversationSyncServiceImplTest {
                 syncPointRepository,
                 stateStore,
                 historyQueryService,
-                readSeqPersistenceWriter
+                readStateService
         );
 
         Map<String, Long> result = service.getConversationMaxSeqs("u100", List.of());
@@ -58,7 +58,7 @@ class ConversationSyncServiceImplTest {
         UserConversationSyncPointRepository syncPointRepository = mock(UserConversationSyncPointRepository.class);
         ConversationStateStore stateStore = mock(ConversationStateStore.class);
         HistoryQueryService historyQueryService = mock(HistoryQueryService.class);
-        ReadSeqPersistenceWriter readSeqPersistenceWriter = mock(ReadSeqPersistenceWriter.class);
+        ReadStateService readStateService = mock(ReadStateService.class);
 
         when(conversationService.getConversationIds("u100")).thenReturn(null);
 
@@ -68,7 +68,7 @@ class ConversationSyncServiceImplTest {
                 syncPointRepository,
                 stateStore,
                 historyQueryService,
-                readSeqPersistenceWriter
+                readStateService
         );
 
         Map<String, Long> result = service.getConversationMaxSeqs("u100", List.of());
@@ -83,7 +83,7 @@ class ConversationSyncServiceImplTest {
         UserConversationSyncPointRepository syncPointRepository = mock(UserConversationSyncPointRepository.class);
         ConversationStateStore stateStore = mock(ConversationStateStore.class);
         HistoryQueryService historyQueryService = mock(HistoryQueryService.class);
-        ReadSeqPersistenceWriter readSeqPersistenceWriter = mock(ReadSeqPersistenceWriter.class);
+        ReadStateService readStateService = mock(ReadStateService.class);
 
         UserConversation conversation = new UserConversation();
         conversation.setOwnerUserId("u100");
@@ -99,7 +99,7 @@ class ConversationSyncServiceImplTest {
                 syncPointRepository,
                 stateStore,
                 historyQueryService,
-                readSeqPersistenceWriter
+                readStateService
         );
 
         SeqRangeRequest range = new SeqRangeRequest();
@@ -120,7 +120,7 @@ class ConversationSyncServiceImplTest {
         UserConversationSyncPointRepository syncPointRepository = mock(UserConversationSyncPointRepository.class);
         ConversationStateStore stateStore = mock(ConversationStateStore.class);
         HistoryQueryService historyQueryService = mock(HistoryQueryService.class);
-        ReadSeqPersistenceWriter readSeqPersistenceWriter = mock(ReadSeqPersistenceWriter.class);
+        ReadStateService readStateService = mock(ReadStateService.class);
 
         when(conversationService.getConversations("u100", List.of("s:u100:u200"))).thenReturn(null);
 
@@ -130,7 +130,7 @@ class ConversationSyncServiceImplTest {
                 syncPointRepository,
                 stateStore,
                 historyQueryService,
-                readSeqPersistenceWriter
+                readStateService
         );
 
         SeqRangeRequest range = new SeqRangeRequest();
@@ -145,19 +145,19 @@ class ConversationSyncServiceImplTest {
     }
 
     @Test
-    void ackReadSeqShouldWriteHotStateAndEnqueuePersistence() {
+    void ackReadSeqShouldDelegateToReadStateService() {
         ConversationService                 conversationService = mock(ConversationService.class);
         ConversationSequenceRepository      rangeRepository     = mock(ConversationSequenceRepository.class);
         UserConversationSyncPointRepository syncPointRepository = mock(UserConversationSyncPointRepository.class);
         ConversationStateStore stateStore = mock(ConversationStateStore.class);
         HistoryQueryService historyQueryService = mock(HistoryQueryService.class);
-        ReadSeqPersistenceWriter readSeqPersistenceWriter = mock(ReadSeqPersistenceWriter.class);
+        ReadStateService readStateService = mock(ReadStateService.class);
 
-        UserConversation conversation = new UserConversation();
-        conversation.setConversationId("s:u100:u200");
-        when(conversationService.getConversation("u100", "s:u100:u200")).thenReturn(conversation);
-        when(stateStore.getUserReadSeq("u100", "s:u100:u200")).thenReturn(5L);
-        when(stateStore.getUserMaxSeq("u100", "s:u100:u200")).thenReturn(10L);
+        ReadSeqUpdate expected = new ReadSeqUpdate();
+        expected.setConversationId("s:u100:u200");
+        expected.setReadSeq(9L);
+        expected.setChanged(true);
+        when(readStateService.acknowledge("u100", "s:u100:u200", 9L)).thenReturn(expected);
 
         ConversationSyncServiceImpl service = new ConversationSyncServiceImpl(
                 conversationService,
@@ -165,16 +165,14 @@ class ConversationSyncServiceImplTest {
                 syncPointRepository,
                 stateStore,
                 historyQueryService,
-                readSeqPersistenceWriter
+                readStateService
         );
 
         ReadSeqUpdate update = service.ackReadSeq("u100", "s:u100:u200", 9L);
 
         assertTrue(update.isChanged());
         assertEquals(9L, update.getReadSeq());
-        verify(stateStore).setUserReadSeq("u100", "s:u100:u200", 9L);
-        verify(stateStore).setUnread("u100", "s:u100:u200", 1);
-        verify(readSeqPersistenceWriter).enqueue("u100", "s:u100:u200", 9L);
+        org.mockito.Mockito.verify(readStateService).acknowledge("u100", "s:u100:u200", 9L);
     }
 
     private static Message message(long seq) {
