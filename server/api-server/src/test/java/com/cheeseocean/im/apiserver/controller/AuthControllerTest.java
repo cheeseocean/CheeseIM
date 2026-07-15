@@ -1,12 +1,11 @@
 package com.cheeseocean.im.apiserver.controller;
 
 import com.cheeseocean.im.apiserver.exception.ApiExceptionHandler;
-import com.cheeseocean.im.authcenter.model.AuthLoginRequest;
-import com.cheeseocean.im.authcenter.model.AuthRefreshRequest;
-import com.cheeseocean.im.authcenter.model.AuthResponse;
-import com.cheeseocean.im.authcenter.model.KickoffDeviceRequest;
-import com.cheeseocean.im.authcenter.model.LogoutRequest;
-import com.cheeseocean.im.authcenter.session.SessionLifecycleService;
+import com.cheeseocean.im.apiserver.model.request.KickoffDeviceRequest;
+import com.cheeseocean.im.apiserver.model.request.LogoutRequest;
+import com.cheeseocean.im.common.api.auth.AuthenticationCommand;
+import com.cheeseocean.im.common.api.auth.AuthenticationResult;
+import com.cheeseocean.im.common.api.auth.AuthenticationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,12 +25,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AuthControllerTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private SessionLifecycleService sessionLifecycleService;
+    private AuthenticationService sessionLifecycleService;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        sessionLifecycleService = mock(SessionLifecycleService.class);
+        sessionLifecycleService = mock(AuthenticationService.class);
         AuthController controller = new AuthController(sessionLifecycleService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new ApiExceptionHandler())
@@ -40,12 +39,12 @@ class AuthControllerTest {
 
     @Test
     void loginShouldReturnAuthResponse() throws Exception {
-        AuthResponse response = new AuthResponse();
+        AuthenticationResult response = new AuthenticationResult();
         response.setAccessToken("access");
         response.setRefreshToken("refresh");
         response.setSessionId("sid");
         response.setUserId("u100");
-        when(sessionLifecycleService.login(any(AuthLoginRequest.class))).thenReturn(response);
+        when(sessionLifecycleService.login(any(AuthenticationCommand.class))).thenReturn(response);
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -60,12 +59,12 @@ class AuthControllerTest {
 
     @Test
     void refreshShouldReturnAuthResponse() throws Exception {
-        AuthResponse response = new AuthResponse();
+        AuthenticationResult response = new AuthenticationResult();
         response.setAccessToken("access-2");
         response.setRefreshToken("refresh-2");
         response.setSessionId("sid");
         response.setUserId("u100");
-        when(sessionLifecycleService.refresh(any(AuthRefreshRequest.class))).thenReturn(response);
+        when(sessionLifecycleService.refresh(any(String.class))).thenReturn(response);
 
         mockMvc.perform(post("/api/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -116,7 +115,7 @@ class AuthControllerTest {
     @Test
     void illegalStateShouldMapToBadRequest() throws Exception {
         doThrow(new IllegalStateException("bad request"))
-                .when(sessionLifecycleService).login(any(AuthLoginRequest.class));
+                .when(sessionLifecycleService).login(any(AuthenticationCommand.class));
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

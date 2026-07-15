@@ -3,9 +3,9 @@ package com.cheeseocean.im.authcenter.session;
 import com.cheeseocean.im.authcenter.auth.AccessTokenPrincipal;
 import com.cheeseocean.im.authcenter.auth.AccessTokenService;
 import com.cheeseocean.im.authcenter.auth.JwtTokenIssuer;
-import com.cheeseocean.im.authcenter.model.AuthLoginRequest;
-import com.cheeseocean.im.authcenter.model.AuthRefreshRequest;
-import com.cheeseocean.im.authcenter.model.AuthResponse;
+import com.cheeseocean.im.common.api.auth.AuthenticationCommand;
+import com.cheeseocean.im.common.api.auth.AuthenticationResult;
+import com.cheeseocean.im.common.api.auth.AuthenticationService;
 import com.cheeseocean.im.authcenter.repository.RefreshTokenRepository;
 import com.cheeseocean.im.authcenter.repository.SessionRepository;
 import com.cheeseocean.im.authcenter.repository.UserSecurityRepository;
@@ -14,12 +14,14 @@ import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import com.cheeseocean.im.common.api.enums.PlatformType;
 import com.cheeseocean.im.common.api.enums.SessionStatus;
 import org.apache.dubbo.config.annotation.DubboReference;
+import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
 
 @Service
-public class SessionLifecycleService {
+@DubboService
+public class SessionLifecycleService implements AuthenticationService {
 
     private final SessionRepository sessionRepository;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -45,7 +47,7 @@ public class SessionLifecycleService {
         this.accessTokenService = accessTokenService;
     }
 
-    public AuthResponse login(AuthLoginRequest request) {
+    public AuthenticationResult login(AuthenticationCommand request) {
         if (request.getUserId() == null || request.getUserId().isBlank()) {
             throw new IllegalStateException("userId required");
         }
@@ -71,7 +73,7 @@ public class SessionLifecycleService {
         sessionRepository.save(session, accessTokenService.getTokenExpirationMs());
         refreshTokenRepository.save(tokenPair.getRefreshToken(), session.getSessionId(), tokenPair.getRefreshExpireAt() - System.currentTimeMillis());
 
-        AuthResponse response = new AuthResponse();
+        AuthenticationResult response = new AuthenticationResult();
         response.setUserId(session.getUserId());
         response.setSessionId(session.getSessionId());
         response.setAccessToken(tokenPair.getAccessToken());
@@ -81,8 +83,8 @@ public class SessionLifecycleService {
         return response;
     }
 
-    public AuthResponse refresh(AuthRefreshRequest request) {
-        String sessionId = refreshTokenRepository.getSessionId(request.getRefreshToken());
+    public AuthenticationResult refresh(String refreshToken) {
+        String sessionId = refreshTokenRepository.getSessionId(refreshToken);
         if (sessionId == null) {
             throw new IllegalStateException("refresh token invalid");
         }
@@ -99,7 +101,7 @@ public class SessionLifecycleService {
         JwtTokenIssuer.TokenPair tokenPair = jwtTokenIssuer.issue(session);
         refreshTokenRepository.save(tokenPair.getRefreshToken(), session.getSessionId(), tokenPair.getRefreshExpireAt() - System.currentTimeMillis());
 
-        AuthResponse response = new AuthResponse();
+        AuthenticationResult response = new AuthenticationResult();
         response.setUserId(session.getUserId());
         response.setSessionId(session.getSessionId());
         response.setAccessToken(tokenPair.getAccessToken());

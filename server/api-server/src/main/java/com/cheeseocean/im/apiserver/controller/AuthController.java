@@ -1,11 +1,12 @@
 package com.cheeseocean.im.apiserver.controller;
 
-import com.cheeseocean.im.authcenter.model.AuthLoginRequest;
-import com.cheeseocean.im.authcenter.model.AuthRefreshRequest;
-import com.cheeseocean.im.authcenter.model.AuthResponse;
-import com.cheeseocean.im.authcenter.model.KickoffDeviceRequest;
-import com.cheeseocean.im.authcenter.model.LogoutRequest;
-import com.cheeseocean.im.authcenter.session.SessionLifecycleService;
+import com.cheeseocean.im.apiserver.model.request.AuthLoginRequest;
+import com.cheeseocean.im.apiserver.model.request.AuthRefreshRequest;
+import com.cheeseocean.im.apiserver.model.request.KickoffDeviceRequest;
+import com.cheeseocean.im.apiserver.model.request.LogoutRequest;
+import com.cheeseocean.im.common.api.auth.AuthenticationCommand;
+import com.cheeseocean.im.common.api.auth.AuthenticationResult;
+import com.cheeseocean.im.common.api.auth.AuthenticationService;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -21,38 +22,43 @@ import java.util.Map;
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private final SessionLifecycleService sessionLifecycleService;
+    private final AuthenticationService authenticationService;
 
-    public AuthController(SessionLifecycleService sessionLifecycleService) {
-        this.sessionLifecycleService = sessionLifecycleService;
+    public AuthController(AuthenticationService authenticationService) {
+        this.authenticationService = authenticationService;
     }
 
     @PostMapping("/login")
-    public AuthResponse login(@RequestBody AuthLoginRequest request) {
-        return sessionLifecycleService.login(request);
+    public AuthenticationResult login(@RequestBody AuthLoginRequest request) {
+        AuthenticationCommand command = new AuthenticationCommand();
+        command.setUserId(request.getUserId());
+        command.setPlatformId(request.getPlatformId());
+        command.setDeviceId(request.getDeviceId());
+        command.setClientVersion(request.getClientVersion());
+        return authenticationService.login(command);
     }
 
     @PostMapping("/refresh")
-    public AuthResponse refresh(@RequestBody AuthRefreshRequest request) {
-        return sessionLifecycleService.refresh(request);
+    public AuthenticationResult refresh(@RequestBody AuthRefreshRequest request) {
+        return authenticationService.refresh(request.getRefreshToken());
     }
 
     @PostMapping("/logout")
     public Map<String, Object> logout(@RequestBody LogoutRequest request) {
-        sessionLifecycleService.logout(request.getSessionId());
+        authenticationService.logout(request.getSessionId());
         return Map.of("success", true);
     }
 
     @PostMapping("/devices/{deviceId}/kickoff")
     public Map<String, Object> kickoffDevice(@PathVariable String deviceId,
                                              @RequestBody KickoffDeviceRequest request) {
-        sessionLifecycleService.kickoffDevice(request.getUserId(), deviceId);
+        authenticationService.kickoffDevice(request.getUserId(), deviceId);
         return Map.of("success", true);
     }
 
     @PostMapping("/kickoff-all/{userId}")
     public Map<String, Object> kickoffAll(@PathVariable String userId) {
-        sessionLifecycleService.kickoffAll(userId);
+        authenticationService.kickoffAll(userId);
         return Map.of("success", true);
     }
 }
