@@ -2,7 +2,7 @@
 
 > 状态：规划中，未实现。
 > 当前工程的有效鉴权与会话边界以
-> [2026-03-22-im-full-refactor-design.md](/Users/xxxcrel/Develop/backend/java/CheeseIM/server/docs/superpowers/specs/2026-03-22-im-full-refactor-design.md)
+> 原始设计链接已失效；当前认证事实以 `authcenter/ARCH.md` 和 `ASSESSMENT.md` 为准。
 > 以及 `common-core/common-api` 中已落地的共享契约为准。
 > 本文描述的是后续可能推进的 session 权威态升级方向，不代表当前代码已经切换到数据库权威态。
 

@@ -246,7 +246,7 @@ public final class ConversationIdUtil {
     }
 
     public static String group(String groupId) {
-        return "c2:" + groupId;
+        return "g:" + groupId;
     }
 
     public static String notification(String userId) {

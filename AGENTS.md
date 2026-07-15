@@ -23,8 +23,8 @@ CheeseIM 是**多语言混合 Monorepo**，三块独立工程：
 
 ```
 server/      Java 17 + Spring Boot 3 + Dubbo 3 + Gradle 多模块（11 个子模块）
-sdks/go      通用 IM Client SDK（Go 1.22+）
-apps/        CheeseBox（Go TUI 主联调客户端）+ CheeseWeb（React 实验客户端）
+sdks/go      通用 IM Client SDK（Go 1.24.2）
+apps/        CheeseBox（Go TUI 主联调客户端）
 ```
 
 - 三块工程**不共享构建**，分别用 `./gradlew` / `go test` / `pnpm` 等。
@@ -51,7 +51,7 @@ Client ──TCP/WS──> postoffice ──> postbox ──ingress event──>
 6. **不要降级到 JSON 命令体**：TCP/WS 协议以 `message_protocol.proto` 为准；两者当前均使用 typed Protobuf envelope，WS 使用 Binary Frame。节点内部 Redis 队列 JSON 不属于客户端命令协议。
 7. **不要写无意义注释**、不要重复样板注释、不要用注释替代 commit message。
 8. **不要尝试单测里硬连真实 Mongo/Redis**：用嵌入式或 mock，CI 不可依赖外部中间件。
-9. **不要为通用 `SequenceIdGenerator` 用普通 `INCRBY`**：会话 seq 必须走 `ConversationSeqAllocator`（Lua + Mongo `$inc`），见 `server/AGENTS.md`。
+9. **会话 seq 只走 `ConversationSeqAllocator`**（Lua + Mongo `$inc`）：禁止用普通 `INCRBY` 或新增第二条分配路径，见 `server/AGENTS.md`。
 10. **不要新增 `mongodb://localhost` 等单机配置到默认 profile**：默认 profile 是 `all-in-one`，生产 profile 待落地。新中间件地址优先走环境变量。
 
 ## 4. 跨语言约定
@@ -109,7 +109,7 @@ Client ──TCP/WS──> postoffice ──> postbox ──ingress event──>
 | ~~用 `RedisOnlineRouteService.register` 增删路由但未改为 Lua~~ | **已修复 2026-07-06**：路由表原子化见 ASSESSMENT P0-3 |
 | ~~把 `deliveredMessageKeys` 换成另一份本地 Set~~ | **已修复 2026-07-06**：必须上 Redis，见 ASSESSMENT P0-5 |
 | ~~在 `common.yml` 启用 Kafka 又不改 `QueueAdapter` 序列化~~ | **已修复 2026-07-07**：`KafkaQueueAdapter` 反序列化对齐 Chronicle + `byteKafkaTemplate`，见 ASSESSMENT P0-6 / postman ARCH §7 |
-| 新增 `ConversationId` 前缀（如 `c2:`） | 已被 `s:/g:/n:/ng:` 替换；`GroupController.resolveGroupId` 的 `c2:` 是死分支 |
+| 新增 `ConversationId` 前缀 | 仅允许 `s:/g:/n:/ng:`；不得新增其它前缀 |
 | 在 `api-server` Controller 调用 Mongo Repository | 违反分层 |
 | 给新消息字段在 `message_protocol.proto` 用 `int32` 装复杂结构 | 用类型化 nested message |
 | 在 `MessageSender` 同步链路新增 Dubbo 调用 | 当前已有 3 次，新增需合并 |

@@ -16,9 +16,9 @@
 server/
 ├── api-server        HTTP 出入口（REST + Facade 编排）
 ├── authcenter        鉴权：JWT/refresh/ticket/session/踢下线
-├── business          用户/好友/黑名单/群/会话/**同步点业务域（JetCache）
+├── business          用户/好友/黑名单/群/会话/**同步点业务域（CacheStore）
 ├── common-api        跨模块契约：领域模型 + Protobuf + 事件 + 枚举
-├── common-core        基础设施：Mongo Repo + 队列 + JetCache + 序列状态 + Idgen
+├── common-core        基础设施：Mongo Repo + 队列 + CacheStore + 序列状态 + Idgen
 ├── config            application-*.yml 配置集合
 ├── bootstrap-all      all-in-one 单 JVM 联调入口（推荐）
 ├── postoffice        TCP/WS 网关 + 在线路由 + 心跳 + 踢下线
@@ -39,7 +39,7 @@ server/
 | `postmaster` | seq 分配（`ConversationSeqService`）+ history block 持久化 + delivery event 发布 + 策略引擎 | 不接客户端、不做最终在线投递 |
 | `postman` | 在线投递执行 + 离线推送 + 厂商适配 | 不分配 seq、不写历史 |
 | `common-api` | 领域模型（`domain/`）+ Protobuf（`proto/` + 生成 `protocol/`）+ 事件（`event/`）+ 枚举 + DTO | **不写业务逻辑**、**不依赖 Spring Data** |
-| `common-core` | Mongo Repository 接口与 impl + `QueueAdapter` + `MultiLevelCacheService` + 序列/会话状态机 + 推送发送 | 业务模块不绕过这里直接调 Mongo |
+| `common-core` | Mongo Repository 接口与 impl + `QueueAdapter` + `CacheStore` + 序列/会话状态机 + 推送发送 | 业务模块不绕过这里直接调 Mongo |
 | `config` | `application-*.yml` + `module-*.yml` + `common.yml` | 不写 Java 代码 |
 | `bootstrap-all` | 单 JVM 拉起全部模块，Dubbo injvm + Chronicle | 不与 kafka/远程 Dubbo 混用 |
 
@@ -103,7 +103,7 @@ api-server Controller  ──HTTP──> Facade ──Dubbo──> business / po
 
 - 接口在 `api` 模块（`api-server` 自身接口或 `common-api`）；实现在 `impl` 包，标 `@DubboService`。
 - **命名禁带** `Dubbo` / `Rpc`（接口、实现、注入对象三类都禁）。
-- `<dubbo:reference>` 用 `@DubboReference(check=false)`，timeout 默认 5000ms，retries 默认 2。
+- `<dubbo:reference>` 必须显式 `@DubboReference(check=false)`；timeout 默认 5000ms 由全局 consumer 配置统一提供。幂等查询可沿用全局 `retries=2`，写调用必须显式 `retries=0` 或提供幂等 key。Dubbo 3.2 的引用代理是框架注入例外，统一使用 private `@DubboReference` 字段；不要伪装成不生效的构造器参数。
 - **幂等接口可重试，写接口必须 `retries=0`** 或显式幂等 key。
 - common-api 是 Dubbo 契约唯一锚点；新增 Dubbo 接口需先评估对调用方的兼容影响。
 - all-in-one 走 injvm，不开放固定 Dubbo 端口；分模块部署端口见 `server/config/application-*.yml`。
@@ -124,8 +124,8 @@ api-server Controller  ──HTTP──> Facade ──Dubbo──> business / po
   - Redis Lua 状态机（ALLOCATED/MISS/EXHAUSTED/LOCKED）+ Mongo `findAndModify $inc` 段预分配。
   - 启动时 `ConversationSeqAllocatorConfigurer` 在 `CLUSTER` 模式强制 Redis 守卫。
   - 允许 seq 空洞，禁止 seq 重复/回退。
-- **禁止**用通用 `SequenceIdGenerator` / `INCRBY` 替代会话 seq。
-- 旧版 `ConversationSequenceAllocator`（process-wide synchronized）仅遗留，新代码不要引用。
+- **禁止**用通用自增器 / `INCRBY` 替代会话 seq。
+- 会话 seq 只有这一条分配路径；禁止新增通用或本地序列分配器。
 - 同一模式可复用做消息 id、通知 id、批次 id（参考 P0 演进项）。
 
 ## 8. 队列与缓存
@@ -138,12 +138,12 @@ api-server Controller  ──HTTP──> Facade ──Dubbo──> business / po
 - Topic 命名集中在 `TopicNames`；`buildQueueKey` 用 `ConversationIdUtil`，保证同会话同一 Kafka 分区。
 - 消费者用 `@QueueListener`，批量消费 `batch=true` 优先。
 
-### 8.2 缓存（`MultiLevelCacheService` = L1 Caffeine + L2 Redis/RocksDB）
+### 8.2 缓存（`CacheStore` / `CacheRegion`）
 
-- 热点读 L1 → L2 → loader → 回填。
+- 业务缓存只可经 `CacheStore` 创建类型固定的 `CacheRegion`；底层统一 `StringRedisTemplate` + 显式 JSON 类型。
 - **写操作**：先 DB 后缓存，缓存删除放在 `@Transactional` 的 `afterCommit`，保证不脏读。
-- L1 当前**无跨节点失效广播**，已知缺陷（见 ASSESSMENT），写后最长 `localExpireSeconds` 才全集群一致。
-- 新增缓存优先 `CacheType.REMOTE`（避免 L1 跨节点脏），多读热点才升级 `BOTH`。
+- 默认只使用 Redis 远端缓存；本地缓存须有明确一致性证明，不能作为通用开关。
+- `SessionStateStore`、`ConversationStateStore`、`IdempotencyStore`、seq Lua 等原子状态仍使用专用 Store，不得套入通用缓存。
 
 ## 9. 配置矩阵（端口/中间件事实）
 
@@ -163,7 +163,8 @@ api-server Controller  ──HTTP──> Facade ──Dubbo──> business / po
 - `all-in-one`：Chronicle + injvm Dubbo；Redis 在 P0-1（节点投递队列）/P0-3（路由表）/P0-5（投递去重）之后已是**在线投递链路的硬依赖**——详见 `postoffice/ARCH.md` §3、§6，部署时必须启动。Mongo 仍可选（无消息历史时长会话 × 首次会话查询会失败）。
 - 分模块 standalone：Nacos 注册 + 配置中心 + Dubbo 远程；保留既有 `localhost` 便捷默认，仅用于本地单机拆模块联调。
 - authcenter 单独启动需要 Mongo 支撑 `user_security_state`；standalone 保留本地 `mongodb://localhost:27017/cheese_im` 便捷默认，cluster 必须由 `AUTHCENTER_MONGODB_URI` 或 `MONGODB_URI` 覆盖。
-- 分模块 cluster：在模块 profile 外叠加 `cluster`，并按 Redis 形态追加 `redis-sentinel` 或 `redis-cluster`。`application-cluster.yml` 不提供 `localhost` 默认值，必须通过 `MONGODB_URI`、`KAFKA_BOOTSTRAP_SERVERS`、`NACOS_SERVER_ADDR`、`NACOS_NAMESPACE`、`REDIS_SENTINEL_*` 或 `REDIS_CLUSTER_*` 配置；JetCache 远端缓存另需 `JETCACHE_REDIS_HOST` / `JETCACHE_REDIS_PORT` 指向可达 Redis endpoint。该 profile 默认 `CHEESEIM_QUEUE_TYPE=kafka`、`cheeseim.conversation-seq.deployment-mode=cluster`。
+- JWT 签名密钥只由 authcenter 的 `CHEESEIM_AUTH_JWT_SECRET` 注入，且必须至少 32 个字符；任何其它模块不得配置或复制 JWT 密钥。all-in-one 与 authcenter standalone 启动前均必须提供该环境变量。
+- 分模块 cluster：在模块 profile 外叠加 `cluster`，并按 Redis 形态追加 `redis-sentinel` 或 `redis-cluster`。`application-cluster.yml` 不提供 `localhost` 默认值，必须通过 `MONGODB_URI`、`KAFKA_BOOTSTRAP_SERVERS`、`NACOS_SERVER_ADDR`、`NACOS_NAMESPACE`、`REDIS_SENTINEL_*` 或 `REDIS_CLUSTER_*` 配置；该 profile 默认 `CHEESEIM_QUEUE_TYPE=kafka`、`cheeseim.conversation-seq.deployment-mode=cluster`。
 - 任何新的生产/集群配置不得写死 `localhost:27017` / `localhost:6379`，应走环境变量。
 
 ## 10. Protobuf 协议
@@ -184,7 +185,7 @@ api-server Controller  ──HTTP──> Facade ──Dubbo──> business / po
 
 ## 12. 代码风格补丁
 
-- 构造器注入；字段注入禁止。
+- Spring Bean 一律构造器注入，禁止 `@Autowired` / `@Resource` 字段注入。`@DubboReference` 是 Dubbo 代理注入例外，按第 5 节统一处理。
 - `Optional<T>` 不作字段、不作入参，只作返回值。
 - 公共方法参数校验优先 `jakarta.validation`，业务层补防御式。
 - 日志参数化，禁字符串拼接；不打印 token/password/手机号等敏感信息。

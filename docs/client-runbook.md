@@ -1,12 +1,12 @@
 # Client Runbook
 
-当前客户端侧以 Go SDK 和 CheeseBox 为主。历史 Dart/Flutter/Web 客户端文档已经不再代表当前代码结构，相关旧方案只保留在 `docs/superpowers/**` 作为过程记录。
+当前客户端侧以 Go SDK 和 CheeseBox 为主。历史 Dart/Flutter/Web 客户端文档已经不再代表当前代码结构；当前事实以本手册、README 与代码为准。
 
 ## Workspace
 
 | 路径 | 说明 |
 | --- | --- |
-| `sdks/go` | 通用 Go IM Client SDK，封装 HTTP 登录、ticket 获取、TCP/WS 连接、消息收发和同步能力。 |
+| `sdks/go` | 通用 Go IM Client SDK，封装 HTTP 登录、ticket 获取、TCP 长连接、消息收发和同步能力。 |
 | `apps/CheeseBox` | TUI 聊天应用，集成 `sdks/go`，用于真实双端联调。 |
 | `server/postoffice` | 长连接协议与网关实现，协议以 Protobuf 为准。 |
 | `server/api-server` | HTTP API 入口，提供登录、ticket、会话同步、好友/用户相关接口。 |
@@ -16,6 +16,7 @@
 - HTTP API 用于登录、刷新 token、申请长连接 ticket、会话同步、好友和用户设置。
 - TCP/WebSocket 用于实时长连接消息，统一承载 `ProtoClientEnvelope` / `ProtoServerEnvelope`。
 - WebSocket 不再使用 JSON envelope；TCP/WS 都以 `message_protocol.proto` 为准。
+- `server/common-api/src/main/proto/message_protocol.proto` 是唯一协议源；在 SDK 根目录执行 `go generate ./proto` 生成 Go 产物，禁止维护 SDK 内 Proto 副本或手改 `message_protocol.pb.go`。
 - 客户端本地只缓存展示状态和同步游标，服务端消息历史以 MongoDB 历史块为准。
 
 ## Common Commands
@@ -31,6 +32,7 @@ cd server
 
 ```bash
 cd sdks/go
+go generate ./proto
 go test ./...
 ```
 
@@ -62,4 +64,4 @@ go run ./cmd/cheesebox
 
 - 文件、图片、语音等富媒体消息仍需继续补齐。
 - 分模块部署需要先校准独立启动配置和 Dubbo 注册中心。
-- 旧 Flutter/Web/Dart 客户端路径不属于当前主线。
+- CheeseBox 是唯一主线联调客户端；实验 Web 客户端已删除，未来 Web 客户端必须直接消费同一份 Protobuf 协议。

@@ -201,7 +201,7 @@ public String genSingleConversationId(String userA, String userB) {
 4.2 群聊
 
 public String genGroupConversationId(String groupId) {
-    return "c2:" + groupId;
+    return "g:" + groupId;
 }
 
 4.3 通知

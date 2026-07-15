@@ -72,10 +72,10 @@
 | `distro/docker/docker-compose.middleware.yml` | 权威 | 中间件本地启动 |
 | `distro/mongo/enable-im-sharding.js` | 权威 | 已就绪 Mongo 分片集群的 CheeseIM 集合分片与索引初始化脚本 |
 | `server/config/src/main/resources/application-*.yml` | 权威 | 模块配置（详见 `server/AGENTS.md`） |
+| `docs/DEPLOYMENT.md` | 权威 | 单机、独立模块与 cluster overlay 的部署矩阵 |
 
 ## 六、缺失文档（建议补）
 
-- `docs/DEPLOYMENT.md` — 从单机到集群的部署矩阵（端口/中间件/profile 矩阵）。当前散落在 README，集中后便于自动化部署。
 - `docs/PROTOCOL.md` — TCP/WS + HTTP 控制面一页纸总览。
 - `docs/ROADMAP.md` — 演进路线独立成文（当前在 `ASSESSMENT.md` 第五节）。
 

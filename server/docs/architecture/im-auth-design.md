@@ -2,7 +2,7 @@
 
 > 状态：已过期。
 > 当前共享鉴权契约与模块边界已收敛到 `common-core/common-api` 和
-> [2026-03-22-im-full-refactor-design.md](/Users/xxxcrel/Develop/backend/java/CheeseIM/server/docs/superpowers/specs/2026-03-22-im-full-refactor-design.md)。
+> 原始设计链接已失效；当前认证事实以 `authcenter/ARCH.md` 和 `ASSESSMENT.md` 为准。
 > 本文保留仅用于历史设计参考，其中 `:common` 模块、旧 Dubbo 接口路径与旧编译命令不再适用于当前工程。
 
 ## 1. 目标
@@ -491,7 +491,7 @@ MVP 暂缓：
 
 关于后续将 Redis 版 session 升级为数据库权威态 + Redis 运行态缓存的说明，见：
 
-- [im-auth-session-upgrade.md](/Users/xxxcrel/Develop/backend/java/CheeseIM/server/docs/architecture/im-auth-session-upgrade.md)
+- `im-auth-session-upgrade.md`（过程记录）
 
 ## 19. 结论
 

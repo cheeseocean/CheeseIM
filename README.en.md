@@ -22,12 +22,11 @@ The diagram below is organized around the product experience: user-facing client
 | `server/postmaster` | Message orchestration. Consumes ingress events, allocates conversation/user seq, writes history blocks, and emits delivery events. |
 | `server/postman` | Delivery and offline push. Consumes delivery/offline events and dispatches online messages or vendor push requests. |
 | `server/common-api` | Cross-module APIs, domain models, enums, events, and Protobuf definitions. |
-| `server/common-core` | Shared infrastructure: Mongo repositories, queue abstraction, JetCache, notifications, seq state, and utilities. |
+| `server/common-core` | Shared infrastructure: Mongo repositories, queue abstraction, typed CacheStore, notifications, seq state, and utilities. |
 | `server/config` | Spring/YAML configuration for all-in-one and module deployments. |
 | `server/bootstrap-all` | Recommended local development entry. Runs all modules in one JVM with Dubbo injvm. |
 | `sdks/go` | Reusable Go IM client SDK. |
 | `apps/CheeseBox` | TUI chat application built on top of the Go SDK. |
-| `apps/CheeseWeb` | Experimental React web client. It is not the primary integration entry. |
 
 ## Current Status
 
@@ -36,7 +35,6 @@ The diagram below is organized around the product experience: user-facing client
 | Java server | Core pipeline implemented | all-in-one local integration is the main path; split-module deployment still needs environment-specific config and verification. |
 | Go SDK | Usable for real integration | Wraps HTTP auth, ticket issuing, TCP long connection, message sending, conversation sync, and social queries. |
 | CheeseBox TUI | Usable integration client | Supports login, conversation/friend/group navigation, text messages, realtime events, history sync, and gap repair. Friend request handling UI, conversation deletion UI, and rich media remain future work. |
-| CheeseWeb | Experimental client | Kept as a web implementation and test surface, not the main README startup path. |
 | Documentation | Being consolidated | Root READMEs, module READMEs, protocol docs, and the client runbook are the maintained entry points. Historical plans/specs are process references only. |
 
 ## Implemented Features
@@ -55,9 +53,8 @@ The diagram below is organized around the product experience: user-facing client
 - `authcenter` owns token, ticket, session, and connection-auth logic. `postoffice` owns connection state and online routes.
 - TCP/WS protocol is defined by `common-api/src/main/proto/message_protocol.proto`; JSON command payloads are no longer the source of truth.
 - Conversation lists do not store latest-message snapshots. Clients should cache the latest message or pull messages on demand.
-- Message seq allocation must use the conversation/user seq state pipeline. Do not replace it with the generic `SequenceIdGenerator`.
-- Redis is required for clustered cache and seq allocation state. Single-node deployments can degrade to local RocksDB state, but that does not provide cross-node global consistency.
-- `bootstrap-all` is the recommended development mode. Split-module deployment requires aligned `spring.config.name` values and a real Dubbo registry.
+- Message seq allocation must use `ConversationSeqAllocator`; Redis and MongoDB jointly maintain its state. RocksDB is only a development fallback for limited local state, not a replacement for Redis in all-in-one mode.
+- `bootstrap-all` is the recommended development mode. See [deployment modes](docs/DEPLOYMENT.md) for split-module and cluster contracts.
 
 ## Development
 
@@ -68,7 +65,7 @@ Recommended prerequisites:
 - MongoDB 6.x+
 - Redis 6.x+
 - Optional Kafka/Nacos for split-module or queue experiments
-- Go 1.22+ for `sdks/go` and `apps/CheeseBox`
+- Go 1.24.2 for `sdks/go` and `apps/CheeseBox`
 
 Start the full server locally:
 
@@ -101,10 +98,13 @@ curl -sS -X POST http://127.0.0.1:18079/api/im/ws-ticket \
   -H "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
+Set `CHEESEIM_AUTH_JWT_SECRET` to a value of at least 32 characters before starting all-in-one or any split module. See [deployment modes](docs/DEPLOYMENT.md) for the environment variables, profiles, ports, and middleware matrix.
+
 Run CheeseBox:
 
 ```bash
 cd sdks/go
+go generate ./proto
 go test ./...
 ```
 
@@ -150,9 +150,7 @@ Maintained entry points:
 Reference-only documents:
 
 - `server/postmaster/docs/ConversationArch.md` and `server/postmaster/docs/SeqArch.md`: conversation and seq design background.
-- `docs/handoff/**`: phase handoff notes.
 - `server/docs/architecture/**`: earlier server architecture drafts.
-- `docs/superpowers/**` and `server/docs/superpowers/**`: historical specs/plans from implementation work; do not treat them as current code facts without checking the source.
 
 ## Repository Layout
 
@@ -160,7 +158,6 @@ Reference-only documents:
 .
 ├── apps
 │   ├── CheeseBox          # TUI client, current primary integration client
-│   └── CheeseWeb          # Experimental web client
 ├── distro                 # Local middleware and helper scripts
 ├── docs                   # Design documents and historical plans
 ├── sdks

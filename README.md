@@ -39,18 +39,17 @@ sequenceDiagram
 | --- | --- |
 | `server/api-server` | 统一 HTTP 入口。Controller 只处理 REST 入参、鉴权 Principal、Facade 编排和 Response 封装，不把 HTTP Response 模型下沉到业务 Service。 |
 | `server/authcenter` | 访问令牌、刷新令牌、WS/TCP ticket、会话生命周期、设备踢下线、连接鉴权。 |
-| `server/business` | 用户、好友、黑名单、群成员、会话、同步点等业务域服务实现；使用 JetCache 做业务缓存。 |
+| `server/business` | 用户、好友、黑名单、群成员、会话、同步点等业务域服务实现；业务缓存统一经 common-core `CacheStore`。 |
 | `server/postoffice` | TCP/WS 长连接网关。负责 Protobuf 编解码、连接管理、在线路由、心跳、踢下线和在线投递。 |
 | `server/postbox` | 消息发送入口与历史查询入口。实现 `MessageSender`，发布 ingress event，并对外提供历史消息查询能力。 |
 | `server/postmaster` | 消息编排核心。消费 ingress event，分配会话序列，写入历史块，维护用户会话序列范围，并生成投递事件。 |
 | `server/postman` | 投递与离线推送模块。消费 delivery/offline push event，调用 `postoffice` 在线投递或走 vendor push。 |
 | `server/common-api` | 跨模块 API、领域模型、枚举、事件模型、Protobuf 协议定义。 |
-| `server/common-core` | 通用基础设施：Mongo Repository、队列抽象、JetCache 配置、通知发送、序列状态、工具类。 |
+| `server/common-core` | 通用基础设施：Mongo Repository、队列抽象、typed `CacheStore`、通知发送、序列状态、工具类。 |
 | `server/config` | Spring/YAML 配置集合，包含 all-in-one 与各模块配置片段。 |
 | `server/bootstrap-all` | 开发与本地联调推荐入口。单 JVM 装配所有模块，Dubbo 走 injvm。 |
 | `sdks/go` | Go 侧通用 IM Client SDK，供 CheeseBox 和后续其他应用复用。 |
 | `apps/CheeseBox` | 基于 Go SDK 的 TUI 聊天应用，用于真实端到端联调。 |
-| `apps/CheeseWeb` | React Web 客户端实验实现。当前不是主要联调入口，状态以代码和自身测试为准。 |
 
 ## 当前状态
 
@@ -59,7 +58,6 @@ sequenceDiagram
 | Java 服务端 | 核心链路已实现 | all-in-one 本地联调是当前主线；分模块部署配置仍需按目标环境校准并验证。 |
 | Go SDK | 可用于真实联调 | 封装 HTTP 鉴权、ticket、TCP 长连接、消息发送、会话同步和好友/群组查询。 |
 | CheeseBox TUI | 联调客户端可用 | 支持登录、会话/好友/群组导航、文本消息、实时事件、历史同步和 gap repair；好友请求处理、会话删除入口、富媒体等仍需补齐。 |
-| CheeseWeb | 实验客户端 | 保留为 Web 侧实现与测试，不作为当前 README 的主线启动路径。 |
 | 文档 | 正在收敛 | 根 README、模块 README、协议文档和 client runbook 是优先维护入口；历史 plans/specs 只作过程参考。 |
 
 ## 已实现能力
@@ -78,9 +76,8 @@ sequenceDiagram
 - `authcenter` 拥有令牌、ticket、session 与连接鉴权逻辑；`postoffice` 只持有连接态和在线路由。
 - TCP/WS 协议以 `common-api/src/main/proto/message_protocol.proto` 为准，不再使用 JSON 命令体。
 - 会话列表不再持有最新消息快照。最后一条消息由客户端缓存或通过同步/历史消息接口按需加载。
-- 消息 seq 不应使用通用 `SequenceIdGenerator` 替代。会话消息序列需要 Redis/RocksDB 区间分配状态与 Mongo 持久化状态协同。
-- 集群部署需要 Redis 承担分布式缓存与序列分配状态；单机降级可使用本地 RocksDB 状态，但不能跨节点保证全局一致。
-- 当前本地开发推荐 `bootstrap-all`。独立模块启动前需要校准启动类中的 `spring.config.name` 与 `server/config/src/main/resources/application-*.yml` 文件名，并接入真实 Dubbo 注册中心。
+- 消息 seq 只可使用 `ConversationSeqAllocator`。Redis 与 Mongo 共同维护会话序列状态；RocksDB 只用于少数开发期本地状态，不替代 all-in-one 的 Redis。
+- `bootstrap-all` 是本地联调推荐入口；独立模块与 cluster profile 的运行契约见 [部署运行模式](docs/DEPLOYMENT.md)。
 
 ## 开发环境
 
@@ -91,7 +88,7 @@ sequenceDiagram
 - MongoDB 6.x+
 - Redis 6.x+
 - 可选：Kafka / Nacos。all-in-one 默认使用 Chronicle 队列和 injvm Dubbo，本地开发可先不启 Kafka/Nacos。
-- Go 1.22+：用于 `sdks/go` 与 `apps/CheeseBox`
+- Go 1.24.2：用于 `sdks/go` 与 `apps/CheeseBox`
 
 启动中间件示例：
 
@@ -144,12 +141,21 @@ curl -sS -X POST http://127.0.0.1:18079/api/im/ws-ticket \
 | `postmaster` | `application-postmaster.yml` / `module-postmaster.yml` | `20881` |
 | `postman` | `application-postman.yml` / `module-postman.yml` | `20883` |
 
+分模块或 all-in-one 启动前必须设置仅由 authcenter 使用的 JWT 签名密钥（至少 32 个字符）：
+
+```bash
+export CHEESEIM_AUTH_JWT_SECRET='replace-with-a-secret-of-at-least-32-characters'
+```
+
+独立模块、cluster profile 的环境变量与完整端口/中间件矩阵见 [部署运行模式](docs/DEPLOYMENT.md)。
+
 ## 启动 CheeseBox
 
-CheeseBox 是真实 TUI 客户端，不是 mock client。它通过 Go SDK 登录 HTTP API、申请 ticket，并连接 TCP/WS 长连接。
+CheeseBox 是真实 TUI 客户端，不是 mock client。它通过 Go SDK 登录 HTTP API、申请 ticket，并连接 TCP Binary Protobuf 长连接。
 
 ```bash
 cd sdks/go
+go generate ./proto
 go test ./...
 ```
 
@@ -223,7 +229,6 @@ git diff --check
 .
 ├── apps
 │   ├── CheeseBox          # TUI 客户端，当前主要真实联调客户端
-│   └── CheeseWeb          # Web 客户端实验实现
 ├── distro                 # 本地中间件与辅助脚本
 ├── docs                   # 设计文档与历史方案
 ├── sdks

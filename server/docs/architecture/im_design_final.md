@@ -257,7 +257,7 @@ c1:{minUserId}:{maxUserId}
 
 群聊
 
-c2:{groupId}
+g:{groupId}
 
 通知会话
 
