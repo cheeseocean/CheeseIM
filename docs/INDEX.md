@@ -35,7 +35,7 @@
 | `server/postoffice/docs/TCP_PROTOCOL.md` | 权威 | TCP/WS Protobuf 长连接协议说明 |
 | `server/postmaster/docs/ConversationArch.md` | 权威 | 会话模型设计背景 |
 | `server/postmaster/docs/SeqArch.md` | 权威 | 会话 seq 分配设计背景 |
-| `server/docs/architecture/read-revoke-design.md` | **草案** | 已读/撤回控制事件设计：单聊默认公开已读、撤回给所有人、群聊第一阶段不做成员已读列表 |
+| `server/docs/architecture/read-revoke-design.md` | 次级 | 已读/撤回/输入中控制事件的第一阶段实现与第二阶段边界；实现事实以 `ASSESSMENT.md` 和代码为准 |
 | `server/postoffice/README.md` | 权威 | 网关模块职责 |
 | `server/postbox/README.md` | 权威 | 消息接入/历史查询模块职责 |
 | `server/postmaster/README.md` | 权威 | 消息编排核心模块职责 |
@@ -77,7 +77,6 @@
 
 - `docs/DEPLOYMENT.md` — 从单机到集群的部署矩阵（端口/中间件/profile 矩阵）。当前散落在 README，集中后便于自动化部署。
 - `docs/PROTOCOL.md` — TCP/WS + HTTP 控制面一页纸总览。
-- `server/common-api/ARCH.md` — 领域模型/事件/协议契约事实快照（防止 agent 改字段破坏跨模块契约）。
 - `docs/ROADMAP.md` — 演进路线独立成文（当前在 `ASSESSMENT.md` 第五节）。
 
 ---

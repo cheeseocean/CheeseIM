@@ -15,7 +15,6 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.net.InetSocketAddress;
 
@@ -39,9 +38,8 @@ class WsServerHandlerTest {
         when(factory.getHandler(CommandType.CHAT_SEND)).thenReturn(handler);
         when(handler.handle(any(UserConnection.class), any(ClientEnvelope.class))).thenReturn(MessageHandler.HandleResult.success());
 
-        WsServerHandler serverHandler = new WsServerHandler();
-        ReflectionTestUtils.setField(serverHandler, "connectionManager", manager);
-        ReflectionTestUtils.setField(serverHandler, "messageHandlerFactory", factory);
+        BusinessMessageExecutor executor = immediateExecutor();
+        WsServerHandler serverHandler = new WsServerHandler(manager, factory, executor);
         byte[] payload = ProtoClientEnvelope.newBuilder()
                 .setCommand(CommandType.CHAT_SEND.getCode())
                 .setRequestId("ws-1")
@@ -65,5 +63,14 @@ class WsServerHandlerTest {
         context.setState(ConnectionState.AUTHENTICATED);
         connection.setContext(context);
         return connection;
+    }
+
+    private static BusinessMessageExecutor immediateExecutor() {
+        BusinessMessageExecutor executor = mock(BusinessMessageExecutor.class);
+        when(executor.submit(any(Channel.class), any(Runnable.class))).thenAnswer(invocation -> {
+            invocation.<Runnable>getArgument(1).run();
+            return true;
+        });
+        return executor;
     }
 }

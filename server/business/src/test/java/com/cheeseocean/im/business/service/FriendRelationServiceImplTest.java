@@ -11,6 +11,7 @@ import com.cheeseocean.im.common.api.enums.HandleResultEnum;
 import com.cheeseocean.im.common.core.business.repository.BlacklistRepository;
 import com.cheeseocean.im.common.core.business.repository.FriendRequestRepository;
 import com.cheeseocean.im.common.core.business.repository.FriendshipRepository;
+import com.cheeseocean.im.common.core.business.transaction.PersistenceTransactionExecutor;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -41,7 +42,7 @@ class FriendRelationServiceImplTest {
         when(requestRepository.find("userB", "userA")).thenReturn(null);
         when(requestRepository.find("userA", "userB")).thenReturn(null);
 
-        FriendRelationServiceImpl service = new FriendRelationServiceImpl(friendshipRepository, requestRepository, blacklistRepository, notifier, cacheManager);
+        FriendRelationServiceImpl service = service(friendshipRepository, requestRepository, blacklistRepository, notifier, cacheManager);
 
         FriendRequest request = service.sendFriendRequest("userA", "userB", "hello there");
 
@@ -64,7 +65,7 @@ class FriendRelationServiceImplTest {
         when(friendshipRepository.find("userA", "userB")).thenReturn(null);
         when(requestRepository.find("userB", "userA")).thenReturn(pendingRequest("userB", "userA", "hello"));
 
-        FriendRelationServiceImpl service = new FriendRelationServiceImpl(friendshipRepository, requestRepository, blacklistRepository, notifier, cacheManager);
+        FriendRelationServiceImpl service = service(friendshipRepository, requestRepository, blacklistRepository, notifier, cacheManager);
 
         IllegalStateException error = assertThrows(
                 IllegalStateException.class,
@@ -104,7 +105,7 @@ class FriendRelationServiceImplTest {
                 requestRepository.findOutgoing(invocation.getArgument(0), List.of(0), 0, 0)
         );
 
-        FriendRelationServiceImpl service = new FriendRelationServiceImpl(friendshipRepository, requestRepository, blacklistRepository, notifier, cacheManager);
+        FriendRelationServiceImpl service = service(friendshipRepository, requestRepository, blacklistRepository, notifier, cacheManager);
 
         List<FriendRequest> incoming = service.listIncomingRequests("userA");
         List<FriendRequest> outgoing = service.listOutgoingRequests("userA");
@@ -128,7 +129,7 @@ class FriendRelationServiceImplTest {
                 .thenReturn(pendingRequest("userB", "userA", "please"));
         when(requestRepository.find("userA", "userC")).thenReturn(pendingRequest("userA", "userC", "ping"));
 
-        FriendRelationServiceImpl service = new FriendRelationServiceImpl(friendshipRepository, requestRepository, blacklistRepository, notifier, cacheManager);
+        FriendRelationServiceImpl service = service(friendshipRepository, requestRepository, blacklistRepository, notifier, cacheManager);
 
         Friendship accepted = service.acceptFriendRequest("userA", "userB");
         FriendRequest rejected = service.rejectFriendRequest("userA", "userB");
@@ -158,7 +159,7 @@ class FriendRelationServiceImplTest {
         CacheManager cacheManager = mock(CacheManager.class);
         when(cacheManager.getOrCreateCache(any(QuickConfig.class))).thenReturn(mock(Cache.class));
 
-        FriendRelationServiceImpl service = new FriendRelationServiceImpl(friendshipRepository, requestRepository, blacklistRepository, notifier, cacheManager);
+        FriendRelationServiceImpl service = service(friendshipRepository, requestRepository, blacklistRepository, notifier, cacheManager);
 
         service.blockUser("userA", "userB");
         service.unblockUser("userA", "userB");
@@ -176,5 +177,15 @@ class FriendRelationServiceImplTest {
         request.setReqMsg(reqMsg);
         request.setHandleResult(HandleResultEnum.PENDING);
         return request;
+    }
+
+    private static FriendRelationServiceImpl service(FriendshipRepository friendshipRepository,
+                                                     FriendRequestRepository requestRepository,
+                                                     BlacklistRepository blacklistRepository,
+                                                     FriendRealtimeNotifier notifier,
+                                                     CacheManager cacheManager) {
+        PersistenceTransactionExecutor transactionExecutor = Runnable::run;
+        return new FriendRelationServiceImpl(friendshipRepository, requestRepository, blacklistRepository,
+                notifier, transactionExecutor, cacheManager);
     }
 }

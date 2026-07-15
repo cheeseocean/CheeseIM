@@ -11,7 +11,6 @@ import com.cheeseocean.im.postoffice.handler.MessageHandlerFactory;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.net.InetSocketAddress;
 
@@ -36,9 +35,8 @@ class TcpServerHandlerTest {
         when(factory.getHandler(CommandType.HEARTBEAT)).thenReturn(handler);
         when(handler.handle(any(UserConnection.class), any(ClientEnvelope.class))).thenReturn(MessageHandler.HandleResult.success());
 
-        TcpServerHandler serverHandler = new TcpServerHandler();
-        ReflectionTestUtils.setField(serverHandler, "connectionManager", manager);
-        ReflectionTestUtils.setField(serverHandler, "messageHandlerFactory", factory);
+        BusinessMessageExecutor executor = immediateExecutor();
+        TcpServerHandler serverHandler = new TcpServerHandler(manager, factory, executor);
         ClientEnvelope envelope = new ClientEnvelope();
         envelope.setCommand(CommandType.HEARTBEAT);
         envelope.setRequestId("tcp-1");
@@ -62,5 +60,14 @@ class TcpServerHandlerTest {
         context.setState(ConnectionState.AUTHENTICATED);
         connection.setContext(context);
         return connection;
+    }
+
+    private static BusinessMessageExecutor immediateExecutor() {
+        BusinessMessageExecutor executor = mock(BusinessMessageExecutor.class);
+        when(executor.submit(any(Channel.class), any(Runnable.class))).thenAnswer(invocation -> {
+            invocation.<Runnable>getArgument(1).run();
+            return true;
+        });
+        return executor;
     }
 }

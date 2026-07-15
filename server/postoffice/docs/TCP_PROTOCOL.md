@@ -30,8 +30,9 @@ CheeseIM 的 TCP 与 WebSocket 长连接协议统一使用 Protobuf envelope。�
 | `auth` | 长连接认证请求，包含 HTTP 签发的 ticket。 |
 | `heartbeat` | 心跳。 |
 | `chat_message` | 客户端发送的 `ProtoMessage`。 |
-| `chat_read` | 已读高水位控制命令。**当前仅声明协议，服务端尚未启用。** |
-| `chat_revoke` | 消息撤回控制命令。**当前仅声明协议，服务端尚未启用。** |
+| `chat_read` | 已读高水位控制命令。服务端校验会话成员与 `maxSeq` 后单调推进 readSeq。 |
+| `chat_revoke` | 消息撤回控制命令。服务端校验发送者与两分钟窗口后写入 mutation overlay。 |
+| `chat_typing` | 输入中瞬时控制命令。仅通知当前在线目标，服务端 TTL 固定在 3-5 秒，不写入普通消息链路。 |
 
 服务端下行使用 `ProtoServerEnvelope`：
 
@@ -43,8 +44,9 @@ CheeseIM 的 TCP 与 WebSocket 长连接协议统一使用 Protobuf envelope。�
 | `chat_send_ack` | 客户端发送消息后的 ACK。 |
 | `chat_message` | 服务端投递给客户端的消息。 |
 | `error` | 协议或业务错误。 |
-| `chat_read_notify` | 已读高水位变更通知。当前由后续已读链路启用。 |
-| `chat_revoke_notify` | 撤回 mutation 通知。当前由后续撤回链路启用。 |
+| `chat_read_notify` | 已读高水位变更通知。通过 control-event outbox 可靠补偿，客户端可按 cursor 补齐。 |
+| `chat_revoke_notify` | 撤回 mutation 通知。通过 control-event outbox 可靠补偿，历史查询仍以 mutation overlay 为准。 |
+| `chat_typing_notify` | 输入中通知。短 TTL 瞬时状态，不触发离线推送；到期即失效。 |
 | `force_logout` | 强制下线通知，含 reason/session/device/occurred_at。 |
 
 ## Message
@@ -70,5 +72,6 @@ CheeseIM 的 TCP 与 WebSocket 长连接协议统一使用 Protobuf envelope。�
 - 客户端不能自增或信任本地 seq，最终 seq 由 `postmaster` 分配。
 - 客户端发送消息后应以 `chat_send_ack` 判断服务端接入结果。
 - 历史同步通过 HTTP 会话同步接口按 seq range 拉取，不通过长连接补偿全部历史。
-- `chat_read` / `chat_revoke` 已具备类型化 payload，但在 `ReadStateService` / `MessageMutationService` 实现前仍会被网关拒绝；客户端不可将其视为已上线能力。
+- `chat_read` / `chat_revoke` / `chat_typing` 均为已上线的类型化控制命令；客户端必须使用对应 oneof，不得伪装成 `chat_message` 或 JSON 命令体。
+- 已读、撤回和输入中均先追加 `conversation_control_event`。首次在线直推与补偿复用同一个 eventId 去重；离线端经 HTTP control-events cursor 补齐。
 - 已废弃 JSON 命令体和旧回执枚举等历史协议概念。
