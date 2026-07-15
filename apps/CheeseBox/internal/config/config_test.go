@@ -10,7 +10,7 @@ func TestLoadRuntimeConfig_UsesDefaultValuesWhenEnvUnset(t *testing.T) {
 
 	cfg := LoadRuntimeConfig()
 
-	if got, want := cfg.APIBaseURL, "http://127.0.0.1:18085"; got != want {
+	if got, want := cfg.APIBaseURL, "http://127.0.0.1:18079"; got != want {
 		t.Fatalf("APIBaseURL = %q, want %q", got, want)
 	}
 	if got, want := cfg.TCPAddr, "127.0.0.1:5148"; got != want {

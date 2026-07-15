@@ -11,14 +11,14 @@
 | `auth` | HTTP 登录、token 刷新、登出、ws-ticket 申请 |
 | `transport/httpapi` | HTTP 调用封装 |
 | `transport/tcpim` | TCP 长连接（Protobuf），心跳、重连 |
-| `proto` | 由 `message_protocol.proto` 生成的 Go 代码，**不要手改** |
+| `proto` | 由服务端唯一 Proto 源生成的 Go 代码，**不要手改** |
 | `sync` | 会话同步、seq range 拉取、gap repair |
 | `social` | 好友/群成员查询 |
 | `types` | 公共类型 |
 
 ## 2. 与 Java 服务端的契约对齐
 
-- **协议源只一个**：`server/common-api/src/main/proto/message_protocol.proto`，Go 代码用 `protoc` 生成到 `proto/`。proto 改动后 Go 这边也要重新生成。
+- **协议源只一个**：`server/common-api/src/main/proto/message_protocol.proto`。执行 `go generate ./proto` 将其直接生成到 `proto/`，SDK 内不得维护 Proto 副本。
 - HTTP API 路径与 `server/api-server` 的 Controller 路径一致（见 `api-server/ARCH.md` §1）。
 - 会话 id / seq 语义与 server `ConversationIdUtil` 完全一致：`s:/g:/n:/ng:`，**不要**在 Go 侧引入新的 id 形态。
 
@@ -32,7 +32,7 @@
 
 - SDK 不做业务策略（谁允许给谁发消息等），业务策略在 server。
 - SDK 只缓存展示状态和同步游标；消息真相以 server Mongo 为准，重启后必须从 server 重新同步。
-- WS 当前 server 侧是 JSON，但 SDK 走 TCP 是 Protobuf。**新代码不要再加 JSON 路径**。
+- TCP 与 WS 都使用 Binary Protobuf envelope；HTTP 控制面仍使用 JSON。**不得新增 JSON 长连接协议路径**。
 
 ## 5. 验证
 

@@ -3,7 +3,7 @@ package config
 import "os"
 
 const (
-	defaultAPIBaseURL = "http://127.0.0.1:18085"
+	defaultAPIBaseURL = "http://127.0.0.1:18079"
 	defaultTCPAddr    = "127.0.0.1:5148"
 	defaultDeviceID   = "cheesebox-dev"
 	defaultPlatform   = "cli"
