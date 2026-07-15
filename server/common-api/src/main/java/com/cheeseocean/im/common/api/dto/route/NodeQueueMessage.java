@@ -7,8 +7,8 @@ import java.io.Serializable;
 /**
  * postoffice 节点队列通用 envelope。
  *
- * <p>payload 保持 JSON 字符串，是为了让节点队列可以渐进承载不同命令，同时兼容现有
- * Redis LIST 的字符串存储模型。
+ * <p>payload 保持 JSON 字符串，以适配 Redis LIST 的字符串存储模型；消费者必须先按
+ * {@link #type} 识别消息类型，再反序列化为对应的业务 payload，禁止消费裸 payload。
  */
 public class NodeQueueMessage implements Serializable {
 

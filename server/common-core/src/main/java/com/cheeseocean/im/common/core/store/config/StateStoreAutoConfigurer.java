@@ -6,10 +6,6 @@ import com.cheeseocean.im.common.core.store.conversation.rocksdb.RocksDbConversa
 import com.cheeseocean.im.common.core.store.idempotency.IdempotencyStore;
 import com.cheeseocean.im.common.core.store.idempotency.redis.RedisIdempotencyStore;
 import com.cheeseocean.im.common.core.store.idempotency.rocksdb.RocksDbIdempotencyStore;
-import com.cheeseocean.im.common.core.store.sequence.ConversationSequenceAllocator;
-import com.cheeseocean.im.common.core.store.sequence.SequenceStore;
-import com.cheeseocean.im.common.core.store.sequence.redis.RedisSequenceStore;
-import com.cheeseocean.im.common.core.store.sequence.rocksdb.RocksDbSequenceStore;
 import com.cheeseocean.im.common.core.store.session.SessionStateStore;
 import com.cheeseocean.im.common.core.store.session.redis.RedisSessionStateStore;
 import com.cheeseocean.im.common.core.store.session.rocksdb.RocksDbSessionStateStore;
@@ -19,7 +15,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 @Configuration
@@ -29,8 +24,8 @@ public class StateStoreAutoConfigurer {
     @Bean
     @ConditionalOnMissingBean
     @Conditional(RedisConfigurationConditions.RedisConfigured.class)
-    public SessionStateStore redisSessionStateStore(RedisTemplate<String, Object> redisTemplate) {
-        return new RedisSessionStateStore(redisTemplate);
+    public SessionStateStore redisSessionStateStore(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
+        return new RedisSessionStateStore(redisTemplate, objectMapper);
     }
 
     @Bean
@@ -52,27 +47,6 @@ public class StateStoreAutoConfigurer {
     @Conditional(RedisConfigurationConditions.RedisNotConfigured.class)
     public IdempotencyStore rocksDbIdempotencyStore(StateStoreProperties properties, ObjectMapper objectMapper) {
         return new RocksDbIdempotencyStore(properties.resolve("idempotency"), objectMapper);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    @Conditional(RedisConfigurationConditions.RedisConfigured.class)
-    public SequenceStore redisSequenceStore(StringRedisTemplate redisTemplate) {
-        return new RedisSequenceStore(redisTemplate);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    @Conditional(RedisConfigurationConditions.RedisNotConfigured.class)
-    public SequenceStore rocksDbSequenceStore(StateStoreProperties properties, ObjectMapper objectMapper) {
-        return new RocksDbSequenceStore(properties.resolve("sequence"), objectMapper);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    public ConversationSequenceAllocator conversationSequenceAllocator(SequenceStore sequenceStore,
-                                                                       StateStoreProperties properties) {
-        return new ConversationSequenceAllocator(sequenceStore, properties.getSequenceRangeSize());
     }
 
     @Bean

@@ -11,24 +11,19 @@ import com.cheeseocean.im.common.api.enums.MessageMutationTypeEnum;
 import com.cheeseocean.im.common.api.message.MessageMutationService;
 import com.cheeseocean.im.common.api.permission.ConversationPermissionDubboService;
 import com.cheeseocean.im.common.api.permission.ConversationPermissionRequest;
-import com.cheeseocean.im.common.core.auth.PermissionCheckResult;
+import com.cheeseocean.im.common.api.permission.PermissionCheckResult;
 import com.cheeseocean.im.common.core.business.repository.ConversationControlEventRepository;
-import com.cheeseocean.im.postmaster.history.MessageIdMappingDoc;
+import com.cheeseocean.im.common.core.history.MessageHistoryRepository;
+import com.cheeseocean.im.common.core.history.document.MessageIdMappingDoc;
+import com.cheeseocean.im.common.core.history.document.MessageMutationDoc;
 import com.cheeseocean.im.postmaster.service.GroupMembershipFacade;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.common.api.rpc.ControlNotificationDispatcher;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.beans.factory.annotation.Autowired;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.mongodb.core.FindAndModifyOptions;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
 
 import java.time.Instant;
 import java.util.List;
@@ -49,7 +44,7 @@ public class MessageMutationServiceImpl implements MessageMutationService {
     private static final int MAX_SYNC_LIMIT = 200;
     private static final String REVOKED_SUFFIX = ":REVOKED";
 
-    private final MongoTemplate mongoTemplate;
+    private final MessageHistoryRepository messageHistoryRepository;
     private final long revokeWindowMillis;
     private final GroupMembershipFacade groupMembershipFacade;
     private final ConversationControlEventRepository controlEventRepository;
@@ -61,23 +56,16 @@ public class MessageMutationServiceImpl implements MessageMutationService {
     @DubboReference(check = false, retries = 0)
     private ControlNotificationDispatcher controlNotificationDispatcher;
 
-    @Autowired
-    public MessageMutationServiceImpl(MongoTemplate mongoTemplate,
+    public MessageMutationServiceImpl(MessageHistoryRepository messageHistoryRepository,
                                       @Value("${cheeseim.message-mutation.revoke-window-seconds:120}") long revokeWindowSeconds,
                                       GroupMembershipFacade groupMembershipFacade,
                                       ConversationControlEventRepository controlEventRepository,
                                       ObjectMapper objectMapper) {
-        this.mongoTemplate = mongoTemplate;
+        this.messageHistoryRepository = messageHistoryRepository;
         this.revokeWindowMillis = Math.max(1L, revokeWindowSeconds) * 1_000L;
         this.groupMembershipFacade = groupMembershipFacade;
         this.controlEventRepository = controlEventRepository;
         this.objectMapper = objectMapper;
-    }
-
-    public MessageMutationServiceImpl(MongoTemplate mongoTemplate,
-                                      long revokeWindowSeconds,
-                                      GroupMembershipFacade groupMembershipFacade) {
-        this(mongoTemplate, revokeWindowSeconds, groupMembershipFacade, null, null);
     }
 
     @Override
@@ -90,8 +78,7 @@ public class MessageMutationServiceImpl implements MessageMutationService {
             return MessageMutationResult.rejected("CONVERSATION_FORBIDDEN", "无会话访问权限");
         }
 
-        MessageIdMappingDoc mapping = mongoTemplate.findOne(
-                Query.query(Criteria.where("serverMsgId").is(serverMsgId)), MessageIdMappingDoc.class);
+        MessageIdMappingDoc mapping = messageHistoryRepository.findMappingByServerMessageId(serverMsgId);
         if (mapping == null) {
             return MessageMutationResult.rejected("MESSAGE_NOT_FOUND", "消息不存在");
         }
@@ -106,30 +93,29 @@ public class MessageMutationServiceImpl implements MessageMutationService {
         }
 
         String mutationId = serverMsgId + REVOKED_SUFFIX;
-        MessageMutationDoc existing = mongoTemplate.findById(mutationId, MessageMutationDoc.class);
+        MessageMutationDoc existing = messageHistoryRepository.findMutationById(mutationId);
         if (existing != null) {
             return notifyOnline(toResult(existing));
         }
 
         Instant now = Instant.now();
-        Update insert = new Update()
-                .setOnInsert("serverMsgId", serverMsgId)
-                .setOnInsert("conversationId", conversationId)
-                .setOnInsert("mutationType", MessageMutationTypeEnum.REVOKED.getCode())
-                .setOnInsert("operatorUserId", operatorUserId)
-                .setOnInsert("operatorName", operatorUserId)
-                .setOnInsert("targetSenderId", mapping.getSenderId())
-                .setOnInsert("targetSenderName", mapping.getSenderId())
-                .setOnInsert("reason", normalizeReason(reason))
-                .setOnInsert("mutationVersion", now.toEpochMilli())
-                .setOnInsert("createdAt", now);
+        MessageMutationDoc pending = new MessageMutationDoc();
+        pending.setId(mutationId);
+        pending.setServerMsgId(serverMsgId);
+        pending.setConversationId(conversationId);
+        pending.setMutationType(MessageMutationTypeEnum.REVOKED.getCode());
+        pending.setOperatorUserId(operatorUserId);
+        pending.setOperatorName(operatorUserId);
+        pending.setTargetSenderId(mapping.getSenderId());
+        pending.setTargetSenderName(mapping.getSenderId());
+        pending.setReason(normalizeReason(reason));
+        pending.setMutationVersion(now.toEpochMilli());
+        pending.setCreatedAt(now);
         try {
-            MessageMutationDoc mutation = mongoTemplate.findAndModify(
-                    Query.query(Criteria.where("_id").is(mutationId)), insert,
-                    FindAndModifyOptions.options().upsert(true).returnNew(true), MessageMutationDoc.class);
+            MessageMutationDoc mutation = messageHistoryRepository.upsertMutation(pending);
             return notifyOnline(toResult(mutation));
         } catch (DuplicateKeyException ignored) {
-            MessageMutationDoc mutation = mongoTemplate.findById(mutationId, MessageMutationDoc.class);
+            MessageMutationDoc mutation = messageHistoryRepository.findMutationById(mutationId);
             return mutation == null
                     ? MessageMutationResult.rejected("MUTATION_RETRY", "撤回写入冲突，请重试")
                     : notifyOnline(toResult(mutation));
@@ -148,16 +134,9 @@ public class MessageMutationServiceImpl implements MessageMutationService {
 
         long cursorMillis = Math.max(0L, afterCreatedAt);
         Instant cursorTime = Instant.ofEpochMilli(cursorMillis);
-        Criteria afterCursor = new Criteria().orOperator(
-                Criteria.where("createdAt").gt(cursorTime),
-                new Criteria().andOperator(Criteria.where("createdAt").is(cursorTime),
-                        Criteria.where("_id").gt(afterMutationId == null ? "" : afterMutationId))
-        );
         int pageSize = effectiveLimit(limit);
-        Query query = Query.query(Criteria.where("conversationId").is(conversationId).andOperator(afterCursor))
-                .with(Sort.by(Sort.Direction.ASC, "createdAt").and(Sort.by(Sort.Direction.ASC, "_id")))
-                .limit(pageSize + 1);
-        List<MessageMutationDoc> docs = mongoTemplate.find(query, MessageMutationDoc.class);
+        List<MessageMutationDoc> docs = messageHistoryRepository.findMutationsAfter(
+                conversationId, cursorTime, afterMutationId, pageSize + 1);
 
         MessageMutationSyncResult result = new MessageMutationSyncResult();
         result.setSuccess(true);

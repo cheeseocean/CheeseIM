@@ -7,12 +7,12 @@ import com.cheeseocean.im.common.api.dto.conversation.PullMessages;
 import com.cheeseocean.im.common.api.dto.conversation.ReadSeqUpdate;
 import com.cheeseocean.im.common.api.dto.conversation.SeqRangeRequest;
 import com.cheeseocean.im.common.api.dto.message.Message;
+import com.cheeseocean.im.common.api.message.MessageHistoryQueryService;
 import com.cheeseocean.im.common.api.enums.ContentType;
 import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.core.business.repository.ConversationSequenceRepository;
 import com.cheeseocean.im.common.core.business.repository.UserConversationSyncPointRepository;
 import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
-import com.cheeseocean.im.postbox.service.HistoryQueryService;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -31,7 +31,7 @@ class ConversationSyncServiceImplTest {
         ConversationSequenceRepository      rangeRepository     = mock(ConversationSequenceRepository.class);
         UserConversationSyncPointRepository syncPointRepository = mock(UserConversationSyncPointRepository.class);
         ConversationStateStore stateStore = mock(ConversationStateStore.class);
-        HistoryQueryService historyQueryService = mock(HistoryQueryService.class);
+        MessageHistoryQueryService historyQueryService = mock(MessageHistoryQueryService.class);
         ReadStateService readStateService = mock(ReadStateService.class);
 
         when(conversationService.getConversationIds("u100")).thenReturn(List.of("s:u100:u200"));
@@ -57,7 +57,7 @@ class ConversationSyncServiceImplTest {
         ConversationSequenceRepository      rangeRepository     = mock(ConversationSequenceRepository.class);
         UserConversationSyncPointRepository syncPointRepository = mock(UserConversationSyncPointRepository.class);
         ConversationStateStore stateStore = mock(ConversationStateStore.class);
-        HistoryQueryService historyQueryService = mock(HistoryQueryService.class);
+        MessageHistoryQueryService historyQueryService = mock(MessageHistoryQueryService.class);
         ReadStateService readStateService = mock(ReadStateService.class);
 
         when(conversationService.getConversationIds("u100")).thenReturn(null);
@@ -82,7 +82,7 @@ class ConversationSyncServiceImplTest {
         ConversationSequenceRepository      rangeRepository     = mock(ConversationSequenceRepository.class);
         UserConversationSyncPointRepository syncPointRepository = mock(UserConversationSyncPointRepository.class);
         ConversationStateStore stateStore = mock(ConversationStateStore.class);
-        HistoryQueryService historyQueryService = mock(HistoryQueryService.class);
+        MessageHistoryQueryService historyQueryService = mock(MessageHistoryQueryService.class);
         ReadStateService readStateService = mock(ReadStateService.class);
 
         UserConversation conversation = new UserConversation();
@@ -119,7 +119,7 @@ class ConversationSyncServiceImplTest {
         ConversationSequenceRepository      rangeRepository     = mock(ConversationSequenceRepository.class);
         UserConversationSyncPointRepository syncPointRepository = mock(UserConversationSyncPointRepository.class);
         ConversationStateStore stateStore = mock(ConversationStateStore.class);
-        HistoryQueryService historyQueryService = mock(HistoryQueryService.class);
+        MessageHistoryQueryService historyQueryService = mock(MessageHistoryQueryService.class);
         ReadStateService readStateService = mock(ReadStateService.class);
 
         when(conversationService.getConversations("u100", List.of("s:u100:u200"))).thenReturn(null);
@@ -150,7 +150,7 @@ class ConversationSyncServiceImplTest {
         ConversationSequenceRepository      rangeRepository     = mock(ConversationSequenceRepository.class);
         UserConversationSyncPointRepository syncPointRepository = mock(UserConversationSyncPointRepository.class);
         ConversationStateStore stateStore = mock(ConversationStateStore.class);
-        HistoryQueryService historyQueryService = mock(HistoryQueryService.class);
+        MessageHistoryQueryService historyQueryService = mock(MessageHistoryQueryService.class);
         ReadStateService readStateService = mock(ReadStateService.class);
 
         ReadSeqUpdate expected = new ReadSeqUpdate();

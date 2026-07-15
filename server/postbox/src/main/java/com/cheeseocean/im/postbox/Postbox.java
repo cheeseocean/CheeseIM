@@ -3,8 +3,6 @@ package com.cheeseocean.im.postbox;
 import org.apache.dubbo.config.spring.context.annotation.EnableDubbo;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
-import org.springframework.kafka.annotation.EnableKafka;
 
 import java.util.Map;
 
@@ -16,9 +14,7 @@ import java.util.Map;
  * @author xxxcrel
  */
 @SpringBootApplication(scanBasePackages = {"com.cheeseocean.im.postbox", "com.cheeseocean.im.common"})
-@EnableKafka
 @EnableDubbo
-@EnableMongoRepositories
 public class Postbox {
 
     public static void main(String[] args) {

@@ -1,6 +1,7 @@
 package com.cheeseocean.im.common.core.auth;
 
 import com.cheeseocean.im.common.api.enums.SessionStatus;
+import com.cheeseocean.im.common.api.permission.PermissionCheckResult;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;

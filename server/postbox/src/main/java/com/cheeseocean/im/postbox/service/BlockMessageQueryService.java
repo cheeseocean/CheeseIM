@@ -1,14 +1,9 @@
 package com.cheeseocean.im.postbox.service;
 
-import com.cheeseocean.im.common.core.util.BlockIndexUtil;
-import com.cheeseocean.im.postbox.history.AttachmentMetadataDoc;
-import com.cheeseocean.im.postbox.history.MessageBlockDoc;
-import com.cheeseocean.im.postbox.history.MessageIdMappingDoc;
-import com.cheeseocean.im.postbox.history.MessageSlot;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
+import com.cheeseocean.im.common.core.history.MessageHistoryRepository;
+import com.cheeseocean.im.common.core.history.document.AttachmentMetadataDoc;
+import com.cheeseocean.im.common.core.history.document.MessageIdMappingDoc;
+import com.cheeseocean.im.common.core.history.document.MessageSlot;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -22,37 +17,24 @@ import java.util.Optional;
 @Service
 public class BlockMessageQueryService {
 
-    private final MongoTemplate mongoTemplate;
+    private final MessageHistoryRepository messageHistoryRepository;
 
-    public BlockMessageQueryService(MongoTemplate mongoTemplate) {
-        this.mongoTemplate = mongoTemplate;
+    public BlockMessageQueryService(MessageHistoryRepository messageHistoryRepository) {
+        this.messageHistoryRepository = messageHistoryRepository;
     }
 
     /**
      * 读取最近会话映射，用于拼装会话列表。
      */
     public List<MessageIdMappingDoc> findRecentConversationMappings(int limit) {
-        Query query = new Query()
-                .with(Sort.by(Sort.Direction.DESC, "sendTime"))
-                .limit(Math.max(1, limit));
-        return mongoTemplate.find(query, MessageIdMappingDoc.class);
+        return messageHistoryRepository.findRecentMappings(limit);
     }
 
     /**
      * 读取指定会话下指定 seq 的 slot：按 {@link BlockIndexUtil#docId} 点查 `_id` 后块内定位。
      */
     public MessageSlot findSlot(String conversationId, long seq) {
-        Query query = Query.query(Criteria.where("_id").is(BlockIndexUtil.docId(conversationId, seq)));
-        MessageBlockDoc block = mongoTemplate.findOne(query, MessageBlockDoc.class);
-        if (block == null || block.getMessages() == null) {
-            return null;
-        }
-        for (MessageSlot slot : block.getMessages()) {
-            if (slot != null && slot.getSeq() != null && slot.getSeq() == seq) {
-                return slot;
-            }
-        }
-        return null;
+        return messageHistoryRepository.findSlot(conversationId, seq);
     }
 
     /**
@@ -64,7 +46,7 @@ public class BlockMessageQueryService {
         if (attachmentId == null || attachmentId.isBlank()) {
             return Optional.empty();
         }
-        AttachmentMetadataDoc metadata = mongoTemplate.findById(attachmentId, AttachmentMetadataDoc.class);
+        AttachmentMetadataDoc metadata = messageHistoryRepository.findAttachmentMetadata(attachmentId);
         if (metadata == null || metadata.getConversationId() == null || metadata.getSeq() == null) {
             return Optional.empty();
         }

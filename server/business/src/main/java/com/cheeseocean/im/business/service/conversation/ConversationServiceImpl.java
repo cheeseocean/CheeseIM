@@ -1,9 +1,5 @@
 package com.cheeseocean.im.business.service.conversation;
 
-import com.alicp.jetcache.Cache;
-import com.alicp.jetcache.CacheManager;
-import com.alicp.jetcache.anno.CacheType;
-import com.alicp.jetcache.template.QuickConfig;
 import com.cheeseocean.im.common.api.business.domain.UserConversation;
 import com.cheeseocean.im.common.api.business.domain.ConversationVersionLog;
 import com.cheeseocean.im.common.api.conversation.ConversationService;
@@ -12,6 +8,8 @@ import com.cheeseocean.im.common.api.dto.conversation.SetConversationRequest;
 import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.api.enums.ConversationVersionOperation;
 import com.cheeseocean.im.common.api.enums.ReceiveOption;
+import com.cheeseocean.im.common.core.cache.CacheRegion;
+import com.cheeseocean.im.common.core.cache.CacheStore;
 import com.cheeseocean.im.common.core.business.repository.ConversationVersionLogRepository;
 import com.cheeseocean.im.common.core.business.repository.UserConversationRepository;
 import org.apache.dubbo.config.annotation.DubboService;
@@ -37,64 +35,59 @@ import java.util.stream.Collectors;
  * 会话统一服务实现。
  *
  * <p>统一承载会话查询、会话创建和会话配置更新，
- * 并在内部完成会话相关 JetCache 的读穿透与批量失效。
+ * 并在内部完成会话相关类型化远端缓存的读穿透与批量失效。
  */
 @Service
 @DubboService
 public class ConversationServiceImpl implements ConversationService {
 
-    private static final int REMOTE_EXPIRE_SECONDS = 60 * 60 * 12;
-    private static final int LOCAL_EXPIRE_SECONDS = 60 * 5;
-    private static final int LOCAL_LIMIT = 1_000;
+    private static final Duration CACHE_TTL = Duration.ofHours(12);
     private static final int VERSION_SYNC_LIMIT = 200;
 
     private final UserConversationRepository stateRepository;
     private final ConversationVersionLogRepository versionLogRepository;
-    private final CacheManager cacheManager;
-
     /**
      * 单条会话配置缓存。
      * key: ownerUserId:conversationId
      */
-    private Cache<String, UserConversation> conversationDetailCache;
+    private final CacheRegion<UserConversation> conversationDetailCache;
 
     /**
      * 用户会话 ID 列表缓存。
      */
-    private Cache<String, List<String>> conversationIdsCache;
+    private final CacheRegion<List<String>> conversationIdsCache;
 
     /**
      * 用户会话 ID 列表 hash 缓存。
      */
-    private Cache<String, Long> conversationIdsHashCache;
+    private final CacheRegion<Long> conversationIdsHashCache;
 
     /**
      * 用户置顶会话 ID 列表缓存。
      */
-    private Cache<String, List<String>> pinnedConversationIdsCache;
+    private final CacheRegion<List<String>> pinnedConversationIdsCache;
 
     /**
      * 用户免提醒会话 ID 列表缓存。
      */
-    private Cache<String, List<String>> notNotifyConversationIdsCache;
+    private final CacheRegion<List<String>> notNotifyConversationIdsCache;
 
     /**
      * 会话下不接收消息的用户 ID 列表缓存。
      */
-    private Cache<String, List<String>> conversationNotReceiveUserIdsCache;
+    private final CacheRegion<List<String>> conversationNotReceiveUserIdsCache;
 
     public ConversationServiceImpl(UserConversationRepository stateRepository,
                                    ConversationVersionLogRepository versionLogRepository,
-                                   CacheManager cacheManager) {
+                                   CacheStore cacheStore) {
         this.stateRepository = stateRepository;
         this.versionLogRepository = versionLogRepository;
-        this.cacheManager = cacheManager;
-        this.conversationDetailCache = createCache("im:conv:detail:");
-        this.conversationIdsCache = createCache("im:conv:ids:");
-        this.conversationIdsHashCache = createCache("im:conv:ids_hash:");
-        this.pinnedConversationIdsCache = createCache("im:conv:pinned:");
-        this.notNotifyConversationIdsCache = createCache("im:conv:not_notify:");
-        this.conversationNotReceiveUserIdsCache = createCache("im:conv:not_receive:");
+        this.conversationDetailCache = cacheStore.region("im:conv:detail:", UserConversation.class, CACHE_TTL);
+        this.conversationIdsCache = cacheStore.listRegion("im:conv:ids:", String.class, CACHE_TTL);
+        this.conversationIdsHashCache = cacheStore.region("im:conv:ids_hash:", Long.class, CACHE_TTL);
+        this.pinnedConversationIdsCache = cacheStore.listRegion("im:conv:pinned:", String.class, CACHE_TTL);
+        this.notNotifyConversationIdsCache = cacheStore.listRegion("im:conv:not_notify:", String.class, CACHE_TTL);
+        this.conversationNotReceiveUserIdsCache = cacheStore.listRegion("im:conv:not_receive:", String.class, CACHE_TTL);
     }
 
     @Override
@@ -105,9 +98,9 @@ public class ConversationServiceImpl implements ConversationService {
         if (isBlank(ownerUserId) || isBlank(conversationId)) {
             return null;
         }
-        return copy(conversationDetailCache.computeIfAbsent(
+        return copy(conversationDetailCache.getOrLoad(
                 detailKey(ownerUserId, conversationId),
-                key -> stateRepository.findOne(ownerUserId, conversationId)
+                () -> stateRepository.findOne(ownerUserId, conversationId)
         ));
     }
 
@@ -310,9 +303,9 @@ public class ConversationServiceImpl implements ConversationService {
         if (isBlank(conversationId) || candidateUserIds == null || candidateUserIds.isEmpty()) {
             return new ArrayList<>();
         }
-        List<String> notReceiveUserIds = conversationNotReceiveUserIdsCache.computeIfAbsent(
+        List<String> notReceiveUserIds = conversationNotReceiveUserIdsCache.getOrLoad(
                 conversationId,
-                stateRepository::findAllNotReceiveUserIds
+                () -> stateRepository.findAllNotReceiveUserIds(conversationId)
         );
         if (notReceiveUserIds == null) {
             notReceiveUserIds = new ArrayList<>();
@@ -583,24 +576,11 @@ public class ConversationServiceImpl implements ConversationService {
     /**
      * 批量移除指定缓存键。
      */
-    private <T> void removeKeys(Cache<String, T> cache, Set<String> keys) {
+    private <T> void removeKeys(CacheRegion<T> cache, Set<String> keys) {
         if (keys.isEmpty()) {
             return;
         }
-        cache.removeAll(keys);
-    }
-
-    /**
-     * 基于统一配置创建会话缓存实例，避免在字段注解中散落重复配置。
-     */
-    private <T> Cache<String, T> createCache(String name) {
-        QuickConfig quickConfig = QuickConfig.newBuilder(name)
-                .expire(Duration.ofSeconds(REMOTE_EXPIRE_SECONDS))
-                .localExpire(Duration.ofSeconds(LOCAL_EXPIRE_SECONDS))
-                .cacheType(CacheType.REMOTE)
-                .localLimit(LOCAL_LIMIT)
-                .build();
-        return cacheManager.getOrCreateCache(quickConfig);
+        cache.evictAll(keys);
     }
 
     /**

@@ -78,7 +78,7 @@ class GroupMembershipQueryServiceImplTest {
     }
 
     @Test
-    void queryConversationMembersShouldAcceptGPrefixInAdditionToLegacyC2() {
+    void queryConversationMembersShouldAcceptGroupConversationId() {
         GroupMemberRepository memberRepo = mock(GroupMemberRepository.class);
         GroupRepository groupRepo = mock(GroupRepository.class);
         GroupMember member = new GroupMember();
@@ -93,17 +93,11 @@ class GroupMembershipQueryServiceImplTest {
     }
 
     @Test
-    void queryConversationMembersShouldStillTolerateLegacyC2Prefix() {
+    void queryConversationMembersShouldRejectUnknownPrefix() {
         GroupMemberRepository memberRepo = mock(GroupMemberRepository.class);
         GroupRepository groupRepo = mock(GroupRepository.class);
-        GroupMember member = new GroupMember();
-        member.setUserId("u2");
-        when(memberRepo.findByGroupId("legacy")).thenReturn(List.of(member));
-
         GroupMembershipQueryServiceImpl service = new GroupMembershipQueryServiceImpl(memberRepo, groupRepo);
 
-        // c2: 是死分支前缀（根 AGENTS §8），但已有调用方兜底，不可直接抛错
-        List<String> members = service.queryConversationMembers("c2:legacy");
-        assertEquals(List.of("u2"), members);
+        assertEquals(List.of(), service.queryConversationMembers("unknown:legacy"));
     }
 }

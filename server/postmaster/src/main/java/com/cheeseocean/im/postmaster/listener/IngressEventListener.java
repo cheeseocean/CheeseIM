@@ -38,7 +38,7 @@ public class IngressEventListener {
     private final        ConversationSeqService conversationSeqService;
     private final        MessagePolicyEngine    messagePolicyEngine;
     private final        GroupFanoutPlanner    groupFanoutPlanner;
-    @DubboReference
+    @DubboReference(check = false, retries = 0)
     private              ConversationService    conversationService;
 
     public IngressEventListener(MessageProducer messageProducer,
@@ -69,7 +69,7 @@ public class IngressEventListener {
     }
 
     // 消费 INGRESS 队列，批量接收同一会话的消息
-    @QueueListener(topic = TopicNames.INGRESS, group = "postman-ingress", concurrency = 1, batch = true, batchSize = 500)
+    @QueueListener(topic = TopicNames.INGRESS, group = "postmaster-ingress", concurrency = 1, batch = true, batchSize = 500)
     public void onMessage(List<Message> msgs) {
         try {
             handle(msgs);

@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class GroupChatPolicy {
 
-    @DubboReference
+    @DubboReference(check = false)
     private GroupMembershipQueryService groupMemberService;
 
     public boolean canAccess(String conversationId, String userId) {

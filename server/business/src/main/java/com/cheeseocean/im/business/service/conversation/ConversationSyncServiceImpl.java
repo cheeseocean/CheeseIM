@@ -9,10 +9,11 @@ import com.cheeseocean.im.common.api.dto.conversation.ReadSeqUpdate;
 import com.cheeseocean.im.common.api.dto.conversation.PullMessages;
 import com.cheeseocean.im.common.api.dto.conversation.SeqRangeRequest;
 import com.cheeseocean.im.common.api.dto.message.Message;
+import com.cheeseocean.im.common.api.message.MessageHistoryQueryService;
 import com.cheeseocean.im.common.core.business.repository.ConversationSequenceRepository;
 import com.cheeseocean.im.common.core.business.repository.UserConversationSyncPointRepository;
 import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
-import com.cheeseocean.im.postbox.service.HistoryQueryService;
+import org.apache.dubbo.config.annotation.DubboReference;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.stereotype.Service;
 
@@ -40,21 +41,32 @@ public class ConversationSyncServiceImpl implements ConversationSyncService {
     private final ConversationSequenceRepository      conversationSequenceRepository;
     private final UserConversationSyncPointRepository syncPointRepository;
     private final ConversationStateStore conversationStateStore;
-    private final HistoryQueryService historyQueryService;
     private final ReadStateService readStateService;
+
+    @DubboReference(check = false)
+    private MessageHistoryQueryService messageHistoryQueryService;
 
     public ConversationSyncServiceImpl(ConversationService conversationService,
                                        ConversationSequenceRepository conversationSequenceRepository,
                                        UserConversationSyncPointRepository syncPointRepository,
                                        ConversationStateStore conversationStateStore,
-                                       HistoryQueryService historyQueryService,
                                        ReadStateService readStateService) {
         this.conversationService = conversationService;
         this.conversationSequenceRepository = conversationSequenceRepository;
         this.syncPointRepository = syncPointRepository;
         this.conversationStateStore = conversationStateStore;
-        this.historyQueryService = historyQueryService;
         this.readStateService = readStateService;
+    }
+
+    ConversationSyncServiceImpl(ConversationService conversationService,
+                                ConversationSequenceRepository conversationSequenceRepository,
+                                UserConversationSyncPointRepository syncPointRepository,
+                                ConversationStateStore conversationStateStore,
+                                MessageHistoryQueryService messageHistoryQueryService,
+                                ReadStateService readStateService) {
+        this(conversationService, conversationSequenceRepository, syncPointRepository, conversationStateStore,
+                readStateService);
+        this.messageHistoryQueryService = messageHistoryQueryService;
     }
 
     @Override
@@ -101,7 +113,7 @@ public class ConversationSyncServiceImpl implements ConversationSyncService {
                 continue;
             }
 
-            List<Message> messages = historyQueryService.pullMessagesBySeqRange(
+            List<Message> messages = messageHistoryQueryService.pullMessagesBySeqRange(
                     conversationId,
                     range.getBeginSeq(),
                     effectiveEndSeq,

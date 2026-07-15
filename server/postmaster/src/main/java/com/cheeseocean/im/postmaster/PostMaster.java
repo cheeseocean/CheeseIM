@@ -9,18 +9,17 @@ import java.util.Map;
 
 /**
  * PostMaster服务启动类
- * 1: 接收来自网关的消息发送至kafka
- * 2: 消息持久化
+ * 接收 ingress 事件、编排消息持久化并发布 delivery 事件。
  *
  * @author xxxcrel
  */
-@SpringBootApplication(scanBasePackages = {"com.cheeseocean.im.common"})
+@SpringBootApplication(scanBasePackages = {"com.cheeseocean.im.postmaster", "com.cheeseocean.im.common"})
 @EnableDubbo
 public class PostMaster {
 
     public static void main(String[] args) {
         SpringApplication application = new SpringApplication(PostMaster.class);
-        application.setDefaultProperties(Map.of("spring.config.name", "cheeseim-postmaster"));
+        application.setDefaultProperties(Map.of("spring.config.name", "application-postmaster"));
         application.run(args);
     }
 }

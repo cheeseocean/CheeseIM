@@ -37,7 +37,7 @@ public class NotificationSender {
 
     private final ObjectMapper objectMapper;
 
-    @DubboReference
+    @DubboReference(check = false, retries = 0)
     private MessageSender messageSender;
 
     public NotificationSender(ObjectMapper objectMapper) {

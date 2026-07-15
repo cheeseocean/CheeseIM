@@ -11,9 +11,9 @@
 | `business/mongo/document/` | `*Doc` 持久化对象 + `@CompoundIndexes` | `UserConversationDoc` 等 |
 | `business/mongo/impl/` | `*RepositoryImpl`（手写，无泛型基类） | 每个 impl 都 dup `docId()` |
 | `business/mongo/repository/` | `*Repository` 接口（domain 侧抽象） | |
-| `cache/` | `MultiLevelCacheService` (L1 Caffeine + L2 Redis/RocksDB) | `MultiLevelCacheService.java:10` |
+| `cache/` | typed `CacheStore` / `CacheRegion`（Redis JSON） | `RedisCacheStore.java` |
+| `history/` | 消息块、映射、附件、mutation 的唯一 Mongo 持久化 seam | `MessageHistoryRepository` |
 | `queue/` | `QueueAdapter` 抽象 + chronicle/kafka 两实现 | `QueueAutoConfigurer.java:28` |
-| `store/sequence/` | 旧版通用 seq 分配器（遗留，新代码勿用） | `ConversationSequenceAllocator.java`（process-wide locked） |
 | `store/sequence/conversation/` | **会话 seq 状态机（生产级）** | `ConversationSeqAllocator.java:54`、`RedisConversationSeqCacheStore.java:129`、`ConversationSeqAllocatorConfigurer.java:40` |
 | `store/session/` | SessionStateStore（redis/rocksdb 两实现） | `StateStoreAutoConfigurer.java` |
 | `store/conversation/` | ConversationStateStore（每用户 maxSeq/readSeq/minSeq hot state） | |
@@ -44,7 +44,8 @@
 - 发送：`MessageProducer` 发 Protobuf bytes，key = `ConversationIdUtil.buildQueueKey`，保证同会话同 Kafka 分区
 - 消费：`@QueueListener`，批量 `batch=true, batchSize=500` 优先
 - 缓存写操作必须 `afterCommit` 删 key，避免脏读
-- L1 当前无跨节点失效广播（ASSESSMENT P2-17 是修复项），新增缓存优先 `CacheType.REMOTE`
+- 业务缓存统一 `StringRedisTemplate` + 显式 JSON 类型；不使用本地 L1、Java 序列化或 DefaultTyping
+- `SessionStateStore`、`ConversationStateStore`、`IdempotencyStore` 和 seq Lua 是原子状态接口，不属于通用缓存
 
 ## 5. 伸缩性约束（曰前）
 

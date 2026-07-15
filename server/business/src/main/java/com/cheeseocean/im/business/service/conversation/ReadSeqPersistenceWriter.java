@@ -6,7 +6,6 @@ import com.cheeseocean.im.common.core.business.repository.UserConversationReposi
 import com.cheeseocean.im.business.config.ReadSeqPersistenceWriterProperties;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -45,7 +44,6 @@ public class ReadSeqPersistenceWriter {
     private final List<Thread> drainThreads;
     private volatile boolean running = true;
 
-    @Autowired
     public ReadSeqPersistenceWriter(UserConversationSyncPointRepository offsetRepository,
                                     UserConversationRepository stateRepository,
                                     ReadSeqPersistenceWriterProperties properties) {

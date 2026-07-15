@@ -23,7 +23,7 @@ public class MessageSenderImpl implements MessageSender {
 
     private final IngressMessagePublisher ingressMessagePublisher;
 
-    @DubboReference
+    @DubboReference(check = false)
     private MessageSendPermissionService messageSendPermissionService;
 
     public MessageSenderImpl(IngressMessagePublisher ingressMessagePublisher) {

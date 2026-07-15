@@ -1,6 +1,6 @@
 # business/ARCH.md — 业务域事实快照
 
-> 用户 / 好友 / 黑名单 / 群 / 会话 / 同步点。JetCache 缓存规范在 common-core。
+> 用户 / 好友 / 黑名单 / 群 / 会话 / 同步点。缓存统一经 common-core `CacheStore`。
 > 详细同步设计见 `docs/CheeseIM-数据同步设计文档.md`。
 
 ## 1. 子包
@@ -48,14 +48,12 @@
 - **readSeq**：Redis 即写（`ackReadSeq` line 144）+ Mongo 写 behind（`ReadSeqPersistenceWriter` 按 userId 分桶多线程 drain，单桶聚合最大 readSeq，workerCount/queueCapacity 可配，Redis 仍权威）
 - **发送权限聚合**：`MessageSendPermissionServiceImpl` 聚合 `FriendRelationService` / `UserInfoService` / `ConversationService` 本地调用，让 postbox 发送热路径从三次 Dubbo 收敛为一次；黑名单先短路，避免无谓的接收选项查询。
 
-## 4. JetCache 用法
+## 4. 缓存规范
 
-- `FriendRelationServiceImpl`：friendshipCache / friendListCache (`BOTH`)，incoming/outgoing request (`REMOTE`)
-- `ConversationServiceImpl`：6 个 cache（detail/ids/ids_hash/pinned/not_notify/not_receive），全 `REMOTE`，本地 5min / 远端 12h
-- 缓存删除放 `@Transactional` 的 `afterCommit`（`ConversationServiceImpl.java:553-575`），cache-aside 规范
-- `UserServiceImpl`：userInfo 用 `BOTH`，receiveOpt 用 `REMOTE`
-
-⚠️ L1 无跨节点失效广播（common-core 通用缺陷），新增 cache 优先 `REMOTE`。
+- 业务服务只通过 common-core `CacheStore` 创建带固定 key 前缀、值类型和 TTL 的 `CacheRegion`；不得直接注入 Redis 客户端。
+- 缓存一律使用 Redis JSON，读取类型显式声明；不使用 Java 序列化、DefaultTyping 或本地 L1。
+- 缓存删除放在 `@Transactional` 的 `afterCommit`，保持 cache-aside 时序。
+- 用户资料/接收选项 TTL 为 5 分钟，好友关系为 10 分钟，会话视图为 12 小时；缓存未命中可接受，不做旧 key 双写。
 
 ## 5. 索引
 

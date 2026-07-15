@@ -20,7 +20,7 @@ public class HistoryEventListener {
         this.persistenceService = persistenceService;
     }
 
-    @QueueListener(topic = TopicNames.HISTORY, group = "postbox-history", concurrency = 1)
+    @QueueListener(topic = TopicNames.HISTORY, group = "postmaster-history", concurrency = 1)
     public void onMessage(byte[] payload) {
         try {
             HistoryEvent event = ProtoHistoryEventMapper.parse(payload);

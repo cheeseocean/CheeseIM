@@ -10,5 +10,5 @@ public interface ConversationPermissionDubboService {
     /**
      * 校验当前读取请求是否允许访问目标会话。
      */
-    Object check(ConversationPermissionRequest request);
+    PermissionCheckResult check(ConversationPermissionRequest request);
 }

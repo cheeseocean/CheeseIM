@@ -1,12 +1,9 @@
 package com.cheeseocean.im.postbox.facade;
 
-import com.alicp.jetcache.anno.CacheType;
-import com.alicp.jetcache.anno.Cached;
 import com.cheeseocean.im.common.api.business.domain.User;
 import com.cheeseocean.im.common.api.dto.user.RegisterUserRequest;
 import com.cheeseocean.im.common.api.dto.user.UpdateUserInfoRequest;
 import com.cheeseocean.im.common.api.user.UserInfoService;
-import com.cheeseocean.im.common.core.constants.RedisKeys;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.stereotype.Service;
 
@@ -82,8 +79,7 @@ public class UserServiceFacade {
         return userInfoService.getNotificationAccount(userId);
     }
 
-    /** 对全局接收选项做 facade 级缓存，避免消息链路重复远程查询。 */
-    @Cached(name = RedisKeys.USER_RECEIVE_OPTIONS_PREFIX, key = "#userId", expire = 300, cacheType = CacheType.REMOTE)
+    /** 接收选项的缓存归属 business 用户域，facade 不维护第二套缓存。 */
     public int getReceiveOptions(String userId) {
         return userInfoService.getReceiveOptions(userId);
     }

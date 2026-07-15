@@ -12,7 +12,7 @@ import com.cheeseocean.im.common.api.permission.ConversationPermissionDubboServi
 import com.cheeseocean.im.common.api.permission.ConversationPermissionRequest;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.common.api.rpc.ControlNotificationDispatcher;
-import com.cheeseocean.im.common.core.auth.PermissionCheckResult;
+import com.cheeseocean.im.common.api.permission.PermissionCheckResult;
 import com.cheeseocean.im.common.core.business.repository.ConversationControlEventRepository;
 import com.cheeseocean.im.postmaster.service.GroupMembershipFacade;
 import com.fasterxml.jackson.core.JsonProcessingException;

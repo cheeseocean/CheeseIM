@@ -20,7 +20,6 @@ import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.stereotype.Service;
-import org.springframework.beans.factory.annotation.Autowired;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
@@ -49,7 +48,6 @@ public class ReadStateServiceImpl implements ReadStateService {
     @DubboReference(check = false, retries = 0)
     private ControlNotificationDispatcher controlNotificationDispatcher;
 
-    @Autowired
     public ReadStateServiceImpl(ConversationService conversationService,
                                 ConversationSequenceRepository conversationSequenceRepository,
                                 UserConversationSyncPointRepository syncPointRepository,

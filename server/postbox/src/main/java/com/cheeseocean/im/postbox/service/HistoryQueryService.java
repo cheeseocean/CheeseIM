@@ -3,25 +3,23 @@ package com.cheeseocean.im.postbox.service;
 import com.cheeseocean.im.common.api.permission.ConversationPermissionDubboService;
 import com.cheeseocean.im.common.api.permission.ConversationPermissionRequest;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
+import com.cheeseocean.im.common.api.message.MessageHistoryQueryService;
 import com.cheeseocean.im.common.api.dto.message.Message;
+import com.cheeseocean.im.common.api.dto.message.HistoryMessage;
 import com.cheeseocean.im.common.api.enums.ContentType;
 import com.cheeseocean.im.common.api.enums.MessageSource;
 import com.cheeseocean.im.common.api.enums.MessageStatus;
 import com.cheeseocean.im.common.api.enums.PlatformType;
 import com.cheeseocean.im.common.api.enums.ChatType;
-import com.cheeseocean.im.common.core.auth.PermissionCheckResult;
-import com.cheeseocean.im.common.core.util.BlockIndexUtil;
-import com.cheeseocean.im.postbox.history.MessageBlockDoc;
-import com.cheeseocean.im.postbox.history.MessageSlot;
-import com.cheeseocean.im.postbox.history.MessageMutationDoc;
-import com.cheeseocean.im.postbox.model.HistoryMessage;
+import com.cheeseocean.im.common.api.permission.PermissionCheckResult;
+import com.cheeseocean.im.common.core.history.MessageHistoryRepository;
+import com.cheeseocean.im.common.core.history.document.MessageBlockDoc;
+import com.cheeseocean.im.common.core.history.document.MessageSlot;
+import com.cheeseocean.im.common.core.history.document.MessageMutationDoc;
 import org.apache.dubbo.config.annotation.DubboReference;
+import org.apache.dubbo.config.annotation.DubboService;
 import org.apache.dubbo.rpc.RpcException;
 import org.bson.types.Binary;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -42,28 +40,30 @@ import java.util.concurrent.ConcurrentMap;
  * @author xxxcrel
  */
 @Service
-public class HistoryQueryService {
+@DubboService
+public class HistoryQueryService implements MessageHistoryQueryService {
 
     private static final int DEFAULT_HISTORY_LIMIT = 50;
     private static final int MAX_HISTORY_LIMIT = 200;
     private static final int MAX_RECENT_BLOCK_WINDOWS = 16;
     private static final int PERMISSION_CACHE_TTL_MILLIS = 30_000;
 
-    private final MongoTemplate mongoTemplate;
+    private final MessageHistoryRepository messageHistoryRepository;
     private final MessagePreviewResolver messagePreviewResolver;
     private final ConcurrentMap<PermissionCacheKey, PermissionCacheValue> permissionCache = new ConcurrentHashMap<>();
 
     @DubboReference(check = false)
     private ConversationPermissionDubboService conversationPermissionDubboService;
 
-    public HistoryQueryService(MongoTemplate mongoTemplate, MessagePreviewResolver messagePreviewResolver) {
-        this.mongoTemplate = mongoTemplate;
+    public HistoryQueryService(MessageHistoryRepository messageHistoryRepository, MessagePreviewResolver messagePreviewResolver) {
+        this.messageHistoryRepository = messageHistoryRepository;
         this.messagePreviewResolver = messagePreviewResolver;
     }
 
     /**
      * 读取最近一页历史消息。
      */
+    @Override
     public List<HistoryMessage> getConversationMessages(SessionPrincipal session, String conversationId, int limit) {
         if (!allow(session, conversationId)) {
             return new ArrayList<>();
@@ -100,53 +100,7 @@ public class HistoryQueryService {
         if (conversationId == null || conversationId.isBlank()) {
             return new ArrayList<>();
         }
-        Long latestBlockNo = findLatestBlockNo(conversationId);
-        if (latestBlockNo == null) {
-            return new ArrayList<>();
-        }
-
-        List<MessageBlockDoc> blocks = new ArrayList<>();
-        long cursorBlockNo = latestBlockNo;
-        int windowSize = Math.max(1, (int) Math.ceil((double) limit / BlockIndexUtil.BLOCK_SIZE));
-        int scannedWindows = 0;
-        while (cursorBlockNo >= 0 && countSlots(blocks) < limit && scannedWindows < MAX_RECENT_BLOCK_WINDOWS) {
-            long beginBlockNo = Math.max(0, cursorBlockNo - windowSize + 1L);
-            blocks.addAll(findBlocksByRange(conversationId, beginBlockNo, cursorBlockNo));
-            cursorBlockNo = beginBlockNo - 1L;
-            scannedWindows++;
-        }
-        return blocks;
-    }
-
-    private Long findLatestBlockNo(String conversationId) {
-        Query query = Query.query(Criteria.where("conversationId").is(conversationId))
-                .with(Sort.by(Sort.Direction.DESC, "blockNo"))
-                .limit(1);
-        query.fields().include("blockNo");
-        MessageBlockDoc latest = mongoTemplate.findOne(query, MessageBlockDoc.class);
-        return latest == null ? null : latest.getBlockNo();
-    }
-
-    private List<MessageBlockDoc> findBlocksByRange(String conversationId, long beginBlockNo, long endBlockNo) {
-        Query query = Query.query(Criteria.where("conversationId").is(conversationId)
-                        .and("blockNo").gte(beginBlockNo).lte(endBlockNo))
-                .with(Sort.by(Sort.Direction.DESC, "blockNo"));
-        return mongoTemplate.find(query, MessageBlockDoc.class);
-    }
-
-    private int countSlots(List<MessageBlockDoc> blocks) {
-        int count = 0;
-        for (MessageBlockDoc block : blocks) {
-            if (block == null || block.getMessages() == null) {
-                continue;
-            }
-            for (MessageSlot slot : block.getMessages()) {
-                if (slot != null) {
-                    count++;
-                }
-            }
-        }
-        return count;
+        return messageHistoryRepository.findRecentBlocks(conversationId, limit, MAX_RECENT_BLOCK_WINDOWS);
     }
 
     private int effectiveHistoryLimit(int limit) {
@@ -161,6 +115,7 @@ public class HistoryQueryService {
      *
      * <p>此方法只负责历史块查询，不处理会话权限校验。
      */
+    @Override
     public List<Message> pullMessagesBySeqRange(String conversationId, long beginSeq, long endSeq, int limit) {
         if (conversationId == null || conversationId.isBlank()) {
             return new ArrayList<>();
@@ -169,12 +124,7 @@ public class HistoryQueryService {
             return new ArrayList<>();
         }
         int effectiveLimit = limit <= 0 ? Integer.MAX_VALUE : limit;
-        long beginBlock = BlockIndexUtil.blockNo(beginSeq);
-        long endBlock = BlockIndexUtil.blockNo(endSeq);
-        Query query = Query.query(Criteria.where("conversationId").is(conversationId)
-                        .and("blockNo").gte(beginBlock).lte(endBlock))
-                .with(Sort.by(Sort.Direction.ASC, "blockNo"));
-        List<MessageBlockDoc> blocks = mongoTemplate.find(query, MessageBlockDoc.class);
+        List<MessageBlockDoc> blocks = messageHistoryRepository.findBlocksBySeqRange(conversationId, beginSeq, endSeq);
         if (blocks == null || blocks.isEmpty()) {
             return new ArrayList<>();
         }
@@ -260,8 +210,7 @@ public class HistoryQueryService {
         if (ids.isEmpty()) {
             return Map.of();
         }
-        List<MessageMutationDoc> mutations = mongoTemplate.find(
-                Query.query(Criteria.where("_id").in(ids)), MessageMutationDoc.class);
+        List<MessageMutationDoc> mutations = messageHistoryRepository.findRevokedMutations(serverMsgIds);
         Map<String, MessageMutationDoc> byServerMsgId = new HashMap<>();
         for (MessageMutationDoc mutation : mutations) {
             if (mutation != null && mutation.getServerMsgId() != null) {

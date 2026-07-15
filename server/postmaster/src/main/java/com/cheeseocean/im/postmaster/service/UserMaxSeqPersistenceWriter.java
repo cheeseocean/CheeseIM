@@ -5,7 +5,6 @@ import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import com.cheeseocean.im.postmaster.config.UserMaxSeqPersistenceWriterProperties;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -36,7 +35,6 @@ public class UserMaxSeqPersistenceWriter {
     private final List<Thread> drainThreads;
     private volatile boolean running = true;
 
-    @Autowired
     public UserMaxSeqPersistenceWriter(UserConversationSyncPointRepository syncPointRepository,
                                        UserMaxSeqPersistenceWriterProperties properties) {
         this(syncPointRepository,

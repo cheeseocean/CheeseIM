@@ -3,6 +3,7 @@
 > seq 分配 + 历史块持久化 + delivery event 发布 + 策略引擎。
 > 详细会话/seq 设计见 `docs/ConversationArch.md` 和 `docs/SeqArch.md`（本模块 docs/ 目录）。
 > 阻断性问题见 `server/docs/architecture/ASSESSMENT.md`。
+> 独立进程由 `application-postmaster.yml` 启动，唯一导入 `module-postmaster.yml`，Dubbo application 名为 `cheese-im-postmaster`（20881），Kafka consumer group 为 `postmaster-ingress-group`。
 
 ## 1. 核心组件
 

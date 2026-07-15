@@ -11,7 +11,7 @@ import static org.mockito.Mockito.when;
 class ConversationSeqServiceTest {
 
     @Test
-    void nextSeqShouldUseConversationSequenceAllocator() {
+    void nextSeqShouldUseConversationSeqAllocator() {
         ConversationSeqAllocator allocator = mock(ConversationSeqAllocator.class);
         when(allocator.next("c1:userA:userB")).thenReturn(1001L);
 
@@ -21,7 +21,7 @@ class ConversationSeqServiceTest {
     }
 
     @Test
-    void allocateBatchShouldUseConversationSequenceAllocator() {
+    void allocateBatchShouldUseConversationSeqAllocator() {
         ConversationSeqAllocator allocator = mock(ConversationSeqAllocator.class);
         when(allocator.allocate("c1:userA:userB", 3)).thenReturn(new SequenceRange(11L, 13L));
 

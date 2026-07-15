@@ -1,13 +1,11 @@
 package com.cheeseocean.im.business.service.friend;
 
-import com.alicp.jetcache.Cache;
-import com.alicp.jetcache.CacheManager;
-import com.alicp.jetcache.anno.CacheType;
-import com.alicp.jetcache.template.QuickConfig;
 import com.cheeseocean.im.common.api.business.domain.FriendRequest;
 import com.cheeseocean.im.common.api.business.domain.Friendship;
 import com.cheeseocean.im.common.api.enums.HandleResultEnum;
 import com.cheeseocean.im.common.api.friend.FriendRelationService;
+import com.cheeseocean.im.common.core.cache.CacheRegion;
+import com.cheeseocean.im.common.core.cache.CacheStore;
 import com.cheeseocean.im.common.core.business.repository.BlacklistRepository;
 import com.cheeseocean.im.common.core.business.repository.FriendRequestRepository;
 import com.cheeseocean.im.common.core.business.repository.FriendshipRepository;
@@ -31,66 +29,40 @@ import java.util.stream.Collectors;
  *
  * <p>通过好友关系、好友申请、黑名单三个仓储完成好友域业务逻辑，
  * 并通过 {@link FriendRealtimeNotifier} 向对端推送实时通知。
- * 好友列表和好友申请列表采用 JetCache 做读穿透缓存，
+ * 好友列表和好友申请列表采用类型化远端缓存做读穿透，
  * 写路径统一在仓储提交后失效关联缓存。
  */
 @Service
 @DubboService
 public class FriendRelationServiceImpl implements FriendRelationService {
 
-    private static final int FRIEND_CACHE_EXPIRE_SECONDS       = 60 * 10;
-    private static final int FRIEND_CACHE_LOCAL_EXPIRE_SECONDS = 60;
-    private static final int FRIEND_CACHE_LOCAL_LIMIT          = 1_000;
+    private static final Duration FRIEND_CACHE_TTL = Duration.ofMinutes(10);
 
     private final FriendshipRepository               friendshipRepository;
     private final FriendRequestRepository            friendRequestRepository;
     private final BlacklistRepository                blacklistRepository;
     private final FriendRealtimeNotifier             friendRealtimeNotifier;
     private final PersistenceTransactionExecutor     persistenceTransactionExecutor;
-    private final Cache<String, Friendship>          friendshipCache;
-    private final Cache<String, List<Friendship>>    friendListCache;
-    private final Cache<String, List<FriendRequest>> incomingRequestCache;
-    private final Cache<String, List<FriendRequest>> outgoingRequestCache;
+    private final CacheRegion<Friendship> friendshipCache;
+    private final CacheRegion<List<Friendship>> friendListCache;
+    private final CacheRegion<List<FriendRequest>> incomingRequestCache;
+    private final CacheRegion<List<FriendRequest>> outgoingRequestCache;
 
     public FriendRelationServiceImpl(FriendshipRepository friendshipRepository,
                                      FriendRequestRepository friendRequestRepository,
                                      BlacklistRepository blacklistRepository,
                                      FriendRealtimeNotifier friendRealtimeNotifier,
                                      PersistenceTransactionExecutor persistenceTransactionExecutor,
-                                     CacheManager cacheManager) {
+                                     CacheStore cacheStore) {
         this.friendshipRepository = friendshipRepository;
         this.friendRequestRepository = friendRequestRepository;
         this.blacklistRepository = blacklistRepository;
         this.friendRealtimeNotifier = friendRealtimeNotifier;
         this.persistenceTransactionExecutor = persistenceTransactionExecutor;
-        this.friendshipCache = cacheManager.getOrCreateCache(
-                QuickConfig.newBuilder("business:friend:detail:")
-                        .expire(Duration.ofSeconds(FRIEND_CACHE_EXPIRE_SECONDS))
-                        .localExpire(Duration.ofSeconds(FRIEND_CACHE_LOCAL_EXPIRE_SECONDS))
-                        .cacheType(CacheType.BOTH)
-                        .localLimit(FRIEND_CACHE_LOCAL_LIMIT)
-                        .build()
-        );
-        this.friendListCache = cacheManager.getOrCreateCache(
-                QuickConfig.newBuilder("business:friend:list:")
-                        .expire(Duration.ofSeconds(FRIEND_CACHE_EXPIRE_SECONDS))
-                        .localExpire(Duration.ofSeconds(FRIEND_CACHE_LOCAL_EXPIRE_SECONDS))
-                        .cacheType(CacheType.BOTH)
-                        .localLimit(FRIEND_CACHE_LOCAL_LIMIT)
-                        .build()
-        );
-        this.incomingRequestCache = cacheManager.getOrCreateCache(
-                QuickConfig.newBuilder("business:friend:incoming:")
-                        .expire(Duration.ofSeconds(FRIEND_CACHE_EXPIRE_SECONDS))
-                        .cacheType(CacheType.REMOTE)
-                        .build()
-        );
-        this.outgoingRequestCache = cacheManager.getOrCreateCache(
-                QuickConfig.newBuilder("business:friend:outgoing:")
-                        .expire(Duration.ofSeconds(FRIEND_CACHE_EXPIRE_SECONDS))
-                        .cacheType(CacheType.REMOTE)
-                        .build()
-        );
+        this.friendshipCache = cacheStore.region("business:friend:detail:", Friendship.class, FRIEND_CACHE_TTL);
+        this.friendListCache = cacheStore.listRegion("business:friend:list:", Friendship.class, FRIEND_CACHE_TTL);
+        this.incomingRequestCache = cacheStore.listRegion("business:friend:incoming:", FriendRequest.class, FRIEND_CACHE_TTL);
+        this.outgoingRequestCache = cacheStore.listRegion("business:friend:outgoing:", FriendRequest.class, FRIEND_CACHE_TTL);
     }
 
     private static String friendshipKey(String userId, String friendUserId) {
@@ -102,8 +74,8 @@ public class FriendRelationServiceImpl implements FriendRelationService {
         if (!StringUtils.hasText(userId)) {
             return new ArrayList<>();
         }
-        List<Friendship> friendships = friendListCache.computeIfAbsent(userId, key ->
-                friendshipRepository.findOwnerFriends(key, 0, 0)
+        List<Friendship> friendships = friendListCache.getOrLoad(userId, () ->
+                friendshipRepository.findOwnerFriends(userId, 0, 0)
         );
         return copyFriendships(friendships);
     }
@@ -115,8 +87,8 @@ public class FriendRelationServiceImpl implements FriendRelationService {
         }
         List<Integer> pendingResults = new ArrayList<>();
         pendingResults.add(HandleResultEnum.PENDING.getCode());
-        List<FriendRequest> requests = incomingRequestCache.computeIfAbsent(userId, key ->
-                friendRequestRepository.findIncoming(key, pendingResults, 0, 0)
+        List<FriendRequest> requests = incomingRequestCache.getOrLoad(userId, () ->
+                friendRequestRepository.findIncoming(userId, pendingResults, 0, 0)
         );
         return copyRequests(requests);
     }
@@ -128,8 +100,8 @@ public class FriendRelationServiceImpl implements FriendRelationService {
         }
         List<Integer> pendingResults = new ArrayList<>();
         pendingResults.add(HandleResultEnum.PENDING.getCode());
-        List<FriendRequest> requests = outgoingRequestCache.computeIfAbsent(userId, key ->
-                friendRequestRepository.findOutgoing(key, pendingResults, 0, 0)
+        List<FriendRequest> requests = outgoingRequestCache.getOrLoad(userId, () ->
+                friendRequestRepository.findOutgoing(userId, pendingResults, 0, 0)
         );
         return copyRequests(requests);
     }
@@ -291,9 +263,9 @@ public class FriendRelationServiceImpl implements FriendRelationService {
      */
     private Friendship getFriendship(String userId, String friendUserId) {
         String key = friendshipKey(userId, friendUserId);
-        Friendship friendship = friendshipCache.computeIfAbsent(
+        Friendship friendship = friendshipCache.getOrLoad(
                 key,
-                ignored -> friendshipRepository.find(userId, friendUserId)
+                () -> friendshipRepository.find(userId, friendUserId)
         );
         return copyFriendship(friendship);
     }
@@ -302,13 +274,13 @@ public class FriendRelationServiceImpl implements FriendRelationService {
      * 好友关系发生变化后，失效双方相关缓存。
      */
     private void evictFriendshipCaches(Set<String> userIds, List<Friendship> friendships) {
-        friendListCache.removeAll(userIds);
+        friendListCache.evictAll(userIds);
         Set<String> detailKeys = friendships.stream()
                 .filter(Objects::nonNull)
                 .map(friendship -> friendshipKey(friendship.getUserId(), friendship.getFriendId()))
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         if (!detailKeys.isEmpty()) {
-            friendshipCache.removeAll(detailKeys);
+            friendshipCache.evictAll(detailKeys);
         }
     }
 
@@ -316,10 +288,10 @@ public class FriendRelationServiceImpl implements FriendRelationService {
      * 好友申请变化后，失效双方的来向/去向申请列表缓存。
      */
     private void evictRequestCaches(String userId, String friendUserId) {
-        incomingRequestCache.remove(userId);
-        outgoingRequestCache.remove(userId);
-        incomingRequestCache.remove(friendUserId);
-        outgoingRequestCache.remove(friendUserId);
+        incomingRequestCache.evict(userId);
+        outgoingRequestCache.evict(userId);
+        incomingRequestCache.evict(friendUserId);
+        outgoingRequestCache.evict(friendUserId);
     }
 
     private List<Friendship> copyFriendships(List<Friendship> friendships) {

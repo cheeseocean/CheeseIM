@@ -1,14 +1,19 @@
 dependencies {
     implementation project(':common-api')
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.kafka:spring-kafka'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.apache.dubbo:dubbo-spring-boot-starter'
+    implementation 'com.google.protobuf:protobuf-java:3.25.3'
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.15.4'
-    implementation 'com.github.ben-manes.caffeine:caffeine'
     implementation 'net.openhft:chronicle-queue:2026.2'
     implementation 'org.rocksdb:rocksdbjni:9.10.0'
 
     implementation 'org.springframework.security:spring-security-crypto'
-
-    implementation 'commons-codec:commons-codec:1.16.1'
-    implementation 'com.google.guava:guava:33.0.0-jre'
 
     implementation 'io.micrometer:micrometer-core'
     implementation 'io.micrometer:micrometer-registry-prometheus'

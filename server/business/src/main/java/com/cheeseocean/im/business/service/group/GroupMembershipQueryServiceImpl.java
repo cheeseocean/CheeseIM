@@ -26,9 +26,6 @@ public class GroupMembershipQueryServiceImpl implements GroupMembershipQueryServ
 
     @Override
     public List<String> queryConversationMembers(String conversationId) {
-        // 兼容遗留 c2: 前缀与新 g: 前缀：
-        // - g:{groupId}（ConversationIdUtil.group 当前形态，见根 AGENTS §8 死分支清单）
-        // - c2:{groupId}（早期死分支，保留兜底以免历史调用方直接报错）
         if (conversationId == null) {
             return new ArrayList<>();
         }
@@ -61,26 +58,30 @@ public class GroupMembershipQueryServiceImpl implements GroupMembershipQueryServ
     }
 
     @Override
+    public Optional<com.cheeseocean.im.common.api.business.domain.Group> queryGroup(String groupId) {
+        if (groupId == null || groupId.isBlank()) {
+            return Optional.empty();
+        }
+        return groupRepository.findById(groupId);
+    }
+
+    @Override
     public GroupTypeEnum queryGroupType(String groupId) {
         if (groupId == null || groupId.isBlank()) {
             return null;
         }
-        Optional<com.cheeseocean.im.common.api.business.domain.Group> group = groupRepository.findById(groupId);
+        Optional<com.cheeseocean.im.common.api.business.domain.Group> group = queryGroup(groupId);
         return group.map(com.cheeseocean.im.common.api.business.domain.Group::getGroupType).orElse(null);
     }
 
     /**
      * 解析会话 id 中的 groupId。
      *
-     * <p>支持 {@code g:{groupId}}（当前）与 {@code c2:{groupId}}（遗留死分支）两种前缀；
-     * 其它前缀返回 null（调用方按未识别处理，返回空成员列表）。
+     * <p>只接受 {@code g:{groupId}}；其它前缀返回 null（调用方按未识别处理，返回空成员列表）。
      */
     private static String stripGroupPrefix(String conversationId) {
         if (conversationId.startsWith("g:")) {
             return conversationId.substring("g:".length());
-        }
-        if (conversationId.startsWith("c2:")) {
-            return conversationId.substring("c2:".length());
         }
         return null;
     }

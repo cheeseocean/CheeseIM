@@ -1,13 +1,11 @@
 package com.cheeseocean.im.business.service.user;
 
-import com.alicp.jetcache.Cache;
-import com.alicp.jetcache.CacheManager;
-import com.alicp.jetcache.anno.CacheType;
-import com.alicp.jetcache.template.QuickConfig;
 import com.cheeseocean.im.common.api.business.domain.User;
 import com.cheeseocean.im.common.api.dto.user.RegisterUserRequest;
 import com.cheeseocean.im.common.api.dto.user.UpdateUserInfoRequest;
 import com.cheeseocean.im.common.api.user.UserInfoService;
+import com.cheeseocean.im.common.core.cache.CacheRegion;
+import com.cheeseocean.im.common.core.cache.CacheStore;
 import com.cheeseocean.im.common.core.business.repository.UserRepository;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.apache.dubbo.config.annotation.DubboService;
@@ -33,7 +31,7 @@ import static com.cheeseocean.im.common.core.constants.RedisKeys.USER_RECEIVE_OP
  * 用户基础信息服务实现。
  *
  * <p>服务层直接返回 {@link User} 领域对象，
- * 并通过 JetCache 维护用户资料缓存和全局接收选项缓存。
+ * 并通过类型化远端缓存维护用户资料和全局接收选项。
  */
 @Service
 @DubboService
@@ -41,30 +39,16 @@ public class UserServiceImpl implements UserInfoService {
 
     private static final Logger log = CommonLoggers.SOCIAL;
     private static final int NOTIFICATION_ACCOUNT_MIN_LEVEL = 2;
-    private static final int USER_CACHE_EXPIRE_SECONDS = 60 * 5;
-    private static final int USER_CACHE_LOCAL_EXPIRE_SECONDS = 60;
-    private static final int USER_CACHE_LOCAL_LIMIT = 1_000;
+    private static final Duration USER_CACHE_TTL = Duration.ofMinutes(5);
 
     private final UserRepository userRepository;
-    private final Cache<String, User> userInfoCache;
-    private final Cache<String, Integer> userReceiveOptCache;
+    private final CacheRegion<User> userInfoCache;
+    private final CacheRegion<Integer> userReceiveOptCache;
 
-    public UserServiceImpl(UserRepository userRepository, CacheManager cacheManager) {
+    public UserServiceImpl(UserRepository userRepository, CacheStore cacheStore) {
         this.userRepository = userRepository;
-        this.userInfoCache = cacheManager.getOrCreateCache(
-                QuickConfig.newBuilder(USER_INFO_PREFIX)
-                        .expire(Duration.ofSeconds(USER_CACHE_EXPIRE_SECONDS))
-                        .localExpire(Duration.ofSeconds(USER_CACHE_LOCAL_EXPIRE_SECONDS))
-                        .cacheType(CacheType.BOTH)
-                        .localLimit(USER_CACHE_LOCAL_LIMIT)
-                        .build()
-        );
-        this.userReceiveOptCache = cacheManager.getOrCreateCache(
-                QuickConfig.newBuilder(USER_RECEIVE_OPTIONS_PREFIX)
-                        .expire(Duration.ofSeconds(USER_CACHE_EXPIRE_SECONDS))
-                        .cacheType(CacheType.REMOTE)
-                        .build()
-        );
+        this.userInfoCache = cacheStore.region(USER_INFO_PREFIX, User.class, USER_CACHE_TTL);
+        this.userReceiveOptCache = cacheStore.region(USER_RECEIVE_OPTIONS_PREFIX, Integer.class, USER_CACHE_TTL);
     }
 
     @Override
@@ -116,7 +100,7 @@ public class UserServiceImpl implements UserInfoService {
         if (!StringUtils.hasText(userId)) {
             return null;
         }
-        User cached = userInfoCache.computeIfAbsent(userId, key -> userRepository.findById(key).orElse(null));
+        User cached = userInfoCache.getOrLoad(userId, () -> userRepository.findById(userId).orElse(null));
         return copyUser(cached);
     }
 
@@ -257,7 +241,7 @@ public class UserServiceImpl implements UserInfoService {
         if (!StringUtils.hasText(userId)) {
             return 0;
         }
-        Integer opt = userReceiveOptCache.computeIfAbsent(userId, userRepository::getGlobalReceiveOption);
+        Integer opt = userReceiveOptCache.getOrLoad(userId, () -> userRepository.getGlobalReceiveOption(userId));
         return opt == null ? 0 : opt;
     }
 
@@ -268,16 +252,16 @@ public class UserServiceImpl implements UserInfoService {
         if (userIds == null || userIds.isEmpty()) {
             return;
         }
-        userInfoCache.removeAll(new LinkedHashSet<>(userIds));
+        userInfoCache.evictAll(new LinkedHashSet<>(userIds));
     }
 
     /**
      * 失效单用户资料和接收选项缓存。
      */
     private void evictUserCaches(String userId, boolean receiveOptChanged) {
-        userInfoCache.remove(userId);
+        userInfoCache.evict(userId);
         if (receiveOptChanged) {
-            userReceiveOptCache.remove(userId);
+            userReceiveOptCache.evict(userId);
         }
     }
 

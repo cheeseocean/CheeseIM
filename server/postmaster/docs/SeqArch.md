@@ -15,7 +15,6 @@
 | 组件 | 说明 |
 | --- | --- |
 | `ConversationSeqService` | `postmaster` 内的消息定序入口。 |
-| `SequenceIdGenerator` | 通用 ID 生成器，不应用于会话消息 seq。 |
 | Redis seq allocator | 集群模式下的区间申请状态。 |
 | RocksDB seq state | 单机降级状态，用于无 Redis 本地运行。 |
 | MongoDB `ConversationRange` | 持久化会话 seq 范围，是最终事实来源。 |

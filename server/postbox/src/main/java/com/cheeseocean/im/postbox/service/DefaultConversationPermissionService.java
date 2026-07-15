@@ -1,8 +1,9 @@
 package com.cheeseocean.im.postbox.service;
 
 import com.cheeseocean.im.common.api.permission.ConversationPermissionRequest;
-import com.cheeseocean.im.common.core.auth.PermissionCheckResult;
-import org.springframework.stereotype.Service;
+import com.cheeseocean.im.common.api.permission.ConversationPermissionDubboService;
+import com.cheeseocean.im.common.api.permission.PermissionCheckResult;
+import org.apache.dubbo.config.annotation.DubboService;
 
 /**
  * 默认会话权限实现。
@@ -11,8 +12,8 @@ import org.springframework.stereotype.Service;
  *
  * @author xxxcrel
  */
-@Service
-public class DefaultConversationPermissionService implements ConversationPermissionService {
+@DubboService
+public class DefaultConversationPermissionService implements ConversationPermissionDubboService {
 
     @Override
     public PermissionCheckResult check(ConversationPermissionRequest request) {

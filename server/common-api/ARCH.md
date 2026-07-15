@@ -33,7 +33,7 @@
 | 通知 NOTIFICATION | `n:{recvUserId}` | 同上 |
 | 通知-群 | `ng:{groupId}` | `groupId` |
 
-⚠️ `GroupController.resolveGroupId` 的 `c2:` 前缀检查是死分支，新代码禁止再引入 `c2:` 等新前缀。
+群会话唯一使用 `g:{groupId}`；禁止引入其它群会话前缀。
 
 ## 4. 领域对象不变量
 

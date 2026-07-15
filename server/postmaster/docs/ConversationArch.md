@@ -46,6 +46,6 @@ flowchart TD
 ## 一致性原则
 
 - MongoDB 历史块是消息事实来源。
-- Redis/JetCache/RocksDB 只承载缓存或序列分配状态，不能替代 MongoDB 的最终事实。
+- Redis、CacheStore 与 RocksDB 只承载缓存或序列分配状态，不能替代 MongoDB 的最终事实。
 - 客户端收到实时消息时，如果 seq 不连续，应通过同步接口补拉缺口。
 - 客户端重启后，以服务端 max seq/read snapshot 和本地缓存做差量同步。
