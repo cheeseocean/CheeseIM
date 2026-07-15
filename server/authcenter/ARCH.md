@@ -17,7 +17,7 @@
 
 ## 2. token 模型
 
-- **access token** = JWT（HS256，stateless，跨节点共享验证）
+- **access token** = JWT（HS256，stateless，跨节点共享验证）；签名密钥只由 `CHEESEIM_AUTH_JWT_SECRET` 注入 authcenter，启动时必填且至少 32 个字符，其他模块不复制密钥
 - **refresh token** = 不透明 UUID，server-side state in Redis（L1+L2 cache），rotation：每次 refresh 后旧 token 失效
 - TTL 默认：access 24h，refresh 14d，WS ticket 60s（见 `AuthCenterConfig`）
 
@@ -32,7 +32,7 @@
 | session | `userSession:<sid>` / `userSessions:<uid>` set / `deviceSession:<uid>:<did>` |
 | WS ticket | `wsTicket:<ticket>` |
 | refresh token | `cheese_im:refresh_token:<token>` |
-| user security | `UserSecurityRepository` via `MultiLevelCacheService` + Mongo `user_security_state` |
+| user security | `UserSecurityRepository` via typed `CacheStore` + Mongo `user_security_state` |
 
 ## 4. 已知缺陷
 

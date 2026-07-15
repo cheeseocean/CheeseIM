@@ -72,17 +72,18 @@ postman `DeliveryEventListener.resolveTargets` 已**移除** `ChatType.GROUP` �
 `QueueAdapter` 抽象层同时修复端到端不兼容（ASSESSMENT P1-6 根因）：
 
 - `KafkaQueueAdapter.subscribe` 的反序列化路径**对齐 `ChronicleQueueAdapter.deserialize`**：`byte[]` 透传、`Message`/`HistoryEvent`/`OfflinePushEvent` 走 protobuf 原生解析，其它类型才走 Jackson 兜底。原 Jackson `readValue(String, payloadType)` 对 protobuf 字节就是错的，故以字节级 template + 反序列化原生 protobuf 取代。
-- `CommonKafkaStringConfig` 新增 `byteKafkaTemplate()`（`ByteArraySerializer`），由 `QueueAutoConfigurer.kafkaQueueAdapter` 注入，修掉原 `KafkaTemplate<String, byte[]> stringKafkaTemplate` 与 `<String,String>` bean 之间的泛型不匹配——这是 P1-6 中"端到端不兼容"的另一根因。
+- `KafkaQueueConfiguration` 仅提供 `byteKafkaTemplate()`（`ByteArraySerializer`），由 `QueueAutoConfigurer.kafkaQueueAdapter` 注入；不再保留未接入的对象/String Kafka 模板或 `@EnableKafka` 监听路径，防止绕过 `QueueAdapter` 形成第二条消息通道。
 
 消费端 `OfflinePushEventListener.onMessage(byte[])` 仍是 protobuf 字节直收 → `ProtoOfflinePushEventMapper.parse(byte[])`，路径不变。
 
 ## 8. 配置
 
-`module-postman.yml`：
+`application-postman.yml` 导入 `module-postman.yml`：
 - 5 厂商开关全部 `enabled:false`
 - `max-retry=3`、`max-daily-push-count=100`
 - 定时任务清理 `scheduled-tasks interval=6h`
-- Kafka `push-group`
+- Kafka consumer group `postman-delivery-group`
+- 所有厂商配置统一在 `cheeseim.push.*`，由 `CHEESEIM_PUSH_*` 环境变量注入
 - actuator + Prometheus
 - 控制事件补偿：`cheeseim.control-event.delivery`，默认每秒扫描、每次 100 条、30 秒 claim lease、最多 3 次在线投递；超出次数的离线补齐交由客户端 control-events cursor 拉取。
 

@@ -5,7 +5,6 @@ import com.cheeseocean.im.postman.entity.PushMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -40,14 +39,17 @@ public class HuaweiPushProvider implements PushProvider {
     @Value("${cheeseim.push.huawei.push-url:https://push-api.cloud.huawei.com/v1}")
     private String pushUrl;
     
-    @Autowired
-    private RestTemplate restTemplate;
-    
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final RestTemplate restTemplate;
+
+    private final ObjectMapper objectMapper;
     
     private String accessToken;
     private long tokenExpireTime;
+
+    public HuaweiPushProvider(RestTemplate restTemplate, ObjectMapper objectMapper) {
+        this.restTemplate = restTemplate;
+        this.objectMapper = objectMapper;
+    }
     
     @PostConstruct
     public void init() {

@@ -4,13 +4,6 @@ spring:
       - classpath:common.yml
       - classpath:module-postoffice.yml
 
-app:
-  runtime:
-    mode: standalone
-  modules:
-    authcenter:
-      enabled: true
-
 dubbo:
   application:
     name: cheese-im-postoffice

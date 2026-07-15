@@ -2,21 +2,11 @@ spring:
   config:
     import:
       - classpath:common.yml
-      - classpath:module-postman.yml
-
-app:
-  runtime:
-    mode: standalone
-
-cheeseim:
-  delivery:
-    compensation:
-      listener:
-        enabled: true
+      - classpath:module-postmaster.yml
 
 dubbo:
   application:
-    name: cheese-im-postman
+    name: cheese-im-postmaster
   registry:
     address: nacos://${nacos.server-addr:localhost:8848}
     register: true

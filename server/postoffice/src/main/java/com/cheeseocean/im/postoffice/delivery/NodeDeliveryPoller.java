@@ -29,7 +29,7 @@ import java.time.Duration;
  *   <li>单线程消费——在线投递的本质是从 Redis 搬到 Netty channel，
  *       瓶颈在 I/O 而非 CPU，单线程足够；多线程会增加 ConnectionManager 锁竞争</li>
  *   <li>daemon 线程：JVM 关闭时自动终止，不阻止进程退出</li>
- *   <li>异常安全：任何异常（Redis 断开、JSON 反序列化失败、dispatch 抛出）
+ *   <li>异常安全：任何异常（Redis 断开、envelope 反序列化失败、dispatch 抛出）
  *       均被 catch 并 log，不中断消费循环</li>
  * </ul>
  *
@@ -115,19 +115,9 @@ public class NodeDeliveryPoller {
                 dispatchMessage(message.getPayload());
                 return;
             }
-            dispatchMessage(json);
+            log.warn("NodeDeliveryPoller: unsupported queue message type={}, queueKey={}", message.getType(), queueKey);
         } catch (Exception e) {
-            // 兼容 P0-1 已上线的裸 DispatchMessageReq JSON，避免队列内旧消息无法消费。
-            dispatchLegacyMessage(json, e);
-        }
-    }
-
-    private void dispatchLegacyMessage(String json, Exception envelopeError) {
-        try {
-            dispatchMessage(json);
-        } catch (Exception dispatchError) {
-            log.error("NodeDeliveryPoller: failed to deserialize or dispatch, queueKey={}", queueKey, envelopeError);
-            log.error("NodeDeliveryPoller: legacy dispatch also failed, queueKey={}", queueKey, dispatchError);
+            log.error("NodeDeliveryPoller: failed to deserialize or dispatch envelope, queueKey={}", queueKey, e);
         }
     }
 

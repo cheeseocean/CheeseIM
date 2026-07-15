@@ -1,12 +1,12 @@
 spring:
   application:
-    name: cheese-im-push
+    name: cheese-im-postman
   data:
     redis:
       database: 0
   kafka:
     consumer:
-      group-id: push-group
+      group-id: postman-delivery-group
       max-poll-records: 100
       fetch-min-size: 1
       fetch-max-wait: 500ms
@@ -14,56 +14,39 @@ spring:
       concurrency: 3
       ack-mode: manual_immediate
 
-cheese:
-  im:
-    push:
-      apns:
-        enabled: ${push.apns.enabled:false}
-        key-path: ${push.apns.key-path:}
-        key-id: ${push.apns.key-id:}
-        team-id: ${push.apns.team-id:}
-        bundle-id: ${push.apns.bundle-id:}
-        production: ${push.apns.production:true}
-      jpush:
-        enabled: ${push.jpush.enabled:false}
-        app-key: ${push.jpush.app-key:}
-        master-secret: ${push.jpush.master-secret:}
-        production: ${push.jpush.production:true}
-        time-to-live: 86400
-      fcm:
-        enabled: ${push.fcm.enabled:false}
-        service-account-key: ${push.fcm.service-account-key:}
-        project-id: ${push.fcm.project-id:}
-      huawei:
-        enabled: ${push.huawei.enabled:false}
-        app-id: ${push.huawei.app-id:}
-        app-secret: ${push.huawei.app-secret:}
-      xiaomi:
-        enabled: ${push.xiaomi.enabled:false}
-        app-secret: ${push.xiaomi.app-secret:}
-        package-name: ${push.xiaomi.package-name:}
-      statistics:
-        enabled: true
-        cache-expire-hours: 24
-        realtime-window-seconds: 60
-      device-token:
-        cache-expire-days: 30
-        cleanup-interval-hours: 6
-      offline-push:
-        enabled: true
-        max-retry-count: 3
-        retry-delay-seconds: 1
-        max-daily-push-count: 100
-      scheduled-tasks:
-        enabled: true
-        device-token-cleanup-interval-hours: 6
-        statistics-log-interval-minutes: 30
-        health-check-interval-minutes: 5
-      config:
-        cache-expire-days: 7
-        default-group-chat-read-type: READ_ALL
-
 cheeseim:
+  push:
+    apns:
+      enabled: ${CHEESEIM_PUSH_APNS_ENABLED:false}
+      key-path: ${CHEESEIM_PUSH_APNS_KEY_PATH:}
+      key-id: ${CHEESEIM_PUSH_APNS_KEY_ID:}
+      team-id: ${CHEESEIM_PUSH_APNS_TEAM_ID:}
+      bundle-id: ${CHEESEIM_PUSH_APNS_BUNDLE_ID:}
+      production: ${CHEESEIM_PUSH_APNS_PRODUCTION:true}
+    jpush:
+      enabled: ${CHEESEIM_PUSH_JPUSH_ENABLED:false}
+      app-key: ${CHEESEIM_PUSH_JPUSH_APP_KEY:}
+      master-secret: ${CHEESEIM_PUSH_JPUSH_MASTER_SECRET:}
+      production: ${CHEESEIM_PUSH_JPUSH_PRODUCTION:true}
+      time-to-live: 86400
+    fcm:
+      enabled: ${CHEESEIM_PUSH_FCM_ENABLED:false}
+      service-account-key: ${CHEESEIM_PUSH_FCM_SERVICE_ACCOUNT_KEY:}
+      project-id: ${CHEESEIM_PUSH_FCM_PROJECT_ID:}
+    huawei:
+      enabled: ${CHEESEIM_PUSH_HUAWEI_ENABLED:false}
+      app-id: ${CHEESEIM_PUSH_HUAWEI_APP_ID:}
+      app-secret: ${CHEESEIM_PUSH_HUAWEI_APP_SECRET:}
+    xiaomi:
+      enabled: ${CHEESEIM_PUSH_XIAOMI_ENABLED:false}
+      app-secret: ${CHEESEIM_PUSH_XIAOMI_APP_SECRET:}
+      package-name: ${CHEESEIM_PUSH_XIAOMI_PACKAGE_NAME:}
+    device-token:
+      cache-expire-days: 30
+      cleanup-interval-hours: 6
+    scheduled-tasks:
+      enabled: true
+      device-token-cleanup-interval-hours: 6
   push-state:
     ttl-seconds: ${CHEESEIM_PUSH_STATE_TTL_SECONDS:86400}
 
@@ -82,10 +65,10 @@ management:
 
 info:
   app:
-    name: CheeseIM Push Service
+    name: CheeseIM Postman
     description: Online and Offline Push Service
     version: 1.0.0
     author: CheeseIM Team
 logging:
   level:
-    com.cheeseocean.im.push: INFO
+    com.cheeseocean.im.postman: INFO

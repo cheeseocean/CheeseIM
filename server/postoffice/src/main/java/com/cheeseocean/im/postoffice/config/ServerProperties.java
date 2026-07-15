@@ -17,7 +17,6 @@ public class ServerProperties {
 
     private final TcpConfig        tcp        = new TcpConfig();
     private final WebSocketConfig  websocket  = new WebSocketConfig();
-    private final SecurityConfig   security   = new SecurityConfig();
     private final ConnectionConfig connection = new ConnectionConfig();
     private final BusinessConfig   business   = new BusinessConfig();
 
@@ -39,13 +38,6 @@ public class ServerProperties {
         private String multiLoginStrategy;
         private long   timeoutMs;
         private int    maxConnectionsPerUser;
-    }
-
-    @Data
-    public static class SecurityConfig {
-        private String jwtSecret;
-        private long   tokenExpiration;
-
     }
 
     @Data

@@ -5,7 +5,6 @@ import com.cheeseocean.im.postman.entity.PushMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -37,11 +36,14 @@ public class XiaomiPushProvider implements PushProvider {
     @Value("${cheeseim.push.xiaomi.push-url:https://api.xmpush.xiaomi.com/v3/message/regid}")
     private String pushUrl;
     
-    @Autowired
-    private RestTemplate restTemplate;
-    
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final RestTemplate restTemplate;
+
+    private final ObjectMapper objectMapper;
+
+    public XiaomiPushProvider(RestTemplate restTemplate, ObjectMapper objectMapper) {
+        this.restTemplate = restTemplate;
+        this.objectMapper = objectMapper;
+    }
     
     @PostConstruct
     public void init() {

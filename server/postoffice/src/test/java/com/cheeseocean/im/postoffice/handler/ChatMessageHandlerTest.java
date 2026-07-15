@@ -59,9 +59,8 @@ class ChatMessageHandlerTest {
     }
 
     private static ChatMessageHandler handler(MessageSender sender, ConnectionSessionGuard guard) {
-        ChatMessageHandler handler = new ChatMessageHandler();
+        ChatMessageHandler handler = new ChatMessageHandler(guard);
         ReflectionTestUtils.setField(handler, "messageSender", sender);
-        ReflectionTestUtils.setField(handler, "connectionSessionGuard", guard);
         return handler;
     }
 

@@ -13,7 +13,7 @@ import com.cheeseocean.im.postman.state.PushStateStore;
 import com.cheeseocean.im.postman.provider.PushProvider;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -37,12 +37,12 @@ public class OfflinePushServiceImpl implements OfflinePushService {
     
     private final List<PushProvider> pushProviders;
     private final DeviceTokenServiceImpl deviceTokenService;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final StringRedisTemplate redisTemplate;
     private final PushStateStore pushStateStore;
 
     public OfflinePushServiceImpl(List<PushProvider> pushProviders,
                                   DeviceTokenServiceImpl deviceTokenService,
-                                  RedisTemplate<String, Object> redisTemplate,
+                                  StringRedisTemplate redisTemplate,
                                   PushStateStore pushStateStore) {
         this.pushProviders = pushProviders;
         this.deviceTokenService = deviceTokenService;
@@ -255,7 +255,7 @@ public class OfflinePushServiceImpl implements OfflinePushService {
             config.setCurrentDailyCount(pushStateStore.getDailyPushCount(userID));
             
             // 缓存配置
-            Map<String, Object> configData = offlinePushConfigToMap(config);
+            Map<String, String> configData = offlinePushConfigToMap(config);
             redisTemplate.opsForHash().putAll(configKey, configData);
             redisTemplate.expire(configKey, CACHE_EXPIRE_HOURS, TimeUnit.HOURS);
             
@@ -274,7 +274,7 @@ public class OfflinePushServiceImpl implements OfflinePushService {
             
             config.setLastUpdateTime(System.currentTimeMillis());
             
-            Map<String, Object> configData = offlinePushConfigToMap(config);
+            Map<String, String> configData = offlinePushConfigToMap(config);
             redisTemplate.opsForHash().putAll(configKey, configData);
             redisTemplate.expire(configKey, CACHE_EXPIRE_HOURS, TimeUnit.HOURS);
             
@@ -496,15 +496,15 @@ public class OfflinePushServiceImpl implements OfflinePushService {
     /**
      * OfflinePushConfig转Map
      */
-    private Map<String, Object> offlinePushConfigToMap(OfflinePushConfig config) {
-        Map<String, Object> map = new HashMap<>();
+    private Map<String, String> offlinePushConfigToMap(OfflinePushConfig config) {
+        Map<String, String> map = new HashMap<>();
         map.put("userID", config.getUserID());
-        map.put("enabled", config.isEnabled());
-        map.put("maxDailyCount", config.getMaxDailyCount());
+        map.put("enabled", String.valueOf(config.isEnabled()));
+        map.put("maxDailyCount", String.valueOf(config.getMaxDailyCount()));
         map.put("quietStartTime", config.getQuietStartTime());
         map.put("quietEndTime", config.getQuietEndTime());
-        map.put("allowDuringQuietTime", config.isAllowDuringQuietTime());
-        map.put("lastUpdateTime", config.getLastUpdateTime());
+        map.put("allowDuringQuietTime", String.valueOf(config.isAllowDuringQuietTime()));
+        map.put("lastUpdateTime", String.valueOf(config.getLastUpdateTime()));
         return map;
     }
 }

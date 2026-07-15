@@ -19,12 +19,11 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
 import io.netty.handler.timeout.IdleStateHandler;
 import org.slf4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PreDestroy;
+import jakarta.annotation.PreDestroy;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -39,12 +38,9 @@ public class TcpServer implements CommandLineRunner, Server {
 
     private static final Logger logger = CommonLoggers.POSTOFFICE;
 
-    @Autowired
-    private ServerProperties           ServerProperties;
-    @Autowired
-    private ConnectionManager          connectionManager;
-    @Autowired
-    private TcpServerHandler           tcpServerHandler;
+    private final ServerProperties serverProperties;
+    private final ConnectionManager connectionManager;
+    private final TcpServerHandler tcpServerHandler;
     /**
      * TCP服务相关配置
      */
@@ -54,9 +50,17 @@ public class TcpServer implements CommandLineRunner, Server {
     private ChannelFuture              channelFuture;
     private long                       startTime;
 
+    public TcpServer(ServerProperties serverProperties,
+                     ConnectionManager connectionManager,
+                     TcpServerHandler tcpServerHandler) {
+        this.serverProperties = serverProperties;
+        this.connectionManager = connectionManager;
+        this.tcpServerHandler = tcpServerHandler;
+    }
+
     @Override
     public void run(String... args) throws Exception {
-        tcpConfig = ServerProperties.getTcp();
+        tcpConfig = serverProperties.getTcp();
         if (tcpConfig.isEnabled()) {
             start();
         } else {
@@ -137,7 +141,7 @@ public class TcpServer implements CommandLineRunner, Server {
      * 获取服务器状态
      */
     public ServerStatus getStatus() {
-        ServerProperties.TcpConfig currentConfig = tcpConfig != null ? tcpConfig : ServerProperties.getTcp();
+        ServerProperties.TcpConfig currentConfig = tcpConfig != null ? tcpConfig : serverProperties.getTcp();
         ServerStatus               status        = new ServerStatus();
         status.setRunning(channelFuture != null && channelFuture.channel().isActive());
         status.setPort(currentConfig.getPort());
@@ -170,7 +174,7 @@ public class TcpServer implements CommandLineRunner, Server {
          * 初始化SSL上下文
          */
         public void initSslContext() throws Exception {
-            ServerProperties.TcpConfig tcpConfig = ServerProperties.getTcp();
+            ServerProperties.TcpConfig tcpConfig = serverProperties.getTcp();
             ServerProperties.SslConfig sslConfig = tcpConfig.getSsl();
 
             if (!sslConfig.isEnabled()) {
@@ -204,7 +208,7 @@ public class TcpServer implements CommandLineRunner, Server {
 
         @Override
         protected void initChannel(SocketChannel ch) throws Exception {
-            ServerProperties.TcpConfig tcpConfig = ServerProperties.getTcp();
+            ServerProperties.TcpConfig tcpConfig = serverProperties.getTcp();
             ChannelPipeline            pipeline  = ch.pipeline();
 
             // SSL处理器（如果启用）

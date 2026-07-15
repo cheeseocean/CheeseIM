@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 public class OfflinePushEventListener {
 
     private final MessagePushServiceImpl  messagePushService;
-    @DubboReference
+    @DubboReference(check = false)
     private       OnlineRouteQueryService onlineRouteQueryService;
 
     public OfflinePushEventListener(MessagePushServiceImpl messagePushService) {

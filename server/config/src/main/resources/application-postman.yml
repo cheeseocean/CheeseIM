@@ -4,18 +4,9 @@ spring:
       - classpath:common.yml
       - classpath:module-postman.yml
 
-app:
-  runtime:
-    mode: standalone
-
-cheeseim:
-  push:
-    scheduled-tasks:
-      enabled: true
-
 dubbo:
   application:
-    name: cheese-im-push
+    name: cheese-im-postman
   registry:
     address: nacos://${nacos.server-addr:localhost:8848}
     register: true

@@ -3,6 +3,8 @@ package com.cheeseocean.im.postoffice.delivery;
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchMessageReq;
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchMessageResp;
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchResult;
+import com.cheeseocean.im.common.api.dto.route.NodeQueueMessage;
+import com.cheeseocean.im.common.api.enums.NodeQueueMessageType;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.postoffice.api.OnlineDispatcherImpl;
 import com.cheeseocean.im.postoffice.config.NodeIdentityProvider;
@@ -30,7 +32,7 @@ import static org.mockito.Mockito.when;
 /**
  * 单元测试覆盖 {@link NodeDeliveryPoller} 的消费逻辑：
  * <ul>
- *   <li>BRPOP 返回 JSON → 反序列化并调用 OnlineDispatcherImpl.dispatchMessage</li>
+ *   <li>BRPOP 返回 NodeQueueMessage envelope → 反序列化并调用 OnlineDispatcherImpl.dispatchMessage</li>
  *   <li>BRPOP 返回 null（超时）→ 不调用 dispatch，循环继续</li>
  *   <li>BRPOP 返回非法 JSON → 异常被吞掉，循环继续</li>
  *   <li>shutdown → 线程退出</li>
@@ -66,7 +68,8 @@ class NodeDeliveryPollerTest {
         DispatchMessageReq req = new DispatchMessageReq();
         req.setUserId("userB");
 
-        String json = objectMapper.writeValueAsString(req);
+        String json = objectMapper.writeValueAsString(NodeQueueMessage.of(
+                NodeQueueMessageType.DELIVERY, objectMapper.writeValueAsString(req)));
         CountDownLatch latch = new CountDownLatch(1);
 
         // BRPOP: first call returns JSON, subsequent calls return null (timeout simulation)

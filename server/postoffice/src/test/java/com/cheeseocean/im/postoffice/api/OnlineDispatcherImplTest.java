@@ -6,11 +6,13 @@ import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.common.api.enums.CommandType;
 import com.cheeseocean.im.postoffice.connection.ConnectionManager;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
+import com.cheeseocean.im.postoffice.config.NodeIdentityProvider;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -26,7 +28,7 @@ class OnlineDispatcherImplTest {
 
     @Test
     void dispatchShouldFanoutToActiveUserConnectionsWhenTargetsAreOmitted() throws Exception {
-        ConnectionManager connectionManager = new ConnectionManager();
+        ConnectionManager connectionManager = connectionManager();
         ReflectionTestUtils.setField(connectionManager, "objectMapper", new ObjectMapper());
 
         EmbeddedChannel activeChannel = new EmbeddedChannel();
@@ -68,7 +70,7 @@ class OnlineDispatcherImplTest {
 
     @Test
     void dispatchShouldWriteTcpFramesForTcpConnections() {
-        ConnectionManager connectionManager = new ConnectionManager();
+        ConnectionManager connectionManager = connectionManager();
         ReflectionTestUtils.setField(connectionManager, "objectMapper", new ObjectMapper());
 
         EmbeddedChannel activeChannel = new EmbeddedChannel();
@@ -105,7 +107,7 @@ class OnlineDispatcherImplTest {
 
     @Test
     void dispatchShouldReturnFailureWhenRequestedConnectionIsMissing() {
-        ConnectionManager connectionManager = new ConnectionManager();
+        ConnectionManager connectionManager = connectionManager();
         ReflectionTestUtils.setField(connectionManager, "objectMapper", new ObjectMapper());
 
         OnlineDispatcherImpl service = new OnlineDispatcherImpl(connectionManager);
@@ -125,7 +127,7 @@ class OnlineDispatcherImplTest {
 
     @Test
     void dispatchShouldUseFriendNotifyTypeForRelationshipNotifications() throws Exception {
-        ConnectionManager connectionManager = new ConnectionManager();
+        ConnectionManager connectionManager = connectionManager();
         ObjectMapper objectMapper = new ObjectMapper();
         ReflectionTestUtils.setField(connectionManager, "objectMapper", objectMapper);
 
@@ -166,6 +168,34 @@ class OnlineDispatcherImplTest {
         Map<String, Object> body = (Map<String, Object>) frame.get("body");
         assertEquals("friend_request_created", ((Map<?, ?>) body.get("msg")).get("attributes") instanceof Map<?, ?> attributes
                 ? attributes.get("notificationType") : null);
+    }
+
+    private static ConnectionManager connectionManager() {
+        return new ConnectionManager(emptyProvider(), emptyProvider(), new NodeIdentityProvider("test-node"));
+    }
+
+    private static <T> ObjectProvider<T> emptyProvider() {
+        return new ObjectProvider<>() {
+            @Override
+            public T getObject() {
+                return null;
+            }
+
+            @Override
+            public T getObject(Object... args) {
+                return null;
+            }
+
+            @Override
+            public T getIfAvailable() {
+                return null;
+            }
+
+            @Override
+            public T getIfUnique() {
+                return null;
+            }
+        };
     }
 
     private static DispatchPayload payload(String serverMsgId, String content) {

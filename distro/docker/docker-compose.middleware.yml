@@ -19,6 +19,7 @@ services:
       - ./env/kafka.env
     ports:
       - "9092:9092"
+      - "9094:9094"
     privileged: true
     volumes:
       - ./data/kafka:/bitnami/kafka

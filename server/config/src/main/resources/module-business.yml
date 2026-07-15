@@ -1,6 +1,6 @@
 spring:
   application:
-    name: cheese-im-social
+    name: cheese-im-business
   data:
     mongodb:
       host: ${mongodb.host:localhost}
@@ -12,11 +12,6 @@ spring:
 server:
   port: 18085
 
-app:
-  modules:
-    social:
-      enabled: true
-
 logging:
   level:
-    com.cheeseocean.im.social: INFO
+    com.cheeseocean.im.business: INFO

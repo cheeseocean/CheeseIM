@@ -4,13 +4,9 @@ spring:
       - classpath:common.yml
       - classpath:module-business.yml
 
-app:
-  runtime:
-    mode: standalone
-
 dubbo:
   application:
-    name: cheese-im-social
+    name: cheese-im-business
   registry:
     address: nacos://${nacos.server-addr:localhost:8848}
     register: true

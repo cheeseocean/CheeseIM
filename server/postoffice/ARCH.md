@@ -13,6 +13,8 @@
 
 TCP/WS 共用 `ProtoClientEnvelope` / `ProtoServerEnvelope`；异步在线投递同样经 `ProtoEnvelopeMapper` 编码为 Binary Frame，不再存在 JSON 命令体分支。
 
+网关不持有 JWT 签名密钥，也不本地解析 access token；认证和 session 有效性统一委托 authcenter 的 ticket / `SessionQueryService` 契约。
+
 ## 2. 核心组件
 
 | 组件 | 文件 | 职责 |
@@ -34,8 +36,8 @@ TCP/WS 共用 `ProtoClientEnvelope` / `ProtoServerEnvelope`；异步在线投递
 - 存储：Redis HASH key `online:user:{userId}`（参见 `RedisKeys.onlineUser`），30min TTL
   - Field `route:{deviceId}` = `RouteSnapshot` 的 JSON（注册/重连时整体覆盖）
   - Field `heartbeat:{deviceId}` = 心跳时间戳字符串（被 `refresh` 高频更新，独立字段避免每次心跳重序列化整条 JSON）
-- 原子性：`register` / `refresh` / `unregister` 均走单脚本 Lua（参见 `RedisOnlineRouteService`），消除原 `MultiLevelCacheService` 「读-改-写」竞态与 L1 无失效广播问题（ASSESSMENT P0-3 已修复）
-- 不再使用 `MultiLevelCacheService` L1 Caffeine：路由是跨节点共享真相，L1 本地缓存会让多节点 1-5min 不一致；读写都直连 Redis
+- 原子性：`register` / `refresh` / `unregister` 均走单脚本 Lua（参见 `RedisOnlineRouteService`），消除旧读改写竞态（ASSESSMENT P0-3 已修复）
+- 路由是跨节点共享真相，读写都直连 Redis；不得接入业务 CacheStore 或本地 L1
 - `findByUser` 走 `HGETALL`，Java 侧合并 `route:` / `heartbeat:` 双字段，按 `deviceId` 排序
 - `gatewayNode` 经 `NodeIdentityProvider` 写入真实节点 ID（配置或 UUID），不再是硬编码（ASSESSMENT P0-1，**已修复 2026-07-07**）
 - postman 按 `gatewayNode` 分组路由，通过 Redis LIST `delivery:node:{nodeId}` 投递到正确节点

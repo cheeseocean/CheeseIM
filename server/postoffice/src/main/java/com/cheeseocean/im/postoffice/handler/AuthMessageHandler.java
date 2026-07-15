@@ -11,7 +11,6 @@ import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.slf4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -30,8 +29,11 @@ public class AuthMessageHandler implements MessageHandler {
     @DubboReference(check = false)
     private ConnectionAuthService connectionAuthService;
 
-    @Autowired
-    private ConnectionBindService connectionBindService;
+    private final ConnectionBindService connectionBindService;
+
+    public AuthMessageHandler(ConnectionBindService connectionBindService) {
+        this.connectionBindService = connectionBindService;
+    }
     
     @Override
     public HandleResult handle(UserConnection connection, ClientEnvelope envelope) {

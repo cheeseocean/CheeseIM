@@ -1,6 +1,7 @@
 package com.cheeseocean.im.authcenter.repository;
 
-import com.cheeseocean.im.common.core.cache.MultiLevelCacheService;
+import com.cheeseocean.im.common.core.cache.CacheRegion;
+import com.cheeseocean.im.common.core.cache.CacheStore;
 import org.springframework.stereotype.Repository;
 
 import java.time.Duration;
@@ -10,21 +11,21 @@ public class RefreshTokenRepository {
 
     private static final String REFRESH_TOKEN_PREFIX = "cheese_im:refresh_token:";
 
-    private final MultiLevelCacheService cacheService;
+    private final CacheRegion<String> refreshTokenCache;
 
-    public RefreshTokenRepository(MultiLevelCacheService cacheService) {
-        this.cacheService = cacheService;
+    public RefreshTokenRepository(CacheStore cacheStore) {
+        this.refreshTokenCache = cacheStore.region(REFRESH_TOKEN_PREFIX, String.class, Duration.ofHours(24));
     }
 
     public void save(String refreshToken, String sessionId, long ttlMs) {
-        cacheService.put(REFRESH_TOKEN_PREFIX + refreshToken, sessionId, Duration.ofMillis(ttlMs));
+        refreshTokenCache.put(refreshToken, sessionId, Duration.ofMillis(ttlMs));
     }
 
     public String getSessionId(String refreshToken) {
-        return cacheService.getOrLoad(REFRESH_TOKEN_PREFIX + refreshToken, String.class, Duration.ofHours(24), () -> null);
+        return refreshTokenCache.get(refreshToken);
     }
 
     public void delete(String refreshToken) {
-        cacheService.evict(REFRESH_TOKEN_PREFIX + refreshToken);
+        refreshTokenCache.evict(refreshToken);
     }
 }

@@ -21,13 +21,10 @@ cheeseim:
     data-dir: data/cache
   state:
     data-dir: data/state
-    sequence-range-size: 100
   runtime:
     mode: all-in-one
-  modules:
-    authcenter:
-      enabled: true
-    social:
+  push:
+    scheduled-tasks:
       enabled: true
 
 dubbo:

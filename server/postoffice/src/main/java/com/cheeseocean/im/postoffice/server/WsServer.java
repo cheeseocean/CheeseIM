@@ -22,11 +22,10 @@ import io.netty.handler.ssl.util.SelfSignedCertificate;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.handler.timeout.IdleStateHandler;
 import org.slf4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PreDestroy;
+import jakarta.annotation.PreDestroy;
 import javax.net.ssl.SSLException;
 import java.io.File;
 import java.security.cert.CertificateException;
@@ -43,21 +42,26 @@ public class WsServer implements CommandLineRunner, Server {
 
     private static final Logger logger = CommonLoggers.POSTOFFICE;
 
-    @Autowired
-    private ServerProperties                 ServerProperties;
-    @Autowired
-    private ConnectionManager                connectionManager;
-    @Autowired
-    private WsServerHandler                  wsServerHandler;
+    private final ServerProperties serverProperties;
+    private final ConnectionManager connectionManager;
+    private final WsServerHandler wsServerHandler;
     private ServerProperties.WebSocketConfig websocketConfig;
     private EventLoopGroup                   bossGroup;
     private EventLoopGroup                   workerGroup;
     private ChannelFuture                    channelFuture;
     private long                             startTime;
 
+    public WsServer(ServerProperties serverProperties,
+                    ConnectionManager connectionManager,
+                    WsServerHandler wsServerHandler) {
+        this.serverProperties = serverProperties;
+        this.connectionManager = connectionManager;
+        this.wsServerHandler = wsServerHandler;
+    }
+
     @Override
     public void run(String... args) throws Exception {
-        websocketConfig = ServerProperties.getWebsocket();
+        websocketConfig = serverProperties.getWebsocket();
         if (websocketConfig.isEnabled()) {
             start();
         } else {
@@ -165,7 +169,7 @@ public class WsServer implements CommandLineRunner, Server {
         status.setRunning(isRunning());
         status.setProtocol("WebSocket");
         ServerProperties.WebSocketConfig currentConfig =
-                websocketConfig != null ? websocketConfig : ServerProperties.getWebsocket();
+                websocketConfig != null ? websocketConfig : serverProperties.getWebsocket();
         status.setPort(currentConfig.getPort());
         status.setSslEnabled(currentConfig.getSsl().isEnabled());
         status.setWebsocketPath(currentConfig.getPath());
@@ -189,7 +193,7 @@ public class WsServer implements CommandLineRunner, Server {
          * 初始化SSL上下文
          */
         public void initSslContext() throws CertificateException, SSLException {
-            ServerProperties.WebSocketConfig websocketConfig = ServerProperties.getWebsocket();
+            ServerProperties.WebSocketConfig websocketConfig = serverProperties.getWebsocket();
             ServerProperties.SslConfig       sslConfig       = websocketConfig.getSsl();
 
             if (sslConfig.isEnabled()) {
@@ -211,7 +215,7 @@ public class WsServer implements CommandLineRunner, Server {
 
         @Override
         protected void initChannel(SocketChannel ch) throws Exception {
-            ServerProperties.WebSocketConfig websocketConfig = ServerProperties.getWebsocket();
+            ServerProperties.WebSocketConfig websocketConfig = serverProperties.getWebsocket();
             ChannelPipeline                  pipeline        = ch.pipeline();
 
             // SSL处理器（如果启用SSL）

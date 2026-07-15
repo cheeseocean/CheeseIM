@@ -5,15 +5,10 @@ spring:
     mongodb:
       uri: ${AUTHCENTER_MONGODB_URI:${MONGODB_URI:mongodb://localhost:27017/cheese_im}}
 
-app:
-  modules:
-    authcenter:
-      enabled: true
-
 cheeseim:
   authcenter:
     security:
-      jwtSecret: "CheeseIM2024Secret!CheeseIM2024Secret!"
+      jwt-secret: ${CHEESEIM_AUTH_JWT_SECRET}
       tokenExpiration: 86400000
     wsTicket:
       ttlMs: 60000

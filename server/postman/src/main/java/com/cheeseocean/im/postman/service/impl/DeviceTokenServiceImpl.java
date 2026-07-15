@@ -2,9 +2,8 @@ package com.cheeseocean.im.postman.service.impl;
 
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -21,11 +20,14 @@ public class DeviceTokenServiceImpl {
     
     private static final Logger logger = CommonLoggers.POSTMAN;
     
-    @Autowired
-    private RedisTemplate<String, Object> redisTemplate;
-    
-    @Value("${cheeseim.push.device-token.cache-expire-days:30}")
-    private int cacheExpireDays;
+    private final StringRedisTemplate redisTemplate;
+    private final int cacheExpireDays;
+
+    public DeviceTokenServiceImpl(StringRedisTemplate redisTemplate,
+                                  @Value("${cheeseim.push.device-token.cache-expire-days:30}") int cacheExpireDays) {
+        this.redisTemplate = redisTemplate;
+        this.cacheExpireDays = cacheExpireDays;
+    }
     
     /**
      * 设备Token缓存Key前缀
@@ -64,12 +66,12 @@ public class DeviceTokenServiceImpl {
             long currentTime = System.currentTimeMillis();
             
             // 保存设备Token详细信息
-            Map<String, Object> tokenInfo = new HashMap<>();
+            Map<String, String> tokenInfo = new HashMap<>();
             tokenInfo.put("userID", userID);
-            tokenInfo.put("platformID", platformID);
+            tokenInfo.put("platformID", platformID.toString());
             tokenInfo.put("deviceToken", deviceToken);
-            tokenInfo.put("createTime", currentTime);
-            tokenInfo.put("lastActiveTime", currentTime);
+            tokenInfo.put("createTime", String.valueOf(currentTime));
+            tokenInfo.put("lastActiveTime", String.valueOf(currentTime));
             
             redisTemplate.opsForHash().putAll(tokenKey, tokenInfo);
             redisTemplate.expire(tokenKey, cacheExpireDays, TimeUnit.DAYS);
@@ -79,7 +81,7 @@ public class DeviceTokenServiceImpl {
             redisTemplate.expire(userTokenKey, cacheExpireDays, TimeUnit.DAYS);
             
             // 保存设备Token活跃时间
-            redisTemplate.opsForValue().set(activeTimeKey, currentTime, cacheExpireDays, TimeUnit.DAYS);
+            redisTemplate.opsForValue().set(activeTimeKey, String.valueOf(currentTime), cacheExpireDays, TimeUnit.DAYS);
             
             logger.debug("设备Token已保存: userID={}, platformID={}, deviceToken={}", 
                         userID, platformID, maskToken(deviceToken));
@@ -100,9 +102,9 @@ public class DeviceTokenServiceImpl {
             }
             
             String userTokenKey = USER_DEVICE_TOKEN_KEY_PREFIX + userID;
-            Object token = redisTemplate.opsForHash().get(userTokenKey, platformID.toString());
+            String token = (String) redisTemplate.opsForHash().get(userTokenKey, platformID.toString());
             
-            String deviceToken = token != null ? token.toString() : null;
+            String deviceToken = token;
             
             // 更新活跃时间
             if (deviceToken != null) {
@@ -264,11 +266,11 @@ public class DeviceTokenServiceImpl {
             
             // 更新设备Token详细信息中的活跃时间
             String tokenKey = DEVICE_TOKEN_KEY_PREFIX + deviceToken;
-            redisTemplate.opsForHash().put(tokenKey, "lastActiveTime", currentTime);
+            redisTemplate.opsForHash().put(tokenKey, "lastActiveTime", String.valueOf(currentTime));
             
             // 更新设备Token活跃时间
             String activeTimeKey = TOKEN_ACTIVE_TIME_KEY_PREFIX + deviceToken;
-            redisTemplate.opsForValue().set(activeTimeKey, currentTime, cacheExpireDays, TimeUnit.DAYS);
+            redisTemplate.opsForValue().set(activeTimeKey, String.valueOf(currentTime), cacheExpireDays, TimeUnit.DAYS);
             
             return true;
             
@@ -292,7 +294,7 @@ public class DeviceTokenServiceImpl {
             if (activeTimeKeys != null) {
                 for (String activeTimeKey : activeTimeKeys) {
                     try {
-                        Object activeTimeObj = redisTemplate.opsForValue().get(activeTimeKey);
+                        String activeTimeObj = redisTemplate.opsForValue().get(activeTimeKey);
                         if (activeTimeObj != null) {
                             long activeTime = Long.parseLong(activeTimeObj.toString());
                             
@@ -356,7 +358,7 @@ public class DeviceTokenServiceImpl {
                 
                 for (String activeTimeKey : activeTimeKeys) {
                     try {
-                        Object activeTimeObj = redisTemplate.opsForValue().get(activeTimeKey);
+                        String activeTimeObj = redisTemplate.opsForValue().get(activeTimeKey);
                         if (activeTimeObj != null) {
                             long activeTime = Long.parseLong(activeTimeObj.toString());
                             

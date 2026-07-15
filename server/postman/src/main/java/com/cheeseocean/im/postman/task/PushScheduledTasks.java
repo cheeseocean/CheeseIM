@@ -4,7 +4,6 @@ import com.cheeseocean.im.postman.service.impl.DeviceTokenServiceImpl;
 import com.cheeseocean.im.postman.service.PushStatisticsService;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -15,18 +14,20 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @EnableScheduling
-@ConditionalOnExpression(
-        "'${app.runtime.mode:standalone}' == 'standalone' && '${cheeseim.push.scheduled-tasks.enabled:true}' == 'true'"
-)
+@ConditionalOnExpression("'${cheeseim.push.scheduled-tasks.enabled:true}' == 'true'")
 public class PushScheduledTasks {
     
     private static final Logger logger = CommonLoggers.POSTMAN;
     
-    @Autowired
-    private DeviceTokenServiceImpl deviceTokenService;
-    
-    @Autowired
-    private PushStatisticsService pushStatisticsService;
+    private final DeviceTokenServiceImpl deviceTokenService;
+
+    private final PushStatisticsService pushStatisticsService;
+
+    public PushScheduledTasks(DeviceTokenServiceImpl deviceTokenService,
+                              PushStatisticsService pushStatisticsService) {
+        this.deviceTokenService = deviceTokenService;
+        this.pushStatisticsService = pushStatisticsService;
+    }
     
     /**
      * Cleans up expired device tokens.

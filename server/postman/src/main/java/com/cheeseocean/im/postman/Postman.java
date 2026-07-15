@@ -3,7 +3,6 @@ package com.cheeseocean.im.postman;
 import org.apache.dubbo.config.spring.context.annotation.EnableDubbo;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.kafka.annotation.EnableKafka;
 
 import java.util.Map;
 
@@ -14,13 +13,12 @@ import java.util.Map;
  * @author xxxcrel
  */
 @SpringBootApplication(scanBasePackages = {"com.cheeseocean.im.postman", "com.cheeseocean.im.common"})
-@EnableKafka
 @EnableDubbo
 public class Postman {
 
     public static void main(String[] args) {
         SpringApplication application = new SpringApplication(Postman.class);
-        application.setDefaultProperties(Map.of("spring.config.name", "application-push"));
+        application.setDefaultProperties(Map.of("spring.config.name", "application-postman"));
         application.run(args);
     }
 }

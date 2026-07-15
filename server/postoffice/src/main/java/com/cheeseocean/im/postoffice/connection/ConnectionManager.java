@@ -3,13 +3,14 @@ package com.cheeseocean.im.postoffice.connection;
 import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
 import com.cheeseocean.im.common.api.protocol.ProtoEnvelopeMapper;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
+import com.cheeseocean.im.postoffice.config.NodeIdentityProvider;
 import com.cheeseocean.im.postoffice.dedup.DeliveryDedupStore;
 import com.cheeseocean.im.postoffice.service.OnlineRouteService;
 import io.netty.channel.Channel;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -39,8 +40,7 @@ public class ConnectionManager {
      */
     private static final int CONNECTION_LOCK_SHARDS = 64;
     
-    @Autowired(required = false)
-    private OnlineRouteService onlineRouteService;
+    private final OnlineRouteService onlineRouteService;
 
     /**
      * 投递去重存储。生产环境由 {@link com.cheeseocean.im.postoffice.dedup.RedisDeliveryDedupStore}
@@ -49,11 +49,9 @@ public class ConnectionManager {
      *
      * <p>禁止再换一份本地 Set 来"修复"无界增长问题（见 ASSESSMENT P0-5 + 根 AGENTS §8）。
      */
-    @Autowired(required = false)
-    private DeliveryDedupStore deliveryDedupStore;
+    private final DeliveryDedupStore deliveryDedupStore;
 
-    @Autowired
-    private com.cheeseocean.im.postoffice.config.NodeIdentityProvider nodeIdentityProvider;
+    private final NodeIdentityProvider nodeIdentityProvider;
     
     /**
      * Connection ID to connection metadata.
@@ -108,6 +106,14 @@ public class ConnectionManager {
      * Background scheduler for cleanup and metrics updates.
      */
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
+
+    public ConnectionManager(ObjectProvider<OnlineRouteService> onlineRouteServiceProvider,
+                             ObjectProvider<DeliveryDedupStore> deliveryDedupStoreProvider,
+                             NodeIdentityProvider nodeIdentityProvider) {
+        this.onlineRouteService = onlineRouteServiceProvider.getIfAvailable();
+        this.deliveryDedupStore = deliveryDedupStoreProvider.getIfAvailable();
+        this.nodeIdentityProvider = nodeIdentityProvider;
+    }
     
     /**
      * 初始化连接管理器

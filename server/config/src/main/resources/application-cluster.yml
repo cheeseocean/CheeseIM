@@ -1,7 +1,3 @@
-app:
-  runtime:
-    mode: cluster
-
 cheeseim:
   runtime:
     mode: cluster
@@ -57,14 +53,6 @@ dubbo:
     injvm: false
   consumer:
     injvm: false
-
-jetcache:
-  remote:
-    default:
-      broadcastChannel: ${JETCACHE_BROADCAST_CHANNEL:cheeseim-cluster}
-      host: ${JETCACHE_REDIS_HOST}
-      port: ${JETCACHE_REDIS_PORT}
-      password: ${JETCACHE_REDIS_PASSWORD:${REDIS_PASSWORD:}}
 
 ---
 spring:

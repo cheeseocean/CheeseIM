@@ -2,6 +2,12 @@ dependencies {
     implementation project(':common-core')
     implementation project(':common-api')
     implementation project(':config')
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.kafka:spring-kafka'
+    implementation 'org.apache.dubbo:dubbo-spring-boot-starter'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
 
     // 极光推送依赖 - 升级版本
     implementation 'cn.jpush.api:jpush-client:3.4.10'

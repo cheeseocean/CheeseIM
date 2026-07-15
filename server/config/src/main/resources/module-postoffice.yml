@@ -31,10 +31,6 @@ cheeseim:
     business:
       threads: ${CHEESEIM_POSTOFFICE_BUSINESS_THREADS:0}
       queue-capacity: ${CHEESEIM_POSTOFFICE_BUSINESS_QUEUE_CAPACITY:20000}
-    security:
-      jwtSecret: "CheeseIM2024Secret!CheeseIM2024Secret!"
-      tokenExpiration: 86400000
-
 logging:
   level:
     com.cheeseocean.im.postoffice: INFO

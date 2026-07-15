@@ -17,7 +17,7 @@ public class PostOffice {
 
     public static void main(String[] args) {
         SpringApplication application = new SpringApplication(PostOffice.class);
-        application.setDefaultProperties(Map.of("spring.config.name", "cheeseim-postoffice"));
+        application.setDefaultProperties(Map.of("spring.config.name", "application-postoffice"));
         application.run(args);
     }
 }

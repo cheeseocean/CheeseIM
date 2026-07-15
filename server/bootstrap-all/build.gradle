@@ -12,4 +12,7 @@ dependencies {
     implementation project(':postman')
     implementation project(':postbox')
     implementation project(':postmaster')
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+    implementation 'org.apache.dubbo:dubbo-spring-boot-starter'
 }

@@ -18,13 +18,6 @@ spring:
       concurrency: 3
       ack-mode: manual_immediate
 
-cheeseim:
-  postbox:
-    attachment-download:
-      token-secret: ${postbox.attachment.token-secret:CheeseIMPostboxAttachmentSecret!2026}
-      token-ttl-seconds: ${postbox.attachment.token-ttl-seconds:300}
-      public-base-url: ${postbox.attachment.public-base-url:}
-
 management:
   endpoints:
     web:

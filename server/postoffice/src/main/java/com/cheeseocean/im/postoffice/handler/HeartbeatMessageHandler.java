@@ -9,7 +9,7 @@ import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.postoffice.service.OnlineRouteService;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 /**
@@ -23,11 +23,15 @@ public class HeartbeatMessageHandler implements MessageHandler {
     
     private static final Logger logger = CommonLoggers.POSTOFFICE;
 
-    @Autowired(required = false)
-    private OnlineRouteService onlineRouteService;
+    private final OnlineRouteService onlineRouteService;
 
-    @Autowired
-    private ConnectionSessionGuard connectionSessionGuard;
+    private final ConnectionSessionGuard connectionSessionGuard;
+
+    public HeartbeatMessageHandler(ObjectProvider<OnlineRouteService> onlineRouteServiceProvider,
+                                   ConnectionSessionGuard connectionSessionGuard) {
+        this.onlineRouteService = onlineRouteServiceProvider.getIfAvailable();
+        this.connectionSessionGuard = connectionSessionGuard;
+    }
     
     @Override
     public HandleResult handle(UserConnection connection, ClientEnvelope envelope) {

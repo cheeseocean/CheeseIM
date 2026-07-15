@@ -4,10 +4,6 @@ spring:
       - classpath:common.yml
       - classpath:module-authcenter.yml
 
-app:
-  runtime:
-    mode: standalone
-
 dubbo:
   application:
     name: cheese-im-authcenter

@@ -14,7 +14,6 @@ import com.cheeseocean.im.postoffice.connection.ConnectionContext;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.slf4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -31,9 +30,13 @@ public class ChatMessageHandler implements MessageHandler {
     private static final Logger logger = CommonLoggers.POSTOFFICE;
 
     @DubboReference(check = false)
-    private MessageSender          messageSender;
-    @Autowired
-    private ConnectionSessionGuard connectionSessionGuard;
+    private MessageSender messageSender;
+
+    private final ConnectionSessionGuard connectionSessionGuard;
+
+    public ChatMessageHandler(ConnectionSessionGuard connectionSessionGuard) {
+        this.connectionSessionGuard = connectionSessionGuard;
+    }
 
     @Override
     public HandleResult handle(UserConnection connection, ClientEnvelope envelope) {

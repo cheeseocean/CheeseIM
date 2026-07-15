@@ -73,8 +73,6 @@ subprojects {
             dependency "org.slf4j:slf4j-api:${slf4jVersion}"
             dependency "ch.qos.logback:logback-classic:${logbackVersion}"
             dependency "com.alibaba.nacos:nacos-client:${nacosVersion}"
-            dependency "com.alicp.jetcache:jetcache-redis:${jetCacheVersion}"
-            dependency "com.alicp.jetcache:jetcache-starter-redis-lettuce:${jetCacheVersion}"
         }
     }
 
@@ -109,67 +107,6 @@ subprojects {
         testRuntimeOnly "org.junit.platform:junit-platform-launcher"
         testCompileOnly "org.projectlombok:lombok"
         testAnnotationProcessor "org.projectlombok:lombok"
-
-        // Protobuf
-        implementation 'com.google.protobuf:protobuf-java:3.25.3'
-
-        // Spring Boot
-        implementation 'org.springframework.boot:spring-boot-starter'
-        implementation 'org.springframework.boot:spring-boot-starter-validation'
-        implementation 'org.springframework.boot:spring-boot-starter-actuator'
-
-        // Redis
-        implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-        implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
-
-        // Kafka
-        implementation 'org.springframework.kafka:spring-kafka'
-        implementation 'org.apache.kafka:kafka-clients'
-
-        // JSON处理
-        implementation 'com.fasterxml.jackson.core:jackson-databind'
-        implementation 'com.fasterxml.jackson.core:jackson-core'
-        implementation 'com.fasterxml.jackson.core:jackson-annotations'
-        implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
-        runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
-        runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
-
-        // 工具类
-        implementation 'org.apache.commons:commons-lang3:3.18.0'
-        implementation 'org.apache.commons:commons-pool2:2.12.0'
-        implementation 'redis.clients:jedis:5.1.0'
-
-        implementation "com.alicp.jetcache:jetcache-redis"
-        implementation "com.alicp.jetcache:jetcache-starter-redis-lettuce"
-
-        // RPC框架 (Dubbo)
-        implementation 'org.apache.dubbo:dubbo-spring-boot-starter'
-        implementation 'org.apache.dubbo:dubbo-registry-nacos'
-
-        // Dubbo核心依赖 - 版本由BOM管理
-        implementation "org.apache.dubbo:dubbo-config-spring"
-        implementation "org.apache.dubbo:dubbo-rpc-dubbo"
-        implementation("org.apache.dubbo:dubbo-remoting-netty4") {
-            exclude group: 'io.netty', module: 'netty-transport-native-epoll'
-            exclude group: 'io.netty', module: 'netty-transport-native-kqueue'
-        }
-        implementation "org.apache.dubbo:dubbo-serialization-hessian2"
-
-        // Dubbo注册中心 - Nacos（推荐用于生产环境）
-        implementation "org.apache.dubbo:dubbo-registry-nacos"
-        implementation "org.apache.dubbo:dubbo-configcenter-nacos"
-        implementation "org.apache.dubbo:dubbo-metadata-report-nacos"
-
-        // JSON处理 - 版本由dependencyManagement管理
-        implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml"
-        implementation 'com.fasterxml.jackson.core:jackson-databind'
-        implementation 'com.fasterxml.jackson.core:jackson-core'
-        implementation 'com.fasterxml.jackson.core:jackson-annotations'
-
-        // 日志框架 - 版本由dependencyManagement管理
-        implementation "ch.qos.logback:logback-classic"
-        implementation 'org.slf4j:log4j-over-slf4j'
-        implementation 'org.slf4j:jcl-over-slf4j'
 
         // Lombok - 版本由dependencyManagement管理
         compileOnly "org.projectlombok:lombok"
