@@ -4,9 +4,9 @@ import com.cheeseocean.im.apiserver.model.request.HandleFriendRequestRequest;
 import com.cheeseocean.im.apiserver.model.request.SendFriendRequestRequest;
 import com.cheeseocean.im.apiserver.model.response.FriendRequestResponse;
 import com.cheeseocean.im.apiserver.model.response.FriendshipResponse;
-import com.cheeseocean.im.business.service.friend.FriendRelationServiceImpl;
 import com.cheeseocean.im.common.api.business.domain.FriendRequest;
 import com.cheeseocean.im.common.api.business.domain.Friendship;
+import com.cheeseocean.im.common.api.friend.FriendRelationService;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import org.springframework.stereotype.Service;
 
@@ -15,9 +15,9 @@ import java.util.List;
 @Service
 public class FriendFacade {
 
-    private final FriendRelationServiceImpl friendRelationService;
+    private final FriendRelationService friendRelationService;
 
-    public FriendFacade(FriendRelationServiceImpl friendRelationService) {
+    public FriendFacade(FriendRelationService friendRelationService) {
         this.friendRelationService = friendRelationService;
     }
 

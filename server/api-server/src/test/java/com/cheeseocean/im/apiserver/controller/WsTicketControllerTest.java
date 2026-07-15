@@ -1,8 +1,8 @@
 package com.cheeseocean.im.apiserver.controller;
 
 import com.cheeseocean.im.apiserver.exception.ApiExceptionHandler;
-import com.cheeseocean.im.authcenter.session.SessionIssueServiceImpl;
 import com.cheeseocean.im.common.api.dto.user.WsTicketPrincipal;
+import com.cheeseocean.im.common.api.session.SessionIssueService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -19,14 +19,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class WsTicketControllerTest {
 
-    private SessionIssueServiceImpl sessionIssueService;
+    private SessionIssueService sessionIssueService;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        sessionIssueService = mock(SessionIssueServiceImpl.class);
-        WsTicketController controller = new WsTicketController();
-        org.springframework.test.util.ReflectionTestUtils.setField(controller, "sessionIssueService", sessionIssueService);
+        sessionIssueService = mock(SessionIssueService.class);
+        WsTicketController controller = new WsTicketController(sessionIssueService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new ApiExceptionHandler())
                 .build();

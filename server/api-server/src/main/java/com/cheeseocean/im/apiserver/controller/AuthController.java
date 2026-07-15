@@ -6,7 +6,6 @@ import com.cheeseocean.im.authcenter.model.AuthResponse;
 import com.cheeseocean.im.authcenter.model.KickoffDeviceRequest;
 import com.cheeseocean.im.authcenter.model.LogoutRequest;
 import com.cheeseocean.im.authcenter.session.SessionLifecycleService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -22,8 +21,11 @@ import java.util.Map;
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    @Autowired
-    private SessionLifecycleService sessionLifecycleService;
+    private final SessionLifecycleService sessionLifecycleService;
+
+    public AuthController(SessionLifecycleService sessionLifecycleService) {
+        this.sessionLifecycleService = sessionLifecycleService;
+    }
 
     @PostMapping("/login")
     public AuthResponse login(@RequestBody AuthLoginRequest request) {

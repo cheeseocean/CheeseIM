@@ -1,7 +1,7 @@
 package com.cheeseocean.im.apiserver.controller;
 
-import com.cheeseocean.im.business.model.BlacklistActionRequest;
-import com.cheeseocean.im.business.service.friend.FriendRelationServiceImpl;
+import com.cheeseocean.im.apiserver.model.request.BlacklistActionRequest;
+import com.cheeseocean.im.common.api.friend.FriendRelationService;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -19,26 +19,26 @@ import java.util.List;
 @RequestMapping("/api/im/blacklist")
 public class BlacklistController {
 
-    private final FriendRelationServiceImpl friendRelationServiceImpl;
+    private final FriendRelationService friendRelationService;
 
-    public BlacklistController(FriendRelationServiceImpl friendRelationServiceImpl) {
-        this.friendRelationServiceImpl = friendRelationServiceImpl;
+    public BlacklistController(FriendRelationService friendRelationService) {
+        this.friendRelationService = friendRelationService;
     }
 
     @GetMapping
     public List<String> list(SessionPrincipal session) {
-        return friendRelationServiceImpl.listBlockedUserIds(session.getUserId());
+        return friendRelationService.listBlockedUserIds(session.getUserId());
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public void block(SessionPrincipal session, @RequestBody BlacklistActionRequest request) {
-        friendRelationServiceImpl.blockUser(session.getUserId(), request.getTargetUserId());
+        friendRelationService.blockUser(session.getUserId(), request.getTargetUserId());
     }
 
     @DeleteMapping("/{targetUserId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void unblock(SessionPrincipal session, @PathVariable String targetUserId) {
-        friendRelationServiceImpl.unblockUser(session.getUserId(), targetUserId);
+        friendRelationService.unblockUser(session.getUserId(), targetUserId);
     }
 }

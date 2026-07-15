@@ -33,21 +33,20 @@ import com.cheeseocean.im.common.api.dto.conversation.ConversationIncrementalSyn
 import com.cheeseocean.im.common.api.dto.conversation.ConversationReadSnapshot;
 import com.cheeseocean.im.common.api.dto.conversation.PullMessages;
 import com.cheeseocean.im.common.api.dto.conversation.SeqRangeRequest;
+import com.cheeseocean.im.common.api.conversation.ConversationControlEventQueryService;
 import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.dto.message.MessageMutationResult;
 import com.cheeseocean.im.common.api.dto.message.MessageMutationSyncResult;
 import com.cheeseocean.im.common.api.enums.ConversationKind;
 import com.cheeseocean.im.common.api.permission.ConversationPermissionRequest;
+import com.cheeseocean.im.common.api.permission.ConversationPermissionDubboService;
+import com.cheeseocean.im.common.api.permission.PermissionCheckResult;
 import com.cheeseocean.im.common.api.message.MessageMutationService;
+import com.cheeseocean.im.common.api.message.MessageHistoryQueryService;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import com.cheeseocean.im.common.api.user.UserInfoService;
-import com.cheeseocean.im.common.core.auth.PermissionCheckResult;
-import com.cheeseocean.im.common.core.business.repository.ConversationControlEventRepository;
-import com.cheeseocean.im.postbox.service.HistoryQueryService;
-import com.cheeseocean.im.postbox.service.ConversationPermissionService;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.stereotype.Service;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.Comparator;
 import java.util.ArrayList;
@@ -64,9 +63,13 @@ public class ConversationFacade {
     private final ConversationService conversationService;
     private final ConversationSyncService conversationSyncService;
     private final ReadStateService readStateService;
-    private final ConversationPermissionService permissionService;
-    private final HistoryQueryService historyQueryService;
-    private final ConversationControlEventRepository controlEventRepository;
+    @DubboReference(check = false)
+    private ConversationPermissionDubboService permissionService;
+    @DubboReference(check = false)
+    private ConversationControlEventQueryService controlEventQueryService;
+
+    @DubboReference(check = false)
+    private MessageHistoryQueryService messageHistoryQueryService;
 
     @DubboReference(check = false)
     private UserInfoService userInfoService;
@@ -77,25 +80,20 @@ public class ConversationFacade {
     public ConversationFacade(ConversationService conversationService,
                               ConversationSyncService conversationSyncService,
                               ReadStateService readStateService,
-                              ConversationPermissionService permissionService,
-                              HistoryQueryService historyQueryService) {
-        this(conversationService, conversationSyncService, readStateService, permissionService,
-                historyQueryService, null);
+                              ConversationPermissionDubboService permissionService,
+                              MessageHistoryQueryService messageHistoryQueryService) {
+        this(conversationService, conversationSyncService, readStateService, permissionService);
+        this.messageHistoryQueryService = messageHistoryQueryService;
     }
 
-    @Autowired
     public ConversationFacade(ConversationService conversationService,
                               ConversationSyncService conversationSyncService,
                               ReadStateService readStateService,
-                              ConversationPermissionService permissionService,
-                              HistoryQueryService historyQueryService,
-                              ConversationControlEventRepository controlEventRepository) {
+                              ConversationPermissionDubboService permissionService) {
         this.conversationService = conversationService;
         this.conversationSyncService = conversationSyncService;
         this.readStateService = readStateService;
         this.permissionService = permissionService;
-        this.historyQueryService = historyQueryService;
-        this.controlEventRepository = controlEventRepository;
     }
 
     public List<ConversationResponse> listConversations(SessionPrincipal session, ListConversationsRequest request) {
@@ -242,7 +240,7 @@ public class ConversationFacade {
     }
 
     public List<HistoryMessageResponse> getConversationMessages(SessionPrincipal session, ListConversationMessagesRequest request) {
-        return historyQueryService.getConversationMessages(session, request.getConversationId(), request.getLimit()).stream()
+        return messageHistoryQueryService.getConversationMessages(session, request.getConversationId(), request.getLimit()).stream()
                 .map(message -> {
                     HistoryMessageResponse response = new HistoryMessageResponse();
                     response.setSequence(message.getSequence());
@@ -283,11 +281,11 @@ public class ConversationFacade {
     public ConversationControlEventSyncResponse syncControlEvents(SessionPrincipal session,
                                                                    long cursor,
                                                                    int limit) {
-        if (controlEventRepository == null) {
+        if (controlEventQueryService == null) {
             throw new IllegalStateException("控制事件同步暂不可用");
         }
         int pageSize = Math.max(1, Math.min(limit, 200));
-        List<ConversationControlEvent> events = controlEventRepository.findAfter(
+        List<ConversationControlEvent> events = controlEventQueryService.findAfter(
                 session.getUserId(), Math.max(0L, cursor), pageSize);
         ConversationControlEventSyncResponse response = new ConversationControlEventSyncResponse();
         response.setEvents(events.stream().map(this::toControlEventResponse).toList());

@@ -11,7 +11,6 @@ import com.cheeseocean.im.common.api.enums.NeedVerificationEnum;
 import com.cheeseocean.im.common.api.enums.SessionStatus;
 import com.cheeseocean.im.common.api.group.GroupMembershipQueryService;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
-import com.cheeseocean.im.common.core.business.repository.GroupRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
@@ -33,14 +32,13 @@ class GroupControllerTest {
     void listShouldReturnCurrentUsersGroups() throws Exception {
         ConversationService conversationService = mock(ConversationService.class);
         GroupMembershipQueryService groupMembershipQueryService = mock(GroupMembershipQueryService.class);
-        GroupRepository groupRepository = mock(GroupRepository.class);
         when(conversationService.getAllConversations("userB"))
                 .thenReturn(List.of(groupConversation("crew"), groupConversation("design")));
         when(groupMembershipQueryService.isGroupMember("crew", "userB")).thenReturn(true);
         when(groupMembershipQueryService.isGroupMember("design", "userB")).thenReturn(false);
-        when(groupRepository.findById("crew")).thenReturn(Optional.of(group("crew", "Crew")));
+        when(groupMembershipQueryService.queryGroup("crew")).thenReturn(Optional.of(group("crew", "Crew")));
 
-        GroupController controller = new GroupController(groupMembershipQueryService, groupRepository);
+        GroupController controller = new GroupController(groupMembershipQueryService);
         ReflectionTestUtils.setField(controller, "conversationService", conversationService);
         AccessTokenSessionResolver resolver = mock(AccessTokenSessionResolver.class);
         when(resolver.resolve("Bearer token")).thenReturn(session("userB"));
@@ -71,7 +69,7 @@ class GroupControllerTest {
 
     private static UserConversation groupConversation(String groupId) {
         UserConversation conversation = new UserConversation();
-        conversation.setConversationId("c2:" + groupId);
+        conversation.setConversationId("g:" + groupId);
         conversation.setTargetId(groupId);
         conversation.setChatType(2);
         return conversation;

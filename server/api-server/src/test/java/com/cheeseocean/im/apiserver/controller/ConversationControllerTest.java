@@ -61,7 +61,7 @@ class ConversationControllerTest {
 
         MockMvc mockMvc = mockMvc(conversationFacade);
 
-        mockMvc.perform(get("/api/im/conversations/c2:crew/messages")
+        mockMvc.perform(get("/api/im/conversations/g:crew/messages")
                         .param("limit", "30")
                         .header("Authorization", "Bearer token"))
                 .andExpect(status().isOk())
@@ -76,13 +76,13 @@ class ConversationControllerTest {
     void allShouldReturnUserConversations() throws Exception {
         ConversationFacade conversationFacade = mock(ConversationFacade.class);
         when(conversationFacade.getAllConversations(any(SessionPrincipal.class)))
-                .thenReturn(List.of(conversationResponse("c2:crew", 2, "crew", null)));
+                .thenReturn(List.of(conversationResponse("g:crew", 2, "crew", null)));
 
         MockMvc mockMvc = mockMvc(conversationFacade);
 
         mockMvc.perform(get("/api/im/conversations/all").header("Authorization", "Bearer token"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].conversationId").value("c2:crew"))
+                .andExpect(jsonPath("$[0].conversationId").value("g:crew"))
                 .andExpect(jsonPath("$[0].targetId").value("crew"));
 
         verify(conversationFacade).getAllConversations(any(SessionPrincipal.class));
@@ -92,13 +92,13 @@ class ConversationControllerTest {
     void getConversationShouldReturnSingleConversation() throws Exception {
         ConversationFacade conversationFacade = mock(ConversationFacade.class);
         when(conversationFacade.getConversation(any(SessionPrincipal.class), any(GetConversationRequest.class)))
-                .thenReturn(conversationResponse("c2:crew", 2, "crew", null));
+                .thenReturn(conversationResponse("g:crew", 2, "crew", null));
 
         MockMvc mockMvc = mockMvc(conversationFacade);
 
-        mockMvc.perform(get("/api/im/conversations/c2:crew").header("Authorization", "Bearer token"))
+        mockMvc.perform(get("/api/im/conversations/g:crew").header("Authorization", "Bearer token"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.conversationId").value("c2:crew"));
+                .andExpect(jsonPath("$.conversationId").value("g:crew"));
 
         verify(conversationFacade).getConversation(any(SessionPrincipal.class), any(GetConversationRequest.class));
     }
@@ -172,7 +172,7 @@ class ConversationControllerTest {
     void setConversationsShouldDelegateToFacade() throws Exception {
         ConversationFacade conversationFacade = mock(ConversationFacade.class);
         SetConversationRequest request = new SetConversationRequest();
-        request.setConversationId("c2:crew");
+        request.setConversationId("g:crew");
         request.setConversationType(2);
         request.setTargetId("crew");
         request.setPinned(true);

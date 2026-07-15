@@ -32,8 +32,7 @@ class AuthControllerTest {
     @BeforeEach
     void setUp() {
         sessionLifecycleService = mock(SessionLifecycleService.class);
-        AuthController controller = new AuthController();
-        org.springframework.test.util.ReflectionTestUtils.setField(controller, "sessionLifecycleService", sessionLifecycleService);
+        AuthController controller = new AuthController(sessionLifecycleService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new ApiExceptionHandler())
                 .build();

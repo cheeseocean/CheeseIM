@@ -8,9 +8,9 @@ import com.cheeseocean.im.common.api.conversation.ConversationSyncService;
 import com.cheeseocean.im.common.api.conversation.ReadStateService;
 import com.cheeseocean.im.common.api.dto.conversation.ConversationIncrementalSyncResult;
 import com.cheeseocean.im.common.api.enums.SessionStatus;
+import com.cheeseocean.im.common.api.message.MessageHistoryQueryService;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
-import com.cheeseocean.im.postbox.service.ConversationPermissionService;
-import com.cheeseocean.im.postbox.service.HistoryQueryService;
+import com.cheeseocean.im.common.api.permission.ConversationPermissionDubboService;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -33,8 +33,8 @@ class ConversationFacadeTest {
                 conversationService,
                 mock(ConversationSyncService.class),
                 mock(ReadStateService.class),
-                mock(ConversationPermissionService.class),
-                mock(HistoryQueryService.class)
+                mock(ConversationPermissionDubboService.class),
+                mock(MessageHistoryQueryService.class)
         );
 
         ListConversationsRequest request = new ListConversationsRequest();
@@ -53,8 +53,8 @@ class ConversationFacadeTest {
                 conversationService,
                 mock(ConversationSyncService.class),
                 mock(ReadStateService.class),
-                mock(ConversationPermissionService.class),
-                mock(HistoryQueryService.class)
+                mock(ConversationPermissionDubboService.class),
+                mock(MessageHistoryQueryService.class)
         );
 
         List<?> responses = facade.getAllConversations(session("u100"));
@@ -78,8 +78,8 @@ class ConversationFacadeTest {
                 conversationService,
                 mock(ConversationSyncService.class),
                 mock(ReadStateService.class),
-                mock(ConversationPermissionService.class),
-                mock(HistoryQueryService.class)
+                mock(ConversationPermissionDubboService.class),
+                mock(MessageHistoryQueryService.class)
         );
 
         ConversationIncrementalSyncResponse response = facade.syncConversations(session("u100"), "v1", 2L, 88L);
@@ -99,8 +99,8 @@ class ConversationFacadeTest {
                 conversationService,
                 mock(ConversationSyncService.class),
                 mock(ReadStateService.class),
-                mock(ConversationPermissionService.class),
-                mock(HistoryQueryService.class)
+                mock(ConversationPermissionDubboService.class),
+                mock(MessageHistoryQueryService.class)
         );
 
         facade.deleteConversation(session("u100"), "s:u100:u200");

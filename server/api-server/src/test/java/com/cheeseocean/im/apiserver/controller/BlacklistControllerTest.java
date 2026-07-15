@@ -3,8 +3,8 @@ package com.cheeseocean.im.apiserver.controller;
 import com.cheeseocean.im.apiserver.auth.AccessTokenSessionResolver;
 import com.cheeseocean.im.apiserver.auth.CurrentPrincipalArgumentResolver;
 import com.cheeseocean.im.apiserver.exception.ApiExceptionHandler;
-import com.cheeseocean.im.business.model.BlacklistActionRequest;
-import com.cheeseocean.im.business.service.friend.FriendRelationServiceImpl;
+import com.cheeseocean.im.apiserver.model.request.BlacklistActionRequest;
+import com.cheeseocean.im.common.api.friend.FriendRelationService;
 import com.cheeseocean.im.common.api.enums.SessionStatus;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -27,7 +27,7 @@ class BlacklistControllerTest {
 
     @Test
     void listShouldReturnBlockedUserIds() throws Exception {
-        FriendRelationServiceImpl service = mock(FriendRelationServiceImpl.class);
+        FriendRelationService service = mock(FriendRelationService.class);
         when(service.listBlockedUserIds("u100")).thenReturn(List.of("u200"));
 
         MockMvc mockMvc = mockMvc(service);
@@ -39,7 +39,7 @@ class BlacklistControllerTest {
 
     @Test
     void blockShouldReturnCreated() throws Exception {
-        FriendRelationServiceImpl service = mock(FriendRelationServiceImpl.class);
+        FriendRelationService service = mock(FriendRelationService.class);
         BlacklistActionRequest request = new BlacklistActionRequest();
         request.setTargetUserId("u200");
 
@@ -56,7 +56,7 @@ class BlacklistControllerTest {
 
     @Test
     void unblockShouldReturnNoContent() throws Exception {
-        FriendRelationServiceImpl service = mock(FriendRelationServiceImpl.class);
+        FriendRelationService service = mock(FriendRelationService.class);
 
         MockMvc mockMvc = mockMvc(service);
 
@@ -73,7 +73,7 @@ class BlacklistControllerTest {
         return session;
     }
 
-    private static MockMvc mockMvc(FriendRelationServiceImpl service) {
+    private static MockMvc mockMvc(FriendRelationService service) {
         AccessTokenSessionResolver resolver = mock(AccessTokenSessionResolver.class);
         when(resolver.resolve("Bearer token")).thenReturn(session("u100"));
         return MockMvcBuilders.standaloneSetup(new BlacklistController(service))

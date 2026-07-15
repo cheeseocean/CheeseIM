@@ -5,7 +5,6 @@ import com.cheeseocean.im.common.api.business.domain.UserConversation;
 import com.cheeseocean.im.common.api.conversation.ConversationService;
 import com.cheeseocean.im.common.api.group.GroupMembershipQueryService;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
-import com.cheeseocean.im.common.core.business.repository.GroupRepository;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,15 +19,11 @@ import java.util.Optional;
 public class GroupController {
 
     private final GroupMembershipQueryService groupMembershipQueryService;
-    private final GroupRepository groupRepository;
-
-    @DubboReference
+    @DubboReference(check = false)
     private ConversationService conversationService;
 
-    public GroupController(GroupMembershipQueryService groupMembershipQueryService,
-                           GroupRepository groupRepository) {
+    public GroupController(GroupMembershipQueryService groupMembershipQueryService) {
         this.groupMembershipQueryService = groupMembershipQueryService;
-        this.groupRepository = groupRepository;
     }
 
     @GetMapping
@@ -40,7 +35,7 @@ public class GroupController {
                 if (groupId == null || !groupMembershipQueryService.isGroupMember(groupId, session.getUserId())) {
                     continue;
                 }
-                Optional<Group> group = groupRepository.findById(groupId);
+                Optional<Group> group = groupMembershipQueryService.queryGroup(groupId);
                 if (group.isEmpty()) {
                     continue;
                 }
@@ -63,8 +58,8 @@ public class GroupController {
         if (conversationId == null) {
             return null;
         }
-        if (conversationId.startsWith("c2:") || conversationId.startsWith("g:")) {
-            return conversationId.substring(conversationId.indexOf(':') + 1);
+        if (conversationId.startsWith("g:")) {
+            return conversationId.substring("g:".length());
         }
         return null;
     }

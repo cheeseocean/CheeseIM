@@ -44,12 +44,10 @@
 | --- | --- | --- |
 | `GroupController.list` 吞异常返回空 | `GroupController.java:49` | 掩盖 Dubbo/Mongo 失败，应区分降级与失败 |
 | `GroupController.list` N 次 Dubbo + N 次 Mongo | | 无批量，O(n) 调用 |
-| `GroupController.resolveGroupId` 检查 `c2:` 死分支 | `GroupController.java:55` | `c2:` 已被 `s:` 替换，可删 |
 | 幂等不缓存首次响应 | 全模块 | 当前重复 `Idempotency-Key` 返回 409；如客户端需要断线重试时重放原响应，需扩展为状态/响应缓存协议 |
 
 ## 6. 改动评估 checklist
 
 - [ ] 加新端点：Controller 不下沉 Response，Facade 不下沉 Document
 - [ ] 改鉴权逻辑需同步 postoffice WS/TCP ticket 校验
-- [ ] 改 GroupController 不要再依赖 `c2:` 前缀
 - [ ] 新写接口应声明 `SessionPrincipal`，以便自动接入可选幂等 key

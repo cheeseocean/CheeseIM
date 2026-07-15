@@ -1,8 +1,7 @@
 package com.cheeseocean.im.apiserver.controller;
 
-import com.cheeseocean.im.authcenter.session.SessionIssueServiceImpl;
 import com.cheeseocean.im.common.api.dto.user.WsTicketPrincipal;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.cheeseocean.im.common.api.session.SessionIssueService;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -19,8 +18,11 @@ import java.util.Map;
 @RequestMapping("/api/im")
 public class WsTicketController {
 
-    @Autowired
-    private SessionIssueServiceImpl sessionIssueService;
+    private final SessionIssueService sessionIssueService;
+
+    public WsTicketController(SessionIssueService sessionIssueService) {
+        this.sessionIssueService = sessionIssueService;
+    }
 
     @PostMapping("/ws-ticket")
     public Map<String, Object> issue(@RequestHeader("Authorization") String authorization,
