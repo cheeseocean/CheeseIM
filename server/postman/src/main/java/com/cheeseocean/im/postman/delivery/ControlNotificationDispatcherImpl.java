@@ -12,7 +12,7 @@ import com.cheeseocean.im.common.api.rpc.NodeDeliveryService;
 import com.cheeseocean.im.common.api.rpc.OnlineDispatcher;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.apache.dubbo.config.annotation.DubboService;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 
 import java.util.List;
 import java.util.Map;
@@ -33,8 +33,11 @@ public class ControlNotificationDispatcherImpl implements ControlNotificationDis
     @DubboReference(check = false, retries = 0)
     private OnlineDispatcher onlineDispatcher;
 
-    @Autowired(required = false)
-    private NodeDeliveryService nodeDeliveryService;
+    private final NodeDeliveryService nodeDeliveryService;
+
+    public ControlNotificationDispatcherImpl(ObjectProvider<NodeDeliveryService> nodeDeliveryServiceProvider) {
+        this.nodeDeliveryService = nodeDeliveryServiceProvider.getIfAvailable();
+    }
 
     @Override
     public boolean dispatch(ControlNotificationReq request) {

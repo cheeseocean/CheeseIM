@@ -3,6 +3,8 @@ package com.cheeseocean.im.common.api.enums;
 /**
  * 会话列表消息预览类型枚举。
  *
+ * <p>仅作为 HTTP 展示模型按枚举名称序列化，不是持久化或 wire code，禁止使用 ordinal。</p>
+ *
  * @author xxxcrel
  */
 public enum MessagePreviewType implements IEnum {

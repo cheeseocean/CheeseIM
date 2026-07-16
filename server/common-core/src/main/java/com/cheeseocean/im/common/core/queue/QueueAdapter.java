@@ -40,4 +40,13 @@ public interface QueueAdapter {
     ) {
         throw new UnsupportedOperationException("subscribeKeyed is not supported by this adapter");
     }
+
+    /**
+     * 订阅原生批次。实现必须在 handler 成功返回前保留消费确认，并保证单批不超过 batchSize。
+     */
+    default <T> Subscription subscribeBatch(
+            String topic, String group, int concurrency, int batchSize, long batchIntervalMs,
+            Class<T> payloadType, QueueMessageHandler<List<KeyedMessage<T>>> handler) {
+        throw new UnsupportedOperationException("subscribeBatch is not supported by this adapter");
+    }
 }

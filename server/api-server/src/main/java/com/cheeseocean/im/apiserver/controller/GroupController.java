@@ -3,6 +3,7 @@ package com.cheeseocean.im.apiserver.controller;
 import com.cheeseocean.im.common.api.business.domain.Group;
 import com.cheeseocean.im.common.api.business.domain.UserConversation;
 import com.cheeseocean.im.common.api.conversation.ConversationService;
+import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.api.group.GroupMembershipQueryService;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import org.apache.dubbo.config.annotation.DubboReference;
@@ -51,7 +52,8 @@ public class GroupController {
         if (conversation == null) {
             return null;
         }
-        if (conversation.getTargetId() != null && !conversation.getTargetId().isBlank() && conversation.getChatType() == 2) {
+        if (conversation.getTargetId() != null && !conversation.getTargetId().isBlank()
+                && conversation.getChatType() == ChatType.GROUP.getCode()) {
             return conversation.getTargetId();
         }
         String conversationId = conversation.getConversationId();

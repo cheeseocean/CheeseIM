@@ -62,6 +62,27 @@ class ChronicleQueueAdapterTest {
         });
     }
 
+    @Test
+    void handlerFailureShouldRetryThenMoveMessageToDltWithoutStoppingSubscription(@TempDir Path tempDir)
+            throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        ChronicleQueueAdapter adapter = new ChronicleQueueAdapter(objectMapper, queueProperties(tempDir));
+        AtomicInteger attempts = new AtomicInteger();
+        List<DemoPayload> deadLetters = new CopyOnWriteArrayList<>();
+        adapter.subscribe("ingress.DLT", "dlt-audit", 1, DemoPayload.class, deadLetters::add);
+        adapter.subscribe("ingress", "failing-consumer", 1, DemoPayload.class, payload -> {
+            attempts.incrementAndGet();
+            throw new IllegalStateException("poison");
+        });
+
+        adapter.send("ingress", "key1", objectMapper.writeValueAsBytes(new DemoPayload("poison")));
+
+        awaitAtMost(Duration.ofSeconds(3), () -> {
+            assertThat(attempts.get()).isEqualTo(3);
+            assertThat(deadLetters).containsExactly(new DemoPayload("poison"));
+        });
+    }
+
     private static void awaitAtMost(Duration duration, AssertionRunnable assertion) throws Exception {
         long deadline = System.nanoTime() + duration.toNanos();
         AssertionError lastError = null;

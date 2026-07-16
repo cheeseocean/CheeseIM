@@ -4,7 +4,12 @@ import com.cheeseocean.im.common.core.business.repository.UserConversationReposi
 import com.cheeseocean.im.common.core.business.repository.UserConversationSyncPointRepository;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -50,6 +55,45 @@ class ReadSeqPersistenceWriterTest {
 
         writer.shutdown();
 
-        org.junit.jupiter.api.Assertions.assertEquals(first, second);
+        assertEquals(first, second);
+    }
+
+    @Test
+    void mongoLongFailureShouldKeepCapacityBoundedAndFailExplicitlyWhenBothQueuesAreFull() {
+        UserConversationSyncPointRepository repository = mock(UserConversationSyncPointRepository.class);
+        doThrow(new IllegalStateException("mongo unavailable"))
+                .when(repository).updateReadSeq("u1", "c3", 3L);
+        ReadSeqPersistenceWriter writer = new ReadSeqPersistenceWriter(
+                repository,
+                mock(UserConversationRepository.class),
+                1,
+                1,
+                false);
+
+        writer.enqueue("u1", "c1", 1L);
+        writer.enqueue("u1", "c2", 2L);
+        assertThrows(IllegalStateException.class, () -> writer.enqueue("u1", "c3", 3L));
+
+        assertEquals(2L, writer.stats().accepted());
+        assertEquals(1L, writer.stats().overflowFallbacks());
+        assertEquals(1L, writer.stats().exhaustedFailures());
+        writer.shutdown();
+    }
+
+    @Test
+    void mongoFailureShouldKeepRetryingInsteadOfPermanentlyDropping() {
+        UserConversationSyncPointRepository offsetRepository = mock(UserConversationSyncPointRepository.class);
+        doThrow(new IllegalStateException("mongo unavailable"))
+                .when(offsetRepository).updateReadSeq(anyString(), anyString(), anyLong());
+        ReadSeqPersistenceWriter writer = new ReadSeqPersistenceWriter(
+                offsetRepository, mock(UserConversationRepository.class), 1, 8, true);
+
+        writer.enqueue("u1", "c1", 9L);
+
+        verify(offsetRepository, org.mockito.Mockito.timeout(3000).atLeast(4))
+                .updateReadSeq("u1", "c1", 9L);
+        org.junit.jupiter.api.Assertions.assertTrue(writer.stats().retryScheduled() >= 3L);
+        assertEquals(0L, writer.stats().exhaustedFailures());
+        writer.shutdown();
     }
 }

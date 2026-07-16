@@ -3,6 +3,8 @@ package com.cheeseocean.im.common.api.enums;
 /**
  * 连接生命周期状态枚举。
  *
+ * <p>仅用于单个 postoffice 进程内的连接状态机，不持久化、不上 wire，禁止使用 ordinal。</p>
+ *
  * @author xxxcrel
  */
 public enum ConnectionState implements IEnum {

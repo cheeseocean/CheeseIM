@@ -9,9 +9,11 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.util.StringUtils;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Kafka 队列写入配置。
@@ -24,6 +26,15 @@ public class KafkaQueueConfiguration {
     @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
     private String bootstrapServers;
 
+    @Value("${cheeseim.queue.kafka.transaction-id-prefix:}")
+    private String transactionIdPrefix;
+
+    @Value("${spring.application.name:cheeseim}")
+    private String applicationName;
+
+    @Value("${HOSTNAME:local}")
+    private String hostname;
+
     @Bean
     public ProducerFactory<String, byte[]> byteProducerFactory() {
         Map<String, Object> configProps = new HashMap<>();
@@ -35,7 +46,18 @@ public class KafkaQueueConfiguration {
         configProps.put(ProducerConfig.BATCH_SIZE_CONFIG, 16384);
         configProps.put(ProducerConfig.LINGER_MS_CONFIG, 1);
         configProps.put(ProducerConfig.BUFFER_MEMORY_CONFIG, 33554432);
-        return new DefaultKafkaProducerFactory<>(configProps);
+        configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
+        DefaultKafkaProducerFactory<String, byte[]> producerFactory = new DefaultKafkaProducerFactory<>(configProps);
+        producerFactory.setTransactionIdPrefix(resolveTransactionIdPrefix());
+        return producerFactory;
+    }
+
+    private String resolveTransactionIdPrefix() {
+        if (StringUtils.hasText(transactionIdPrefix)) {
+            return transactionIdPrefix;
+        }
+        // transaction.id 必须在同一 Kafka 集群的并行 JVM 间唯一，不能只依赖可能重复的 hostname。
+        return applicationName + "-" + hostname + "-" + UUID.randomUUID() + "-queue-";
     }
 
     @Bean

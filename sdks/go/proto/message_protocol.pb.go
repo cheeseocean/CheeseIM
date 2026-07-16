@@ -21,6 +21,52 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type ProtoChatSendAcceptedState int32
+
+const (
+	ProtoChatSendAcceptedState_CHAT_SEND_ACCEPTED_STATE_UNSPECIFIED ProtoChatSendAcceptedState = 0
+	ProtoChatSendAcceptedState_CHAT_SEND_BROKER_ACCEPTED            ProtoChatSendAcceptedState = 1
+)
+
+// Enum value maps for ProtoChatSendAcceptedState.
+var (
+	ProtoChatSendAcceptedState_name = map[int32]string{
+		0: "CHAT_SEND_ACCEPTED_STATE_UNSPECIFIED",
+		1: "CHAT_SEND_BROKER_ACCEPTED",
+	}
+	ProtoChatSendAcceptedState_value = map[string]int32{
+		"CHAT_SEND_ACCEPTED_STATE_UNSPECIFIED": 0,
+		"CHAT_SEND_BROKER_ACCEPTED":            1,
+	}
+)
+
+func (x ProtoChatSendAcceptedState) Enum() *ProtoChatSendAcceptedState {
+	p := new(ProtoChatSendAcceptedState)
+	*p = x
+	return p
+}
+
+func (x ProtoChatSendAcceptedState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ProtoChatSendAcceptedState) Descriptor() protoreflect.EnumDescriptor {
+	return file_message_protocol_proto_enumTypes[0].Descriptor()
+}
+
+func (ProtoChatSendAcceptedState) Type() protoreflect.EnumType {
+	return &file_message_protocol_proto_enumTypes[0]
+}
+
+func (x ProtoChatSendAcceptedState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ProtoChatSendAcceptedState.Descriptor instead.
+func (ProtoChatSendAcceptedState) EnumDescriptor() ([]byte, []int) {
+	return file_message_protocol_proto_rawDescGZIP(), []int{0}
+}
+
 type ProtoMessageOptions struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	NeedHistory      *bool                  `protobuf:"varint,1,opt,name=need_history,json=needHistory,proto3,oneof" json:"need_history,omitempty"`
@@ -838,10 +884,12 @@ func (x *ProtoErrorResponse) GetMessage() string {
 }
 
 type ProtoChatSendAck struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ServerMsgId   string                 `protobuf:"bytes,1,opt,name=server_msg_id,json=serverMsgId,proto3" json:"server_msg_id,omitempty"`
-	ClientMsgId   string                 `protobuf:"bytes,2,opt,name=client_msg_id,json=clientMsgId,proto3" json:"client_msg_id,omitempty"`
-	SendTime      int64                  `protobuf:"varint,3,opt,name=send_time,json=sendTime,proto3" json:"send_time,omitempty"`
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	ServerMsgId   string                     `protobuf:"bytes,1,opt,name=server_msg_id,json=serverMsgId,proto3" json:"server_msg_id,omitempty"`
+	ClientMsgId   string                     `protobuf:"bytes,2,opt,name=client_msg_id,json=clientMsgId,proto3" json:"client_msg_id,omitempty"`
+	SendTime      int64                      `protobuf:"varint,3,opt,name=send_time,json=sendTime,proto3" json:"send_time,omitempty"`
+	AcceptedAt    int64                      `protobuf:"varint,4,opt,name=accepted_at,json=acceptedAt,proto3" json:"accepted_at,omitempty"`
+	AcceptedState ProtoChatSendAcceptedState `protobuf:"varint,5,opt,name=accepted_state,json=acceptedState,proto3,enum=cheeseim.protocol.ProtoChatSendAcceptedState" json:"accepted_state,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -897,6 +945,166 @@ func (x *ProtoChatSendAck) GetSendTime() int64 {
 	return 0
 }
 
+func (x *ProtoChatSendAck) GetAcceptedAt() int64 {
+	if x != nil {
+		return x.AcceptedAt
+	}
+	return 0
+}
+
+func (x *ProtoChatSendAck) GetAcceptedState() ProtoChatSendAcceptedState {
+	if x != nil {
+		return x.AcceptedState
+	}
+	return ProtoChatSendAcceptedState_CHAT_SEND_ACCEPTED_STATE_UNSPECIFIED
+}
+
+// 客户端按设备、会话批量确认已实际接收的最大消息序号，不逐消息写状态。
+type ProtoChatDeliveryAckCommand struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	ConversationId  string                 `protobuf:"bytes,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	MaxDeliveredSeq int64                  `protobuf:"varint,2,opt,name=max_delivered_seq,json=maxDeliveredSeq,proto3" json:"max_delivered_seq,omitempty"`
+	DeviceId        string                 `protobuf:"bytes,3,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	OpId            string                 `protobuf:"bytes,4,opt,name=op_id,json=opId,proto3" json:"op_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ProtoChatDeliveryAckCommand) Reset() {
+	*x = ProtoChatDeliveryAckCommand{}
+	mi := &file_message_protocol_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProtoChatDeliveryAckCommand) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProtoChatDeliveryAckCommand) ProtoMessage() {}
+
+func (x *ProtoChatDeliveryAckCommand) ProtoReflect() protoreflect.Message {
+	mi := &file_message_protocol_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProtoChatDeliveryAckCommand.ProtoReflect.Descriptor instead.
+func (*ProtoChatDeliveryAckCommand) Descriptor() ([]byte, []int) {
+	return file_message_protocol_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ProtoChatDeliveryAckCommand) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+func (x *ProtoChatDeliveryAckCommand) GetMaxDeliveredSeq() int64 {
+	if x != nil {
+		return x.MaxDeliveredSeq
+	}
+	return 0
+}
+
+func (x *ProtoChatDeliveryAckCommand) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+func (x *ProtoChatDeliveryAckCommand) GetOpId() string {
+	if x != nil {
+		return x.OpId
+	}
+	return ""
+}
+
+// delivery 高水位变化通知；单聊发送者据此派生 seq <= delivered_seq 的消息已送达。
+type ProtoChatDeliveryNotify struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ConversationId string                 `protobuf:"bytes,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	RecipientId    string                 `protobuf:"bytes,2,opt,name=recipient_id,json=recipientId,proto3" json:"recipient_id,omitempty"`
+	DeviceId       string                 `protobuf:"bytes,3,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	DeliveredSeq   int64                  `protobuf:"varint,4,opt,name=delivered_seq,json=deliveredSeq,proto3" json:"delivered_seq,omitempty"`
+	UpdatedAt      int64                  `protobuf:"varint,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ProtoChatDeliveryNotify) Reset() {
+	*x = ProtoChatDeliveryNotify{}
+	mi := &file_message_protocol_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProtoChatDeliveryNotify) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProtoChatDeliveryNotify) ProtoMessage() {}
+
+func (x *ProtoChatDeliveryNotify) ProtoReflect() protoreflect.Message {
+	mi := &file_message_protocol_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProtoChatDeliveryNotify.ProtoReflect.Descriptor instead.
+func (*ProtoChatDeliveryNotify) Descriptor() ([]byte, []int) {
+	return file_message_protocol_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ProtoChatDeliveryNotify) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+func (x *ProtoChatDeliveryNotify) GetRecipientId() string {
+	if x != nil {
+		return x.RecipientId
+	}
+	return ""
+}
+
+func (x *ProtoChatDeliveryNotify) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+func (x *ProtoChatDeliveryNotify) GetDeliveredSeq() int64 {
+	if x != nil {
+		return x.DeliveredSeq
+	}
+	return 0
+}
+
+func (x *ProtoChatDeliveryNotify) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
 // 会话已读高水位命令。业务处理尚未启用时，网关必须拒绝 CHAT_READ。
 type ProtoChatReadCommand struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
@@ -910,7 +1118,7 @@ type ProtoChatReadCommand struct {
 
 func (x *ProtoChatReadCommand) Reset() {
 	*x = ProtoChatReadCommand{}
-	mi := &file_message_protocol_proto_msgTypes[11]
+	mi := &file_message_protocol_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -922,7 +1130,7 @@ func (x *ProtoChatReadCommand) String() string {
 func (*ProtoChatReadCommand) ProtoMessage() {}
 
 func (x *ProtoChatReadCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[11]
+	mi := &file_message_protocol_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -935,7 +1143,7 @@ func (x *ProtoChatReadCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoChatReadCommand.ProtoReflect.Descriptor instead.
 func (*ProtoChatReadCommand) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{11}
+	return file_message_protocol_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ProtoChatReadCommand) GetConversationId() string {
@@ -979,7 +1187,7 @@ type ProtoChatReadNotify struct {
 
 func (x *ProtoChatReadNotify) Reset() {
 	*x = ProtoChatReadNotify{}
-	mi := &file_message_protocol_proto_msgTypes[12]
+	mi := &file_message_protocol_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -991,7 +1199,7 @@ func (x *ProtoChatReadNotify) String() string {
 func (*ProtoChatReadNotify) ProtoMessage() {}
 
 func (x *ProtoChatReadNotify) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[12]
+	mi := &file_message_protocol_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1004,7 +1212,7 @@ func (x *ProtoChatReadNotify) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoChatReadNotify.ProtoReflect.Descriptor instead.
 func (*ProtoChatReadNotify) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{12}
+	return file_message_protocol_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ProtoChatReadNotify) GetConversationId() string {
@@ -1048,7 +1256,7 @@ type ProtoChatRevokeCommand struct {
 
 func (x *ProtoChatRevokeCommand) Reset() {
 	*x = ProtoChatRevokeCommand{}
-	mi := &file_message_protocol_proto_msgTypes[13]
+	mi := &file_message_protocol_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1060,7 +1268,7 @@ func (x *ProtoChatRevokeCommand) String() string {
 func (*ProtoChatRevokeCommand) ProtoMessage() {}
 
 func (x *ProtoChatRevokeCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[13]
+	mi := &file_message_protocol_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1073,7 +1281,7 @@ func (x *ProtoChatRevokeCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoChatRevokeCommand.ProtoReflect.Descriptor instead.
 func (*ProtoChatRevokeCommand) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{13}
+	return file_message_protocol_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ProtoChatRevokeCommand) GetConversationId() string {
@@ -1121,7 +1329,7 @@ type ProtoChatRevokeNotify struct {
 
 func (x *ProtoChatRevokeNotify) Reset() {
 	*x = ProtoChatRevokeNotify{}
-	mi := &file_message_protocol_proto_msgTypes[14]
+	mi := &file_message_protocol_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1133,7 +1341,7 @@ func (x *ProtoChatRevokeNotify) String() string {
 func (*ProtoChatRevokeNotify) ProtoMessage() {}
 
 func (x *ProtoChatRevokeNotify) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[14]
+	mi := &file_message_protocol_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1146,7 +1354,7 @@ func (x *ProtoChatRevokeNotify) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoChatRevokeNotify.ProtoReflect.Descriptor instead.
 func (*ProtoChatRevokeNotify) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{14}
+	return file_message_protocol_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ProtoChatRevokeNotify) GetConversationId() string {
@@ -1217,7 +1425,7 @@ type ProtoChatTypingCommand struct {
 
 func (x *ProtoChatTypingCommand) Reset() {
 	*x = ProtoChatTypingCommand{}
-	mi := &file_message_protocol_proto_msgTypes[15]
+	mi := &file_message_protocol_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1229,7 +1437,7 @@ func (x *ProtoChatTypingCommand) String() string {
 func (*ProtoChatTypingCommand) ProtoMessage() {}
 
 func (x *ProtoChatTypingCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[15]
+	mi := &file_message_protocol_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1242,7 +1450,7 @@ func (x *ProtoChatTypingCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoChatTypingCommand.ProtoReflect.Descriptor instead.
 func (*ProtoChatTypingCommand) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{15}
+	return file_message_protocol_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ProtoChatTypingCommand) GetConversationId() string {
@@ -1279,7 +1487,7 @@ type ProtoChatTypingNotify struct {
 
 func (x *ProtoChatTypingNotify) Reset() {
 	*x = ProtoChatTypingNotify{}
-	mi := &file_message_protocol_proto_msgTypes[16]
+	mi := &file_message_protocol_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1291,7 +1499,7 @@ func (x *ProtoChatTypingNotify) String() string {
 func (*ProtoChatTypingNotify) ProtoMessage() {}
 
 func (x *ProtoChatTypingNotify) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[16]
+	mi := &file_message_protocol_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1304,7 +1512,7 @@ func (x *ProtoChatTypingNotify) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoChatTypingNotify.ProtoReflect.Descriptor instead.
 func (*ProtoChatTypingNotify) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{16}
+	return file_message_protocol_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ProtoChatTypingNotify) GetConversationId() string {
@@ -1348,7 +1556,7 @@ type ProtoForceLogoutNotify struct {
 
 func (x *ProtoForceLogoutNotify) Reset() {
 	*x = ProtoForceLogoutNotify{}
-	mi := &file_message_protocol_proto_msgTypes[17]
+	mi := &file_message_protocol_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1360,7 +1568,7 @@ func (x *ProtoForceLogoutNotify) String() string {
 func (*ProtoForceLogoutNotify) ProtoMessage() {}
 
 func (x *ProtoForceLogoutNotify) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[17]
+	mi := &file_message_protocol_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1373,7 +1581,7 @@ func (x *ProtoForceLogoutNotify) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoForceLogoutNotify.ProtoReflect.Descriptor instead.
 func (*ProtoForceLogoutNotify) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{17}
+	return file_message_protocol_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ProtoForceLogoutNotify) GetReason() string {
@@ -1415,6 +1623,7 @@ type ProtoClientEnvelope struct {
 	//	*ProtoClientEnvelope_ChatRead
 	//	*ProtoClientEnvelope_ChatRevoke
 	//	*ProtoClientEnvelope_ChatTyping
+	//	*ProtoClientEnvelope_ChatDeliveryAck
 	Payload       isProtoClientEnvelope_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1422,7 +1631,7 @@ type ProtoClientEnvelope struct {
 
 func (x *ProtoClientEnvelope) Reset() {
 	*x = ProtoClientEnvelope{}
-	mi := &file_message_protocol_proto_msgTypes[18]
+	mi := &file_message_protocol_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1434,7 +1643,7 @@ func (x *ProtoClientEnvelope) String() string {
 func (*ProtoClientEnvelope) ProtoMessage() {}
 
 func (x *ProtoClientEnvelope) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[18]
+	mi := &file_message_protocol_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1447,7 +1656,7 @@ func (x *ProtoClientEnvelope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoClientEnvelope.ProtoReflect.Descriptor instead.
 func (*ProtoClientEnvelope) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{18}
+	return file_message_protocol_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ProtoClientEnvelope) GetCommand() int32 {
@@ -1516,6 +1725,15 @@ func (x *ProtoClientEnvelope) GetChatTyping() *ProtoChatTypingCommand {
 	return nil
 }
 
+func (x *ProtoClientEnvelope) GetChatDeliveryAck() *ProtoChatDeliveryAckCommand {
+	if x != nil {
+		if x, ok := x.Payload.(*ProtoClientEnvelope_ChatDeliveryAck); ok {
+			return x.ChatDeliveryAck
+		}
+	}
+	return nil
+}
+
 type isProtoClientEnvelope_Payload interface {
 	isProtoClientEnvelope_Payload()
 }
@@ -1540,6 +1758,10 @@ type ProtoClientEnvelope_ChatTyping struct {
 	ChatTyping *ProtoChatTypingCommand `protobuf:"bytes,14,opt,name=chat_typing,json=chatTyping,proto3,oneof"`
 }
 
+type ProtoClientEnvelope_ChatDeliveryAck struct {
+	ChatDeliveryAck *ProtoChatDeliveryAckCommand `protobuf:"bytes,15,opt,name=chat_delivery_ack,json=chatDeliveryAck,proto3,oneof"`
+}
+
 func (*ProtoClientEnvelope_Auth) isProtoClientEnvelope_Payload() {}
 
 func (*ProtoClientEnvelope_ChatMessage) isProtoClientEnvelope_Payload() {}
@@ -1549,6 +1771,8 @@ func (*ProtoClientEnvelope_ChatRead) isProtoClientEnvelope_Payload() {}
 func (*ProtoClientEnvelope_ChatRevoke) isProtoClientEnvelope_Payload() {}
 
 func (*ProtoClientEnvelope_ChatTyping) isProtoClientEnvelope_Payload() {}
+
+func (*ProtoClientEnvelope_ChatDeliveryAck) isProtoClientEnvelope_Payload() {}
 
 type ProtoServerEnvelope struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
@@ -1566,6 +1790,7 @@ type ProtoServerEnvelope struct {
 	//	*ProtoServerEnvelope_ChatRevokeNotify
 	//	*ProtoServerEnvelope_ForceLogout
 	//	*ProtoServerEnvelope_ChatTypingNotify
+	//	*ProtoServerEnvelope_ChatDeliveryNotify
 	Payload       isProtoServerEnvelope_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1573,7 +1798,7 @@ type ProtoServerEnvelope struct {
 
 func (x *ProtoServerEnvelope) Reset() {
 	*x = ProtoServerEnvelope{}
-	mi := &file_message_protocol_proto_msgTypes[19]
+	mi := &file_message_protocol_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1585,7 +1810,7 @@ func (x *ProtoServerEnvelope) String() string {
 func (*ProtoServerEnvelope) ProtoMessage() {}
 
 func (x *ProtoServerEnvelope) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[19]
+	mi := &file_message_protocol_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1598,7 +1823,7 @@ func (x *ProtoServerEnvelope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoServerEnvelope.ProtoReflect.Descriptor instead.
 func (*ProtoServerEnvelope) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{19}
+	return file_message_protocol_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ProtoServerEnvelope) GetCommand() int32 {
@@ -1712,6 +1937,15 @@ func (x *ProtoServerEnvelope) GetChatTypingNotify() *ProtoChatTypingNotify {
 	return nil
 }
 
+func (x *ProtoServerEnvelope) GetChatDeliveryNotify() *ProtoChatDeliveryNotify {
+	if x != nil {
+		if x, ok := x.Payload.(*ProtoServerEnvelope_ChatDeliveryNotify); ok {
+			return x.ChatDeliveryNotify
+		}
+	}
+	return nil
+}
+
 type isProtoServerEnvelope_Payload interface {
 	isProtoServerEnvelope_Payload()
 }
@@ -1756,6 +1990,10 @@ type ProtoServerEnvelope_ChatTypingNotify struct {
 	ChatTypingNotify *ProtoChatTypingNotify `protobuf:"bytes,18,opt,name=chat_typing_notify,json=chatTypingNotify,proto3,oneof"`
 }
 
+type ProtoServerEnvelope_ChatDeliveryNotify struct {
+	ChatDeliveryNotify *ProtoChatDeliveryNotify `protobuf:"bytes,19,opt,name=chat_delivery_notify,json=chatDeliveryNotify,proto3,oneof"`
+}
+
 func (*ProtoServerEnvelope_Connect) isProtoServerEnvelope_Payload() {}
 
 func (*ProtoServerEnvelope_Auth) isProtoServerEnvelope_Payload() {}
@@ -1775,6 +2013,8 @@ func (*ProtoServerEnvelope_ChatRevokeNotify) isProtoServerEnvelope_Payload() {}
 func (*ProtoServerEnvelope_ForceLogout) isProtoServerEnvelope_Payload() {}
 
 func (*ProtoServerEnvelope_ChatTypingNotify) isProtoServerEnvelope_Payload() {}
+
+func (*ProtoServerEnvelope_ChatDeliveryNotify) isProtoServerEnvelope_Payload() {}
 
 var File_message_protocol_proto protoreflect.FileDescriptor
 
@@ -1877,11 +2117,26 @@ const file_message_protocol_proto_rawDesc = "" +
 	"\amessage\x18\x01 \x01(\tR\amessage\"B\n" +
 	"\x12ProtoErrorResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\x05R\x04code\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"w\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\xee\x01\n" +
 	"\x10ProtoChatSendAck\x12\"\n" +
 	"\rserver_msg_id\x18\x01 \x01(\tR\vserverMsgId\x12\"\n" +
 	"\rclient_msg_id\x18\x02 \x01(\tR\vclientMsgId\x12\x1b\n" +
-	"\tsend_time\x18\x03 \x01(\x03R\bsendTime\"\x8c\x01\n" +
+	"\tsend_time\x18\x03 \x01(\x03R\bsendTime\x12\x1f\n" +
+	"\vaccepted_at\x18\x04 \x01(\x03R\n" +
+	"acceptedAt\x12T\n" +
+	"\x0eaccepted_state\x18\x05 \x01(\x0e2-.cheeseim.protocol.ProtoChatSendAcceptedStateR\racceptedState\"\xa4\x01\n" +
+	"\x1bProtoChatDeliveryAckCommand\x12'\n" +
+	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\x12*\n" +
+	"\x11max_delivered_seq\x18\x02 \x01(\x03R\x0fmaxDeliveredSeq\x12\x1b\n" +
+	"\tdevice_id\x18\x03 \x01(\tR\bdeviceId\x12\x13\n" +
+	"\x05op_id\x18\x04 \x01(\tR\x04opId\"\xc6\x01\n" +
+	"\x17ProtoChatDeliveryNotify\x12'\n" +
+	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\x12!\n" +
+	"\frecipient_id\x18\x02 \x01(\tR\vrecipientId\x12\x1b\n" +
+	"\tdevice_id\x18\x03 \x01(\tR\bdeviceId\x12#\n" +
+	"\rdelivered_seq\x18\x04 \x01(\x03R\fdeliveredSeq\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x05 \x01(\x03R\tupdatedAt\"\x8c\x01\n" +
 	"\x14ProtoChatReadCommand\x12'\n" +
 	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\x12\x19\n" +
 	"\bread_seq\x18\x02 \x01(\x03R\areadSeq\x12\x1b\n" +
@@ -1925,7 +2180,7 @@ const file_message_protocol_proto_rawDesc = "" +
 	"session_id\x18\x02 \x01(\tR\tsessionId\x12\x1b\n" +
 	"\tdevice_id\x18\x03 \x01(\tR\bdeviceId\x12\x1f\n" +
 	"\voccurred_at\x18\x04 \x01(\x03R\n" +
-	"occurredAt\"\xbe\x03\n" +
+	"occurredAt\"\x9c\x04\n" +
 	"\x13ProtoClientEnvelope\x12\x18\n" +
 	"\acommand\x18\x01 \x01(\x05R\acommand\x12\x1d\n" +
 	"\n" +
@@ -1937,8 +2192,9 @@ const file_message_protocol_proto_rawDesc = "" +
 	"\vchat_revoke\x18\r \x01(\v2).cheeseim.protocol.ProtoChatRevokeCommandH\x00R\n" +
 	"chatRevoke\x12L\n" +
 	"\vchat_typing\x18\x0e \x01(\v2).cheeseim.protocol.ProtoChatTypingCommandH\x00R\n" +
-	"chatTypingB\t\n" +
-	"\apayload\"\xcd\x06\n" +
+	"chatTyping\x12\\\n" +
+	"\x11chat_delivery_ack\x18\x0f \x01(\v2..cheeseim.protocol.ProtoChatDeliveryAckCommandH\x00R\x0fchatDeliveryAckB\t\n" +
+	"\apayload\"\xad\a\n" +
 	"\x13ProtoServerEnvelope\x12\x18\n" +
 	"\acommand\x18\x01 \x01(\x05R\acommand\x12\x1d\n" +
 	"\n" +
@@ -1953,8 +2209,12 @@ const file_message_protocol_proto_rawDesc = "" +
 	"\x10chat_read_notify\x18\x0f \x01(\v2&.cheeseim.protocol.ProtoChatReadNotifyH\x00R\x0echatReadNotify\x12X\n" +
 	"\x12chat_revoke_notify\x18\x10 \x01(\v2(.cheeseim.protocol.ProtoChatRevokeNotifyH\x00R\x10chatRevokeNotify\x12N\n" +
 	"\fforce_logout\x18\x11 \x01(\v2).cheeseim.protocol.ProtoForceLogoutNotifyH\x00R\vforceLogout\x12X\n" +
-	"\x12chat_typing_notify\x18\x12 \x01(\v2(.cheeseim.protocol.ProtoChatTypingNotifyH\x00R\x10chatTypingNotifyB\t\n" +
-	"\apayloadBF\n" +
+	"\x12chat_typing_notify\x18\x12 \x01(\v2(.cheeseim.protocol.ProtoChatTypingNotifyH\x00R\x10chatTypingNotify\x12^\n" +
+	"\x14chat_delivery_notify\x18\x13 \x01(\v2*.cheeseim.protocol.ProtoChatDeliveryNotifyH\x00R\x12chatDeliveryNotifyB\t\n" +
+	"\apayload*e\n" +
+	"\x1aProtoChatSendAcceptedState\x12(\n" +
+	"$CHAT_SEND_ACCEPTED_STATE_UNSPECIFIED\x10\x00\x12\x1d\n" +
+	"\x19CHAT_SEND_BROKER_ACCEPTED\x10\x01BF\n" +
 	",com.cheeseocean.im.common.api.protocol.protoB\x14MessageProtocolProtoP\x01b\x06proto3"
 
 var (
@@ -1969,59 +2229,66 @@ func file_message_protocol_proto_rawDescGZIP() []byte {
 	return file_message_protocol_proto_rawDescData
 }
 
-var file_message_protocol_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_message_protocol_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_message_protocol_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_message_protocol_proto_goTypes = []any{
-	(*ProtoMessageOptions)(nil),    // 0: cheeseim.protocol.ProtoMessageOptions
-	(*ProtoOfflinePushInfo)(nil),   // 1: cheeseim.protocol.ProtoOfflinePushInfo
-	(*ProtoMessage)(nil),           // 2: cheeseim.protocol.ProtoMessage
-	(*ProtoHistoryEvent)(nil),      // 3: cheeseim.protocol.ProtoHistoryEvent
-	(*ProtoOfflinePushEvent)(nil),  // 4: cheeseim.protocol.ProtoOfflinePushEvent
-	(*ProtoAuthRequest)(nil),       // 5: cheeseim.protocol.ProtoAuthRequest
-	(*ProtoAuthResponse)(nil),      // 6: cheeseim.protocol.ProtoAuthResponse
-	(*ProtoConnectResponse)(nil),   // 7: cheeseim.protocol.ProtoConnectResponse
-	(*ProtoHeartbeatResponse)(nil), // 8: cheeseim.protocol.ProtoHeartbeatResponse
-	(*ProtoErrorResponse)(nil),     // 9: cheeseim.protocol.ProtoErrorResponse
-	(*ProtoChatSendAck)(nil),       // 10: cheeseim.protocol.ProtoChatSendAck
-	(*ProtoChatReadCommand)(nil),   // 11: cheeseim.protocol.ProtoChatReadCommand
-	(*ProtoChatReadNotify)(nil),    // 12: cheeseim.protocol.ProtoChatReadNotify
-	(*ProtoChatRevokeCommand)(nil), // 13: cheeseim.protocol.ProtoChatRevokeCommand
-	(*ProtoChatRevokeNotify)(nil),  // 14: cheeseim.protocol.ProtoChatRevokeNotify
-	(*ProtoChatTypingCommand)(nil), // 15: cheeseim.protocol.ProtoChatTypingCommand
-	(*ProtoChatTypingNotify)(nil),  // 16: cheeseim.protocol.ProtoChatTypingNotify
-	(*ProtoForceLogoutNotify)(nil), // 17: cheeseim.protocol.ProtoForceLogoutNotify
-	(*ProtoClientEnvelope)(nil),    // 18: cheeseim.protocol.ProtoClientEnvelope
-	(*ProtoServerEnvelope)(nil),    // 19: cheeseim.protocol.ProtoServerEnvelope
-	nil,                            // 20: cheeseim.protocol.ProtoOfflinePushInfo.PushExtrasEntry
-	nil,                            // 21: cheeseim.protocol.ProtoMessage.AttributesEntry
-	nil,                            // 22: cheeseim.protocol.ProtoOfflinePushEvent.AttributesEntry
+	(ProtoChatSendAcceptedState)(0),     // 0: cheeseim.protocol.ProtoChatSendAcceptedState
+	(*ProtoMessageOptions)(nil),         // 1: cheeseim.protocol.ProtoMessageOptions
+	(*ProtoOfflinePushInfo)(nil),        // 2: cheeseim.protocol.ProtoOfflinePushInfo
+	(*ProtoMessage)(nil),                // 3: cheeseim.protocol.ProtoMessage
+	(*ProtoHistoryEvent)(nil),           // 4: cheeseim.protocol.ProtoHistoryEvent
+	(*ProtoOfflinePushEvent)(nil),       // 5: cheeseim.protocol.ProtoOfflinePushEvent
+	(*ProtoAuthRequest)(nil),            // 6: cheeseim.protocol.ProtoAuthRequest
+	(*ProtoAuthResponse)(nil),           // 7: cheeseim.protocol.ProtoAuthResponse
+	(*ProtoConnectResponse)(nil),        // 8: cheeseim.protocol.ProtoConnectResponse
+	(*ProtoHeartbeatResponse)(nil),      // 9: cheeseim.protocol.ProtoHeartbeatResponse
+	(*ProtoErrorResponse)(nil),          // 10: cheeseim.protocol.ProtoErrorResponse
+	(*ProtoChatSendAck)(nil),            // 11: cheeseim.protocol.ProtoChatSendAck
+	(*ProtoChatDeliveryAckCommand)(nil), // 12: cheeseim.protocol.ProtoChatDeliveryAckCommand
+	(*ProtoChatDeliveryNotify)(nil),     // 13: cheeseim.protocol.ProtoChatDeliveryNotify
+	(*ProtoChatReadCommand)(nil),        // 14: cheeseim.protocol.ProtoChatReadCommand
+	(*ProtoChatReadNotify)(nil),         // 15: cheeseim.protocol.ProtoChatReadNotify
+	(*ProtoChatRevokeCommand)(nil),      // 16: cheeseim.protocol.ProtoChatRevokeCommand
+	(*ProtoChatRevokeNotify)(nil),       // 17: cheeseim.protocol.ProtoChatRevokeNotify
+	(*ProtoChatTypingCommand)(nil),      // 18: cheeseim.protocol.ProtoChatTypingCommand
+	(*ProtoChatTypingNotify)(nil),       // 19: cheeseim.protocol.ProtoChatTypingNotify
+	(*ProtoForceLogoutNotify)(nil),      // 20: cheeseim.protocol.ProtoForceLogoutNotify
+	(*ProtoClientEnvelope)(nil),         // 21: cheeseim.protocol.ProtoClientEnvelope
+	(*ProtoServerEnvelope)(nil),         // 22: cheeseim.protocol.ProtoServerEnvelope
+	nil,                                 // 23: cheeseim.protocol.ProtoOfflinePushInfo.PushExtrasEntry
+	nil,                                 // 24: cheeseim.protocol.ProtoMessage.AttributesEntry
+	nil,                                 // 25: cheeseim.protocol.ProtoOfflinePushEvent.AttributesEntry
 }
 var file_message_protocol_proto_depIdxs = []int32{
-	20, // 0: cheeseim.protocol.ProtoOfflinePushInfo.push_extras:type_name -> cheeseim.protocol.ProtoOfflinePushInfo.PushExtrasEntry
-	21, // 1: cheeseim.protocol.ProtoMessage.attributes:type_name -> cheeseim.protocol.ProtoMessage.AttributesEntry
-	0,  // 2: cheeseim.protocol.ProtoMessage.options:type_name -> cheeseim.protocol.ProtoMessageOptions
-	1,  // 3: cheeseim.protocol.ProtoMessage.offline_push_info:type_name -> cheeseim.protocol.ProtoOfflinePushInfo
-	2,  // 4: cheeseim.protocol.ProtoHistoryEvent.messages:type_name -> cheeseim.protocol.ProtoMessage
-	22, // 5: cheeseim.protocol.ProtoOfflinePushEvent.attributes:type_name -> cheeseim.protocol.ProtoOfflinePushEvent.AttributesEntry
-	5,  // 6: cheeseim.protocol.ProtoClientEnvelope.auth:type_name -> cheeseim.protocol.ProtoAuthRequest
-	2,  // 7: cheeseim.protocol.ProtoClientEnvelope.chat_message:type_name -> cheeseim.protocol.ProtoMessage
-	11, // 8: cheeseim.protocol.ProtoClientEnvelope.chat_read:type_name -> cheeseim.protocol.ProtoChatReadCommand
-	13, // 9: cheeseim.protocol.ProtoClientEnvelope.chat_revoke:type_name -> cheeseim.protocol.ProtoChatRevokeCommand
-	15, // 10: cheeseim.protocol.ProtoClientEnvelope.chat_typing:type_name -> cheeseim.protocol.ProtoChatTypingCommand
-	7,  // 11: cheeseim.protocol.ProtoServerEnvelope.connect:type_name -> cheeseim.protocol.ProtoConnectResponse
-	6,  // 12: cheeseim.protocol.ProtoServerEnvelope.auth:type_name -> cheeseim.protocol.ProtoAuthResponse
-	8,  // 13: cheeseim.protocol.ProtoServerEnvelope.heartbeat:type_name -> cheeseim.protocol.ProtoHeartbeatResponse
-	10, // 14: cheeseim.protocol.ProtoServerEnvelope.chat_send_ack:type_name -> cheeseim.protocol.ProtoChatSendAck
-	2,  // 15: cheeseim.protocol.ProtoServerEnvelope.chat_message:type_name -> cheeseim.protocol.ProtoMessage
-	9,  // 16: cheeseim.protocol.ProtoServerEnvelope.error:type_name -> cheeseim.protocol.ProtoErrorResponse
-	12, // 17: cheeseim.protocol.ProtoServerEnvelope.chat_read_notify:type_name -> cheeseim.protocol.ProtoChatReadNotify
-	14, // 18: cheeseim.protocol.ProtoServerEnvelope.chat_revoke_notify:type_name -> cheeseim.protocol.ProtoChatRevokeNotify
-	17, // 19: cheeseim.protocol.ProtoServerEnvelope.force_logout:type_name -> cheeseim.protocol.ProtoForceLogoutNotify
-	16, // 20: cheeseim.protocol.ProtoServerEnvelope.chat_typing_notify:type_name -> cheeseim.protocol.ProtoChatTypingNotify
-	21, // [21:21] is the sub-list for method output_type
-	21, // [21:21] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	23, // 0: cheeseim.protocol.ProtoOfflinePushInfo.push_extras:type_name -> cheeseim.protocol.ProtoOfflinePushInfo.PushExtrasEntry
+	24, // 1: cheeseim.protocol.ProtoMessage.attributes:type_name -> cheeseim.protocol.ProtoMessage.AttributesEntry
+	1,  // 2: cheeseim.protocol.ProtoMessage.options:type_name -> cheeseim.protocol.ProtoMessageOptions
+	2,  // 3: cheeseim.protocol.ProtoMessage.offline_push_info:type_name -> cheeseim.protocol.ProtoOfflinePushInfo
+	3,  // 4: cheeseim.protocol.ProtoHistoryEvent.messages:type_name -> cheeseim.protocol.ProtoMessage
+	25, // 5: cheeseim.protocol.ProtoOfflinePushEvent.attributes:type_name -> cheeseim.protocol.ProtoOfflinePushEvent.AttributesEntry
+	0,  // 6: cheeseim.protocol.ProtoChatSendAck.accepted_state:type_name -> cheeseim.protocol.ProtoChatSendAcceptedState
+	6,  // 7: cheeseim.protocol.ProtoClientEnvelope.auth:type_name -> cheeseim.protocol.ProtoAuthRequest
+	3,  // 8: cheeseim.protocol.ProtoClientEnvelope.chat_message:type_name -> cheeseim.protocol.ProtoMessage
+	14, // 9: cheeseim.protocol.ProtoClientEnvelope.chat_read:type_name -> cheeseim.protocol.ProtoChatReadCommand
+	16, // 10: cheeseim.protocol.ProtoClientEnvelope.chat_revoke:type_name -> cheeseim.protocol.ProtoChatRevokeCommand
+	18, // 11: cheeseim.protocol.ProtoClientEnvelope.chat_typing:type_name -> cheeseim.protocol.ProtoChatTypingCommand
+	12, // 12: cheeseim.protocol.ProtoClientEnvelope.chat_delivery_ack:type_name -> cheeseim.protocol.ProtoChatDeliveryAckCommand
+	8,  // 13: cheeseim.protocol.ProtoServerEnvelope.connect:type_name -> cheeseim.protocol.ProtoConnectResponse
+	7,  // 14: cheeseim.protocol.ProtoServerEnvelope.auth:type_name -> cheeseim.protocol.ProtoAuthResponse
+	9,  // 15: cheeseim.protocol.ProtoServerEnvelope.heartbeat:type_name -> cheeseim.protocol.ProtoHeartbeatResponse
+	11, // 16: cheeseim.protocol.ProtoServerEnvelope.chat_send_ack:type_name -> cheeseim.protocol.ProtoChatSendAck
+	3,  // 17: cheeseim.protocol.ProtoServerEnvelope.chat_message:type_name -> cheeseim.protocol.ProtoMessage
+	10, // 18: cheeseim.protocol.ProtoServerEnvelope.error:type_name -> cheeseim.protocol.ProtoErrorResponse
+	15, // 19: cheeseim.protocol.ProtoServerEnvelope.chat_read_notify:type_name -> cheeseim.protocol.ProtoChatReadNotify
+	17, // 20: cheeseim.protocol.ProtoServerEnvelope.chat_revoke_notify:type_name -> cheeseim.protocol.ProtoChatRevokeNotify
+	20, // 21: cheeseim.protocol.ProtoServerEnvelope.force_logout:type_name -> cheeseim.protocol.ProtoForceLogoutNotify
+	19, // 22: cheeseim.protocol.ProtoServerEnvelope.chat_typing_notify:type_name -> cheeseim.protocol.ProtoChatTypingNotify
+	13, // 23: cheeseim.protocol.ProtoServerEnvelope.chat_delivery_notify:type_name -> cheeseim.protocol.ProtoChatDeliveryNotify
+	24, // [24:24] is the sub-list for method output_type
+	24, // [24:24] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_message_protocol_proto_init() }
@@ -2031,14 +2298,15 @@ func file_message_protocol_proto_init() {
 	}
 	file_message_protocol_proto_msgTypes[0].OneofWrappers = []any{}
 	file_message_protocol_proto_msgTypes[1].OneofWrappers = []any{}
-	file_message_protocol_proto_msgTypes[18].OneofWrappers = []any{
+	file_message_protocol_proto_msgTypes[20].OneofWrappers = []any{
 		(*ProtoClientEnvelope_Auth)(nil),
 		(*ProtoClientEnvelope_ChatMessage)(nil),
 		(*ProtoClientEnvelope_ChatRead)(nil),
 		(*ProtoClientEnvelope_ChatRevoke)(nil),
 		(*ProtoClientEnvelope_ChatTyping)(nil),
+		(*ProtoClientEnvelope_ChatDeliveryAck)(nil),
 	}
-	file_message_protocol_proto_msgTypes[19].OneofWrappers = []any{
+	file_message_protocol_proto_msgTypes[21].OneofWrappers = []any{
 		(*ProtoServerEnvelope_Connect)(nil),
 		(*ProtoServerEnvelope_Auth)(nil),
 		(*ProtoServerEnvelope_Heartbeat)(nil),
@@ -2049,19 +2317,21 @@ func file_message_protocol_proto_init() {
 		(*ProtoServerEnvelope_ChatRevokeNotify)(nil),
 		(*ProtoServerEnvelope_ForceLogout)(nil),
 		(*ProtoServerEnvelope_ChatTypingNotify)(nil),
+		(*ProtoServerEnvelope_ChatDeliveryNotify)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_message_protocol_proto_rawDesc), len(file_message_protocol_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   23,
+			NumEnums:      1,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_message_protocol_proto_goTypes,
 		DependencyIndexes: file_message_protocol_proto_depIdxs,
+		EnumInfos:         file_message_protocol_proto_enumTypes,
 		MessageInfos:      file_message_protocol_proto_msgTypes,
 	}.Build()
 	File_message_protocol_proto = out.File

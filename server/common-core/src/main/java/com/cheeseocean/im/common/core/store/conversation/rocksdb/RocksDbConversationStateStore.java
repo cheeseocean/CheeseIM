@@ -38,8 +38,24 @@ public class RocksDbConversationStateStore implements ConversationStateStore {
     }
 
     @Override
-    public void setUserMaxSeq(String userId, String conversationId, long seq) {
-        support.put(RedisKeys.userMaxSeq(userId, conversationId), String.valueOf(seq), null);
+    public synchronized void setUserMaxSeq(String userId, String conversationId, long seq) {
+        String key = RedisKeys.userMaxSeq(userId, conversationId);
+        Long current = parseLong(support.get(key, String.class));
+        support.put(key, String.valueOf(current == null ? seq : Math.max(current, seq)), null);
+    }
+
+    @Override
+    public synchronized void advanceUserMaxSeq(String userId, String conversationId, long maxSeq, boolean countUnread) {
+        String maxKey = RedisKeys.userMaxSeq(userId, conversationId);
+        Long stored = parseLong(support.get(maxKey, String.class));
+        long current = stored == null ? 0L : stored;
+        if (maxSeq <= current) return;
+        support.put(maxKey, String.valueOf(maxSeq), null);
+        if (countUnread) {
+            String unreadKey = RedisKeys.userUnread(userId, conversationId);
+            Long unread = parseLong(support.get(unreadKey, String.class));
+            support.put(unreadKey, String.valueOf((unread == null ? 0L : unread) + maxSeq - current), null);
+        }
     }
 
     @Override
@@ -58,7 +74,24 @@ public class RocksDbConversationStateStore implements ConversationStateStore {
     }
 
     @Override
-    public void incrementUnread(String userId, String conversationId) {
+    public synchronized ReadState advanceReadState(String userId, String conversationId, long requestedReadSeq,
+                                                   long knownReadSeq, long knownMaxSeq) {
+        String readKey = RedisKeys.userReadSeq(userId, conversationId);
+        String maxKey = RedisKeys.userMaxSeq(userId, conversationId);
+        String unreadKey = RedisKeys.userUnread(userId, conversationId);
+        Long storedReadSeq = parseLong(support.get(readKey, String.class));
+        Long storedMaxSeq = parseLong(support.get(maxKey, String.class));
+        long currentReadSeq = Math.max(storedReadSeq == null ? 0L : storedReadSeq, Math.max(knownReadSeq, 0L));
+        long currentMaxSeq = Math.max(storedMaxSeq == null ? 0L : storedMaxSeq, Math.max(knownMaxSeq, 0L));
+        long nextReadSeq = Math.max(currentReadSeq, Math.min(requestedReadSeq, currentMaxSeq));
+        int unread = (int) Math.min(Integer.MAX_VALUE, Math.max(0L, currentMaxSeq - nextReadSeq));
+        support.put(readKey, String.valueOf(nextReadSeq), null);
+        support.put(unreadKey, String.valueOf(unread), null);
+        return new ReadState(nextReadSeq, unread, nextReadSeq > currentReadSeq);
+    }
+
+    @Override
+    public synchronized void incrementUnread(String userId, String conversationId) {
         String key = RedisKeys.userUnread(userId, conversationId);
         long next = parseLong(support.get(key, String.class)) == null ? 1L : parseLong(support.get(key, String.class)) + 1L;
         support.put(key, String.valueOf(next), null);
@@ -71,7 +104,7 @@ public class RocksDbConversationStateStore implements ConversationStateStore {
     }
 
     @Override
-    public void setUnread(String userId, String conversationId, int unreadCount) {
+    public synchronized void setUnread(String userId, String conversationId, int unreadCount) {
         support.put(RedisKeys.userUnread(userId, conversationId), String.valueOf(Math.max(unreadCount, 0)), null);
     }
 

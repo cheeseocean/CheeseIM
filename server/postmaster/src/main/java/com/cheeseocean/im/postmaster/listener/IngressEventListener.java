@@ -8,9 +8,12 @@ import com.cheeseocean.im.common.api.enums.GroupTypeEnum;
 import com.cheeseocean.im.common.api.event.HistoryEvent;
 import com.cheeseocean.im.common.core.constants.TopicNames;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
+import com.cheeseocean.im.common.core.metrics.ImMetrics;
 import com.cheeseocean.im.common.core.queue.annotation.QueueListener;
 import com.cheeseocean.im.common.core.queue.KeyedMessage;
 import com.cheeseocean.im.common.core.util.ConversationIdUtil;
+import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
+import com.cheeseocean.im.postmaster.service.UserMaxSeqPersistenceWriter;
 import com.cheeseocean.im.postmaster.sender.HistoryEventProducer;
 import com.cheeseocean.im.postmaster.sender.MessageProducer;
 import com.cheeseocean.im.postmaster.service.ConversationSeqService;
@@ -38,6 +41,8 @@ public class IngressEventListener {
     private final        ConversationSeqService conversationSeqService;
     private final        MessagePolicyEngine    messagePolicyEngine;
     private final        GroupFanoutPlanner    groupFanoutPlanner;
+    private final        ConversationStateStore conversationStateStore;
+    private final        UserMaxSeqPersistenceWriter userMaxSeqPersistenceWriter;
     @DubboReference(check = false, retries = 0)
     private              ConversationService    conversationService;
 
@@ -46,13 +51,17 @@ public class IngressEventListener {
                                 GroupMembershipFacade groupMembershipFacade,
                                 ConversationSeqService conversationSeqService,
                                 MessagePolicyEngine messagePolicyEngine,
-                                GroupFanoutPlanner groupFanoutPlanner) {
+                                GroupFanoutPlanner groupFanoutPlanner,
+                                ConversationStateStore conversationStateStore,
+                                UserMaxSeqPersistenceWriter userMaxSeqPersistenceWriter) {
         this.messageProducer = messageProducer;
         this.historyEventProducer = historyEventProducer;
         this.groupMembershipFacade = groupMembershipFacade;
         this.conversationSeqService = conversationSeqService;
         this.messagePolicyEngine = messagePolicyEngine;
         this.groupFanoutPlanner = groupFanoutPlanner;
+        this.conversationStateStore = conversationStateStore;
+        this.userMaxSeqPersistenceWriter = userMaxSeqPersistenceWriter;
     }
 
     // 包级可见，供测试注入 ConversationService（生产路径由 @DubboReference 注入字段）
@@ -64,17 +73,20 @@ public class IngressEventListener {
                          GroupFanoutPlanner groupFanoutPlanner,
                          ConversationService conversationService) {
         this(messageProducer, historyEventProducer, groupMembershipFacade,
-                conversationSeqService, messagePolicyEngine, groupFanoutPlanner);
+                conversationSeqService, messagePolicyEngine, groupFanoutPlanner, null, null);
         this.conversationService = conversationService;
     }
 
     // 消费 INGRESS 队列，批量接收同一会话的消息
     @QueueListener(topic = TopicNames.INGRESS, group = "postmaster-ingress", concurrency = 1, batch = true, batchSize = 500)
     public void onMessage(List<Message> msgs) {
+        long started = ImMetrics.startTimer();
         try {
             handle(msgs);
-        } catch (Exception e) {
-            log.error("处理 ingress 事件批次失败: {}", msgs, e);
+            ImMetrics.ingressBatch(true, msgs == null ? 0 : msgs.size(), started);
+        } catch (RuntimeException exception) {
+            ImMetrics.ingressBatch(false, msgs == null ? 0 : msgs.size(), started);
+            throw exception;
         }
     }
 
@@ -85,17 +97,26 @@ public class IngressEventListener {
     void handle(List<Message> msgs) {
         if (msgs == null || msgs.isEmpty()) return;
 
-        // 已读回执旁路：提前将已读 seq 写入 Redis，消息本身继续走完整管道
-        preProcessReadReceipts(msgs);
+        // 普通消息 READ_RECEIPT 已废弃；已读只能走 typed CHAT_READ。
+        List<Message> acceptedMessages = msgs.stream()
+                .filter(msg -> msg != null && msg.getContentType() != ContentType.READ_RECEIPT)
+                .toList();
+        if (acceptedMessages.size() != msgs.size()) {
+            log.warn("Discarded legacy READ_RECEIPT ingress messages, discarded={}",
+                    msgs.size() - acceptedMessages.size());
+        }
+        if (acceptedMessages.isEmpty()) {
+            return;
+        }
 
-        Message sample             = msgs.get(0);
+        Message sample             = acceptedMessages.get(0);
         String  convId             = ConversationIdUtil.buildConversationId(sample);
         String  notificationConvId = ConversationIdUtil.buildNotificationConversationId(sample);
 
         // 二路分类
         List<EventCtx> storageList   = new ArrayList<>();
         List<EventCtx> transientList = new ArrayList<>();
-        for (Message msg : msgs) {
+        for (Message msg : acceptedMessages) {
             MessageRouteDecision d = messagePolicyEngine.decide(msg);
             (d.persistHistory() ? storageList : transientList).add(new EventCtx(msg, d.notification() ? notificationConvId : convId, d));
         }
@@ -125,6 +146,11 @@ public class IngressEventListener {
             EventCtx msgSample = storageMsgList.get(0);
             seqBatch = conversationSeqService.allocateBatch(msgSample.convId(), storageMsgList.size());
             bindSeqs(storageMsgList, seqBatch.range().startInclusive());
+            long currentMaxSeq = seqBatch.range().endInclusive();
+            updateDirectUserState(storageMsgList, currentMaxSeq);
+            if (conversationStateStore != null) {
+                conversationStateStore.setConversationMaxSeq(msgSample.convId(), currentMaxSeq);
+            }
             // 首次会话需为用户创建会话状态
             createConversationIfNeeded(msgSample.msg(), msgSample.convId(), seqBatch.isNewConversation());
         }
@@ -170,12 +196,11 @@ public class IngressEventListener {
      *       切片后，逐成员 publish 一个 keyed DeliveryEvent（{@code g:{groupId}:{memberId}}），
      *       postman 收到后按 {@code receiverId} 直投。</li>
      *   <li>{@link GroupTypeEnum#SUPER_GROUP}：读扩散——不投递，仅持久化即可，客户端按 seq 同步。</li>
-     *   <li>{@code null}：群不存在或 Dubbo 异常，按 NORMAL_GROUP 写扩散兜底，避免安全降级丢失投递。</li>
+     *   <li>{@code null}：按 NORMAL_GROUP 写扩散兜底，兼容未返回群类型的旧 provider。</li>
      * </ul>
      *
-     * <p>为何不在 ingress 吞下群投递失败：此处异常上抛会导致整批 ingress 重投，重复 seq 分配。
-     * 因此本方法内捕获 Dubbo/查询异常并降级为"无投递"，仅在日志记录；客户端按 seq 同步自愈。
-     * 单聊的原 per-message publish 等价语义不受影响。
+     * <p>群类型或成员查询异常必须上抛给队列容器，由队列重试/DLT 处理。不能把依赖故障降级成
+     * “无投递”，否则普通群成员不会收到实时消息，且消费位点仍会推进。
      */
     private void fanoutGroupDeliveryBatch(String groupId, List<Message> groupMessages) {
         Message sample = groupMessages == null || groupMessages.isEmpty() ? null : groupMessages.get(0);
@@ -184,14 +209,7 @@ public class IngressEventListener {
                     sample == null ? null : sample.getServerMsgId());
             return;
         }
-        GroupTypeEnum groupType;
-        try {
-            groupType = groupMembershipFacade.loadGroupType(groupId);
-        } catch (Exception e) {
-            // Dubbo 异常时不降级为读扩散——按 NORMAL_GROUP 兜底，至少保证普通群能投递
-            log.warn("Load group type failed, fallback to NORMAL_GROUP write-fanout: groupId={}", groupId, e);
-            groupType = GroupTypeEnum.NORMAL_GROUP;
-        }
+        GroupTypeEnum groupType = groupMembershipFacade.loadGroupType(groupId);
         if (groupType == GroupTypeEnum.SUPER_GROUP) {
             // 读扩散：仅持久化，客户端按 seq 拉取。无投递事件 publish。
             log.debug("Group messages sent in read-fanout mode (SUPER_GROUP): groupId={}, messages={}",
@@ -199,13 +217,7 @@ public class IngressEventListener {
             return;
         }
         // null 或 NORMAL_GROUP：写扩散
-        List<String> members;
-        try {
-            members = groupMembershipFacade.loadGroupMembers(groupId);
-        } catch (Exception e) {
-            log.warn("Load group members failed, group delivery abandoned: groupId={}", groupId, e);
-            return;
-        }
+        List<String> members = groupMembershipFacade.loadGroupMembers(groupId);
         if (members == null || members.isEmpty()) {
             log.warn("Group has no members to fan out: groupId={}, serverMsgId={}", groupId,
                     sample == null ? null : sample.getServerMsgId());
@@ -218,25 +230,35 @@ public class IngressEventListener {
                 targets.add(new KeyedMessage<>(groupFanoutPlanner.deliveryKey(groupId, memberId), memberId));
             }
             messageProducer.publishForTargets(groupMessages, targets);
+            for (String memberId : batch) {
+                advanceUserState(memberId, "g:" + groupId, groupMessages.get(groupMessages.size() - 1).getSeq(),
+                        !memberId.equals(sample.getSenderId()));
+            }
         }
         log.debug("Group messages fanned out: groupId={}, members={}, batches={}, messages={}",
                 groupId, members.size(), batches.size(), groupMessages.size());
     }
 
-    // ── 共用私有方法 ──────────────────────────────────────────────────────────
-
-    private void preProcessReadReceipts(List<Message> msgs) {
-        List<Message> readReceipts = new ArrayList<>();
-        for (Message msg : msgs) {
-            if (msg.getContentType() != null
-                    && msg.getContentType() == ContentType.READ_RECEIPT) {
-                readReceipts.add(msg);
+    private void updateDirectUserState(List<EventCtx> messages, long maxSeq) {
+        if (conversationStateStore == null || userMaxSeqPersistenceWriter == null) return;
+        for (EventCtx ctx : messages) {
+            Message message = ctx.msg();
+            if (message.getChatType() == ChatType.GROUP) continue;
+            advanceUserState(message.getSenderId(), ctx.convId(), maxSeq, false);
+            if (message.getReceiverId() != null && !message.getReceiverId().equals(message.getSenderId())) {
+                advanceUserState(message.getReceiverId(), ctx.convId(), maxSeq, true);
             }
         }
-        if (!readReceipts.isEmpty()) {
-//            messageStateService.processReadReceipts(readReceipts);
-        }
     }
+
+    private void advanceUserState(String userId, String conversationId, long maxSeq, boolean countUnread) {
+        if (conversationStateStore == null || userMaxSeqPersistenceWriter == null
+                || userId == null || userId.isBlank()) return;
+        conversationStateStore.advanceUserMaxSeq(userId, conversationId, maxSeq, countUnread);
+        userMaxSeqPersistenceWriter.enqueue(userId, conversationId, maxSeq);
+    }
+
+    // ── 共用私有方法 ──────────────────────────────────────────────────────────
 
     private void pushTransient(List<EventCtx> transientList) {
         List<KeyedMessage<Message>> deliveries = new ArrayList<>();

@@ -1,22 +1,19 @@
 package com.cheeseocean.im.postmaster.typing;
 
-import com.cheeseocean.im.common.api.business.domain.ConversationControlEvent;
 import com.cheeseocean.im.common.api.conversation.TypingStateService;
 import com.cheeseocean.im.common.api.dto.conversation.TypingSignal;
 import com.cheeseocean.im.common.api.dto.dispatch.ControlNotificationReq;
 import com.cheeseocean.im.common.api.enums.CommandType;
-import com.cheeseocean.im.common.api.enums.ControlEventTypeEnum;
 import com.cheeseocean.im.common.api.enums.GroupTypeEnum;
 import com.cheeseocean.im.common.api.enums.TypingActionEnum;
-import com.cheeseocean.im.common.api.permission.ConversationPermissionDubboService;
+import com.cheeseocean.im.common.api.permission.ConversationPermissionService;
 import com.cheeseocean.im.common.api.permission.ConversationPermissionRequest;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.common.api.rpc.ControlNotificationDispatcher;
 import com.cheeseocean.im.common.api.permission.PermissionCheckResult;
-import com.cheeseocean.im.common.core.business.repository.ConversationControlEventRepository;
+import com.cheeseocean.im.common.core.store.typing.TypingStateStore;
+import com.cheeseocean.im.common.core.metrics.ImMetrics;
 import com.cheeseocean.im.postmaster.service.GroupMembershipFacade;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,6 +21,7 @@ import org.springframework.beans.factory.annotation.Value;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * 输入中瞬时控制信号实现。
@@ -36,29 +34,36 @@ public class TypingStateServiceImpl implements TypingStateService {
 
     private static final int MIN_TTL_SECONDS = 3;
     private static final int MAX_TTL_SECONDS = 5;
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-
     private final GroupMembershipFacade groupMembershipFacade;
-    private final ConversationControlEventRepository conversationControlEventRepository;
+    private final TypingStateStore typingStateStore;
     private final int defaultTtlSeconds;
+    private final int maxNormalGroupMembers;
 
     @DubboReference(check = false)
-    private ConversationPermissionDubboService conversationPermissionDubboService;
+    private ConversationPermissionService conversationPermissionService;
 
     @DubboReference(check = false, retries = 0)
     private ControlNotificationDispatcher controlNotificationDispatcher;
 
     public TypingStateServiceImpl(GroupMembershipFacade groupMembershipFacade,
-                                  ConversationControlEventRepository conversationControlEventRepository,
-                                  @Value("${cheeseim.typing.default-ttl-seconds:4}") int defaultTtlSeconds) {
+                                  TypingStateStore typingStateStore,
+                                  @Value("${cheeseim.typing.default-ttl-seconds:4}") int defaultTtlSeconds,
+                                  @Value("${cheeseim.typing.max-normal-group-members:100}") int maxNormalGroupMembers) {
         this.groupMembershipFacade = groupMembershipFacade;
-        this.conversationControlEventRepository = conversationControlEventRepository;
+        this.typingStateStore = typingStateStore;
         this.defaultTtlSeconds = clampTtl(defaultTtlSeconds);
+        this.maxNormalGroupMembers = Math.max(1, maxNormalGroupMembers);
     }
 
     @Override
     public TypingSignal publish(String senderId, String conversationId, TypingActionEnum action, int ttlSeconds) {
         if (isBlank(senderId) || isBlank(conversationId) || action == null || !isConversationMember(senderId, conversationId)) {
+            ImMetrics.typing("rejected");
+            return null;
+        }
+        TargetResolution targetResolution = notificationTargets(conversationId, senderId);
+        if (!targetResolution.supported()) {
+            ImMetrics.typing("disabled");
             return null;
         }
         long now = System.currentTimeMillis();
@@ -68,27 +73,13 @@ public class TypingStateServiceImpl implements TypingStateService {
         signal.setAction(action);
         int effectiveTtlSeconds = effectiveTtl(ttlSeconds);
         signal.setExpiresAt(action == TypingActionEnum.STOP ? now : now + effectiveTtlSeconds * 1_000L);
-        List<String> targetUserIds = notificationTargets(conversationId, senderId);
-        ConversationControlEvent event = appendControlEvent(signal, targetUserIds, now + effectiveTtlSeconds * 1_000L);
-        if (event != null) {
-            notifyOnline(signal, targetUserIds, event.getEventId());
+        if (typingStateStore.update(senderId, conversationId, action, effectiveTtlSeconds)) {
+            notifyOnline(signal, targetResolution.targetUserIds(), UUID.randomUUID().toString());
+            ImMetrics.typing("dispatched");
+        } else {
+            ImMetrics.typing("suppressed");
         }
         return signal;
-    }
-
-    private ConversationControlEvent appendControlEvent(TypingSignal signal, List<String> targetUserIds,
-                                                        long eventExpiresAt) {
-        if (conversationControlEventRepository == null || targetUserIds.isEmpty()) {
-            return null;
-        }
-        ConversationControlEvent event = new ConversationControlEvent();
-        event.setConversationId(signal.getConversationId());
-        event.setType(signal.getAction() == TypingActionEnum.START
-                ? ControlEventTypeEnum.TYPING_STARTED : ControlEventTypeEnum.TYPING_STOPPED);
-        event.setTargetUserIds(targetUserIds);
-        event.setPayload(serializeBody(signal));
-        event.setExpiresAt(eventExpiresAt);
-        return conversationControlEventRepository.append(event);
     }
 
     private void notifyOnline(TypingSignal signal, List<String> targetUserIds, String eventId) {
@@ -100,21 +91,12 @@ public class TypingStateServiceImpl implements TypingStateService {
             ControlNotificationReq request = new ControlNotificationReq();
             request.setUserId(targetUserId);
             request.setEnvelope(envelope);
-            // 与 postman outbox 补偿使用同一 eventId，避免首次直推成功后又向同一连接重复投递。
             request.setDeliveryId(eventId);
             try {
                 controlNotificationDispatcher.dispatch(request);
             } catch (RuntimeException ignored) {
                 // 瞬时状态不做离线补偿，客户端由 expiresAt 收敛。
             }
-        }
-    }
-
-    private String serializeBody(TypingSignal signal) {
-        try {
-            return OBJECT_MAPPER.writeValueAsString(bodyOf(signal));
-        } catch (JsonProcessingException exception) {
-            throw new IllegalStateException("输入中控制事件序列化失败", exception);
         }
     }
 
@@ -127,41 +109,42 @@ public class TypingStateServiceImpl implements TypingStateService {
         return body;
     }
 
-    private List<String> notificationTargets(String conversationId, String senderId) {
+    private TargetResolution notificationTargets(String conversationId, String senderId) {
         if (conversationId.startsWith("s:")) {
             String[] parts = conversationId.split(":", 3);
             if (parts.length != 3) {
-                return List.of();
+                return TargetResolution.unsupported();
             }
-            return parts[1].equals(senderId) ? List.of(parts[2]) : List.of(parts[1]);
+            return TargetResolution.supported(parts[1].equals(senderId) ? List.of(parts[2]) : List.of(parts[1]));
         }
         if (!conversationId.startsWith("g:") || groupMembershipFacade == null) {
-            return List.of();
+            return TargetResolution.unsupported();
         }
         try {
             String groupId = conversationId.substring(2);
             if (groupMembershipFacade.loadGroupType(groupId) == GroupTypeEnum.SUPER_GROUP) {
-                return List.of();
+                return TargetResolution.unsupported();
             }
             List<String> members = groupMembershipFacade.loadGroupMembers(groupId);
-            if (members == null || members.isEmpty()) {
-                return List.of();
+            if (members == null || members.isEmpty() || members.size() > maxNormalGroupMembers) {
+                return TargetResolution.unsupported();
             }
-            return members.stream().filter(memberId -> !senderId.equals(memberId)).distinct().toList();
+            return TargetResolution.supported(
+                    members.stream().filter(memberId -> !senderId.equals(memberId)).distinct().toList());
         } catch (RuntimeException ignored) {
-            return List.of();
+            return TargetResolution.unsupported();
         }
     }
 
     private boolean isConversationMember(String userId, String conversationId) {
-        if (conversationPermissionDubboService == null) {
+        if (conversationPermissionService == null) {
             return false;
         }
         try {
             ConversationPermissionRequest request = new ConversationPermissionRequest();
             request.setUserId(userId);
             request.setConversationId(conversationId);
-            Object response = conversationPermissionDubboService.check(request);
+            Object response = conversationPermissionService.check(request);
             return response instanceof PermissionCheckResult result && result.isAllowed();
         } catch (RuntimeException ignored) {
             return false;
@@ -178,5 +161,15 @@ public class TypingStateServiceImpl implements TypingStateService {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private record TargetResolution(boolean supported, List<String> targetUserIds) {
+        private static TargetResolution supported(List<String> targetUserIds) {
+            return new TargetResolution(true, targetUserIds);
+        }
+
+        private static TargetResolution unsupported() {
+            return new TargetResolution(false, List.of());
+        }
     }
 }

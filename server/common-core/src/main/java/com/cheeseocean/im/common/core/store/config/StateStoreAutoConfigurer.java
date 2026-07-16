@@ -9,6 +9,11 @@ import com.cheeseocean.im.common.core.store.idempotency.rocksdb.RocksDbIdempoten
 import com.cheeseocean.im.common.core.store.session.SessionStateStore;
 import com.cheeseocean.im.common.core.store.session.redis.RedisSessionStateStore;
 import com.cheeseocean.im.common.core.store.session.rocksdb.RocksDbSessionStateStore;
+import com.cheeseocean.im.common.core.store.typing.TypingStateStore;
+import com.cheeseocean.im.common.core.store.delivery.DeliveryStateStore;
+import com.cheeseocean.im.common.core.store.delivery.redis.RedisDeliveryStateStore;
+import com.cheeseocean.im.common.core.store.delivery.rocksdb.RocksDbDeliveryStateStore;
+import com.cheeseocean.im.common.core.store.typing.redis.RedisTypingStateStore;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -16,6 +21,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.beans.factory.annotation.Value;
 
 @Configuration
 @EnableConfigurationProperties(StateStoreProperties.class)
@@ -54,6 +60,29 @@ public class StateStoreAutoConfigurer {
     @Conditional(RedisConfigurationConditions.RedisConfigured.class)
     public ConversationStateStore redisConversationStateStore(StringRedisTemplate redisTemplate) {
         return new RedisConversationStateStore(redisTemplate);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @Conditional(RedisConfigurationConditions.RedisConfigured.class)
+    public DeliveryStateStore redisDeliveryStateStore(
+            StringRedisTemplate redisTemplate,
+            @Value("${cheeseim.delivery-state.redis-ttl-seconds:2592000}") long ttlSeconds) {
+        return new RedisDeliveryStateStore(redisTemplate, ttlSeconds);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @Conditional(RedisConfigurationConditions.RedisNotConfigured.class)
+    public DeliveryStateStore rocksDbDeliveryStateStore(StateStoreProperties properties, ObjectMapper objectMapper) {
+        return new RocksDbDeliveryStateStore(properties.resolve("delivery"), objectMapper);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @Conditional(RedisConfigurationConditions.RedisConfigured.class)
+    public TypingStateStore redisTypingStateStore(StringRedisTemplate redisTemplate) {
+        return new RedisTypingStateStore(redisTemplate);
     }
 
     @Bean

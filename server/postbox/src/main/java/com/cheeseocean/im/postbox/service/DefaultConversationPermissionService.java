@@ -1,7 +1,7 @@
 package com.cheeseocean.im.postbox.service;
 
 import com.cheeseocean.im.common.api.permission.ConversationPermissionRequest;
-import com.cheeseocean.im.common.api.permission.ConversationPermissionDubboService;
+import com.cheeseocean.im.common.api.permission.ConversationPermissionService;
 import com.cheeseocean.im.common.api.permission.PermissionCheckResult;
 import org.apache.dubbo.config.annotation.DubboService;
 
@@ -13,7 +13,7 @@ import org.apache.dubbo.config.annotation.DubboService;
  * @author xxxcrel
  */
 @DubboService
-public class DefaultConversationPermissionService implements ConversationPermissionDubboService {
+public class DefaultConversationPermissionService implements ConversationPermissionService {
 
     @Override
     public PermissionCheckResult check(ConversationPermissionRequest request) {

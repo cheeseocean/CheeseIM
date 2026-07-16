@@ -9,7 +9,7 @@ import com.cheeseocean.im.common.api.enums.ControlEventTypeEnum;
 import com.cheeseocean.im.common.api.enums.GroupTypeEnum;
 import com.cheeseocean.im.common.api.enums.MessageMutationTypeEnum;
 import com.cheeseocean.im.common.api.message.MessageMutationService;
-import com.cheeseocean.im.common.api.permission.ConversationPermissionDubboService;
+import com.cheeseocean.im.common.api.permission.ConversationPermissionService;
 import com.cheeseocean.im.common.api.permission.ConversationPermissionRequest;
 import com.cheeseocean.im.common.api.permission.PermissionCheckResult;
 import com.cheeseocean.im.common.core.business.repository.ConversationControlEventRepository;
@@ -51,7 +51,7 @@ public class MessageMutationServiceImpl implements MessageMutationService {
     private final ObjectMapper objectMapper;
 
     @DubboReference(check = false)
-    private ConversationPermissionDubboService conversationPermissionDubboService;
+    private ConversationPermissionService conversationPermissionService;
 
     @DubboReference(check = false, retries = 0)
     private ControlNotificationDispatcher controlNotificationDispatcher;
@@ -174,7 +174,7 @@ public class MessageMutationServiceImpl implements MessageMutationService {
     }
 
     private MessageMutationResult notifyOnline(MessageMutationResult result) {
-        if (result == null || !result.isSuccess() || controlNotificationDispatcher == null) {
+        if (result == null || !result.isSuccess()) {
             return result;
         }
         Map<String, Object> body = new LinkedHashMap<>();
@@ -187,8 +187,19 @@ public class MessageMutationServiceImpl implements MessageMutationService {
         body.put("revokedAt", result.getRevokedAt());
         body.put("mutationVersion", result.getMutationVersion());
         List<String> targets = notificationTargets(result.getConversationId());
-        ConversationControlEvent event = appendControlEvent(result, targets, body);
-        String deliveryId = event == null ? "revoke:" + result.getMutationId() : event.getEventId();
+        List<ConversationControlEvent> events = appendControlEvents(result, targets, body);
+        if (controlNotificationDispatcher == null) {
+            return result;
+        }
+        if (events.isEmpty()) {
+            dispatchPartition(targets, "revoke:" + result.getMutationId(), body);
+        } else {
+            events.forEach(event -> dispatchPartition(event.getTargetUserIds(), event.getEventId(), body));
+        }
+        return result;
+    }
+
+    private void dispatchPartition(List<String> targets, String deliveryId, Map<String, Object> body) {
         ServerEnvelope envelope = ServerEnvelope.of(CommandType.CHAT_REVOKE, deliveryId, body);
         for (String userId : targets) {
             ControlNotificationReq request = new ControlNotificationReq();
@@ -201,25 +212,26 @@ public class MessageMutationServiceImpl implements MessageMutationService {
                 // mutation 已是持久化真相，离线端由 mutation 增量同步收敛。
             }
         }
-        return result;
     }
 
-    private ConversationControlEvent appendControlEvent(MessageMutationResult result,
-                                                         List<String> targets,
-                                                         Map<String, Object> body) {
+    private List<ConversationControlEvent> appendControlEvents(MessageMutationResult result,
+                                                                List<String> targets,
+                                                                Map<String, Object> body) {
         if (controlEventRepository == null || objectMapper == null || targets.isEmpty()) {
-            return null;
+            return List.of();
         }
         try {
             ConversationControlEvent event = new ConversationControlEvent();
+            event.setEventId("revoke:" + result.getMutationId());
             event.setConversationId(result.getConversationId());
             event.setType(ControlEventTypeEnum.MESSAGE_REVOKED);
             event.setTargetUserIds(targets);
             event.setPayload(objectMapper.writeValueAsString(body));
             event.setExpiresAt(System.currentTimeMillis() + 180L * 24 * 60 * 60 * 1000);
-            return controlEventRepository.append(event);
+            List<ConversationControlEvent> events = controlEventRepository.appendPartitioned(event);
+            return events == null ? List.of() : events;
         } catch (Exception ignored) {
-            return null;
+            return List.of();
         }
     }
 
@@ -247,14 +259,14 @@ public class MessageMutationServiceImpl implements MessageMutationService {
     }
 
     private boolean isConversationMember(String userId, String conversationId) {
-        if (conversationPermissionDubboService == null) {
+        if (conversationPermissionService == null) {
             return false;
         }
         try {
             ConversationPermissionRequest request = new ConversationPermissionRequest();
             request.setUserId(userId);
             request.setConversationId(conversationId);
-            Object response = conversationPermissionDubboService.check(request);
+            Object response = conversationPermissionService.check(request);
             return response instanceof PermissionCheckResult result && result.isAllowed();
         } catch (RuntimeException ignored) {
             return false;

@@ -15,10 +15,18 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /**
@@ -29,8 +37,11 @@ public class ConversationControlEventRepositoryImpl implements ConversationContr
 
     private static final int DEFAULT_QUERY_LIMIT = 200;
     private static final int MAX_QUERY_LIMIT = 500;
+    static final int CURSOR_SHARD_COUNT = 64;
+    static final int MAX_TARGETS_PER_EVENT = 200;
 
     private final MongoTemplate mongoTemplate;
+    private final AtomicInteger claimScanStart = new AtomicInteger();
 
     public ConversationControlEventRepositoryImpl(MongoTemplate mongoTemplate) {
         this.mongoTemplate = mongoTemplate;
@@ -41,20 +52,56 @@ public class ConversationControlEventRepositoryImpl implements ConversationContr
         if (!isAppendable(event)) {
             return null;
         }
+        validateSingleShardEvent(event);
+        return appendIdempotently(event);
+    }
+
+    private ConversationControlEvent appendIdempotently(ConversationControlEvent event) {
         Instant now = Instant.now();
-        ConversationControlEventDoc doc = new ConversationControlEventDoc();
-        doc.setId(isBlank(event.getEventId()) ? UUID.randomUUID().toString() : event.getEventId());
-        doc.setCursor(nextCursor());
-        doc.setConversationId(event.getConversationId());
-        doc.setTypeCode(event.getType().getCode());
-        doc.setTargetUserIds(new ArrayList<>(event.getTargetUserIds()));
-        doc.setPayload(event.getPayload());
-        doc.setDeliveryStateCode(ControlEventDeliveryStateEnum.PENDING.getCode());
-        doc.setDeliveryAttempt(0);
-        doc.setCreatedAt(now);
-        doc.setExpiresAt(Instant.ofEpochMilli(event.getExpiresAt()));
-        mongoTemplate.insert(doc);
-        return toDomain(doc);
+        String eventId = event.getEventId();
+        ConversationControlEventDoc existing = mongoTemplate.findById(eventId, ConversationControlEventDoc.class);
+        if (existing != null) {
+            return toDomain(existing);
+        }
+        int cursorShard = cursorShard(event.getTargetUserIds().get(0));
+        Query query = Query.query(Criteria.where("_id").is(eventId));
+        Update insert = new Update()
+                .setOnInsert("_id", eventId)
+                .setOnInsert("cursor", nextCursor(cursorShard))
+                .setOnInsert("cursorShard", cursorShard)
+                .setOnInsert("conversationId", event.getConversationId())
+                .setOnInsert("typeCode", event.getType().getCode())
+                .setOnInsert("targetUserIds", new ArrayList<>(event.getTargetUserIds()))
+                .setOnInsert("payload", event.getPayload())
+                .setOnInsert("deliveryStateCode", ControlEventDeliveryStateEnum.PENDING.getCode())
+                .setOnInsert("deliveryAttempt", 0)
+                .setOnInsert("createdAt", now)
+                .setOnInsert("expiresAt", Instant.ofEpochMilli(event.getExpiresAt()));
+        mongoTemplate.upsert(query, insert, ConversationControlEventDoc.class);
+        ConversationControlEventDoc stored = mongoTemplate.findById(eventId, ConversationControlEventDoc.class);
+        if (stored == null) {
+            throw new IllegalStateException("Control event upsert completed but document is missing: " + eventId);
+        }
+        return toDomain(stored);
+    }
+
+    @Override
+    public List<ConversationControlEvent> appendPartitioned(ConversationControlEvent event) {
+        if (!isAppendable(event)) {
+            return new ArrayList<>();
+        }
+        String logicalEventId = isBlank(event.getEventId()) ? UUID.randomUUID().toString() : event.getEventId();
+        event.setEventId(logicalEventId);
+        List<ConversationControlEvent> appended = new ArrayList<>();
+        for (List<String> targets : partitionTargets(event.getTargetUserIds())) {
+            ConversationControlEvent partition = copyWithTargets(event, targets);
+            partition.setEventId(partitionEventId(logicalEventId, targets));
+            ConversationControlEvent saved = append(partition);
+            if (saved != null) {
+                appended.add(saved);
+            }
+        }
+        return appended;
     }
 
     @Override
@@ -79,22 +126,37 @@ public class ConversationControlEventRepositoryImpl implements ConversationContr
     public List<ConversationControlEvent> findClaimable(int limit) {
         int effectiveLimit = limit <= 0 ? DEFAULT_QUERY_LIMIT : Math.min(limit, MAX_QUERY_LIMIT);
         Instant now = Instant.now();
-        Criteria claimable = new Criteria().orOperator(
-                Criteria.where("deliveryStateCode").is(ControlEventDeliveryStateEnum.PENDING.getCode()),
-                new Criteria().andOperator(
-                        Criteria.where("deliveryStateCode").is(ControlEventDeliveryStateEnum.CLAIMED.getCode()),
-                        Criteria.where("claimExpiresAt").lte(now)
-                )
-        );
-        Query query = Query.query(new Criteria().andOperator(
-                        Criteria.where("expiresAt").gt(now),
-                        claimable
-                ))
-                .with(Sort.by(Sort.Direction.ASC, "cursor"))
-                .limit(effectiveLimit);
-        return mongoTemplate.find(query, ConversationControlEventDoc.class).stream()
+        List<ConversationControlEventDoc> candidates = new ArrayList<>(effectiveLimit);
+        int firstShard = Math.floorMod(claimScanStart.getAndIncrement(), CURSOR_SHARD_COUNT);
+        for (int offset = 0; offset < CURSOR_SHARD_COUNT && candidates.size() < effectiveLimit; offset++) {
+            int shard = (firstShard + offset) % CURSOR_SHARD_COUNT;
+            findClaimableInShard(shard, ControlEventDeliveryStateEnum.PENDING, now,
+                    effectiveLimit - candidates.size(), candidates);
+            if (candidates.size() < effectiveLimit) {
+                findClaimableInShard(shard, ControlEventDeliveryStateEnum.CLAIMED, now,
+                        effectiveLimit - candidates.size(), candidates);
+            }
+        }
+        return candidates.stream()
+                .sorted(Comparator.comparingLong(ConversationControlEventDoc::getCursor))
+                .limit(effectiveLimit)
                 .map(this::toDomain)
                 .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    private void findClaimableInShard(int shard, ControlEventDeliveryStateEnum state, Instant now, int limit,
+                                      List<ConversationControlEventDoc> destination) {
+        Criteria criteria = new Criteria().andOperator(
+                Criteria.where("cursorShard").is(shard),
+                Criteria.where("deliveryStateCode").is(state.getCode()),
+                Criteria.where("expiresAt").gt(now));
+        if (state == ControlEventDeliveryStateEnum.CLAIMED) {
+            criteria = new Criteria().andOperator(criteria, Criteria.where("claimExpiresAt").lte(now));
+        }
+        Query query = Query.query(criteria)
+                .with(Sort.by(Sort.Direction.ASC, "cursor"))
+                .limit(limit);
+        destination.addAll(mongoTemplate.find(query, ConversationControlEventDoc.class));
     }
 
     @Override
@@ -144,18 +206,24 @@ public class ConversationControlEventRepositoryImpl implements ConversationContr
         return mongoTemplate.updateFirst(query, update, ConversationControlEventDoc.class).getModifiedCount() == 1;
     }
 
-    private long nextCursor() {
-        Query query = Query.query(Criteria.where("_id").is(ConversationControlEventCursorDoc.GLOBAL_CURSOR_ID));
-        Update update = new Update()
-                .setOnInsert("_id", ConversationControlEventCursorDoc.GLOBAL_CURSOR_ID)
-                .inc("cursor", 1L);
+    private long nextCursor(int shardId) {
+        String cursorId = ConversationControlEventCursorDoc.shardCursorId(shardId);
+        ConversationControlEventCursorDoc legacy = mongoTemplate.findById(
+                ConversationControlEventCursorDoc.GLOBAL_CURSOR_ID, ConversationControlEventCursorDoc.class);
+        long legacyCursor = legacy == null ? 0L : Math.max(legacy.getCursor(), 0L);
+        Query query = Query.query(Criteria.where("_id").is(cursorId));
+        mongoTemplate.upsert(query, new Update()
+                .setOnInsert("_id", cursorId)
+                .setOnInsert("cursor", legacyCursor), ConversationControlEventCursorDoc.class);
+        Update update = new Update().inc("cursor", 1L);
         ConversationControlEventCursorDoc cursorDoc = mongoTemplate.findAndModify(
                 query,
                 update,
                 FindAndModifyOptions.options().upsert(true).returnNew(true),
                 ConversationControlEventCursorDoc.class
         );
-        return cursorDoc == null ? 0L : cursorDoc.getCursor();
+        long localCursor = cursorDoc == null ? legacyCursor + 1L : cursorDoc.getCursor();
+        return encodeCursor(localCursor, shardId);
     }
 
     private ConversationControlEvent toDomain(ConversationControlEventDoc doc) {
@@ -184,6 +252,66 @@ public class ConversationControlEventRepositoryImpl implements ConversationContr
                 && !event.getTargetUserIds().isEmpty()
                 && event.getTargetUserIds().stream().noneMatch(ConversationControlEventRepositoryImpl::isBlank)
                 && event.getExpiresAt() > Instant.now().toEpochMilli();
+    }
+
+    static int cursorShard(String targetUserId) {
+        return Math.floorMod(targetUserId.hashCode(), CURSOR_SHARD_COUNT);
+    }
+
+    static long encodeCursor(long localCursor, int shardId) {
+        if (localCursor > (Long.MAX_VALUE - shardId) / CURSOR_SHARD_COUNT) {
+            throw new IllegalStateException("Conversation control event cursor exhausted");
+        }
+        return localCursor * CURSOR_SHARD_COUNT + shardId;
+    }
+
+    static List<List<String>> partitionTargets(List<String> targetUserIds) {
+        Map<Integer, List<String>> byShard = new LinkedHashMap<>();
+        targetUserIds.stream().distinct().forEach(target ->
+                byShard.computeIfAbsent(cursorShard(target), ignored -> new ArrayList<>()).add(target));
+        List<List<String>> partitions = new ArrayList<>();
+        for (List<String> shardTargets : byShard.values()) {
+            shardTargets.sort(String::compareTo);
+            for (int offset = 0; offset < shardTargets.size(); offset += MAX_TARGETS_PER_EVENT) {
+                partitions.add(new ArrayList<>(shardTargets.subList(
+                        offset, Math.min(offset + MAX_TARGETS_PER_EVENT, shardTargets.size()))));
+            }
+        }
+        return partitions;
+    }
+
+    private static ConversationControlEvent copyWithTargets(ConversationControlEvent source, List<String> targets) {
+        ConversationControlEvent copy = new ConversationControlEvent();
+        copy.setConversationId(source.getConversationId());
+        copy.setType(source.getType());
+        copy.setTargetUserIds(targets);
+        copy.setPayload(source.getPayload());
+        copy.setExpiresAt(source.getExpiresAt());
+        return copy;
+    }
+
+    private static void validateSingleShardEvent(ConversationControlEvent event) {
+        if (isBlank(event.getEventId())) {
+            throw new IllegalArgumentException("Single control event requires a stable eventId");
+        }
+        if (event.getTargetUserIds().size() > MAX_TARGETS_PER_EVENT) {
+            throw new IllegalArgumentException("Single control event target count exceeds " + MAX_TARGETS_PER_EVENT);
+        }
+        int shard = cursorShard(event.getTargetUserIds().get(0));
+        if (event.getTargetUserIds().stream().anyMatch(target -> cursorShard(target) != shard)) {
+            throw new IllegalArgumentException("Single control event targets must belong to one cursor shard");
+        }
+    }
+
+    static String partitionEventId(String logicalEventId, List<String> targets) {
+        int shard = cursorShard(targets.get(0));
+        String material = logicalEventId + "\n" + String.join("\n", targets);
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(material.getBytes(StandardCharsets.UTF_8));
+            return logicalEventId + ":p" + shard + ":" + HexFormat.of().formatHex(digest, 0, 12);
+        } catch (NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException("SHA-256 is unavailable", impossible);
+        }
     }
 
     private static long toEpochMilli(Instant instant) {

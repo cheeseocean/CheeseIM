@@ -18,11 +18,14 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * 控制事件 outbox 的可靠在线投递补偿器。
  *
- * <p>扫描仅用于发现候选；每个事件仍先原子 claim，再按目标用户逐一交给跨节点控制通知投递器。
+ * <p>扫描仅用于发现候选；每个事件仍先原子 claim，再按已受上限保护的目标用户分片逐一交给跨节点控制通知投递器。
+ * 分片事件拥有独立 eventId，失败重试和完成确认不会阻塞同一大群的其他分片。
  * 任何目标未能受理时会有限重试；达到上限后结束在线投递，离线客户端仍通过控制事件游标接口补齐，
  * 避免长期离线用户导致 outbox 热循环。该路径绝不触发离线推送。
  */
@@ -57,7 +60,12 @@ public class ControlEventDeliveryScheduler {
     public void deliverClaimableEvents() {
         List<ConversationControlEvent> candidates = controlEventRepository.findClaimable(
                 batchSize);
+        Set<String> claimedEventIds = new HashSet<>();
         for (ConversationControlEvent candidate : candidates) {
+            if (candidate == null || candidate.getEventId() == null
+                    || !claimedEventIds.add(candidate.getEventId())) {
+                continue;
+            }
             controlEventRepository.claim(candidate.getEventId(), claimLeaseMillis)
                     .ifPresent(this::deliverClaimedEvent);
         }
@@ -93,6 +101,7 @@ public class ControlEventDeliveryScheduler {
             // payload 固定为 conversationId/senderId/action/expiresAt，ProtoEnvelopeMapper 会编码为
             // ProtoChatTypingNotify；START 与 STOP 均由 action 与 expiresAt 表达。
             case TYPING_STARTED, TYPING_STOPPED -> CommandType.CHAT_TYPING;
+            case DELIVERY_ADVANCED -> CommandType.CHAT_DELIVERY;
         };
         Map<String, Object> payload = event.getPayload() == null || event.getPayload().isBlank()
                 ? Map.of()

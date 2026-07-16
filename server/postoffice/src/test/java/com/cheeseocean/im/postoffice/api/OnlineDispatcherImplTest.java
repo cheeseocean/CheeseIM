@@ -3,14 +3,15 @@ package com.cheeseocean.im.postoffice.api;
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchMessageReq;
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchPayload;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
+import com.cheeseocean.im.common.api.protocol.proto.ProtoServerEnvelope;
 import com.cheeseocean.im.common.api.enums.CommandType;
 import com.cheeseocean.im.postoffice.connection.ConnectionManager;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.postoffice.config.NodeIdentityProvider;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.cheeseocean.im.postoffice.dedup.DeliveryDedupStore;
 import io.netty.channel.embedded.EmbeddedChannel;
-import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -23,13 +24,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 
 class OnlineDispatcherImplTest {
 
     @Test
     void dispatchShouldFanoutToActiveUserConnectionsWhenTargetsAreOmitted() throws Exception {
         ConnectionManager connectionManager = connectionManager();
-        ReflectionTestUtils.setField(connectionManager, "objectMapper", new ObjectMapper());
 
         EmbeddedChannel activeChannel = new EmbeddedChannel();
         UserConnection activeConnection = new UserConnection("conn-1", "userB", 1, activeChannel);
@@ -57,21 +62,16 @@ class OnlineDispatcherImplTest {
         assertEquals("conn-1", resp.getResults().get(0).getConnectionId());
         assertEquals(true, resp.getResults().get(0).isSuccess());
 
-        TextWebSocketFrame outbound = activeChannel.readOutbound();
+        BinaryWebSocketFrame outbound = activeChannel.readOutbound();
         assertNotNull(outbound);
-        assertFalse(outbound.text().isBlank());
-        Map<String, Object> envelope = new ObjectMapper().readValue(
-                outbound.text(),
-                new TypeReference<Map<String, Object>>() {}
-        );
-        assertEquals(CommandType.CHAT_RECV.getCode(), envelope.get("command"));
-        assertEquals("srv-1", envelope.get("requestId"));
+        ProtoServerEnvelope envelope = ProtoServerEnvelope.parseFrom(ByteBufUtil.getBytes(outbound.content()));
+        assertEquals(CommandType.CHAT_RECV.getCode(), envelope.getCommand());
+        assertEquals("srv-1", envelope.getRequestId());
     }
 
     @Test
     void dispatchShouldWriteTcpFramesForTcpConnections() {
         ConnectionManager connectionManager = connectionManager();
-        ReflectionTestUtils.setField(connectionManager, "objectMapper", new ObjectMapper());
 
         EmbeddedChannel activeChannel = new EmbeddedChannel();
         UserConnection activeConnection = new UserConnection("conn-2", "userB", 2, activeChannel);
@@ -108,7 +108,6 @@ class OnlineDispatcherImplTest {
     @Test
     void dispatchShouldReturnFailureWhenRequestedConnectionIsMissing() {
         ConnectionManager connectionManager = connectionManager();
-        ReflectionTestUtils.setField(connectionManager, "objectMapper", new ObjectMapper());
 
         OnlineDispatcherImpl service = new OnlineDispatcherImpl(connectionManager);
 
@@ -128,8 +127,6 @@ class OnlineDispatcherImplTest {
     @Test
     void dispatchShouldUseFriendNotifyTypeForRelationshipNotifications() throws Exception {
         ConnectionManager connectionManager = connectionManager();
-        ObjectMapper objectMapper = new ObjectMapper();
-        ReflectionTestUtils.setField(connectionManager, "objectMapper", objectMapper);
 
         EmbeddedChannel activeChannel = new EmbeddedChannel();
         UserConnection activeConnection = new UserConnection("conn-3", "userB", 1, activeChannel);
@@ -159,15 +156,38 @@ class OnlineDispatcherImplTest {
         assertEquals(1, resp.getResults().size());
         assertTrue(resp.getResults().get(0).isSuccess());
 
-        TextWebSocketFrame outbound = activeChannel.readOutbound();
+        BinaryWebSocketFrame outbound = activeChannel.readOutbound();
         assertNotNull(outbound);
-        @SuppressWarnings("unchecked")
-        Map<String, Object> frame = objectMapper.readValue(outbound.text(), Map.class);
-        assertEquals(CommandType.CHAT_RECV.getCode(), frame.get("command"));
-        @SuppressWarnings("unchecked")
-        Map<String, Object> body = (Map<String, Object>) frame.get("body");
-        assertEquals("friend_request_created", ((Map<?, ?>) body.get("msg")).get("attributes") instanceof Map<?, ?> attributes
-                ? attributes.get("notificationType") : null);
+        ProtoServerEnvelope frame = ProtoServerEnvelope.parseFrom(ByteBufUtil.getBytes(outbound.content()));
+        assertEquals(CommandType.CHAT_RECV.getCode(), frame.getCommand());
+        assertEquals("friend_request_created", frame.getChatMessage().getAttributesMap().get("notificationType"));
+    }
+
+    @Test
+    void failedSendShouldAbortClaimAndAllowRetry() {
+        ConnectionManager manager = mock(ConnectionManager.class);
+        UserConnection connection = mock(UserConnection.class);
+        when(connection.getConnectionID()).thenReturn("conn-1");
+        when(connection.getUserID()).thenReturn("userB");
+        when(manager.getConnection("conn-1")).thenReturn(connection);
+        DeliveryDedupStore.Claim first = DeliveryDedupStore.Claim.acquired("key", "token-1");
+        DeliveryDedupStore.Claim retry = DeliveryDedupStore.Claim.acquired("key", "token-2");
+        when(manager.claimDelivery("srv-1", "userB", "conn-1")).thenReturn(first, retry);
+        when(manager.sendMessageToConnection(eq(connection), any(ServerEnvelope.class))).thenReturn(false, true);
+        when(manager.commitDelivery(retry)).thenReturn(true);
+        OnlineDispatcherImpl dispatcher = new OnlineDispatcherImpl(manager);
+        DispatchMessageReq request = new DispatchMessageReq();
+        request.setUserId("userB");
+        request.setConnectionIds(List.of("conn-1"));
+        request.setPayload(payload("srv-1", "hello"));
+
+        var failed = dispatcher.dispatchMessage(request);
+        var retried = dispatcher.dispatchMessage(request);
+
+        assertEquals("SEND_FAILED", failed.getResults().get(0).getCode());
+        assertEquals("OK", retried.getResults().get(0).getCode());
+        verify(manager).abortDelivery(first);
+        verify(manager).commitDelivery(retry);
     }
 
     private static ConnectionManager connectionManager() {

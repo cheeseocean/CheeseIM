@@ -1,15 +1,20 @@
 package com.cheeseocean.im.postman.delivery;
 
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchMessageReq;
+import com.cheeseocean.im.common.api.dto.route.NodeQueueMessage;
+import com.cheeseocean.im.common.api.enums.NodeQueueMessageType;
 import com.cheeseocean.im.common.api.rpc.NodeDeliveryService;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
+import com.cheeseocean.im.common.core.queue.NodeQueueRedisScripts;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 /**
  * 基于 Redis LIST 的节点投递服务实现。
@@ -59,8 +64,14 @@ public class RedisNodeDeliveryService implements NodeDeliveryService {
 
         String queueKey = RedisKeys.deliveryNodeQueue(gatewayNode);
         try {
-            String json = objectMapper.writeValueAsString(req);
-            redisTemplate.opsForList().leftPush(queueKey, json);
+            String json = serializeDelivery(req);
+            Long accepted = redisTemplate.execute(NodeQueueRedisScripts.ENQUEUE, List.of(queueKey),
+                    json, Long.toString(NodeQueueRedisScripts.MAX_QUEUE_SIZE),
+                    Long.toString(NodeQueueRedisScripts.QUEUE_TTL_SECONDS));
+            if (!Long.valueOf(1L).equals(accepted)) {
+                log.error("Node delivery queue full or unavailable, nodeId={}", gatewayNode);
+                return false;
+            }
             log.debug("Enqueued delivery to nodeId={}, userId={}, queueKey={}", gatewayNode, req.getUserId(), queueKey);
             return true;
         } catch (JsonProcessingException e) {
@@ -70,5 +81,10 @@ public class RedisNodeDeliveryService implements NodeDeliveryService {
             log.error("Failed to enqueue delivery to nodeId={}, userId={}", gatewayNode, req.getUserId(), e);
             return false;
         }
+    }
+
+    String serializeDelivery(DispatchMessageReq req) throws JsonProcessingException {
+        String payload = objectMapper.writeValueAsString(req);
+        return objectMapper.writeValueAsString(NodeQueueMessage.of(NodeQueueMessageType.DELIVERY, payload));
     }
 }

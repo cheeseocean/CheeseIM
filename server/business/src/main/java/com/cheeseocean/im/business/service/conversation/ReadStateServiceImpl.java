@@ -17,6 +17,7 @@ import com.cheeseocean.im.common.core.business.repository.ConversationVersionLog
 import com.cheeseocean.im.common.core.business.repository.ConversationControlEventRepository;
 import com.cheeseocean.im.common.core.business.repository.UserConversationSyncPointRepository;
 import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
+import com.cheeseocean.im.common.core.metrics.ImMetrics;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.stereotype.Service;
@@ -79,26 +80,32 @@ public class ReadStateServiceImpl implements ReadStateService {
     @Override
     public ReadSeqUpdate acknowledge(String userId, String conversationId, long requestedReadSeq) {
         if (isBlank(userId) || isBlank(conversationId) || requestedReadSeq <= 0) {
+            ImMetrics.readAdvance("invalid");
             return null;
         }
         UserConversation conversation = conversationService.getConversation(userId, conversationId);
         if (conversation == null) {
+            ImMetrics.readAdvance("not_found");
             return null;
         }
 
-        long currentReadSeq = resolveReadSeq(userId, conversationId);
-        long maxSeq = resolveMaxSeq(userId, conversationId);
-        long boundedReadSeq = Math.min(requestedReadSeq, maxSeq);
-        if (boundedReadSeq <= currentReadSeq) {
-            return result(userId, conversationId, currentReadSeq, false, List.of());
+        long knownReadSeq = resolveReadSeq(userId, conversationId);
+        long knownMaxSeq = resolveMaxSeq(userId, conversationId);
+        ConversationStateStore.ReadState state = conversationStateStore.advanceReadState(
+                userId, conversationId, requestedReadSeq, knownReadSeq, knownMaxSeq);
+        // 重复 ACK 同样补写 Mongo，避免首次推进后进程在持久化入队前退出造成永久缺口。
+        if (state.readSeq() > 0) {
+            readSeqPersistenceWriter.enqueue(userId, conversationId, state.readSeq());
+        }
+        if (!state.changed()) {
+            ImMetrics.readAdvance("unchanged");
+            return result(userId, conversationId, state.readSeq(), false, List.of());
         }
 
-        conversationStateStore.setUserReadSeq(userId, conversationId, boundedReadSeq);
-        conversationStateStore.setUnread(userId, conversationId, safeUnreadCount(maxSeq, boundedReadSeq));
-        readSeqPersistenceWriter.enqueue(userId, conversationId, boundedReadSeq);
         versionLogRepository.append(userId, conversationId, ConversationVersionOperation.READ_STATE_UPDATED);
-        ReadSeqUpdate update = result(userId, conversationId, boundedReadSeq, true, notificationTargets(conversation, userId));
+        ReadSeqUpdate update = result(userId, conversationId, state.readSeq(), true, notificationTargets(conversation, userId));
         dispatchReadNotification(update);
+        ImMetrics.readAdvance("advanced");
         return update;
     }
 
@@ -136,10 +143,6 @@ public class ReadStateServiceImpl implements ReadStateService {
         return targets;
     }
 
-    private int safeUnreadCount(long maxSeq, long readSeq) {
-        return (int) Math.min(Integer.MAX_VALUE, Math.max(0L, maxSeq - readSeq));
-    }
-
     private ReadSeqUpdate result(String userId, String conversationId, long readSeq, boolean changed,
                                  List<String> notificationTargets) {
         ReadSeqUpdate result = new ReadSeqUpdate();
@@ -160,42 +163,54 @@ public class ReadStateServiceImpl implements ReadStateService {
                 "readerId", update.getReaderUserId(),
                 "readSeq", update.getReadSeq(),
                 "updatedAt", System.currentTimeMillis());
-        ConversationControlEvent event = appendControlEvent(update, body);
-        String deliveryId = event == null ? "read:" + update.getReaderUserId() + ":" + update.getConversationId() + ":" + update.getReadSeq() : event.getEventId();
+        List<ConversationControlEvent> events = appendControlEvents(update, body);
         if (controlNotificationDispatcher == null) {
             return;
         }
+        if (events.isEmpty()) {
+            dispatchReadPartition(update.getNotifyUserIds(),
+                    "read:" + update.getReaderUserId() + ":" + update.getConversationId() + ":" + update.getReadSeq(), body);
+            return;
+        }
+        for (ConversationControlEvent event : events) {
+            dispatchReadPartition(event.getTargetUserIds(), event.getEventId(), body);
+        }
+    }
+
+    private void dispatchReadPartition(List<String> targetUserIds, String deliveryId, Map<String, Object> body) {
         ServerEnvelope envelope = ServerEnvelope.of(CommandType.CHAT_READ, deliveryId, body);
-        for (String userId : update.getNotifyUserIds()) {
-            if (isBlank(userId)) {
-                continue;
-            }
-            ControlNotificationReq request = new ControlNotificationReq();
-            request.setUserId(userId);
-            request.setEnvelope(envelope);
-            request.setDeliveryId(deliveryId);
-            try {
-                controlNotificationDispatcher.dispatch(request);
-            } catch (RuntimeException ignored) {
-                // 控制通知失败由离线 read snapshot 收敛，不能回滚已提交的单调 readSeq。
+        for (String userId : targetUserIds) {
+            if (!isBlank(userId)) {
+                ControlNotificationReq request = new ControlNotificationReq();
+                request.setUserId(userId);
+                request.setEnvelope(envelope);
+                request.setDeliveryId(deliveryId);
+                try {
+                    controlNotificationDispatcher.dispatch(request);
+                } catch (RuntimeException ignored) {
+                    // 控制通知失败由离线 read snapshot 收敛，不能回滚已提交的单调 readSeq。
+                }
             }
         }
     }
 
-    private ConversationControlEvent appendControlEvent(ReadSeqUpdate update, Map<String, Object> body) {
+    private List<ConversationControlEvent> appendControlEvents(ReadSeqUpdate update, Map<String, Object> body) {
         if (controlEventRepository == null || objectMapper == null) {
-            return null;
+            return List.of();
         }
         try {
             ConversationControlEvent event = new ConversationControlEvent();
+            event.setEventId("read:" + update.getReaderUserId() + ":" + update.getConversationId()
+                    + ":" + update.getReadSeq());
             event.setConversationId(update.getConversationId());
             event.setType(ControlEventTypeEnum.READ_ADVANCED);
             event.setTargetUserIds(update.getNotifyUserIds());
             event.setPayload(objectMapper.writeValueAsString(body));
             event.setExpiresAt(System.currentTimeMillis() + 180L * 24 * 60 * 60 * 1000);
-            return controlEventRepository.append(event);
+            List<ConversationControlEvent> events = controlEventRepository.appendPartitioned(event);
+            return events == null ? List.of() : events;
         } catch (Exception ignored) {
-            return null;
+            return List.of();
         }
     }
 

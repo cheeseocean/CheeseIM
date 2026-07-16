@@ -72,12 +72,17 @@ subprojects {
             dependency "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:${jacksonVersion}"
             dependency "org.slf4j:slf4j-api:${slf4jVersion}"
             dependency "ch.qos.logback:logback-classic:${logbackVersion}"
+            dependency 'com.google.protobuf:protobuf-java:3.25.3'
+            dependency 'com.google.protobuf:protobuf-java-util:3.25.3'
             dependency "com.alibaba.nacos:nacos-client:${nacosVersion}"
         }
     }
 
     configurations.all {
         resolutionStrategy {
+            // protoc 与 runtime 必须全仓一致；覆盖 Firebase BOM 的 3.24.x 降级。
+            force 'com.google.protobuf:protobuf-java:3.25.3'
+            force 'com.google.protobuf:protobuf-java-util:3.25.3'
             // 强制使用特定版本解决冲突
             force "org.slf4j:slf4j-api:${slf4jVersion}"
             force "ch.qos.logback:logback-classic:${logbackVersion}"
@@ -100,6 +105,16 @@ subprojects {
     }
 
     dependencies {
+        constraints {
+            implementation('com.google.protobuf:protobuf-java') {
+                version { strictly '3.25.3' }
+                because 'protoc 3.25.3 generated code requires the matching runtime across every module'
+            }
+            implementation('com.google.protobuf:protobuf-java-util') {
+                version { strictly '3.25.3' }
+                because 'Firebase must not downgrade the shared Protobuf runtime'
+            }
+        }
         // 测试依赖
         testImplementation 'org.springframework.boot:spring-boot-starter-test'
         testImplementation "org.junit.jupiter:junit-jupiter"

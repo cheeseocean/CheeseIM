@@ -14,11 +14,20 @@ import java.util.Optional;
 public interface ConversationControlEventRepository {
 
     /**
-     * 追加待投递控制事件，并填充 eventId、cursor、创建时间和初始状态。
+     * 追加单个待投递控制事件，并填充 cursor、创建时间和初始状态。
      *
-     * <p>expiresAt 必须由调用方按事件语义给出：输入中通常为秒级，已读和撤回应覆盖客户端同步窗口。
+     * <p>该入口只接受 eventId 非空、目标不超过 200 且全部属于同一 cursor shard 的事件。
+     * 大目标集合必须调用 {@link #appendPartitioned(ConversationControlEvent)}。
      */
     ConversationControlEvent append(ConversationControlEvent event);
+
+    /**
+     * 按目标用户所属游标分片和单文档目标上限追加事件。
+     *
+     * <p>分片 eventId 由逻辑 eventId、shard 和目标摘要确定；相同逻辑事件失败重入只补写缺失分片，
+     * 不会重复生成 cursor 或重复插入已成功分片。
+     */
+    List<ConversationControlEvent> appendPartitioned(ConversationControlEvent event);
 
     /**
      * 按用户和稳定游标读取未过期控制事件，结果按 cursor 升序排列。

@@ -28,6 +28,8 @@ public enum CommandType implements IEnum {
     FORCE_LOGOUT(35, "强制下线通知"),
     /** 输入中瞬时控制信号。 */
     CHAT_TYPING(36, "输入中"),
+    /** 客户端设备送达高水位确认及发送方通知。 */
+    CHAT_DELIVERY(37, "设备送达回执"),
     /** 错误响应。 */
     ERROR(90, "错误响应");
 

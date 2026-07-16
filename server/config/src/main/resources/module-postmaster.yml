@@ -15,6 +15,7 @@ cheeseim:
     revoke-window-seconds: ${CHEESEIM_MESSAGE_REVOKE_WINDOW_SECONDS:120}
   typing:
     default-ttl-seconds: ${CHEESEIM_TYPING_DEFAULT_TTL_SECONDS:4}
+    max-normal-group-members: ${CHEESEIM_TYPING_MAX_NORMAL_GROUP_MEMBERS:100}
   delivery:
     group-fanout:
       batch-size: ${CHEESEIM_DELIVERY_GROUP_FANOUT_BATCH_SIZE:500}

@@ -13,7 +13,9 @@ public enum ControlEventTypeEnum {
     /** 用户开始输入。 */
     TYPING_STARTED(3, "开始输入"),
     /** 用户停止输入。 */
-    TYPING_STOPPED(4, "停止输入");
+    TYPING_STOPPED(4, "停止输入"),
+    /** 接收设备送达水位已推进。 */
+    DELIVERY_ADVANCED(5, "设备送达水位推进");
 
     private final int code;
     private final String desc;

@@ -65,7 +65,7 @@
 
 ## 6. 控制事件边界
 
-旧 `IngressEventListener.preProcessReadReceipts` 仍是普通消息 `READ_RECEIPT` 遗留旁路，不能作为已读实现。typed `CHAT_READ` 统一由 business 的 `ReadStateService` 处理；`CHAT_REVOKE` 由本模块的 `MessageMutationService` 处理；`CHAT_TYPING` 由 `TypingStateServiceImpl` 校验会话成员后以 3-5 秒短 TTL 通知在线目标。三者均追加 `conversation_control_event` 供 postman 补偿和客户端 cursor 补齐，输入中不写消息 history、ingress 或 seq。
+普通消息 `READ_RECEIPT` 遗留旁路已删除，网关明确拒绝该内容类型，postmaster 对遗留队列数据防御性丢弃；typed `CHAT_READ` 是唯一已读入口，统一由 business 的 `ReadStateService` 处理。`CHAT_REVOKE` 由本模块的 `MessageMutationService` 处理，已读与撤回以业务稳定 ID（read 高水位 / mutationId）追加 `conversation_control_event`，repository 再生成确定性分片 ID 并幂等 upsert；中途失败重入只补缺失分片，供 postman 补偿和客户端 cursor 补齐。`CHAT_TYPING` 是纯瞬时在线信号：`TypingStateServiceImpl` 校验会话成员后，通过 Redis `SET NX EX` 按 sender + conversation 做 3-5 秒原子节流/TTL，只尽力通知在线目标，不写 Mongo outbox、message history、ingress 或 seq。普通群成员数默认上限 100（可配置），超级群禁用输入中广播。
 
 ## 7. 边界
 

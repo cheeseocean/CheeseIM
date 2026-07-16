@@ -10,6 +10,7 @@ import com.cheeseocean.im.common.api.route.OnlineRouteQueryService;
 import com.cheeseocean.im.common.api.rpc.NodeDeliveryService;
 import com.cheeseocean.im.common.api.rpc.OnlineDispatcher;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -69,10 +70,12 @@ class ControlNotificationDispatcherImplTest {
     private static ControlNotificationDispatcherImpl dispatcher(OnlineRouteQueryService routeQuery,
                                                                  OnlineDispatcher onlineDispatcher,
                                                                  NodeDeliveryService nodeDelivery) {
-        ControlNotificationDispatcherImpl dispatcher = new ControlNotificationDispatcherImpl();
+        @SuppressWarnings("unchecked")
+        ObjectProvider<NodeDeliveryService> provider = mock(ObjectProvider.class);
+        when(provider.getIfAvailable()).thenReturn(nodeDelivery);
+        ControlNotificationDispatcherImpl dispatcher = new ControlNotificationDispatcherImpl(provider);
         ReflectionTestUtils.setField(dispatcher, "onlineRouteQueryService", routeQuery);
         ReflectionTestUtils.setField(dispatcher, "onlineDispatcher", onlineDispatcher);
-        ReflectionTestUtils.setField(dispatcher, "nodeDeliveryService", nodeDelivery);
         return dispatcher;
     }
 

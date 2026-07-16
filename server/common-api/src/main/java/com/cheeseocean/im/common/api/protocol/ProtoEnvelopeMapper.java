@@ -8,6 +8,8 @@ import com.cheeseocean.im.common.api.protocol.proto.ProtoChatSendAck;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoChatReadNotify;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoChatRevokeNotify;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoChatTypingNotify;
+import com.cheeseocean.im.common.api.protocol.proto.ProtoChatDeliveryNotify;
+import com.cheeseocean.im.common.api.protocol.proto.ProtoChatSendAcceptedState;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoClientEnvelope;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoConnectResponse;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoErrorResponse;
@@ -49,6 +51,7 @@ public final class ProtoEnvelopeMapper {
             case CHAT_READ -> builder.setChatReadNotify(toChatReadNotify(envelope.getBody()));
             case CHAT_REVOKE -> builder.setChatRevokeNotify(toChatRevokeNotify(envelope.getBody()));
             case CHAT_TYPING -> builder.setChatTypingNotify(toChatTypingNotify(envelope.getBody()));
+            case CHAT_DELIVERY -> builder.setChatDeliveryNotify(toChatDeliveryNotify(envelope.getBody()));
             case FORCE_LOGOUT -> builder.setForceLogout(toForceLogoutNotify(envelope.getBody()));
             case ERROR -> builder.setError(toErrorResponse(envelope.getBody()));
             default -> builder.setError(ProtoErrorResponse.newBuilder()
@@ -66,6 +69,7 @@ public final class ProtoEnvelopeMapper {
             case CHAT_READ -> proto.getChatRead().toByteArray();
             case CHAT_REVOKE -> proto.getChatRevoke().toByteArray();
             case CHAT_TYPING -> proto.getChatTyping().toByteArray();
+            case CHAT_DELIVERY_ACK -> proto.getChatDeliveryAck().toByteArray();
             case PAYLOAD_NOT_SET -> null;
         };
     }
@@ -106,6 +110,7 @@ public final class ProtoEnvelopeMapper {
         Object serverMsgId = firstNonNull(map.get("serverMsgID"), map.get("serverMsgId"));
         Object clientMsgId = firstNonNull(map.get("clientMsgID"), map.get("clientMsgId"));
         Object sendTime = map.get("sendTime");
+        Object acceptedAt = map.get("acceptedAt");
         if (serverMsgId != null) {
             builder.setServerMsgId(String.valueOf(serverMsgId));
         }
@@ -115,6 +120,10 @@ public final class ProtoEnvelopeMapper {
         if (sendTime instanceof Number number) {
             builder.setSendTime(number.longValue());
         }
+        if (acceptedAt instanceof Number number) {
+            builder.setAcceptedAt(number.longValue());
+        }
+        builder.setAcceptedState(ProtoChatSendAcceptedState.CHAT_SEND_BROKER_ACCEPTED);
         return builder.build();
     }
 
@@ -163,6 +172,17 @@ public final class ProtoEnvelopeMapper {
                 .setSenderId(stringValue(map.get("senderId")))
                 .setAction((int) longValue(map.get("action")))
                 .setExpiresAt(longValue(map.get("expiresAt")))
+                .build();
+    }
+
+    private static ProtoChatDeliveryNotify toChatDeliveryNotify(Object body) {
+        Map<?, ?> map = OBJECT_MAPPER.convertValue(body, Map.class);
+        return ProtoChatDeliveryNotify.newBuilder()
+                .setConversationId(stringValue(map.get("conversationId")))
+                .setRecipientId(stringValue(map.get("recipientId")))
+                .setDeviceId(stringValue(map.get("deviceId")))
+                .setDeliveredSeq(longValue(map.get("deliveredSeq")))
+                .setUpdatedAt(longValue(map.get("updatedAt")))
                 .build();
     }
 

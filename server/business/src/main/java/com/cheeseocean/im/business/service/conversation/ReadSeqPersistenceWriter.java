@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import com.cheeseocean.im.common.core.metrics.ImMetrics;
 
 /**
  * readSeq 异步写入 MongoDB 的写后缓冲（write-behind buffer）。
@@ -36,12 +38,21 @@ public class ReadSeqPersistenceWriter {
     private static final int  DRAIN_BATCH_SIZE = 100;
     private static final long POLL_TIMEOUT_MS  = 1000;
 
-    record ReadSeqEntry(String userId, String conversationId, long readSeq) {}
+    private static final int MAX_RETRY_ATTEMPTS = 3;
+
+    record ReadSeqEntry(String userId, String conversationId, long readSeq, int attempts) {}
+
+    public record WriterStats(long accepted, long overflowFallbacks, long retryScheduled, long exhaustedFailures) {}
 
     private final UserConversationSyncPointRepository offsetRepository;
     private final UserConversationRepository stateRepository;
     private final List<LinkedBlockingQueue<ReadSeqEntry>> queues;
+    private final List<LinkedBlockingQueue<ReadSeqEntry>> fallbackQueues;
     private final List<Thread> drainThreads;
+    private final AtomicLong accepted = new AtomicLong();
+    private final AtomicLong overflowFallbacks = new AtomicLong();
+    private final AtomicLong retryScheduled = new AtomicLong();
+    private final AtomicLong exhaustedFailures = new AtomicLong();
     private volatile boolean running = true;
 
     public ReadSeqPersistenceWriter(UserConversationSyncPointRepository offsetRepository,
@@ -68,11 +79,14 @@ public class ReadSeqPersistenceWriter {
         this.offsetRepository = offsetRepository;
         this.stateRepository = stateRepository;
         this.queues = new ArrayList<>(workerCount);
+        this.fallbackQueues = new ArrayList<>(workerCount);
         this.drainThreads = new ArrayList<>(workerCount);
         for (int i = 0; i < workerCount; i++) {
             LinkedBlockingQueue<ReadSeqEntry> queue = new LinkedBlockingQueue<>(queueCapacityPerWorker);
+            LinkedBlockingQueue<ReadSeqEntry> fallbackQueue = new LinkedBlockingQueue<>(queueCapacityPerWorker);
             queues.add(queue);
-            Thread drainThread = new Thread(() -> drainLoop(queue), "read-seq-drain-" + i);
+            fallbackQueues.add(fallbackQueue);
+            Thread drainThread = new Thread(() -> drainLoop(queue, fallbackQueue), "read-seq-drain-" + i);
             drainThread.setDaemon(true);
             drainThreads.add(drainThread);
             if (startWorkers) {
@@ -82,15 +96,28 @@ public class ReadSeqPersistenceWriter {
     }
 
     /**
-     * 将一条 readSeq 更新入队。队列已满时丢弃并打印警告——Redis 已持有权威值。
+     * 将一条 readSeq 更新入队。两级有界队列都满时同步落 Mongo，失败则明确抛错由请求重试。
      */
     public void enqueue(String userId, String conversationId, long readSeq) {
-        LinkedBlockingQueue<ReadSeqEntry> queue = queues.get(bucketIndex(userId));
-        boolean offered = queue.offer(new ReadSeqEntry(userId, conversationId, readSeq));
-        if (!offered) {
-            log.warn("ReadSeqPersistenceWriter 分桶队列已满，丢弃 readSeq 持久化：userId={} convId={}",
-                    userId, conversationId);
+        int bucket = bucketIndex(userId);
+        ReadSeqEntry entry = new ReadSeqEntry(userId, conversationId, readSeq, 0);
+        if (queues.get(bucket).offer(entry)) {
+            accepted.incrementAndGet();
+            return;
         }
+        if (fallbackQueues.get(bucket).offer(entry)) {
+            accepted.incrementAndGet();
+            overflowFallbacks.incrementAndGet();
+            ImMetrics.writer("read_seq", "fallback");
+            return;
+        }
+        persistSynchronously(entry);
+        accepted.incrementAndGet();
+        ImMetrics.writer("read_seq", "sync_backpressure");
+    }
+
+    public WriterStats stats() {
+        return new WriterStats(accepted.get(), overflowFallbacks.get(), retryScheduled.get(), exhaustedFailures.get());
     }
 
     @PreDestroy
@@ -103,22 +130,32 @@ public class ReadSeqPersistenceWriter {
         for (LinkedBlockingQueue<ReadSeqEntry> queue : queues) {
             queue.drainTo(remaining);
         }
+        for (LinkedBlockingQueue<ReadSeqEntry> fallbackQueue : fallbackQueues) {
+            fallbackQueue.drainTo(remaining);
+        }
         if (!remaining.isEmpty()) {
-            persist(remaining);
+            persist(remaining, null);
         }
     }
 
     // ── 内部实现 ──────────────────────────────────────────────────────────────
 
-    private void drainLoop(LinkedBlockingQueue<ReadSeqEntry> queue) {
+    private void drainLoop(LinkedBlockingQueue<ReadSeqEntry> queue,
+                           LinkedBlockingQueue<ReadSeqEntry> fallbackQueue) {
         while (running) {
             try {
-                ReadSeqEntry first = queue.poll(POLL_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+                ReadSeqEntry first = fallbackQueue.poll();
+                if (first == null) {
+                    first = queue.poll(POLL_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+                }
                 if (first == null) continue;
                 List<ReadSeqEntry> batch = new ArrayList<>(DRAIN_BATCH_SIZE);
                 batch.add(first);
-                queue.drainTo(batch, DRAIN_BATCH_SIZE - 1);
-                persist(batch);
+                fallbackQueue.drainTo(batch, DRAIN_BATCH_SIZE - 1);
+                if (batch.size() < DRAIN_BATCH_SIZE) {
+                    queue.drainTo(batch, DRAIN_BATCH_SIZE - batch.size());
+                }
+                persist(batch, fallbackQueue);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
@@ -132,7 +169,7 @@ public class ReadSeqPersistenceWriter {
         return Math.floorMod(userId.hashCode(), queues.size());
     }
 
-    private void persist(List<ReadSeqEntry> entries) {
+    private void persist(List<ReadSeqEntry> entries, LinkedBlockingQueue<ReadSeqEntry> fallbackQueue) {
         // 按 (userId, conversationId) 聚合，取最大 readSeq
         Map<String, ReadSeqEntry> aggregated = new HashMap<>();
         for (ReadSeqEntry e : entries) {
@@ -149,9 +186,47 @@ public class ReadSeqPersistenceWriter {
                 fields.put("unreadCount", 0);
                 stateRepository.updateFields(e.userId(), e.conversationId(), fields);
             } catch (Exception ex) {
-                log.error("readSeq 持久化失败：userId={} convId={} seq={}",
-                        e.userId(), e.conversationId(), e.readSeq(), ex);
+                if (fallbackQueue != null && e.attempts() < MAX_RETRY_ATTEMPTS
+                        && fallbackQueue.offer(new ReadSeqEntry(
+                        e.userId(), e.conversationId(), e.readSeq(), e.attempts() + 1))) {
+                    retryScheduled.incrementAndGet();
+                    ImMetrics.writer("read_seq", "retry");
+                    log.warn("readSeq 持久化失败，已进入回退队列：userId={} convId={} seq={} attempt={}",
+                            e.userId(), e.conversationId(), e.readSeq(), e.attempts() + 1, ex);
+                } else if (fallbackQueue != null) {
+                    putReliably(fallbackQueue,
+                            new ReadSeqEntry(e.userId(), e.conversationId(), e.readSeq(), 0), "readSeq retry");
+                    ImMetrics.writer("read_seq", "retry_exhausted_backpressure");
+                } else {
+                    exhaustedFailures.incrementAndGet();
+                    ImMetrics.writer("read_seq", "drop");
+                    log.error("readSeq 持久化最终失败：userId={} convId={} seq={} attempts={}",
+                            e.userId(), e.conversationId(), e.readSeq(), e.attempts(), ex);
+                }
             }
         }
     }
+
+    private void putReliably(LinkedBlockingQueue<ReadSeqEntry> queue, ReadSeqEntry entry, String operation) {
+        try {
+            queue.put(entry);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(operation + " interrupted", exception);
+        }
+    }
+
+    private void persistSynchronously(ReadSeqEntry entry) {
+        try {
+            offsetRepository.updateReadSeq(entry.userId(), entry.conversationId(), entry.readSeq());
+            Map<String, Object> fields = new HashMap<>();
+            fields.put("unreadCount", 0);
+            stateRepository.updateFields(entry.userId(), entry.conversationId(), fields);
+        } catch (RuntimeException exception) {
+            exhaustedFailures.incrementAndGet();
+            ImMetrics.writer("read_seq", "sync_failed");
+            throw new IllegalStateException("readSeq 有界缓冲已满且同步持久化失败", exception);
+        }
+    }
+
 }

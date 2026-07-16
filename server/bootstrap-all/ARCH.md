@@ -41,4 +41,4 @@ cd server
 
 - [ ] 加新模块装配需同步本文件 + `server/AGENTS.md` §1.2 依赖矩阵
 - [ ] 改启动端口需同步 `application-all.yml` + 根 `README.md` 端口表
-- [ ] 不要在 all-in-one 启用 Kafka 同时用 Chronicle QueueAdapter（端到端不兼容，见 ASSESSMENT P1-6）
+- [ ] all-in-one 一次只选择一种 `QueueAdapter`；Chronicle 用于单机默认路径，Kafka 需同时启用对应配置与 topic 校验

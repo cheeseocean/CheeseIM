@@ -24,6 +24,11 @@ public class NodeQueueMessage implements Serializable {
      */
     private String payload;
 
+    /**
+     * 当前处理失败次数。消费者重试时递增，达到上限后进入死信队列。
+     */
+    private int retryCount;
+
     public static NodeQueueMessage of(NodeQueueMessageType type, String payload) {
         NodeQueueMessage message = new NodeQueueMessage();
         message.setType(type == null ? null : type.getCode());
@@ -45,5 +50,13 @@ public class NodeQueueMessage implements Serializable {
 
     public void setPayload(String payload) {
         this.payload = payload;
+    }
+
+    public int getRetryCount() {
+        return retryCount;
+    }
+
+    public void setRetryCount(int retryCount) {
+        this.retryCount = retryCount;
     }
 }

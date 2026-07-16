@@ -11,7 +11,7 @@ import java.util.List;
  * 会话控制事件。
  *
  * <p>这是已读、撤回和瞬时输入状态共享的可靠通知载体。{@code cursor} 是服务端分配的
- * 全局稳定游标；客户端按目标用户拉取时只需保存该值，不能以 createdAt 代替。
+ * 用户维度稳定游标；客户端按目标用户拉取时只需保存该值，不能跨用户复用，也不能以 createdAt 代替。
  */
 @Data
 public class ConversationControlEvent implements Serializable {
@@ -20,7 +20,7 @@ public class ConversationControlEvent implements Serializable {
 
     /** 稳定事件 ID，同时是 outbox 主键。 */
     private String eventId;
-    /** 可恢复同步使用的全局递增游标。 */
+    /** 可恢复同步使用的用户维度单调游标。 */
     private long cursor;
     /** 控制事件所属会话。 */
     private String conversationId;

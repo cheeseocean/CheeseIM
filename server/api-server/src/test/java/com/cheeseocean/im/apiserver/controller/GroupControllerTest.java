@@ -6,6 +6,7 @@ import com.cheeseocean.im.common.api.business.domain.Group;
 import com.cheeseocean.im.common.api.business.domain.UserConversation;
 import com.cheeseocean.im.common.api.conversation.ConversationService;
 import com.cheeseocean.im.common.api.enums.GroupStatusEnum;
+import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.api.enums.GroupTypeEnum;
 import com.cheeseocean.im.common.api.enums.NeedVerificationEnum;
 import com.cheeseocean.im.common.api.enums.SessionStatus;
@@ -71,7 +72,7 @@ class GroupControllerTest {
         UserConversation conversation = new UserConversation();
         conversation.setConversationId("g:" + groupId);
         conversation.setTargetId(groupId);
-        conversation.setChatType(2);
+        conversation.setChatType(ChatType.GROUP.getCode());
         return conversation;
     }
 

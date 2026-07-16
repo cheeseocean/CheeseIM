@@ -8,10 +8,12 @@ import com.cheeseocean.im.common.api.protocol.ProtoEnvelopeMapper;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.common.api.rpc.MessageSender;
 import com.cheeseocean.im.common.api.enums.CommandType;
+import com.cheeseocean.im.common.api.enums.ContentType;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import com.cheeseocean.im.postoffice.auth.ConnectionSessionGuard;
 import com.cheeseocean.im.postoffice.connection.ConnectionContext;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
+import com.cheeseocean.im.postoffice.config.ServerProperties;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.slf4j.Logger;
 import org.springframework.stereotype.Component;
@@ -33,9 +35,11 @@ public class ChatMessageHandler implements MessageHandler {
     private MessageSender messageSender;
 
     private final ConnectionSessionGuard connectionSessionGuard;
+    private final ServerProperties.MessageLimitsConfig messageLimits;
 
-    public ChatMessageHandler(ConnectionSessionGuard connectionSessionGuard) {
+    public ChatMessageHandler(ConnectionSessionGuard connectionSessionGuard, ServerProperties serverProperties) {
         this.connectionSessionGuard = connectionSessionGuard;
+        this.messageLimits = serverProperties.getMessageLimits();
     }
 
     @Override
@@ -61,6 +65,10 @@ public class ChatMessageHandler implements MessageHandler {
             if (envelope.getBody() == null) {
                 ServerEnvelope errorResp = ServerEnvelope.error(operationID, 400, "消息数据不能为空");
                 return HandleResult.failure("消息数据不能为空", errorResp);
+            }
+            if (envelope.getBody().length > messageLimits.getMaxEnvelopeBodyBytes()) {
+                ServerEnvelope errorResp = ServerEnvelope.error(operationID, 413, "消息帧超过允许大小");
+                return HandleResult.failure("消息帧超过允许大小", errorResp);
             }
 
             // 解析消息数据
@@ -98,7 +106,8 @@ public class ChatMessageHandler implements MessageHandler {
             ServerEnvelope sendMsgRespMsg = ServerEnvelope.chatSendAck(operationID, Map.of(
                     "serverMsgID", deliveryResult.getServerMsgId(),
                     "clientMsgID", msgData.getClientMsgId(),
-                    "sendTime", System.currentTimeMillis()
+                    "sendTime", System.currentTimeMillis(),
+                    "acceptedAt", deliveryResult.getAcceptedAt()
             ));
 
             return HandleResult.success(sendMsgRespMsg);
@@ -165,6 +174,9 @@ public class ChatMessageHandler implements MessageHandler {
         if (message.getContentType() == null) {
             return "消息类型无效";
         }
+        if (message.getContentType() == ContentType.READ_RECEIPT) {
+            return "普通消息已读回执已废弃，请使用 CHAT_READ";
+        }
 
         // 检查会话类型
         if (message.getChatType() == null) {
@@ -192,8 +204,20 @@ public class ChatMessageHandler implements MessageHandler {
                 return "不支持的会话类型: " + message.getChatType();
         }
 
-        // TODO: 消息长度限制
+        int maxContentBytes = maxContentBytes(message.getContentType());
+        if (message.getContent().length > maxContentBytes) {
+            return "消息内容超过允许大小: " + maxContentBytes + " bytes";
+        }
 
         return null; // 验证通过
+    }
+
+    private int maxContentBytes(ContentType contentType) {
+        return switch (contentType) {
+            case TEXT -> messageLimits.getMaxTextBytes();
+            case CUSTOM -> messageLimits.getMaxCustomBytes();
+            case IMAGE, VOICE, VIDEO, FILE -> messageLimits.getMaxMediaMetadataBytes();
+            default -> messageLimits.getMaxDefaultBytes();
+        };
     }
 }

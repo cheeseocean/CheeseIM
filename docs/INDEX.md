@@ -73,6 +73,8 @@
 | `distro/mongo/enable-im-sharding.js` | 权威 | 已就绪 Mongo 分片集群的 CheeseIM 集合分片与索引初始化脚本 |
 | `server/config/src/main/resources/application-*.yml` | 权威 | 模块配置（详见 `server/AGENTS.md`） |
 | `docs/DEPLOYMENT.md` | 权威 | 单机、独立模块与 cluster overlay 的部署矩阵 |
+| `docs/observability.md` | 权威 | Micrometer 主链路指标目录与 Grafana dashboard 导入说明 |
+| `server/perf/README.md` | 权威 | k6 长连接容量场景、正确性阈值与多节点 chaos 执行手册 |
 
 ## 六、缺失文档（建议补）
 

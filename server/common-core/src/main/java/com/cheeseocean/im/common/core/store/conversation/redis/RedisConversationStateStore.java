@@ -3,6 +3,7 @@ package com.cheeseocean.im.common.core.store.conversation.redis;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -11,6 +12,18 @@ import java.util.Map;
 import java.util.Objects;
 
 public class RedisConversationStateStore implements ConversationStateStore {
+
+    private static final DefaultRedisScript<List> ADVANCE_READ_STATE_SCRIPT =
+            new DefaultRedisScript<>(advanceReadStateLua(), List.class);
+    private static final DefaultRedisScript<Long> ADVANCE_USER_MAX_SCRIPT = new DefaultRedisScript<>("""
+            local current = tonumber(redis.call('GET', KEYS[1])) or 0
+            local requested = tonumber(ARGV[1]) or 0
+            if requested <= current then return current end
+            local delta = requested - current
+            redis.call('SET', KEYS[1], requested)
+            if ARGV[2] == '1' then redis.call('INCRBY', KEYS[2], delta) end
+            return requested
+            """, Long.class);
 
     private final StringRedisTemplate redisTemplate;
 
@@ -39,6 +52,13 @@ public class RedisConversationStateStore implements ConversationStateStore {
     }
 
     @Override
+    public void advanceUserMaxSeq(String userId, String conversationId, long maxSeq, boolean countUnread) {
+        redisTemplate.execute(ADVANCE_USER_MAX_SCRIPT, List.of(
+                RedisKeys.userMaxSeq(userId, conversationId), RedisKeys.userUnread(userId, conversationId)),
+                String.valueOf(maxSeq), countUnread ? "1" : "0");
+    }
+
+    @Override
     public Long getUserMaxSeq(String userId, String conversationId) {
         return parseLong(redisTemplate.opsForValue().get(RedisKeys.userMaxSeq(userId, conversationId)));
     }
@@ -51,6 +71,28 @@ public class RedisConversationStateStore implements ConversationStateStore {
     @Override
     public Long getUserReadSeq(String userId, String conversationId) {
         return parseLong(redisTemplate.opsForValue().get(RedisKeys.userReadSeq(userId, conversationId)));
+    }
+
+    @Override
+    public ReadState advanceReadState(String userId, String conversationId, long requestedReadSeq,
+                                      long knownReadSeq, long knownMaxSeq) {
+        List<String> keys = List.of(
+                RedisKeys.userReadSeq(userId, conversationId),
+                RedisKeys.userMaxSeq(userId, conversationId),
+                RedisKeys.userUnread(userId, conversationId));
+        List<?> result = redisTemplate.execute(
+                ADVANCE_READ_STATE_SCRIPT,
+                keys,
+                String.valueOf(requestedReadSeq),
+                String.valueOf(Math.max(knownReadSeq, 0L)),
+                String.valueOf(Math.max(knownMaxSeq, 0L)));
+        if (result == null || result.size() < 3) {
+            throw new IllegalStateException("Redis advance read state returned an invalid result");
+        }
+        long readSeq = Long.parseLong(String.valueOf(result.get(0)));
+        long unread = Long.parseLong(String.valueOf(result.get(1)));
+        boolean changed = Long.parseLong(String.valueOf(result.get(2))) == 1L;
+        return new ReadState(readSeq, (int) Math.min(Integer.MAX_VALUE, Math.max(0L, unread)), changed);
     }
 
     @Override
@@ -123,5 +165,34 @@ public class RedisConversationStateStore implements ConversationStateStore {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    private static String advanceReadStateLua() {
+        return """
+                local readKey = KEYS[1]
+                local maxKey = KEYS[2]
+                local unreadKey = KEYS[3]
+                local requestedReadSeq = tonumber(ARGV[1]) or 0
+                local knownReadSeq = tonumber(ARGV[2]) or 0
+                local knownMaxSeq = tonumber(ARGV[3]) or 0
+
+                local currentReadSeq = tonumber(redis.call('GET', readKey)) or knownReadSeq
+                if currentReadSeq < knownReadSeq then currentReadSeq = knownReadSeq end
+                local currentMaxSeq = tonumber(redis.call('GET', maxKey)) or knownMaxSeq
+                if currentMaxSeq < knownMaxSeq then currentMaxSeq = knownMaxSeq end
+
+                local nextReadSeq = requestedReadSeq
+                if nextReadSeq > currentMaxSeq then nextReadSeq = currentMaxSeq end
+                if nextReadSeq < currentReadSeq then nextReadSeq = currentReadSeq end
+                local changed = 0
+                if nextReadSeq > currentReadSeq then changed = 1 end
+                local unread = currentMaxSeq - nextReadSeq
+                if unread < 0 then unread = 0 end
+
+                redis.call('SET', readKey, nextReadSeq)
+                redis.call('SET', maxKey, currentMaxSeq)
+                redis.call('SET', unreadKey, unread)
+                return {nextReadSeq, unread, changed}
+                """;
     }
 }

@@ -126,6 +126,10 @@ public final class RedisKeys {
         return "uc:unread:" + userId + ":" + conversationId;
     }
 
+    public static String deviceDeliveredSeq(String userId, String deviceId, String conversationId) {
+        return "uc:delivered:" + userId + ":" + deviceId + ":" + conversationId;
+    }
+
     public static String msgCache(String conversationId, long seq) {
         return "msg:" + conversationId + ":" + seq;
     }
@@ -284,9 +288,8 @@ public final class RedisKeys {
      * 按节点队列 key（P0-1 跨节点在线投递修复 + P1 跨节点踢下线）。
      *
      * <p>存储结构：Redis LIST。
-     * postman 通过 LPUSH 将 {@code DispatchMessageReq} JSON 推入目标节点的队列；
-     * postoffice 控制命令通过 {@code NodeQueueMessage} envelope 入队；
-     * postoffice 的 {@code NodeDeliveryPoller} 通过 BRPOP 消费并本地执行。
+     * 生产者统一通过 {@code NodeQueueMessage} envelope 入队；postoffice 使用可靠 LIST
+     * 将消息从 ready 原子搬到 processing，执行成功后再 ACK 删除。
      *
      * <p>格式：delivery:node:{nodeId}
      *
@@ -294,5 +297,15 @@ public final class RedisKeys {
      */
     public static String deliveryNodeQueue(String nodeId) {
         return "delivery:node:" + nodeId;
+    }
+
+    /** 节点队列处理中列表，供 ACK、失败重试和进程重启恢复。 */
+    public static String deliveryNodeProcessingQueue(String nodeId) {
+        return deliveryNodeQueue(nodeId) + ":processing";
+    }
+
+    /** 节点队列死信列表，保存超过重试上限或无法解析的消息。 */
+    public static String deliveryNodeDeadLetterQueue(String nodeId) {
+        return deliveryNodeQueue(nodeId) + ":dead";
     }
 }

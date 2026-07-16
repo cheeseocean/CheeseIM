@@ -2,6 +2,7 @@ package com.cheeseocean.im.postoffice.service;
 
 import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
+import com.cheeseocean.im.common.core.metrics.ImMetrics;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -17,6 +18,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.LongSupplier;
 
 /**
  * 在线路由表实现：基于 Redis HASH + 单脚本 Lua 完成注册/刷新/踢下线的原子操作。
@@ -56,6 +58,7 @@ public class RedisOnlineRouteService implements OnlineRouteService {
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
     private final Duration routeTtl;
+    private final LongSupplier currentTimeMillis;
 
     private final DefaultRedisScript<Long> registerScript;
     private final DefaultRedisScript<Long> refreshScript;
@@ -75,9 +78,17 @@ public class RedisOnlineRouteService implements OnlineRouteService {
     public RedisOnlineRouteService(StringRedisTemplate redisTemplate,
                                    ObjectMapper objectMapper,
                                    Duration routeTtl) {
+        this(redisTemplate, objectMapper, routeTtl, System::currentTimeMillis);
+    }
+
+    RedisOnlineRouteService(StringRedisTemplate redisTemplate,
+                            ObjectMapper objectMapper,
+                            Duration routeTtl,
+                            LongSupplier currentTimeMillis) {
         this.redisTemplate = Objects.requireNonNull(redisTemplate, "redisTemplate");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
         this.routeTtl = Objects.requireNonNull(routeTtl, "routeTtl");
+        this.currentTimeMillis = Objects.requireNonNull(currentTimeMillis, "currentTimeMillis");
         this.registerScript = new DefaultRedisScript<>(registerLua(), Long.class);
         this.refreshScript = new DefaultRedisScript<>(refreshLua(), Long.class);
         this.unregisterScript = new DefaultRedisScript<>(unregisterLua(), Long.class);
@@ -159,6 +170,7 @@ public class RedisOnlineRouteService implements OnlineRouteService {
         }
         Map<Object, Object> entries = redisTemplate.opsForHash().entries(RedisKeys.onlineUser(userId));
         if (entries == null || entries.isEmpty()) {
+            ImMetrics.route("miss");
             return List.of();
         }
         List<RouteSnapshot> snapshots = new ArrayList<>(entries.size() / 2 + 1);
@@ -176,6 +188,11 @@ public class RedisOnlineRouteService implements OnlineRouteService {
                     long hb = Long.parseLong(String.valueOf(heartbeatValue));
                     snapshot.setHeartbeatAt(hb);
                 }
+                if (isStale(snapshot)) {
+                    ImMetrics.route("stale");
+                    removeStaleUserRoute(userId, snapshot);
+                    continue;
+                }
                 snapshots.add(snapshot);
             } catch (JsonProcessingException e) {
                 logger.warn("Failed to deserialize RouteSnapshot: userId={}, field={}", userId, field, e);
@@ -184,6 +201,7 @@ public class RedisOnlineRouteService implements OnlineRouteService {
             }
         }
         sortByDevice(snapshots);
+        ImMetrics.route(snapshots.isEmpty() ? "miss" : "hit");
         return snapshots;
     }
 
@@ -199,7 +217,13 @@ public class RedisOnlineRouteService implements OnlineRouteService {
         List<RouteSnapshot> snapshots = new ArrayList<>(entries.size());
         for (Map.Entry<Object, Object> entry : entries.entrySet()) {
             try {
-                snapshots.add(objectMapper.readValue(String.valueOf(entry.getValue()), RouteSnapshot.class));
+                RouteSnapshot snapshot = objectMapper.readValue(String.valueOf(entry.getValue()), RouteSnapshot.class);
+                if (isStale(snapshot)) {
+                    redisTemplate.opsForHash().delete(RedisKeys.onlineSession(sessionId), entry.getKey());
+                    removeStaleUserRoute(snapshot.getUserId(), snapshot);
+                    continue;
+                }
+                snapshots.add(snapshot);
             } catch (JsonProcessingException e) {
                 logger.warn("Failed to deserialize session RouteSnapshot: sessionId={}, field={}",
                         sessionId, entry.getKey(), e);
@@ -318,6 +342,28 @@ public class RedisOnlineRouteService implements OnlineRouteService {
         } catch (JsonProcessingException e) {
             logger.warn("Failed to deserialize RouteSnapshot by device: userId={}, deviceId={}", userId, deviceId, e);
             return null;
+        }
+    }
+
+    private boolean isStale(RouteSnapshot snapshot) {
+        Long heartbeatAt = snapshot.getHeartbeatAt() != null
+                ? snapshot.getHeartbeatAt()
+                : snapshot.getConnectedAt();
+        return heartbeatAt == null
+                || heartbeatAt < currentTimeMillis.getAsLong() - routeTtl.toMillis();
+    }
+
+    private void removeStaleUserRoute(String userId, RouteSnapshot snapshot) {
+        if (userId == null || snapshot.getDeviceId() == null) {
+            return;
+        }
+        redisTemplate.opsForHash().delete(RedisKeys.onlineUser(userId),
+                ROUTE_PREFIX + snapshot.getDeviceId(),
+                HEARTBEAT_PREFIX + snapshot.getDeviceId());
+        if (snapshot.getSessionId() != null && !snapshot.getSessionId().isBlank()) {
+            redisTemplate.opsForHash().delete(
+                    RedisKeys.onlineSession(snapshot.getSessionId()),
+                    sessionField(userId, snapshot.getDeviceId()));
         }
     }
 

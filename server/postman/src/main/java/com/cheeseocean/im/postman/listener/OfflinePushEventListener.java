@@ -11,7 +11,6 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class OfflinePushEventListener {
-
     private final MessagePushServiceImpl  messagePushService;
     @DubboReference(check = false)
     private       OnlineRouteQueryService onlineRouteQueryService;
@@ -25,8 +24,9 @@ public class OfflinePushEventListener {
     public void onMessage(byte[] payload) {
         try {
             handle(ProtoOfflinePushEventMapper.parse(payload));
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to parse offline push event payload", e);
+        } catch (java.io.IOException exception) {
+            // 交给 QueueAdapter 的有限重试 + DLT，避免毒消息被日志吞掉后直接提交 offset。
+            throw new IllegalArgumentException("Malformed offline push protobuf payload", exception);
         }
     }
 

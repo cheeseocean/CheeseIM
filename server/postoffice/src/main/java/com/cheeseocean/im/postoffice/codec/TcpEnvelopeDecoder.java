@@ -27,6 +27,11 @@ import java.util.List;
 public class TcpEnvelopeDecoder extends ByteToMessageDecoder {
 
     private static final Logger logger = CommonLoggers.POSTOFFICE;
+    private final int maxDataLength;
+
+    public TcpEnvelopeDecoder(int maxDataLength) {
+        this.maxDataLength = Math.max(1, maxDataLength);
+    }
 
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
@@ -69,9 +74,9 @@ public class TcpEnvelopeDecoder extends ByteToMessageDecoder {
             int dataLength = in.readInt();
 
             // 验证数据长度
-            if (dataLength < 0 || dataLength > TcpEnvelopeCodecSupport.MAX_DATA_LENGTH) {
+            if (dataLength < 0 || dataLength > maxDataLength) {
                 logger.warn("Invalid data length: {}, max allowed: {}",
-                        dataLength, TcpEnvelopeCodecSupport.MAX_DATA_LENGTH);
+                        dataLength, maxDataLength);
                 in.resetReaderIndex();
                 in.readByte();
                 return;

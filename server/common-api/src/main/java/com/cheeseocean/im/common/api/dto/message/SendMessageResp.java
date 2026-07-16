@@ -12,4 +12,6 @@ public class SendMessageResp implements Serializable {
     private boolean accepted;
     private String  clientMsgId;
     private String  serverMsgId;
+    /** broker 确认接收的服务端时间，不代表接收设备送达。 */
+    private long acceptedAt;
 }

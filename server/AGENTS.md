@@ -78,7 +78,8 @@ common-api    → 无其它 Java 业务模块
 ## 3. 枚举规范
 
 - 业务状态/类型/来源/开关**必须枚举**，禁止散落 `public static final String/Integer`。
-- 每个枚举值含 `code` + `desc`，并提供 `fromCode` 反查。
+- 持久化、wire、跨进程及业务状态枚举的每个值含稳定 `code` + `desc`，并提供 `fromCode` 反查。
+- 仅用于 HTTP 展示或节点本地生命周期、且没有按 code 序列化消费方的枚举可只含 `desc`；必须在类注释明确“展示/本地枚举，不作为持久化或 wire code”，禁止后续调用 ordinal 充当编码。
 - ≥1B 使用频次的内/外部码统一用 `int code`（如 `ChatType.PRIVATE(1)`），便于 Protobuf `int32` 编码。
 - 枚举在 Mongo 持久化优先存 `code`，便于跨语言可读。
 - 枚举定义集中在 `common-api/enums/`，禁止业务模块新增枚举到自己的包。
@@ -135,6 +136,8 @@ api-server Controller  ──HTTP──> Facade ──Dubbo──> business / po
 - 后端切换：`cheeseim.queue.type=chronicle`（默认，单机文件）→ `=kafka`（集群）。
 - **Chronicle 仅 dev/单机**，禁止生产使用。
 - Kafka 路径 P0-6 已修复；集群部署用 `application-cluster.yml` 通过环境变量启用 `cheeseim.queue.type=kafka` 与 `spring.kafka.bootstrap-servers`，默认 all-in-one 仍保持 Chronicle。
+- Kafka 主 topic（ingress/history/delivery/offlinepush）及各自 `.DLT` 由统一 topic 契约声明；cluster 强制启用创建/校验，默认 12 分区、3 副本、minISR 2、retention 7 天，可通过 `KAFKA_TOPIC_*` 覆盖。
+- Kafka 批量发送使用事务；`transaction-id-prefix` 必须包含节点唯一部分，多副本不得共用固定 prefix。
 - Topic 命名集中在 `TopicNames`；`buildQueueKey` 用 `ConversationIdUtil`，保证同会话同一 Kafka 分区。
 - 消费者用 `@QueueListener`，批量消费 `batch=true` 优先。
 

@@ -7,12 +7,13 @@ spring:
 
 cheeseim:
   postoffice:
-    # 节点唯一标识。留空则自动生成 UUID。生产环境建议设为 hostname 或 k8s pod name。
+    # 节点唯一标识。all-in-one 可留空；cluster 必须显式设置且重启后保持稳定。
     node-id: ${CHEESEIM_POSTOFFICE_NODE_ID:}
     websocket:
       enabled: true
       port: 5147
       path: "/ws"
+      max-frame-length: ${CHEESEIM_POSTOFFICE_WS_MAX_FRAME_LENGTH:65536}
       ssl:
         enabled: false
         cert-path: ""
@@ -20,6 +21,7 @@ cheeseim:
     tcp:
       enabled: true
       port: 5148
+      max-frame-length: ${CHEESEIM_POSTOFFICE_TCP_MAX_FRAME_LENGTH:65536}
       ssl:
         enabled: false
         cert-path: ""
@@ -31,6 +33,12 @@ cheeseim:
     business:
       threads: ${CHEESEIM_POSTOFFICE_BUSINESS_THREADS:0}
       queue-capacity: ${CHEESEIM_POSTOFFICE_BUSINESS_QUEUE_CAPACITY:20000}
+    message-limits:
+      max-envelope-body-bytes: ${CHEESEIM_MESSAGE_MAX_ENVELOPE_BODY_BYTES:65536}
+      max-text-bytes: ${CHEESEIM_MESSAGE_MAX_TEXT_BYTES:16384}
+      max-custom-bytes: ${CHEESEIM_MESSAGE_MAX_CUSTOM_BYTES:65536}
+      max-media-metadata-bytes: ${CHEESEIM_MESSAGE_MAX_MEDIA_METADATA_BYTES:32768}
+      max-default-bytes: ${CHEESEIM_MESSAGE_MAX_DEFAULT_BYTES:32768}
 logging:
   level:
     com.cheeseocean.im.postoffice: INFO

@@ -41,6 +41,9 @@ public class MessageSenderImpl implements MessageSender {
                                              boolean accepted) {
         SendMessageResp resp = new SendMessageResp();
         resp.setAccepted(accepted);
+        if (accepted) {
+            resp.setAcceptedAt(System.currentTimeMillis());
+        }
         resp.setClientMsgId(msg.getClientMsgId());
         resp.setServerMsgId(msg.getServerMsgId());
         return resp;

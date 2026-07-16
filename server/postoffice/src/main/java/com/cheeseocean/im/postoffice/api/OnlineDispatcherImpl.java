@@ -8,6 +8,7 @@ import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.common.api.rpc.OnlineDispatcher;
 import com.cheeseocean.im.postoffice.connection.ConnectionManager;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
+import com.cheeseocean.im.postoffice.dedup.DeliveryDedupStore;
 import org.apache.dubbo.config.annotation.DubboService;
 
 import java.util.ArrayList;
@@ -74,8 +75,15 @@ public class OnlineDispatcherImpl implements OnlineDispatcher {
         if (deliveryId == null && payload.getMsg() != null) {
             deliveryId = payload.getMsg().getServerMsgId();
         }
-        if (!connectionManager.markDeliveryIfAbsent(deliveryId, userId, connectionId)) {
-            return new DispatchResult(connectionId, true, "DUPLICATE", "delivery already recorded");
+        DeliveryDedupStore.Claim claim = connectionManager.claimDelivery(deliveryId, userId, connectionId);
+        if (claim.status() == DeliveryDedupStore.ClaimStatus.DELIVERED) {
+            return new DispatchResult(connectionId, true, "DUPLICATE", "delivery already committed");
+        }
+        if (claim.status() == DeliveryDedupStore.ClaimStatus.IN_PROGRESS) {
+            return new DispatchResult(connectionId, false, "DELIVERY_IN_PROGRESS", "delivery is being sent");
+        }
+        if (claim.status() != DeliveryDedupStore.ClaimStatus.ACQUIRED) {
+            return new DispatchResult(connectionId, false, "DEDUP_UNAVAILABLE", "delivery dedup unavailable");
         }
         ServerEnvelope envelope = payload.getEnvelope() != null
                 ? payload.getEnvelope()
@@ -84,8 +92,12 @@ public class OnlineDispatcherImpl implements OnlineDispatcher {
                 connection,
                 envelope);
         if (success) {
-            return new DispatchResult(connectionId, true, "OK", "delivered");
+            if (connectionManager.commitDelivery(claim)) {
+                return new DispatchResult(connectionId, true, "OK", "delivered");
+            }
+            return new DispatchResult(connectionId, false, "DEDUP_COMMIT_FAILED", "sent but delivery commit failed");
         }
+        connectionManager.abortDelivery(claim);
         return new DispatchResult(connectionId, false, "SEND_FAILED", "connection send failed");
     }
 }

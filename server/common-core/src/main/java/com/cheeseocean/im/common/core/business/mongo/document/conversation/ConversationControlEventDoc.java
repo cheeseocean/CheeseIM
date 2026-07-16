@@ -16,7 +16,8 @@ import java.util.List;
 @Document("conversation_control_event")
 @CompoundIndexes({
         @CompoundIndex(name = "target_cursor", def = "{'targetUserIds': 1, 'cursor': 1}"),
-        @CompoundIndex(name = "delivery_claim", def = "{'deliveryStateCode': 1, 'claimExpiresAt': 1}")
+        @CompoundIndex(name = "pending_by_shard", def = "{'cursorShard': 1, 'deliveryStateCode': 1, 'cursor': 1, 'expiresAt': 1}"),
+        @CompoundIndex(name = "expired_claim_by_shard", def = "{'cursorShard': 1, 'deliveryStateCode': 1, 'claimExpiresAt': 1, 'cursor': 1}")
 })
 @Data
 public class ConversationControlEventDoc {
@@ -24,6 +25,7 @@ public class ConversationControlEventDoc {
     @Id
     private String id;
     private long cursor;
+    private int cursorShard;
     private String conversationId;
     private int typeCode;
     private List<String> targetUserIds;

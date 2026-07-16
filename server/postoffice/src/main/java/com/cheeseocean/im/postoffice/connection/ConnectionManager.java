@@ -44,7 +44,7 @@ public class ConnectionManager {
 
     /**
      * 投递去重存储。生产环境由 {@link com.cheeseocean.im.postoffice.dedup.RedisDeliveryDedupStore}
-     * 提供 Redis 跨节点去重 + TTL 自动过期；测试环境不注入时走 NO-OP（直接放行）回退，
+     * 提供 Redis 跨节点 claim/commit/abort + TTL 自动过期；测试环境不注入时走 NO-OP（直接放行）回退，
      * 因为单元测试不连 Redis，重复投递的副作用由测试断言决定而非依赖真实去重。
      *
      * <p>禁止再换一份本地 Set 来"修复"无界增长问题（见 ASSESSMENT P0-5 + 根 AGENTS §8）。
@@ -381,16 +381,19 @@ public class ConnectionManager {
         }
     }
 
-    public boolean markDeliveryIfAbsent(String serverMsgId, String userId, String deviceId) {
-        if (serverMsgId == null || userId == null) {
-            return false;
-        }
-        // 生产环境注入 RedisDeliveryDedupStore 走 Redis SET NX EX；测试环境未注入时 NO-OP 放行，
-        // 由测试用例自行断言期望的推送次数（重复判断不是测试关注点）。
+    public DeliveryDedupStore.Claim claimDelivery(String deliveryId, String userId, String deviceId) {
         if (deliveryDedupStore == null) {
-            return true;
+            return DeliveryDedupStore.Claim.acquired("noop", UUID.randomUUID().toString());
         }
-        return deliveryDedupStore.markIfAbsent(serverMsgId, userId, deviceId);
+        return deliveryDedupStore.claim(deliveryId, userId, deviceId);
+    }
+
+    public boolean commitDelivery(DeliveryDedupStore.Claim claim) {
+        return deliveryDedupStore == null || deliveryDedupStore.commit(claim);
+    }
+
+    public boolean abortDelivery(DeliveryDedupStore.Claim claim) {
+        return deliveryDedupStore == null || deliveryDedupStore.abort(claim);
     }
     
     /**

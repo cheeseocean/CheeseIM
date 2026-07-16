@@ -11,9 +11,9 @@
 - **已读是 cursor**：维护 `(userId, conversationId) -> readSeq`，默认单聊向对方公开已读状态，群聊第一阶段只清自己的 unread，不做成员已读列表。
 - **撤回是 mutation**：写 `message_mutation(REVOKED)` overlay，不物理删除原消息；历史查询和增量同步都必须 merge mutation。
 - **入口可以多，核心只能一条**：WS/TCP 与 HTTP 均可作为入口，但必须收敛到同一个 `ReadStateService` / `MessageMutationService`。
-- **控制事件不进普通 message history**：它们不作为用户消息占用普通消息 seq；已读仍写 `ConversationVersionLog.READ_STATE_UPDATED` 以刷新会话快照，已读/撤回/输入中的可靠通知和补拉统一由 control-event outbox cursor 承担。
+- **控制事件不进普通 message history**：它们不作为用户消息占用普通消息 seq；已读仍写 `ConversationVersionLog.READ_STATE_UPDATED` 以刷新会话快照，已读/撤回的可靠通知和补拉由 control-event outbox cursor 承担。输入中是可丢弃的 Redis 短 TTL 在线信号，不进入 outbox。
 
-实现补充（2026-07-14）：上述控制面统一追加 `conversation_control_event` outbox；服务端用全局递增 `cursor` 提供客户端补拉，用 claim lease + `markDelivered` 驱动 postman 重试。已读、撤回和输入中均复用该事件流；输入中仍使用短 TTL，过期后不再返回或投递。
+实现补充（2026-07-16）：已读、撤回追加 `conversation_control_event` outbox；服务端使用 64 个固定 cursor 分片，用户按 userId 稳定映射到一个分片，复合 cursor 保持该用户事件严格单调。客户端仍只保存一个 `long cursor`，但该值仅能用于同一登录用户，不得跨用户复用。分片首次创建时从旧 `global` cursor 之后继续，兼容升级前已保存的 cursor。目标用户先按 cursor 分片分组，再按每文档最多 200 人拆成独立 outbox event；claim lease 与 `markDelivered` 按拆分后的 eventId 独立执行。输入中已从该事件流拆除，改为 Redis 原子 TTL/节流和在线尽力通知。
 
 参考模型：
 

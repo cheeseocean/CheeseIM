@@ -31,6 +31,26 @@ class QueueListenerBeanPostProcessorTest {
         }
     }
 
+    @Test
+    void shouldUseNativeBatchSubscriptionAndPreserveKeyGroups() {
+        TestQueueAdapter adapter = new TestQueueAdapter();
+
+        try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext()) {
+            context.registerBean(QueueAdapter.class, () -> adapter);
+            context.registerBean(QueueListenerBeanPostProcessor.class);
+            context.registerBean(TestBatchConsumer.class);
+            context.refresh();
+
+            adapter.dispatchBatch("topic-b", List.of(
+                    new com.cheeseocean.im.common.core.queue.KeyedMessage<>("c1", new DemoPayload("v1")),
+                    new com.cheeseocean.im.common.core.queue.KeyedMessage<>("c1", new DemoPayload("v2")),
+                    new com.cheeseocean.im.common.core.queue.KeyedMessage<>("c2", new DemoPayload("v3"))));
+
+            assertThat(context.getBean(TestBatchConsumer.class).received())
+                    .containsExactly(List.of("v1", "v2"), List.of("v3"));
+        }
+    }
+
     static final class TestQueueAdapter implements QueueAdapter {
         private final List<SubscriptionRequest> subscriptions = new CopyOnWriteArrayList<>();
 
@@ -49,6 +69,14 @@ class QueueListenerBeanPostProcessorTest {
             return () -> subscriptions.removeIf(subscription -> subscription.handler() == handler);
         }
 
+        @Override
+        public <T> Subscription subscribeBatch(String topic, String group, int concurrency, int batchSize,
+                                               long batchIntervalMs, Class<T> payloadType,
+                                               QueueMessageHandler<List<com.cheeseocean.im.common.core.queue.KeyedMessage<T>>> handler) {
+            subscriptions.add(new SubscriptionRequest(topic, group, concurrency, payloadType, handler));
+            return () -> subscriptions.removeIf(subscription -> subscription.handler() == handler);
+        }
+
         void dispatch(String topic, DemoPayload payload) {
             // 直接调用 handler，不走 send 方法
             for (SubscriptionRequest subscription : subscriptions) {
@@ -56,6 +84,17 @@ class QueueListenerBeanPostProcessorTest {
                     @SuppressWarnings("unchecked")
                     QueueMessageHandler<DemoPayload> handler = (QueueMessageHandler<DemoPayload>) subscription.handler();
                     handler.handle(payload);
+                }
+            }
+        }
+
+        void dispatchBatch(String topic, List<com.cheeseocean.im.common.core.queue.KeyedMessage<DemoPayload>> payloads) {
+            for (SubscriptionRequest subscription : subscriptions) {
+                if (subscription.topic().equals(topic)) {
+                    @SuppressWarnings("unchecked")
+                    QueueMessageHandler<List<com.cheeseocean.im.common.core.queue.KeyedMessage<DemoPayload>>> handler =
+                            (QueueMessageHandler<List<com.cheeseocean.im.common.core.queue.KeyedMessage<DemoPayload>>>) subscription.handler();
+                    handler.handle(payloads);
                 }
             }
         }
@@ -73,6 +112,19 @@ class QueueListenerBeanPostProcessorTest {
         }
 
         List<String> received() {
+            return received;
+        }
+    }
+
+    static final class TestBatchConsumer {
+        private final List<List<String>> received = new CopyOnWriteArrayList<>();
+
+        @QueueListener(topic = "topic-b", group = "g2", concurrency = 2, batch = true, batchSize = 3)
+        public void consume(List<DemoPayload> payloads) {
+            received.add(payloads.stream().map(DemoPayload::value).toList());
+        }
+
+        List<List<String>> received() {
             return received;
         }
     }

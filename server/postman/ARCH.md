@@ -22,9 +22,11 @@
 1. `onlineRouteQueryService.findByUser(userId)` 查 Redis 路由（含真实 `gatewayNode`）
 2. 按 `gatewayNode` 分组路由
 3. 对每个节点：
-   - 如果 `NodeDeliveryService` 可用且 gatewayNode 非空 → LPUSH `DispatchMessageReq` JSON 到 `delivery:node:{gatewayNode}` Redis LIST
+   - 如果 `NodeDeliveryService` 可用且 gatewayNode 非空 → 原子写入 `NodeQueueMessage(DELIVERY)` envelope 到
+     `delivery:node:{gatewayNode}` ready LIST；队列有 100,000 条上限与 24 小时空闲 TTL
    - 否则降级为直接 Dubbo 调用（all-in-one / gatewayNode 为空的历史数据）
-4. 目标 postoffice 节点的 `NodeDeliveryPoller` 后台 daemon 线程 BRPOP 消费，委托 `OnlineDispatcherImpl` 本地投递
+4. 目标 postoffice 节点的 `NodeDeliveryPoller` 用 `BRPOPLPUSH` 搬到 processing 后本地投递；成功 ACK，
+   失败原子重入 ready，重启恢复 processing，超过 5 次进入 dead-letter LIST
 
 ✅ 跨节点在线投递已修复：postman 按路由表中的真实节点 ID 精准投递，不再依赖 Dubbo 随机 LB。
 
@@ -60,14 +62,15 @@ postman `DeliveryEventListener.resolveTargets` 已**移除** `ChatType.GROUP` �
 
 ## 6. 离线推送 fan-out
 
-- `OfflinePushServiceImpl.java:58` 用 `CompletableFuture.runAsync` 并发 fan-out
-- ⚠️ 使用 **common ForkJoinPool**（无显式 executor），1M 级 fan-out 会饿死其它 CompletableFuture 用户
+- `OfflinePushServiceImpl` 使用独立 `offlinePushExecutor`：默认 core 8、max 32、有界队列 2,000，拒绝策略为 Abort；禁止使用 common ForkJoinPool
+- 目标用户按默认 500 人分批提交并等待，限制在途 futures 数量；线程池过载时该用户明确返回“服务繁忙”，不静默丢任务
+- 线程数、队列容量和提交批次均可通过 `CHEESEIM_PUSH_EXECUTOR_*` 调整
 - 日推送计数通过 `PushStateStore.claimDailyQuota` 的 Redis Lua 在发送前原子预占，按用户/自然日计数并在次日自动过期；厂商全部失败时归还配额，多副本不会越过上限
 
 ## 7. Kafka 序列化绕过 QueueAdapter（**已修复 2026-07-07**，P0-6）
 
 旧：`DeliveryEventListener.emitOfflinePushIfNeeded` 直连 `kafkaTemplate.send` 旁路 `QueueAdapter`，切回 Chronicle 队列模式时离线推送失效。
-新：经 `OfflinePushEventProducer`（postman 模块新增）通过 `QueueAdapter.send(OFFLINE_PUSH, userId, bytes)` 投递，Chronicle / Kafka 两种 `cheeseim.queue.type` 后端**端到端一致**。
+新：经 `OfflinePushEventProducer`（postman 模块新增）通过 `QueueAdapter.send(OFFLINE_PUSH, userId, bytes)` 投递，Chronicle / Kafka 两种 `cheeseim.queue.type` 后端共用 payload 与消费契约。Kafka 另提供 broker ACK、事务 batch 和 DLT；Chronicle 为单机路径，不把两者的可靠性语义视为完全相同。
 
 `QueueAdapter` 抽象层同时修复端到端不兼容（ASSESSMENT P1-6 根因）：
 
@@ -85,7 +88,7 @@ postman `DeliveryEventListener.resolveTargets` 已**移除** `ChatType.GROUP` �
 - Kafka consumer group `postman-delivery-group`
 - 所有厂商配置统一在 `cheeseim.push.*`，由 `CHEESEIM_PUSH_*` 环境变量注入
 - actuator + Prometheus
-- 控制事件补偿：`cheeseim.control-event.delivery`，默认每秒扫描、每次 100 条、30 秒 claim lease、最多 3 次在线投递；超出次数的离线补齐交由客户端 control-events cursor 拉取。
+- 控制事件补偿：`cheeseim.control-event.delivery`，默认每秒扫描、每次 100 条、30 秒 claim lease、最多 3 次在线投递；repository 按 64 个 cursor shard 轮转扫描 PENDING / 租约过期 CLAIMED，使用与查询顺序对齐的复合索引，避免 DELIVERED backlog 参与全局排序；scheduler 对候选 eventId 再去重。超出次数的离线补齐交由客户端 control-events cursor 拉取。
 
 ## 9. 改动评估 checklist
 

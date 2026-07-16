@@ -13,6 +13,7 @@ import com.cheeseocean.im.common.api.rpc.MessageSender;
 import com.cheeseocean.im.postoffice.auth.ConnectionSessionGuard;
 import com.cheeseocean.im.postoffice.connection.ConnectionContext;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
+import com.cheeseocean.im.postoffice.config.ServerProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -58,10 +59,60 @@ class ChatMessageHandlerTest {
         verifyNoInteractions(sender);
     }
 
+    @Test
+    void legacyReadReceiptShouldBeRejectedWithoutSending() {
+        MessageSender sender = mock(MessageSender.class);
+        ConnectionSessionGuard guard = mock(ConnectionSessionGuard.class);
+        Message message = message("user-2");
+        message.setContentType(ContentType.READ_RECEIPT);
+
+        MessageHandler.HandleResult result = handler(sender, guard).handle(connection(), envelope(message));
+
+        assertFalse(result.isSuccess());
+        verifyNoInteractions(sender);
+    }
+
+    @Test
+    void oversizedTextContentShouldBeRejectedWithoutSending() {
+        MessageSender sender = mock(MessageSender.class);
+        ConnectionSessionGuard guard = mock(ConnectionSessionGuard.class);
+        ServerProperties properties = properties();
+        properties.getMessageLimits().setMaxTextBytes(4);
+
+        MessageHandler.HandleResult result = handler(sender, guard, properties)
+                .handle(connection(), envelope(message("user-2")));
+
+        assertFalse(result.isSuccess());
+        verifyNoInteractions(sender);
+    }
+
+    @Test
+    void oversizedEnvelopeBodyShouldBeRejectedBeforeProtobufParsing() {
+        MessageSender sender = mock(MessageSender.class);
+        ConnectionSessionGuard guard = mock(ConnectionSessionGuard.class);
+        ServerProperties properties = properties();
+        properties.getMessageLimits().setMaxEnvelopeBodyBytes(1);
+
+        MessageHandler.HandleResult result = handler(sender, guard, properties)
+                .handle(connection(), envelope(message("user-2")));
+
+        assertFalse(result.isSuccess());
+        verifyNoInteractions(sender);
+    }
+
     private static ChatMessageHandler handler(MessageSender sender, ConnectionSessionGuard guard) {
-        ChatMessageHandler handler = new ChatMessageHandler(guard);
+        return handler(sender, guard, properties());
+    }
+
+    private static ChatMessageHandler handler(MessageSender sender, ConnectionSessionGuard guard,
+                                              ServerProperties properties) {
+        ChatMessageHandler handler = new ChatMessageHandler(guard, properties);
         ReflectionTestUtils.setField(handler, "messageSender", sender);
         return handler;
+    }
+
+    private static ServerProperties properties() {
+        return new ServerProperties();
     }
 
     private static ClientEnvelope envelope(Message message) {

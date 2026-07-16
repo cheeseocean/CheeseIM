@@ -11,17 +11,25 @@ import com.cheeseocean.im.postman.entity.PushMessage;
 import com.cheeseocean.im.postman.service.OfflinePushService;
 import com.cheeseocean.im.postman.state.PushStateStore;
 import com.cheeseocean.im.postman.provider.PushProvider;
+import com.cheeseocean.im.common.core.metrics.ImMetrics;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -39,15 +47,24 @@ public class OfflinePushServiceImpl implements OfflinePushService {
     private final DeviceTokenServiceImpl deviceTokenService;
     private final StringRedisTemplate redisTemplate;
     private final PushStateStore pushStateStore;
+    private final Executor offlinePushExecutor;
+    private final int submissionBatchSize;
+    private final long submissionBatchTimeoutMillis;
 
     public OfflinePushServiceImpl(List<PushProvider> pushProviders,
                                   DeviceTokenServiceImpl deviceTokenService,
                                   StringRedisTemplate redisTemplate,
-                                  PushStateStore pushStateStore) {
+                                  PushStateStore pushStateStore,
+                                  @Qualifier("offlinePushExecutor") Executor offlinePushExecutor,
+                                  @Value("${cheeseim.push.executor.batch-size:500}") int submissionBatchSize,
+                                  @Value("${cheeseim.push.executor.batch-timeout-ms:30000}") long submissionBatchTimeoutMillis) {
         this.pushProviders = pushProviders;
         this.deviceTokenService = deviceTokenService;
         this.redisTemplate = redisTemplate;
         this.pushStateStore = pushStateStore;
+        this.offlinePushExecutor = offlinePushExecutor;
+        this.submissionBatchSize = Math.max(1, submissionBatchSize);
+        this.submissionBatchTimeoutMillis = Math.max(100L, submissionBatchTimeoutMillis);
     }
     
     /**
@@ -72,23 +89,21 @@ public class OfflinePushServiceImpl implements OfflinePushService {
             logger.info("开始离线推送: messageID={}, targetUsers={}", 
                        message.getServerMsgId(), targetUsers.size());
             
-            List<String> successUsers = new ArrayList<>();
-            List<String> failedUsers = new ArrayList<>();
-            Map<String, String> userErrors = new HashMap<>();
-            Map<String, String> providerResults = new HashMap<>();
+            Map<String, UserPushOutcome> outcomes = new ConcurrentHashMap<>();
             
-            // 为每个用户创建推送消息并发送
-            List<CompletableFuture<Void>> futures = new ArrayList<>();
-            
-            for (String userID : targetUsers) {
-                CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+            // 分批提交并等待，限制在途 future 数量；线程池队列满时明确记录过载失败。
+            for (int batchStart = 0; batchStart < targetUsers.size(); batchStart += submissionBatchSize) {
+                int batchEnd = Math.min(targetUsers.size(), batchStart + submissionBatchSize);
+                Map<CompletableFuture<Void>, String> futures = new LinkedHashMap<>(batchEnd - batchStart);
+                for (String userID : targetUsers.subList(batchStart, batchEnd)) {
+                    try {
+                        CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+                    Map<String, String> userProviderResults = new HashMap<>();
                     try {
                         // 检查用户是否启用离线推送
                         if (!isOfflinePushEnabled(userID)) {
-                            synchronized (failedUsers) {
-                                failedUsers.add(userID);
-                                userErrors.put(userID, "用户已禁用离线推送");
-                            }
+                            outcomes.putIfAbsent(userID, UserPushOutcome.failure(
+                                    "用户已禁用离线推送", userProviderResults));
                             return;
                         }
                         
@@ -97,10 +112,8 @@ public class OfflinePushServiceImpl implements OfflinePushService {
                         
                         // 检查是否在免打扰时间
                         if (config.isInQuietTime() && !config.isAllowDuringQuietTime()) {
-                            synchronized (failedUsers) {
-                                failedUsers.add(userID);
-                                userErrors.put(userID, "当前在免打扰时间");
-                            }
+                            outcomes.putIfAbsent(userID, UserPushOutcome.failure(
+                                    "当前在免打扰时间", userProviderResults));
                             return;
                         }
                         
@@ -113,20 +126,16 @@ public class OfflinePushServiceImpl implements OfflinePushService {
                                 userID, title, content, message);
                         
                         if (pushMessages.isEmpty()) {
-                            synchronized (failedUsers) {
-                                failedUsers.add(userID);
-                                userErrors.put(userID, "无可用的推送消息");
-                            }
+                            outcomes.putIfAbsent(userID, UserPushOutcome.failure(
+                                    "无可用的推送消息", userProviderResults));
                             return;
                         }
 
                         // 先原子预占配额，避免多个 postman 副本同时越过每日上限。
                         int maxDailyCount = config.getMaxDailyCount() == null ? 0 : config.getMaxDailyCount();
                         if (!pushStateStore.claimDailyQuota(userID, maxDailyCount)) {
-                            synchronized (failedUsers) {
-                                failedUsers.add(userID);
-                                userErrors.put(userID, "已达到每日推送上限");
-                            }
+                            outcomes.putIfAbsent(userID, UserPushOutcome.failure(
+                                    "已达到每日推送上限", userProviderResults));
                             return;
                         }
                         
@@ -144,12 +153,20 @@ public class OfflinePushServiceImpl implements OfflinePushService {
                                 }
 
                                 // 发送推送
-                                PushProvider.PushResult pushResult = provider.sendPush(pushMessage);
-
-                                synchronized (providerResults) {
-                                    providerResults.put(userID + "_" + provider.getProviderName(),
-                                            pushResult.isSuccess() ? "成功" : pushResult.getErrorMessage());
+                                long providerStarted = ImMetrics.startTimer();
+                                PushProvider.PushResult pushResult;
+                                try {
+                                    pushResult = provider.sendPush(pushMessage);
+                                    ImMetrics.offlinePush(provider.getProviderName(),
+                                            pushResult != null && pushResult.isSuccess() ? "success" : "failure",
+                                            providerStarted);
+                                } catch (RuntimeException exception) {
+                                    ImMetrics.offlinePush(provider.getProviderName(), "error", providerStarted);
+                                    throw exception;
                                 }
+
+                                userProviderResults.put(userID + "_" + provider.getProviderName(),
+                                        pushResult.isSuccess() ? "成功" : pushResult.getErrorMessage());
 
                                 if (pushResult.isSuccess()) {
                                     userPushSuccess = true;
@@ -160,14 +177,10 @@ public class OfflinePushServiceImpl implements OfflinePushService {
                             }
 
                             if (userPushSuccess) {
-                                synchronized (successUsers) {
-                                    successUsers.add(userID);
-                                }
+                                outcomes.putIfAbsent(userID, UserPushOutcome.success(userProviderResults));
                             } else {
-                                synchronized (failedUsers) {
-                                    failedUsers.add(userID);
-                                    userErrors.put(userID, userErrorBuilder.toString());
-                                }
+                                outcomes.putIfAbsent(userID, UserPushOutcome.failure(
+                                        userErrorBuilder.toString(), userProviderResults));
                             }
                         } finally {
                             if (!userPushSuccess) {
@@ -177,29 +190,43 @@ public class OfflinePushServiceImpl implements OfflinePushService {
                         
                     } catch (Exception e) {
                         logger.error("用户离线推送异常: userID={}", userID, e);
-                        synchronized (failedUsers) {
-                            failedUsers.add(userID);
-                            userErrors.put(userID, "推送异常: " + e.getMessage());
-                        }
+                        outcomes.putIfAbsent(userID, UserPushOutcome.failure(
+                                "推送异常: " + e.getMessage(), userProviderResults));
                     }
-                });
-                
-                futures.add(future);
+                        }, offlinePushExecutor);
+                        futures.put(future, userID);
+                    } catch (RejectedExecutionException exception) {
+                        logger.warn("离线推送线程池过载，拒绝任务: userID={}", userID);
+                        outcomes.putIfAbsent(userID, UserPushOutcome.failure("离线推送服务繁忙", Map.of()));
+                    }
+                }
+                awaitBatch(futures, outcomes);
             }
-            
-            // 等待所有推送完成
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
             
             long totalResponseTime = System.currentTimeMillis() - startTime;
             
             // 构造结果
+            Map<String, UserPushOutcome> frozenOutcomes = Map.copyOf(outcomes);
+            List<String> successUsers = frozenOutcomes.entrySet().stream()
+                    .filter(entry -> entry.getValue().success())
+                    .map(Map.Entry::getKey).toList();
+            List<String> failedUsers = frozenOutcomes.entrySet().stream()
+                    .filter(entry -> !entry.getValue().success())
+                    .map(Map.Entry::getKey).toList();
+            Map<String, String> userErrors = new HashMap<>();
+            Map<String, String> providerResults = new HashMap<>();
+            frozenOutcomes.forEach((userId, outcome) -> {
+                if (!outcome.success()) userErrors.put(userId, outcome.error());
+                providerResults.putAll(outcome.providerResults());
+            });
             OfflinePushResult result;
             if (successUsers.isEmpty() && failedUsers.isEmpty()) {
                 result = OfflinePushResult.failure("没有用户进行推送");
             } else if (failedUsers.isEmpty()) {
                 result = OfflinePushResult.success(successUsers);
             } else {
-                result = OfflinePushResult.partial(successUsers, failedUsers, userErrors);
+                result = OfflinePushResult.partial(
+                        successUsers, failedUsers, userErrors);
             }
             
             result.setProviderResults(providerResults);
@@ -215,6 +242,46 @@ public class OfflinePushServiceImpl implements OfflinePushService {
             logger.error("离线推送异常: messageID={}, targetUsers={}", 
                         message.getServerMsgId(), targetUsers.size(), e);
             return OfflinePushResult.failure("离线推送异常: " + e.getMessage());
+        }
+    }
+
+    private void awaitBatch(Map<CompletableFuture<Void>, String> futures,
+                            Map<String, UserPushOutcome> outcomes) {
+        if (futures.isEmpty()) {
+            return;
+        }
+        try {
+            CompletableFuture.allOf(futures.keySet().toArray(new CompletableFuture[0]))
+                    .get(submissionBatchTimeoutMillis, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException exception) {
+            long unfinished = futures.keySet().stream().filter(future -> !future.isDone()).count();
+            futures.forEach((future, userId) -> {
+                if (!future.isDone()) {
+                    future.cancel(true);
+                    outcomes.putIfAbsent(userId, UserPushOutcome.failure("离线推送执行超时", Map.of()));
+                }
+            });
+            logger.error("离线推送批次执行超时: timeoutMs={}, unfinished={}",
+                    submissionBatchTimeoutMillis, unfinished);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("等待离线推送批次时被中断", exception);
+        } catch (java.util.concurrent.ExecutionException exception) {
+            throw new IllegalStateException("离线推送批次执行失败", exception.getCause());
+        }
+    }
+
+    private record UserPushOutcome(boolean success, String error, Map<String, String> providerResults) {
+        private UserPushOutcome {
+            providerResults = Map.copyOf(providerResults);
+        }
+
+        static UserPushOutcome success(Map<String, String> providerResults) {
+            return new UserPushOutcome(true, null, providerResults);
+        }
+
+        static UserPushOutcome failure(String error, Map<String, String> providerResults) {
+            return new UserPushOutcome(false, error, providerResults);
         }
     }
     

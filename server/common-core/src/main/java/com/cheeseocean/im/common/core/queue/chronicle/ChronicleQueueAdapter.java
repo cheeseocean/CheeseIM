@@ -11,6 +11,7 @@ import com.cheeseocean.im.common.core.queue.QueueAdapter;
 import com.cheeseocean.im.common.core.queue.QueueMessageHandler;
 import com.cheeseocean.im.common.core.queue.Subscription;
 import com.cheeseocean.im.common.core.queue.config.QueueProperties;
+import com.cheeseocean.im.common.core.metrics.ImMetrics;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptAppender;
@@ -25,9 +26,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.TimeUnit;
 
 public class ChronicleQueueAdapter implements QueueAdapter {
     private static final Logger logger = LoggerFactory.getLogger(ChronicleQueueAdapter.class);
+    private static final int HANDLER_RETRY_ATTEMPTS = 3;
 
     private final ObjectMapper                              objectMapper;
     private final QueueProperties                           queueProperties;
@@ -45,11 +48,14 @@ public class ChronicleQueueAdapter implements QueueAdapter {
 
     @Override
     public void send(String topic, String key, byte[] message) {
+        long started = ImMetrics.startTimer();
         ExcerptAppender appender = appender(topic);
         try (DocumentContext context = appender.writingDocument()) {
             context.wire().write("key").text(key);
             context.wire().write("payload").bytes(message);
+            ImMetrics.queuePublish("chronicle", topic, true, started);
         } catch (Exception e) {
+            ImMetrics.queuePublish("chronicle", topic, false, started);
             throw new IllegalStateException("Failed to write Chronicle queue message", e);
         }
     }
@@ -60,6 +66,7 @@ public class ChronicleQueueAdapter implements QueueAdapter {
             return;
         }
         ExcerptAppender appender = appender(topic);
+        long started = ImMetrics.startTimer();
         try {
             for (KeyedMessage<byte[]> message : messages) {
                 if (message == null) {
@@ -70,7 +77,9 @@ public class ChronicleQueueAdapter implements QueueAdapter {
                     context.wire().write("payload").bytes(message.payload());
                 }
             }
+            ImMetrics.queuePublish("chronicle", topic, true, started);
         } catch (Exception e) {
+            ImMetrics.queuePublish("chronicle", topic, false, started);
             throw new IllegalStateException("Failed to write Chronicle queue message batch", e);
         }
     }
@@ -85,16 +94,10 @@ public class ChronicleQueueAdapter implements QueueAdapter {
             thread.setDaemon(false);
             return thread;
         });
-        ExecutorService workers = Executors.newFixedThreadPool(Math.max(1, concurrency), runnable -> {
-            Thread thread = new Thread(runnable, "chronicle-queue-worker-" + topic + "-" + group);
-            thread.setDaemon(false);
-            return thread;
-        });
-        poller.submit(() -> pollLoop(tailer, payloadType, handler, workers, running));
+        poller.submit(() -> pollLoop(topic, tailer, payloadType, handler, running));
         return () -> {
             running.set(false);
             poller.shutdownNow();
-            workers.shutdownNow();
         };
     }
 
@@ -122,43 +125,87 @@ public class ChronicleQueueAdapter implements QueueAdapter {
             thread.setDaemon(false);
             return thread;
         });
-        ExecutorService workers = Executors.newFixedThreadPool(Math.max(1, concurrency), r -> {
-            Thread thread = new Thread(r, "chronicle-queue-worker-" + topic + "-" + group);
-            thread.setDaemon(false);
-            return thread;
-        });
-        poller.submit(() -> pollLoopKeyed(tailer, payloadType, handler, workers, running));
+        poller.submit(() -> pollLoopKeyed(topic, tailer, payloadType, handler, running));
         return () -> {
             running.set(false);
             poller.shutdownNow();
-            workers.shutdownNow();
         };
     }
 
-    private <T> void pollLoopKeyed(ExcerptTailer tailer,
+    @Override
+    public <T> Subscription subscribeBatch(String topic, String group, int concurrency, int batchSize,
+                                           long batchIntervalMs, Class<T> payloadType,
+                                           QueueMessageHandler<List<KeyedMessage<T>>> handler) {
+        ChronicleQueue queue = queue(topic);
+        AtomicBoolean running = new AtomicBoolean(true);
+        ExcerptTailer tailer = queue.createTailer(group);
+        ExecutorService poller = Executors.newSingleThreadExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "chronicle-queue-batch-poller-" + topic + "-" + group);
+            thread.setDaemon(false);
+            return thread;
+        });
+        poller.submit(() -> {
+            while (running.get()) {
+                long batchStartIndex = tailer.index();
+                List<KeyedMessage<T>> batch = new java.util.ArrayList<>(batchSize);
+                List<KeyedMessage<byte[]>> rawBatch = new java.util.ArrayList<>(batchSize);
+                long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(batchIntervalMs);
+                while (running.get() && batch.size() < batchSize && (batch.isEmpty() || System.nanoTime() < deadline)) {
+                    try (DocumentContext context = tailer.readingDocument()) {
+                        if (context.isPresent()) {
+                            String key = context.wire().read("key").text();
+                            byte[] payload = readPayload(context);
+                            batch.add(new KeyedMessage<>(key, deserialize(payloadType, payload)));
+                            rawBatch.add(new KeyedMessage<>(key, payload));
+                        } else if (batch.isEmpty()) {
+                            sleepQuietly(queueProperties.getPollIntervalMillis());
+                        }
+                    } catch (Exception e) {
+                        throw new IllegalStateException("Failed to read Chronicle queue batch", e);
+                    }
+                }
+                if (!batch.isEmpty()) {
+                    try {
+                        invokeWithRetry(() -> handler.handle(batch), () -> {
+                            for (KeyedMessage<byte[]> message : rawBatch) {
+                                send(topic + ".DLT", message.key(), message.payload());
+                            }
+                        });
+                    } catch (Exception e) {
+                        logger.error("Failed to supervise Chronicle batch; rewinding", e);
+                        tailer.moveToIndex(batchStartIndex);
+                        sleepQuietly(queueProperties.getPollIntervalMillis());
+                    }
+                }
+            }
+        });
+        return () -> {
+            running.set(false);
+            poller.shutdownNow();
+        };
+    }
+
+    private <T> void pollLoopKeyed(String topic,
+                                   ExcerptTailer tailer,
                                    Class<T> payloadType,
                                    QueueMessageHandler<KeyedMessage<T>> handler,
-                                   ExecutorService workers,
                                    AtomicBoolean running) {
         while (running.get()) {
             boolean consumed = false;
+            long index = tailer.index();
             try (DocumentContext context = tailer.readingDocument()) {
                 if (context.isPresent()) {
                     consumed = true;
                     String key     = context.wire().read("key").text();
                     byte[] payload = readPayload(context);
-                    workers.submit(() -> {
-                        try {
-                            handler.handle(new KeyedMessage<>(key, deserialize(payloadType, payload)));
-                        } catch (Exception e) {
-                            logger.error("Failed to deserialize Chronicle queue message", e);
-                            throw new IllegalStateException("Failed to deserialize Chronicle queue message", e);
-                        }
-                    });
+                    T value = deserialize(payloadType, payload);
+                    invokeWithRetry(() -> handler.handle(new KeyedMessage<>(key, value)),
+                            () -> send(topic + ".DLT", key, payload));
                 }
             } catch (Exception e) {
-                logger.error("Failed to read Chronicle Queue message", e);
-                throw new IllegalStateException("Failed to read Chronicle queue message", e);
+                logger.error("Failed to consume Chronicle Queue message; rewinding for supervised retry", e);
+                tailer.moveToIndex(index);
+                sleepQuietly(queueProperties.getPollIntervalMillis());
             }
             if (!consumed) {
                 sleepQuietly(queueProperties.getPollIntervalMillis());
@@ -166,22 +213,26 @@ public class ChronicleQueueAdapter implements QueueAdapter {
         }
     }
 
-    private <T> void pollLoop(ExcerptTailer tailer,
+    private <T> void pollLoop(String topic,
+                              ExcerptTailer tailer,
                               Class<T> payloadType,
                               QueueMessageHandler<T> handler,
-                              ExecutorService workers,
                               AtomicBoolean running) {
         while (running.get()) {
             boolean consumed = false;
+            long index = tailer.index();
             try (DocumentContext context = tailer.readingDocument()) {
                 if (context.isPresent()) {
                     consumed = true;
                     byte[] payload = readPayload(context);
-                    workers.submit(() -> invokeHandler(payloadType, handler, payload));
+                    T value = deserialize(payloadType, payload);
+                    invokeWithRetry(() -> handler.handle(value),
+                            () -> send(topic + ".DLT", "", payload));
                 }
             } catch (Exception e) {
-                logger.error("Failed to read Chronicle Queue message", e);
-                throw new IllegalStateException("Failed to read Chronicle queue message", e);
+                logger.error("Failed to consume Chronicle Queue message; rewinding for supervised retry", e);
+                tailer.moveToIndex(index);
+                sleepQuietly(queueProperties.getPollIntervalMillis());
             }
             if (!consumed) {
                 sleepQuietly(queueProperties.getPollIntervalMillis());
@@ -189,13 +240,19 @@ public class ChronicleQueueAdapter implements QueueAdapter {
         }
     }
 
-    private <T> void invokeHandler(Class<T> payloadType, QueueMessageHandler<T> handler, byte[] payload) {
-        try {
-            handler.handle(deserialize(payloadType, payload));
-        } catch (Exception e) {
-            logger.error("Failed to read Chronicle Queue message", e);
-            throw new IllegalStateException("Failed to deserialize Chronicle queue message", e);
+    private void invokeWithRetry(ThrowingRunnable handler, ThrowingRunnable deadLetter) throws Exception {
+        Exception lastFailure = null;
+        for (int attempt = 1; attempt <= HANDLER_RETRY_ATTEMPTS; attempt++) {
+            try {
+                handler.run();
+                return;
+            } catch (Exception e) {
+                lastFailure = e;
+                logger.warn("Chronicle handler failed, attempt={}/{}", attempt, HANDLER_RETRY_ATTEMPTS, e);
+            }
         }
+        deadLetter.run();
+        logger.error("Chronicle handler exhausted retries; message moved to DLT", lastFailure);
     }
 
     private byte[] readPayload(DocumentContext context) {
@@ -229,5 +286,10 @@ public class ChronicleQueueAdapter implements QueueAdapter {
         } catch (InterruptedException interruptedException) {
             Thread.currentThread().interrupt();
         }
+    }
+
+    @FunctionalInterface
+    private interface ThrowingRunnable {
+        void run() throws Exception;
     }
 }

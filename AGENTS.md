@@ -43,7 +43,7 @@ Client ──TCP/WS──> postoffice ──> postbox ──ingress event──>
 
 ## 3. 全局硬约束（不分语言）
 
-1. **不要新增魔法值**：状态/类型/来源/开关必须枚举；Java 枚举需含 `code`/`desc`/`fromCode`。
+1. **不要新增魔法值**：持久化、wire、跨进程或业务状态枚举需含稳定 `code`/`desc`/`fromCode`；仅用于 HTTP 展示或节点本地生命周期、且从不按 code 序列化的枚举可只含 `desc`，但必须在类注释说明边界。
 2. **中文注释优先**：公共类/接口/公共方法/枚举/重要字段必须中文注释，优先解释「为什么这样设计」。
 3. **领域与持久化分离**：领域对象（domain）不得依赖 Mongo `Document` / Spring Data MongoDB 反向：领域对象不得 import `org.springframework.data.*`。
 4. **构造器注入**，禁止字段注入（`@Autowired` 字段注入）。

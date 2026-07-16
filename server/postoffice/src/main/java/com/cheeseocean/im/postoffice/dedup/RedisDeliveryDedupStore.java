@@ -1,66 +1,113 @@
 package com.cheeseocean.im.postoffice.dedup;
 
 import com.cheeseocean.im.common.core.constants.RedisKeys;
+import com.cheeseocean.im.common.core.metrics.ImMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
-/**
- * 投递去重的 Redis 实现。
- *
- * <p>使用 Redis 单命令 {@code SET <key> 1 NX EX <ttl>} 做原子 mark-if-absent：
- * <ul>
- *   <li>原子性：Redis 单线程执行 {@code SET NX EX}，避免 {@code EXISTS + SET} 的 TOCTOU 竞态</li>
- *   <li>跨节点共享：多 postoffice 节点共用同一 Redis，跨节点的重复推送也会被去重</li>
- *   <li>无界增长问题修复：旧实现是本地 {@code ConcurrentHashMap.newKeySet()}，长跑 OOM；
- *       Redis 实现每个去重记录一个独立 key 并由 TTL 自动回收，key 数与"近 TTL 窗口内的投递数"
- *       成正比，与进程生命期无关（ASSESSMENT P0-5 修复点）</li>
- * </ul>
- *
- * <p>Key 形式：{@code idem:delivery:{serverMsgId}:{userId}:{deviceId|*}}，复用
- * {@link RedisKeys#deliveryIdem}（与既有命名约定一致）。deviceId 为 null 时替换为通配符 *，
- * 与旧本地 Set 的拼字符串行为保持等价。
- */
+/** Redis 原子 claim/commit/abort 投递去重状态机。 */
 @Service
 public class RedisDeliveryDedupStore implements DeliveryDedupStore {
 
     private static final Logger logger = LoggerFactory.getLogger(RedisDeliveryDedupStore.class);
+    private static final String CLAIM_PREFIX = "claim:";
 
-    /** TTL。默认 10 分钟：覆盖典型的客户端重试窗口，过期后允许再次"投递记录"（此时上游也不会再发同一 serverMsgId）。 */
-    public static final Duration DEFAULT_TTL = Duration.ofMinutes(10);
-
-    private static final String FLAG = "1";
+    private static final DefaultRedisScript<Long> CLAIM_SCRIPT = new DefaultRedisScript<>("""
+            local current = redis.call('GET', KEYS[1])
+            if not current then
+              redis.call('SET', KEYS[1], ARGV[1], 'EX', ARGV[2], 'NX')
+              return 1
+            end
+            if current == 'delivered' then return 2 end
+            return 3
+            """, Long.class);
+    private static final DefaultRedisScript<Long> COMMIT_SCRIPT = new DefaultRedisScript<>("""
+            if redis.call('GET', KEYS[1]) == ARGV[1] then
+              redis.call('SET', KEYS[1], 'delivered', 'EX', ARGV[2])
+              return 1
+            end
+            return 0
+            """, Long.class);
+    private static final DefaultRedisScript<Long> ABORT_SCRIPT = new DefaultRedisScript<>("""
+            if redis.call('GET', KEYS[1]) == ARGV[1] then
+              return redis.call('DEL', KEYS[1])
+            end
+            return 0
+            """, Long.class);
 
     private final StringRedisTemplate redisTemplate;
-    private final Duration dedupTtl;
+    private final long deliveredTtlSeconds;
+    private final long claimTtlSeconds;
 
     public RedisDeliveryDedupStore(StringRedisTemplate redisTemplate,
-                                   @Value("${cheeseim.delivery.dedup.ttl-seconds:600}") long dedupTtlSeconds) {
+                                   @Value("${cheeseim.delivery.dedup.ttl-seconds:600}") long deliveredTtlSeconds,
+                                   @Value("${cheeseim.delivery.dedup.claim-ttl-seconds:30}") long claimTtlSeconds) {
         this.redisTemplate = Objects.requireNonNull(redisTemplate, "redisTemplate");
-        this.dedupTtl = Duration.ofSeconds(Math.max(1L, dedupTtlSeconds));
+        this.deliveredTtlSeconds = Math.max(1L, deliveredTtlSeconds);
+        this.claimTtlSeconds = Math.max(1L, claimTtlSeconds);
     }
 
     @Override
-    public boolean markIfAbsent(String serverMsgId, String userId, String deviceId) {
-        if (serverMsgId == null || userId == null) {
-            // 入参缺失时不写入 Redis，并发不会因为 serverMsgId==null 而误判首投。
-            // 返回 false 等同于"已记录过"，让上层 ConnectionManager 走 DUPLICATE 分支，
-            // 与旧本地 Set 的 null 短路行为保持一致（见 ConnectionManager.markDeliveryIfAbsent 改造）。
+    public Claim claim(String deliveryId, String userId, String deviceId) {
+        if (deliveryId == null || userId == null) {
+            ImMetrics.dedup("unavailable");
+            return Claim.status(ClaimStatus.UNAVAILABLE);
+        }
+        String key = RedisKeys.deliveryIdem(deliveryId, userId, deviceId == null ? "*" : deviceId);
+        String token = UUID.randomUUID().toString();
+        try {
+            Long result = redisTemplate.execute(CLAIM_SCRIPT, List.of(key),
+                    CLAIM_PREFIX + token, Long.toString(claimTtlSeconds));
+            if (result == null) {
+                logger.warn("Redis delivery claim returned null for key={}", key);
+                return Claim.status(ClaimStatus.UNAVAILABLE);
+            }
+            Claim claim = switch (result.intValue()) {
+                case 1 -> Claim.acquired(key, token);
+                case 2 -> Claim.status(ClaimStatus.DELIVERED);
+                case 3 -> Claim.status(ClaimStatus.IN_PROGRESS);
+                default -> Claim.status(ClaimStatus.UNAVAILABLE);
+            };
+            ImMetrics.dedup(claim.status().name().toLowerCase());
+            return claim;
+        } catch (RuntimeException e) {
+            logger.error("Redis delivery claim failed for key={}", key, e);
+            ImMetrics.dedup("unavailable");
+            return Claim.status(ClaimStatus.UNAVAILABLE);
+        }
+    }
+
+    @Override
+    public boolean commit(Claim claim) {
+        return transition(COMMIT_SCRIPT, claim, Long.toString(deliveredTtlSeconds), "commit");
+    }
+
+    @Override
+    public boolean abort(Claim claim) {
+        return transition(ABORT_SCRIPT, claim, null, "abort");
+    }
+
+    private boolean transition(DefaultRedisScript<Long> script, Claim claim, String ttl, String operation) {
+        if (claim == null || claim.status() != ClaimStatus.ACQUIRED || claim.key() == null || claim.token() == null) {
             return false;
         }
-        String deviceKey = deviceId == null ? "*" : deviceId;
-        String key = RedisKeys.deliveryIdem(serverMsgId, userId, deviceKey);
-        Boolean result = redisTemplate.opsForValue().setIfAbsent(key, FLAG, dedupTtl);
-        if (result == null) {
-            // 极少数 Redis 异常时返回 null；返回 false 让上游跳过本次，避免重复推送。
-            logger.warn("Redis delivery dedup returned null for key={}", key);
+        try {
+            String claimValue = CLAIM_PREFIX + claim.token();
+            Long result = ttl == null
+                    ? redisTemplate.execute(script, List.of(claim.key()), claimValue)
+                    : redisTemplate.execute(script, List.of(claim.key()), claimValue, ttl);
+            return Long.valueOf(1L).equals(result);
+        } catch (RuntimeException e) {
+            logger.error("Redis delivery {} failed for key={}", operation, claim.key(), e);
             return false;
         }
-        return result;
     }
 }

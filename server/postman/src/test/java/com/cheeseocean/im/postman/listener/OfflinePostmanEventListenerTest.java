@@ -11,6 +11,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -18,6 +19,31 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class OfflinePostmanEventListenerTest {
+
+    @Test
+    void offlinePushListenerShouldPropagateMalformedPayloadToQueueErrorHandler() {
+        OnlineRouteQueryService onlineRouteQueryService = mock(OnlineRouteQueryService.class);
+        MessagePushServiceImpl messagePushService = mock(MessagePushServiceImpl.class);
+        OfflinePushEventListener listener = listener(messagePushService, onlineRouteQueryService);
+
+        assertThrows(IllegalArgumentException.class, () -> listener.onMessage(new byte[]{(byte) 0x80}));
+
+        verify(onlineRouteQueryService, never()).findByUser(any());
+        verify(messagePushService, never()).pushOffline(any(OfflinePushEvent.class));
+    }
+
+    @Test
+    void offlinePushListenerShouldPropagateRetryableRouteFailure() throws Exception {
+        OnlineRouteQueryService onlineRouteQueryService = mock(OnlineRouteQueryService.class);
+        when(onlineRouteQueryService.findByUser("userB"))
+                .thenThrow(new IllegalStateException("route unavailable"));
+        MessagePushServiceImpl messagePushService = mock(MessagePushServiceImpl.class);
+        OfflinePushEventListener listener = listener(messagePushService, onlineRouteQueryService);
+        byte[] payload = ProtoOfflinePushEventMapper.toProto(event()).toByteArray();
+
+        assertThrows(IllegalStateException.class, () -> listener.onMessage(payload));
+        verify(messagePushService, never()).pushOffline(any(OfflinePushEvent.class));
+    }
 
     @Test
     void offlinePushListenerShouldSkipVendorPushWhenUserCameBackOnline() throws Exception {

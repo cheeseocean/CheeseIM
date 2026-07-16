@@ -1,6 +1,6 @@
 package com.cheeseocean.im.postbox.service;
 
-import com.cheeseocean.im.common.api.permission.ConversationPermissionDubboService;
+import com.cheeseocean.im.common.api.permission.ConversationPermissionService;
 import com.cheeseocean.im.common.api.permission.ConversationPermissionRequest;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import com.cheeseocean.im.common.api.message.MessageHistoryQueryService;
@@ -53,7 +53,7 @@ public class HistoryQueryService implements MessageHistoryQueryService {
     private final ConcurrentMap<PermissionCacheKey, PermissionCacheValue> permissionCache = new ConcurrentHashMap<>();
 
     @DubboReference(check = false)
-    private ConversationPermissionDubboService conversationPermissionDubboService;
+    private ConversationPermissionService conversationPermissionService;
 
     public HistoryQueryService(MessageHistoryRepository messageHistoryRepository, MessagePreviewResolver messagePreviewResolver) {
         this.messageHistoryRepository = messageHistoryRepository;
@@ -282,7 +282,7 @@ public class HistoryQueryService implements MessageHistoryQueryService {
         if (cacheKey == null) {
             return false;
         }
-        if (conversationPermissionDubboService == null) {
+        if (conversationPermissionService == null) {
             return cachedDecision(cacheKey);
         }
         ConversationPermissionRequest request = new ConversationPermissionRequest();
@@ -290,7 +290,7 @@ public class HistoryQueryService implements MessageHistoryQueryService {
         request.setUserId(session.getUserId());
         request.setConversationId(conversationId);
         try {
-            Object raw = conversationPermissionDubboService.check(request);
+            Object raw = conversationPermissionService.check(request);
             PermissionCheckResult result = raw instanceof PermissionCheckResult permissionCheckResult
                     ? permissionCheckResult
                     : null;

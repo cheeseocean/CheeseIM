@@ -19,7 +19,7 @@
 
 - 文件：`src/main/proto/message_protocol.proto`，包 `cheeseim.protocol`。
 - 两个顶层 envelope：`ProtoClientEnvelope`（C→S）、`ProtoServerEnvelope`（S→C），均用 `oneof payload`。
-- `CHAT_READ(33)` / `CHAT_REVOKE(34)` / `FORCE_LOGOUT(35)` / `CHAT_TYPING(36)` 已有类型化 command/notify payload；`CHAT_READ`、`CHAT_REVOKE` 与 `CHAT_TYPING` 均接通独立共享服务和跨节点控制通知。输入中是 3-5 秒短 TTL 瞬时状态，禁止写入普通消息链路。
+- `CHAT_READ(33)` / `CHAT_REVOKE(34)` / `FORCE_LOGOUT(35)` / `CHAT_TYPING(36)` / `CHAT_DELIVERY(37)` 已有类型化 payload。`CHAT_DELIVERY` 使用 `(userId, deviceId, conversationId) -> deliveredSeq` 高水位批量确认，禁止逐消息回执；网关 channel write 不代表客户端送达。
 - 控制面（conversation sync / friend / group）当前**只走 Java Dubbo POJO**，未在 proto 中表达，多语言客户端需自行映射。
 
 ## 3. ConversationId 规范（强约束）
@@ -48,12 +48,14 @@
 - `OfflinePushEvent.sessionType` / `contentType` 暂用 `Integer`，是历史遗留，新增请保持一致。
 - `HistoryEvent.lastMaxSeq` 用于 sync 增量；`beginSeq`/`endSeq` 标识块范围。
 - `ReadStateService` 是所有已读入口的唯一共享契约；`ConversationSyncService.ackReadSeq` 暂保留兼容，新增入口禁止绕过前者复制推进逻辑。
+- `DeliveryStateService` 是设备送达 ACK 唯一共享契约；Redis Lua 单调推进热水位，Mongo write-behind 只保存聚合后的设备会话高水位。
+- `ConversationPermissionService` 是会话访问权限的共享契约；接口名不暴露 Dubbo/RPC 基础设施，provider 和 consumer 均使用该名称。
 - `MessageMutationService` 是撤回入口唯一共享契约；撤回不改写 `message_block`，历史读取必须 merge `message_mutation`。
-- `ConversationControlEvent` 是已读、撤回、输入中的可靠控制事件载荷；业务侧只 append，`common-core` 负责 Mongo outbox 的 cursor、claim 与交付状态，客户端可按 cursor 补齐。
+- `ConversationControlEvent` 是已读、撤回的可靠控制事件载荷；业务侧只 append，`common-core` 负责 Mongo outbox 的 cursor、claim 与交付状态，客户端可按 cursor 补齐。输入中不属于可靠事件，只使用 Redis 短 TTL 状态和在线尽力通知。
 
 ## 6. 改动评估 checklist
 
 - [ ] 改 proto 后 `./gradlew :common-api:generateProto`？
 - [ ] 改领域对象字段名后所有 `Converter` / Mapper 同步？
-- [ ] 新增枚举值后 `fromCode` 分支覆盖 + protos int32 兼容？
+- [ ] 持久化/wire 枚举新增值后 `fromCode` 分支覆盖 + protos int32 兼容？纯展示/本地枚举是否仍未被误用为 code？
 - [ ] 改事件结构后 postmaster/postman 消费者对齐？

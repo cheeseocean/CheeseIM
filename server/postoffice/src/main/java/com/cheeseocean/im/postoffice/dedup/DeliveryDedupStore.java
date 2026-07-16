@@ -1,30 +1,33 @@
 package com.cheeseocean.im.postoffice.dedup;
 
 /**
- * 投递去重存储抽象。
+ * 在线投递去重状态机。
  *
- * <p>对每条 (serverMsgId, userId, deviceId) 元组记录"已投递过"一次，幂等保护下游
- * 重发导致同一连接同一消息被推送多次。底层实现可以是 Redis（生产，跨节点共享，
- * 自动过期）或单元测试中注入的内存伪造。
- *
- * <p>该接口不强制要求读取，<b>只在 mark-if-absent 语义下使用</b>，以保证原子性。
+ * <p>调用方必须先 claim，传输成功后 commit，失败时 abort。这样发送失败不会留下永久的
+ * delivered 标记；同一时刻只有一个调用方能持有 claim。</p>
  */
 public interface DeliveryDedupStore {
 
-    /**
-     * 若 (serverMsgId, userId, deviceId) 元组此前未记录则记录并返回 {@code true}；
-     * 若已存在则返回 {@code false} 表示重复投递，需要调用方跳过本次推送。
-     *
-     * <p>实现需保证原子性（见 {@link RedisDeliveryDedupStore} 用 Redis {@code SET NX EX}
-     * 单命令），并按 TTL 自动过期，避免内存无限增长。
-     *
-     * @param serverMsgId 服务端消息 ID，非空
-     * @param userId      接收方用户 ID，非空
-     * @param deviceId    设备/连接标识。当前调用方 {@code ConnectionManager.markDeliveryIfAbsent}
-     *                     传入的是 {@code connectionId}（per-connection 粒度去重），命名上沿用 deviceId
-     *                     是历史遗留——见 {@link com.cheeseocean.im.postoffice.connection.ConnectionManager}
-     *                     的接口注释。可为 null，按通配符 "*" 记录，等价于"任何设备/连接均已投递"。
-     * @return {@code true} 表示本次是首次记录，可执行真正的投递；{@code false} 表示已记录过，调用方应跳过
-     */
-    boolean markIfAbsent(String serverMsgId, String userId, String deviceId);
+    Claim claim(String deliveryId, String userId, String deviceId);
+
+    boolean commit(Claim claim);
+
+    boolean abort(Claim claim);
+
+    enum ClaimStatus {
+        ACQUIRED,
+        DELIVERED,
+        IN_PROGRESS,
+        UNAVAILABLE
+    }
+
+    record Claim(ClaimStatus status, String key, String token) {
+        public static Claim acquired(String key, String token) {
+            return new Claim(ClaimStatus.ACQUIRED, key, token);
+        }
+
+        public static Claim status(ClaimStatus status) {
+            return new Claim(status, null, null);
+        }
+    }
 }

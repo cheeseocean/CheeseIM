@@ -1,0 +1,22 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {"type":"timeseries","title":"Queue publish rate","gridPos":{"h":8,"w":12,"x":0,"y":0},"targets":[{"expr":"sum by (backend,topic,result) (rate(cheeseim_queue_publish_total[5m]))","legendFormat":"{{backend}} {{topic}} {{result}}"}]},
+    {"type":"timeseries","title":"Queue publish p95 latency","gridPos":{"h":8,"w":12,"x":12,"y":0},"targets":[{"expr":"histogram_quantile(0.95, sum by (le,backend,topic) (rate(cheeseim_queue_publish_latency_seconds_bucket[5m])))","legendFormat":"{{backend}} {{topic}}"}]},
+    {"type":"timeseries","title":"Ingress batches and messages","gridPos":{"h":8,"w":12,"x":0,"y":8},"targets":[{"expr":"sum by (result) (rate(cheeseim_ingress_batch_total[5m]))","legendFormat":"batches {{result}}"},{"expr":"sum by (result) (rate(cheeseim_ingress_messages_total[5m]))","legendFormat":"messages {{result}}"}]},
+    {"type":"timeseries","title":"Node queue depth","gridPos":{"h":8,"w":12,"x":12,"y":8},"targets":[{"expr":"max by (node,state) (cheeseim_node_queue_depth)","legendFormat":"{{node}} {{state}}"}]},
+    {"type":"timeseries","title":"Route and dedup","gridPos":{"h":8,"w":12,"x":0,"y":16},"targets":[{"expr":"sum by (result) (rate(cheeseim_online_route_lookup_total[5m]))","legendFormat":"route {{result}}"},{"expr":"sum by (status) (rate(cheeseim_delivery_dedup_claim_total[5m]))","legendFormat":"dedup {{status}}"}]},
+    {"type":"timeseries","title":"Read, writer and typing","gridPos":{"h":8,"w":12,"x":12,"y":16},"targets":[{"expr":"sum by (result) (rate(cheeseim_read_advance_total[5m]))","legendFormat":"read {{result}}"},{"expr":"sum by (writer,result) (rate(cheeseim_writer_operation_total[5m]))","legendFormat":"{{writer}} {{result}}"},{"expr":"sum by (result) (rate(cheeseim_typing_signal_total[5m]))","legendFormat":"typing {{result}}"}]},
+    {"type":"timeseries","title":"Offline push results","gridPos":{"h":8,"w":12,"x":0,"y":24},"targets":[{"expr":"sum by (provider,result) (rate(cheeseim_offline_push_total[5m]))","legendFormat":"{{provider}} {{result}}"}]},
+    {"type":"timeseries","title":"Offline push p95 latency","gridPos":{"h":8,"w":12,"x":12,"y":24},"targets":[{"expr":"histogram_quantile(0.95, sum by (le,provider) (rate(cheeseim_offline_push_latency_seconds_bucket[5m])))","legendFormat":"{{provider}}"}]}
+  ],
+  "schemaVersion": 39,
+  "tags": ["cheeseim", "server"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "title": "CheeseIM Server Main Flow",
+  "uid": "cheeseim-server-main",
+  "version": 1
+}

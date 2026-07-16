@@ -19,6 +19,17 @@ public class ServerProperties {
     private final WebSocketConfig  websocket  = new WebSocketConfig();
     private final ConnectionConfig connection = new ConnectionConfig();
     private final BusinessConfig   business   = new BusinessConfig();
+    private final MessageLimitsConfig messageLimits = new MessageLimitsConfig();
+
+    /** 客户端 CHAT_SEND 的 envelope 与各类 content 上限，单位均为字节。 */
+    @Data
+    public static class MessageLimitsConfig {
+        private int maxEnvelopeBodyBytes = 65536;
+        private int maxTextBytes = 16384;
+        private int maxCustomBytes = 65536;
+        private int maxMediaMetadataBytes = 32768;
+        private int maxDefaultBytes = 32768;
+    }
 
     /** 长连接命令处理线程池配置，独立于 Netty EventLoop。 */
     @Data

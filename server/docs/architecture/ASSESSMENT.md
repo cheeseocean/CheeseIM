@@ -30,10 +30,10 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 | 会话增量同步 version-log | 200 上限回退全量 | `business/.../ConversationServiceImpl.java:263` |
 | 5 厂商推送回执 + 日上限 + 定时清理 | | `module-postman.yml` |
 | 在线路由表 | Redis HASH + TTL，`register` / `refresh` / `unregister` 走 Lua 原子脚本，直连 Redis 不再走 L1 | `postoffice/.../RedisOnlineRouteService.java`、`postoffice/ARCH.md` §3 |
-| 跨节点在线投递 | `gatewayNode` 写入真实节点 ID，postman 按节点分组，Redis LIST `delivery:node:{nodeId}` 投递到目标 postoffice；代码路径已接通，待长压/chaos 验证 | `NodeIdentityProvider`、`RedisNodeDeliveryService`、`NodeDeliveryPoller` |
+| 跨节点在线投递 | `gatewayNode` 写入真实节点 ID，cluster profile/runtime mode 均强制稳定 node-id；生产者统一 `NodeQueueMessage` envelope，Redis ready LIST + processing HASH/租约 ZSET + bounded dead LIST 支持 ACK、失败重试、跨实例过期回收，并对三种状态设容量/TTL 防护；待长压/chaos 验证 | `NodeIdentityProvider`、`RedisNodeDeliveryService`、`NodeDeliveryPoller` |
 | 群消息投递 | NORMAL_GROUP 写扩散到成员级 DeliveryEvent，SUPER_GROUP 读扩散仅持久化 | `postmaster/.../IngressEventListener.java`、`GroupFanoutPlanner` |
 | 投递去重 | `DeliveryDedupStore` + Redis `SET NX EX`，跨节点共享且 TTL 自动回收 | `postoffice/.../RedisDeliveryDedupStore.java` |
-| Kafka 队列路径 | Producer/Consumer 统一 protobuf bytes，离线推送经 `QueueAdapter`，Chronicle/Kafka 后端一致 | `KafkaQueueAdapter`、`OfflinePushEventProducer` |
+| Kafka 队列路径 | Producer/Consumer 统一 protobuf bytes，离线推送经 `QueueAdapter`；两后端的 payload/订阅契约对齐，可靠性边界不同 | `KafkaQueueAdapter`、`ChronicleQueueAdapter`、`OfflinePushEventProducer` |
 
 ### B. 已实现但存在集群缺口（需修复才能多节点）
 
@@ -56,7 +56,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 ### C. 已声明协议但未在链路上接通或尚未完全统一
 
 - `CHAT_READ` 已接通 `ReadStateService`、跨节点 typed notify 与 version-log 增量信号；`CHAT_REVOKE` 已接通 `MessageMutationService`、两分钟发送者权限校验、跨节点 notify 与历史 overlay。
-- 旧 `IngressEventListener.preProcessReadReceipts` 仍是普通消息 `READ_RECEIPT` 遗留旁路；typed `CHAT_READ` 已改走独立 `ReadStateService`，不再依赖该注释路径。
+- 普通消息 `READ_RECEIPT` 遗留旁路已删除：postoffice 拒绝旧内容类型，postmaster 防御性丢弃遗留队列数据；typed `CHAT_READ` 是唯一已读入口。
 - ~~WS 异步投递路径走 JSON。~~ **已修复 2026-07-13**：`WsServerHandler` 入站/响应与 `ConnectionManager` 异步在线投递全部使用 Binary WebSocket Frame + `ProtoEnvelopeMapper`，TCP/WS 共用 typed protobuf envelope。
 
 ---
@@ -73,7 +73,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 | ~~**P1**~~ | ~~ConnectionManager 全局 `synchronized`~~ | ~~`ConnectionManager.java:139,203`~~ | **已修复 2026-07-07**：`registerPendingConnection` / `addConnection` / `removeConnection` 改为 connection/user 分片 `ReentrantLock`，认证提升同时持有 connection + user 分片锁，避免 pending 移除与认证提升竞态 |
 | ~~**P1**~~ | ~~踢下线跨节点失效~~ | ~~`KickoffCommandServiceImpl.java:18-40`~~ | **已修复 2026-07-07**：`RouteSnapshot` 增 `sessionId`，`RedisOnlineRouteService` 维护 session 路由索引，`KickoffCommandServiceImpl` 按 gatewayNode 定向发布 `KICKOFF` 节点队列命令，`NodeDeliveryPoller` 本地执行 |
 | ~~**P1**~~ | ~~`deliveredMessageKeys` 无界本地 HashSet~~ | ~~`ConnectionManager.java:64`~~ | **已修复 2026-07-06**：`ConnectionManager.markDeliveryIfAbsent` 委托给新抽象 `DeliveryDedupStore`；`RedisDeliveryDedupStore` 用 Redis `SET NX EX` 单原子命令做跨节点去重 + TTL 自动过期，key 形如 `idem:delivery:{serverMsgId}:{userId}:{deviceId|*}`。去掉旧 `ConcurrentHashMap.newKeySet()` 本地 Set，长跑 OOM 与跨节点漏去重双问题同时消除。
-| ~~**P1**~~ | ~~默认队列 Chronicle（单机）+ Kafka 路径序列化不兼容~~ | ~~`QueueAutoConfigurer.java:28`、`KafkaQueueAdapter.java:54` vs `MessageProducer.java:27`~~ | **已修复 2026-07-07**：`KafkaQueueAdapter` 反序列化对齐 Chronicle（protobuf 原生 / byte[] 透传），`byteKafkaTemplate` 修复泛型不匹配，DeliveryEventListener 改走 `OfflinePushEventProducer` → `QueueAdapter.send`（详见 `postman/ARCH.md` §7）。多节点下队列通道已就绪，只需在 `common.yml` 启用 `cheeseim.queue.type=kafka` 并确保 Kafka bootstrap 配置可用即可上集群。
+| ~~**P1**~~ | ~~默认队列 Chronicle（单机）+ Kafka 路径序列化不兼容~~ | ~~`QueueAutoConfigurer.java:28`、`KafkaQueueAdapter.java:54` vs `MessageProducer.java:27`~~ | **已修复 2026-07-16**：`KafkaQueueAdapter` 反序列化对齐 Chronicle（protobuf 原生 / byte[] 透传），`byteKafkaTemplate` 修复泛型不匹配，DeliveryEventListener 改走 `OfflinePushEventProducer` → `QueueAdapter.send`（详见 `postman/ARCH.md` §7）。多节点通道由 `application-cluster.yml` 启用 Kafka，并必须提供 bootstrap servers、topic 契约以及实例唯一事务 prefix。
 | ~~**P2**~~ | ~~历史分页全扫~~ | ~~`HistoryQueryService.java:53-82`~~ | **已修复 2026-07-07**：先定位 latest blockNo，再按 conversationId + blockNo range 窗口读取并裁剪 limit |
 | ~~**P2**~~ | ~~权限校验失败放行~~ | ~~`HistoryQueryService.java:213`~~ | **已修复 2026-07-07**：RPC/provider 异常默认拒绝，仅复用未过期本地权限缓存 |
 | ~~**P2**~~ | ~~MessageSender 三次同步 Dubbo~~ | ~~`MessageSenderImpl.java:109-123`~~ | **已修复 2026-07-09**：postbox 改为一次 `MessageSendPermissionService.check` 聚合查询，business 本地合并黑名单、用户 receiveOpt、会话 receiveOpt |
@@ -127,7 +127,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 3. ~~**路由表原子化**：把 `RedisOnlineRouteService` 的 register/refresh/kick 改写为单脚本 Lua（类比 seq 分配器的工作模式），消除 RMW 竞态。~~ **已完成 2026-07-06**：`register`/`refresh`/`unregister` 走单脚本 Lua；存储改为 Redis HASH 双字段（`route:{deviceId}` JSON + `heartbeat:{deviceId}` 时间戳），不使用通用缓存。
 4. ~~**连接管理去全局锁**：`ConnectionManager` 按 `userId hash` 分片到 N 个 `ShardedConnectionManager`，分片锁 + 分片清理线程，连接增删并发提升 N 倍。~~ **已完成 2026-07-07**：保留现有类边界，改为 connection/user 双维度分片 `ReentrantLock`，避免 pending 注册/移除与认证提升之间的全局串行和竞态。
 5. ~~**投递去重上 Redis**：`deliveredMessageKeys` 改 Redis `SET ... EX` 跨节点去重 + 自动过期。~~ **已完成 2026-07-06**：新增 `DeliveryDedupStore` 抽象 + `RedisDeliveryDedupStore` 实现，使用 `SET <key> 1 NX EX <ttl>` 单原子命令；key = `idem:delivery:{serverMsgId}:{userId}:{deviceId|*}`，TTL 默认 600s（`cheeseim.delivery.dedup.ttl-seconds`）；`ConnectionManager` 删除本地 `ConcurrentHashMap.newKeySet()` 字段，改为依赖注入 `DeliveryDedupStore`，未注入时 NO-OP 放行供测试使用。
-6. ~~**修复 Kafka 路径**：统一 Protobuf 序列化器（Producer/Consumer 一致），把 `DeliveryEventListener.emitOfflinePushIfNeeded` 中的 `kafkaTemplate.send` 直调改回 `QueueAdapter`。~~ **已完成 2026-07-07**：新增 `OfflinePushEventProducer`（postman），`DeliveryEventListener.emitOfflinePushIfNeeded` 改走 `offlinePushProducer.publish` → `QueueAdapter.send(OFFLINE_PUSH, …)`；`KafkaQueueAdapter.subscribe/subscribeKeyed` 反序列化对齐 `ChronicleQueueAdapter.deserialize`（`byte[]` 透传 / `Message`/`HistoryEvent`/`OfflinePushEvent` 走 protobuf 原生解析，其它类型 Jackson 兜底）；`KafkaQueueConfiguration` 提供唯一的 `byteKafkaTemplate()`（`ByteArraySerializer`），`QueueAutoConfigurer.kafkaQueueAdapter` 注入该字节 template。Chronicle/Kafka 两种 `cheeseim.queue.type` 后端端到端一致。
+6. ~~**修复 Kafka 路径**：统一 Protobuf 序列化器（Producer/Consumer 一致），把 `DeliveryEventListener.emitOfflinePushIfNeeded` 中的 `kafkaTemplate.send` 直调改回 `QueueAdapter`。~~ **已完成 2026-07-16**：新增 `OfflinePushEventProducer`（postman），`DeliveryEventListener.emitOfflinePushIfNeeded` 改走 `offlinePushProducer.publish` → `QueueAdapter.send(OFFLINE_PUSH, …)`；`KafkaQueueAdapter.subscribe/subscribeKeyed` 反序列化对齐 `ChronicleQueueAdapter.deserialize`；Kafka 发送等待 broker ACK，batch 使用事务原子提交，失败消费进入有界重试与 DLT。Chronicle 仍是单机文件后端，batch 逐条 append 不提供 Kafka 事务的整批原子性；两者只保证 payload 和消费契约对齐，不宣称可靠性语义完全相同。
 
 ### P1 — 存储与索引（4-8 周）
 
@@ -150,12 +150,14 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 
 18. **协议补全**：~~在 `message_protocol.proto` 为 `CHAT_READ/CHAT_REVOKE/FORCE_LOGOUT` 增加类型化 payload；~~ **已完成 2026-07-11**：新增 typed command/notify payload 并写入 client/server envelope oneof，Java/Go 生成产物同步。conversation sync / friend / group 控制面仍待 Protobuf 表达。已读/撤回的产品与架构决策见 `server/docs/architecture/read-revoke-design.md`。
 19. ~~**WS 协议统一为 Protobuf**。~~ **已完成 2026-07-13**：入站、同步响应、异步聊天/控制通知全部使用 Binary WebSocket Frame + typed protobuf envelope，与 TCP 一致。
-20. ~~**已读回执链路**。~~ **已完成 2026-07-14**：TCP/二进制 WS/HTTP 统一调用 `ReadStateService`，完成可见性校验、maxSeq 截断、Redis 单调推进与 Mongo write-behind；同步写入 `ConversationVersionLog.READ_STATE_UPDATED`，增量同步返回变化会话 ID，离线设备据此刷新 read snapshot。结果先追加至 `conversation_control_event` outbox，携带全局 cursor，再经 postman `ControlNotificationDispatcher` 按 gatewayNode 推送 typed notify：单聊通知 peer 与阅读者在线端，群聊仅阅读者在线端。
+20. ~~**已读回执链路**。~~ **已完成 2026-07-16**：TCP/二进制 WS/HTTP 统一调用 `ReadStateService`，完成可见性校验、maxSeq 截断、Redis Lua 原子单调推进 readSeq/未读数与 Mongo write-behind；同步写入 `ConversationVersionLog.READ_STATE_UPDATED`，增量同步返回变化会话 ID，离线设备据此刷新 read snapshot。结果先追加至 `conversation_control_event` 分片 outbox，再经 postman `ControlNotificationDispatcher` 按 gatewayNode 推送 typed notify：单聊通知 peer 与阅读者在线端，群聊仅阅读者在线端。
 21. **消息撤回/编辑与富媒体**：**撤回闭环已完成 2026-07-14**：`MessageMutationService` 按 serverMsgId 点查服务端 mapping，校验 conversation/发送者/服务端持久化时间两分钟窗口，以 `{serverMsgId}:REVOKED` 原子 upsert mutation；TCP/WS/HTTP 统一返回结果；历史页和 gap repair 批量 merge tombstone。新增按 `createdAt + mutationId` 稳定复合游标的 mutation 增量同步、群成员权限校验和 HTTP 拉取入口；撤回控制通知同样追加至 `conversation_control_event` outbox 后再直推，单聊双方、普通群在线成员按 gatewayNode 推送，超级群仍以 mutation 增量同步收敛。消息编辑与上传 token 服务仍待完成。
 
-控制事件基础设施已在 2026-07-14 落地：已读、撤回、输入中统一写入 `conversation_control_event`，使用 Mongo 原子 cursor、目标用户索引、claim lease 与有限在线补偿。首次直推和补偿复用 eventId 去重；离线或超过补偿上限的客户端通过 `/api/im/conversations/control-events` 游标拉取，控制事件不触发离线厂商推送。输入中仅走 `CHAT_TYPING`，有效期 3-5 秒，不进入普通消息 ingress、历史或会话 seq。
+控制事件基础设施于 2026-07-16 完成热点与重入治理：已读、撤回写入 `conversation_control_event`，cursor 计数器按 userId 固定映射为 64 个 Mongo 文档，复合 long cursor 对单用户保持单调且从旧 global cursor 之后继续；目标列表先按 cursor 分片、再按每事件 200 人上限拆分，分片 eventId 由业务稳定 ID + shard + 目标摘要确定，并以 `$setOnInsert` 幂等 upsert，中途失败重入只补缺失分片。claimable 查询按 shard 轮转扫描并与 PENDING/过期 CLAIMED 复合索引对齐，避免已完成 backlog 的全局阻塞排序。离线或超过补偿上限的客户端仍通过 `/api/im/conversations/control-events` 保存单个用户专属 cursor 补拉，无需修改协议。控制事件不触发离线厂商推送。输入中已从可靠 outbox 拆除：仅走 `CHAT_TYPING`，Redis 按 sender + conversation 用 `SET NX EX` 保存 3-5 秒瞬时状态并节流，只尽力通知在线目标；普通群有可配置成员上限，超级群禁用，不进入 Mongo outbox、普通消息 ingress、历史或会话 seq。
 
 ### P4 — 运维与一致性
+
+设备送达状态于 2026-07-16 完成服务端闭环：新增 typed `CHAT_DELIVERY(37)`，客户端按设备/会话提交 `maxDeliveredSeq + deviceId + opId`，`DeliveryStateService` 校验会话可见上界后用 Redis Lua 单调推进，并通过有界批量 write-behind 以 Mongo `$max` 持久化；单聊只向发送方通知 delivery 高水位。`CHAT_SEND_ACK` 明确增加 `acceptedAt + BROKER_ACCEPTED`，仅表示 broker 已可靠接收；postoffice 的 channel write 成功不再被解释为客户端送达。客户端仍需由 Go SDK/CheeseBox 基于同一 proto 生成代码并在本地消息落盘后发送 ACK。
 
 22. ~~**限流/幂等**：api-server 入口 RateLimiter + Redis SETNX 幂等 key。~~ **已完成 2026-07-11**：Redis Lua 固定窗口 RateLimiter 按来源地址散列后的 key 在多副本间共享计数，超额返回 HTTP 429，Redis 不可用时放行；携带 `Idempotency-Key` 的鉴权 POST/PUT/DELETE 以 `userId + method + path + key 指纹` 做 Redis SETNX，重复请求返回 HTTP 409。当前不缓存首次响应，客户端需要响应重放时需另行设计状态/响应缓存协议。
 23. ~~**集群部署 profile**：新增 `application-cluster.yml`，含 Redis Sentinel/Cluster、Mongo replica URI、Kafka bootstrap、Nacos namespace 分离；删除 `common.yml` 中注释掉的 Redis/Kafka。~~ **已完成 2026-07-08**：`application-cluster.yml` 作为分模块 profile overlay，默认 `cheeseim.queue.type=kafka` 与 `cheeseim.conversation-seq.deployment-mode=cluster`；`MONGODB_URI`、`KAFKA_BOOTSTRAP_SERVERS`、`NACOS_SERVER_ADDR`、`NACOS_NAMESPACE`、`REDIS_SENTINEL_*` / `REDIS_CLUSTER_*` 均走环境变量，不向 cluster 默认写入 localhost。
@@ -163,7 +165,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 25. ~~**WS ticket 用 Lua 原子 consume**。~~ **已完成 2026-07-08**：`SessionStateStore` 增加原子 consume 契约，Redis/RocksDB 两种后端均实现一次性消费。
 26. **Mongo 副本 + 查询 secondary 读偏好** 读写分离。
 27. **指标分级**：已有 actuator + Prometheus，补齐 per-conversation seq lag、queue lag、online route hit/miss、push attempt counter。Grafana dashboard 模板。
-28. **集群 chaos + 1M 长压脚本**：jmeter/gatling 长连接压测，多节点断网/重启验证。
+28. **集群 chaos + 1M 长压脚本**：**工具与门槛已落地 2026-07-16，百万规模仍待实测**。`server/perf/k6/ws-im.js` 提供 auth/heartbeat/chat-send/read/delivery-ack 二进制 Protobuf WS 场景，连接数、ramp、消息速率均可配置；`verify-summary.mjs` 核对 broker ACK、唯一接收、重复与 delivery ACK。`server/perf/chaos/run-chaos.sh` 以显式 start/heal 命令覆盖 postoffice 重启、Redis 短断、Kafka broker 不可用、Mongo primary stepdown，并默认 dry-run。当前只完成语法/smoke 入口，50-100 万及 1M 结论必须等待分布式负载机长压和 chaos 证据，不能从代码或小规模结果外推。
 
 ---
 
@@ -199,7 +201,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 
 - 2026-07-06：P0-3 路由表原子化已完成。`RedisOnlineRouteService` 重写为基于 `StringRedisTemplate` + 单脚本 Lua，存储改为 Redis HASH 双字段（`route:{deviceId}` JSON + `heartbeat:{deviceId}` 时间戳），消除旧读改写竞态与 L1 无广播不一致。`OnlineRouteService` 接口未变，`HeartbeatMessageHandler` / `ConnectionManager` 调用方零改动。原 ASSESSMENT 「P0-3」表格项已划除，演进路线 P0 §3 已划除并标注完成日期。
 - 2026-07-06：P0-2 群扩散闭环已完成。`GroupMembershipQueryService` Dubbo 契约新增 `queryGroupType(groupId)`，business 实现侧复用 `GroupRepository` 读群资料并映射 `GroupTypeEnum`；`GroupMembershipFacade` 增 `loadGroupType` 包装；`GroupFanoutPlanner` 新增 `deliveryKey(groupId, memberId)` 生成 `g:{groupId}:{memberId}` 形式 partition key；`IngressEventListener` 新增 `fanoutGroupDelivery` 分流 NORMAL_GROUP（写扩散按成员切片 publish N 份 keyed DeliveryEvent）/ SUPER_GROUP（读扩散仅持久化）/ null（兜底 NORMAL）；`MessageProducer.publishForMember` 通过 protobuf builder 替换 `receiverId`，避免 Java 侧深拷贝 `Message`；postman `DeliveryEventListener.resolveTargets` 去除 `ChatType.GROUP` 跳过分支，直接按 `receiverId` 投递（写扩散后每条 DeliveryEvent 已携带具体 memberId）。injvm 部署原生兼容，调用方零改动。
-- 2026-07-06：P0-5 投递去重上 Redis 已完成。`ConnectionManager` 删除无界本地 `deliveredMessageKeys = ConcurrentHashMap.newKeySet()` 字段；新增 `DeliveryDedupStore` 抽象（`postoffice/dedup/`）和 `RedisDeliveryDedupStore` 实现，使用 Redis 单原子命令 `SET <key> 1 NX EX <ttl>`，key = `idem:delivery:{serverMsgId}:{userId}:{deviceId|*}`（复用 `RedisKeys.deliveryIdem`）。TTL 默认 600 秒，可通过 `cheeseim.delivery.dedup.ttl-seconds` 属性覆盖；0/负数 TTL 钳为 1 秒避免永久 key。Redis 返回 null（异常场景）按 false 处理走重复分支，保证 side-effect-safe。`ConnectionManager` 通过 `@Autowired(required=false)` 注入 Store，未注入时 NO-OP 放行，便于单元测试不连 Redis。postoffice 模块预存的若干 stale 测试（`OnlineDispatcherImplTest` 等）编译与本改动无关，仍按既有 P4 清理项跟进。
+- 2026-07-06：P0-5 投递去重上 Redis 已完成。`ConnectionManager` 删除无界本地 `deliveredMessageKeys = ConcurrentHashMap.newKeySet()` 字段；新增 `DeliveryDedupStore` 抽象（`postoffice/dedup/`）和 `RedisDeliveryDedupStore` 实现，使用 Redis 单原子命令 `SET <key> 1 NX EX <ttl>`，key = `idem:delivery:{serverMsgId}:{userId}:{deviceId|*}`（复用 `RedisKeys.deliveryIdem`）。TTL 默认 600 秒，可通过 `cheeseim.delivery.dedup.ttl-seconds` 属性覆盖；0/负数 TTL 钳为 1 秒避免永久 key。Redis 返回 null（异常场景）按 false 处理走重复分支，保证 side-effect-safe。`ConnectionManager` 通过构造器 `ObjectProvider` 注入可选 Store，未注入时 NO-OP 放行，便于单元测试不连 Redis。postoffice 模块预存的若干 stale 测试（`OnlineDispatcherImplTest` 等）编译与本改动无关，仍按既有 P4 清理项跟进。
 - 2026-07-06 review 跟进项（未阻断，留作后续）：
   - 性能：`IngressEventListener.fanoutGroupDelivery` 在 ingress 批（500 条/会话）内对每条群消息触发 `loadGroupType` + `loadGroupMembers` 两次 Dubbo RPC，最坏 1000 RPC/批。建议 P2-14 "MessageSender 权限链合并" 一并把群扩散查群类型/查成员批量合并或缓存到 per-batch scope（business 的 CacheStore 可缓 Mongo，但不缓 Dubbo RTT）。
   - 可用性：P0-3 + P0-5 让 Redis 成为在线投递链路的硬依赖（路由表 + 去重）。`RedisDeliveryDedupStore.markIfAbsent` 当前不加 try/catch，Redis 不可达时 `setIfAbsent` 抛 `RedisConnectionFailureException` 会被 `DeliveryEventListener.onMessage` 的 catch 吞掉，等同停所有在线投递。如要 fail-open（Redis 不可达时容忍重复推送），可在 `markIfAbsent` 中 catch `RedisConnectionFailureException` 返回 `true`。本权衡按 ASSESSMENT 接受硬依赖，未改。

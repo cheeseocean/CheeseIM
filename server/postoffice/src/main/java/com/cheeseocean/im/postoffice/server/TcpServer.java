@@ -225,7 +225,7 @@ public class TcpServer implements CommandLineRunner, Server {
                             TimeUnit.SECONDS));
 
             // TCP消息解码器
-            pipeline.addLast("tcp-decoder", new TcpEnvelopeDecoder());
+            pipeline.addLast("tcp-decoder", new TcpEnvelopeDecoder(tcpConfig.getMaxFrameLength()));
 
             // TCP消息编码器
             pipeline.addLast("tcp-encoder", new TcpEnvelopeEncoder());

@@ -6,35 +6,33 @@ import com.cheeseocean.im.common.api.dto.dispatch.DispatchResult;
 import com.cheeseocean.im.common.api.dto.route.NodeQueueMessage;
 import com.cheeseocean.im.common.api.enums.NodeQueueMessageType;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
+import com.cheeseocean.im.common.core.queue.NodeQueueRedisScripts;
 import com.cheeseocean.im.postoffice.api.OnlineDispatcherImpl;
 import com.cheeseocean.im.postoffice.config.NodeIdentityProvider;
 import com.cheeseocean.im.postoffice.connection.ConnectionManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.data.redis.core.ListOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
  * 单元测试覆盖 {@link NodeDeliveryPoller} 的消费逻辑：
  * <ul>
- *   <li>BRPOP 返回 NodeQueueMessage envelope → 反序列化并调用 OnlineDispatcherImpl.dispatchMessage</li>
- *   <li>BRPOP 返回 null（超时）→ 不调用 dispatch，循环继续</li>
- *   <li>BRPOP 返回非法 JSON → 异常被吞掉，循环继续</li>
+ *   <li>BRPOPLPUSH 返回 envelope → 本地投递成功后 ACK processing</li>
+ *   <li>本地投递失败 → 从 processing 移除并放回 ready 重试</li>
+ *   <li>非法 JSON → 从 processing 移入死信队列</li>
  *   <li>shutdown → 线程退出</li>
  * </ul>
  */
@@ -60,6 +58,10 @@ class NodeDeliveryPollerTest {
         nodeIdentityProvider = mock(NodeIdentityProvider.class);
 
         when(redisTemplate.opsForList()).thenReturn(listOps);
+        when(redisTemplate.execute(eq(NodeQueueRedisScripts.RECOVER_EXPIRED), anyList(), any(Object[].class)))
+                .thenReturn(0L);
+        when(redisTemplate.execute(eq(NodeQueueRedisScripts.ACK), anyList(), any(Object[].class))).thenReturn(1L);
+        when(redisTemplate.execute(eq(NodeQueueRedisScripts.COMPLETE), anyList(), any(Object[].class))).thenReturn(1L);
         when(nodeIdentityProvider.getNodeId()).thenReturn("test-node-1");
     }
 
@@ -70,19 +72,12 @@ class NodeDeliveryPollerTest {
 
         String json = objectMapper.writeValueAsString(NodeQueueMessage.of(
                 NodeQueueMessageType.DELIVERY, objectMapper.writeValueAsString(req)));
-        CountDownLatch latch = new CountDownLatch(1);
-
-        // BRPOP: first call returns JSON, subsequent calls return null (timeout simulation)
-        when(listOps.rightPop(eq(RedisKeys.deliveryNodeQueue("test-node-1")), eq(Duration.ofSeconds(30))))
-                .thenAnswer(invocation -> {
-                    if (latch.getCount() > 0) {
-                        latch.countDown();
-                        return json;
-                    }
-                    // After consuming the message, we stop the poller
-                    poller.stop();
-                    return null;
-                });
+        String ready = RedisKeys.deliveryNodeQueue("test-node-1");
+        String processing = RedisKeys.deliveryNodeProcessingQueue("test-node-1");
+        when(redisTemplate.execute(eq(NodeQueueRedisScripts.CLAIM),
+                eq(List.of(ready, processing, processing + ":leases")), any(Object[].class)))
+                .thenReturn(json)
+                .thenAnswer(invocation -> { poller.stop(); return null; });
 
         DispatchMessageResp resp = new DispatchMessageResp();
         resp.setResults(List.of(new DispatchResult("conn-1", true, "OK", "delivered")));
@@ -92,17 +87,16 @@ class NodeDeliveryPollerTest {
                 nodeIdentityProvider);
         poller.start();
 
-        // 等待消息消费完成
-        assertTrue(latch.await(5, TimeUnit.SECONDS));
-        // 等待 stop 生效
-        Thread.sleep(200);
-
-        verify(onlineDispatcher, atLeastOnce()).dispatchMessage(any(DispatchMessageReq.class));
+        verify(onlineDispatcher, timeout(3000)).dispatchMessage(any(DispatchMessageReq.class));
+        verify(redisTemplate, timeout(3000)).execute(eq(NodeQueueRedisScripts.ACK),
+                eq(List.of(processing, processing + ":leases")), any(Object[].class));
     }
 
     @Test
     void pollLoopShouldNotDispatchWhenTimeout() throws Exception {
-        when(listOps.rightPop(eq(RedisKeys.deliveryNodeQueue("test-node-1")), eq(Duration.ofSeconds(30))))
+        String ready = RedisKeys.deliveryNodeQueue("test-node-1");
+        String processing = RedisKeys.deliveryNodeProcessingQueue("test-node-1");
+        when(redisTemplate.execute(eq(NodeQueueRedisScripts.CLAIM), anyList(), any(Object[].class)))
                 .thenAnswer(invocation -> {
                     // timeout → return null, then stop
                     poller.stop();
@@ -113,34 +107,142 @@ class NodeDeliveryPollerTest {
                 nodeIdentityProvider);
         poller.start();
 
-        // 等待 poller 完成
-        Thread.sleep(300);
+        poller.stop();
 
         verify(onlineDispatcher, never()).dispatchMessage(any(DispatchMessageReq.class));
     }
 
     @Test
-    void pollLoopShouldSurviveMalformedJson() throws Exception {
-        CountDownLatch latch = new CountDownLatch(1);
-
-        when(listOps.rightPop(eq(RedisKeys.deliveryNodeQueue("test-node-1")), eq(Duration.ofSeconds(30))))
-                .thenAnswer(invocation -> {
-                    if (latch.getCount() > 0) {
-                        latch.countDown();
-                        return "{invalid json";
-                    }
-                    poller.stop();
-                    return null;
-                });
+    void malformedJsonShouldMoveToDeadLetterQueue() {
+        String ready = RedisKeys.deliveryNodeQueue("test-node-1");
+        String processing = RedisKeys.deliveryNodeProcessingQueue("test-node-1");
+        String dead = RedisKeys.deliveryNodeDeadLetterQueue("test-node-1");
+        String invalid = "{invalid json";
+        when(redisTemplate.execute(eq(NodeQueueRedisScripts.CLAIM), anyList(), any(Object[].class)))
+                .thenReturn(invalid)
+                .thenAnswer(invocation -> { poller.stop(); return null; });
 
         poller = new NodeDeliveryPoller(redisTemplate, objectMapper, onlineDispatcher, connectionManager,
                 nodeIdentityProvider);
         poller.start();
 
-        assertTrue(latch.await(5, TimeUnit.SECONDS));
-        Thread.sleep(200);
-
-        // 非法 JSON 不应导致 dispatch 调用
+        verify(redisTemplate, timeout(3000)).execute(eq(NodeQueueRedisScripts.COMPLETE),
+                eq(List.of(processing, processing + ":leases", dead)), any(Object[].class));
         verify(onlineDispatcher, never()).dispatchMessage(any(DispatchMessageReq.class));
+    }
+
+    @Test
+    void failedDispatchShouldRequeueWithIncrementedRetryCount() throws Exception {
+        DispatchMessageReq req = new DispatchMessageReq();
+        req.setUserId("userB");
+        String json = objectMapper.writeValueAsString(NodeQueueMessage.of(
+                NodeQueueMessageType.DELIVERY, objectMapper.writeValueAsString(req)));
+        String ready = RedisKeys.deliveryNodeQueue("test-node-1");
+        String processing = RedisKeys.deliveryNodeProcessingQueue("test-node-1");
+        when(redisTemplate.execute(eq(NodeQueueRedisScripts.CLAIM), anyList(), any(Object[].class)))
+                .thenReturn(json)
+                .thenAnswer(invocation -> { poller.stop(); return null; });
+        when(onlineDispatcher.dispatchMessage(any())).thenThrow(new IllegalStateException("channel failed"));
+
+        poller = new NodeDeliveryPoller(redisTemplate, objectMapper, onlineDispatcher, connectionManager,
+                nodeIdentityProvider);
+        poller.start();
+
+        verify(redisTemplate, timeout(3000)).execute(eq(NodeQueueRedisScripts.COMPLETE),
+                eq(List.of(processing, processing + ":leases", ready)), any(Object[].class));
+    }
+
+    @Test
+    void recoveryFailureShouldNotTerminatePoller() throws Exception {
+        DispatchMessageReq req = new DispatchMessageReq();
+        req.setUserId("user-after-redis-recovery");
+        String json = objectMapper.writeValueAsString(NodeQueueMessage.of(
+                NodeQueueMessageType.DELIVERY, objectMapper.writeValueAsString(req)));
+        when(redisTemplate.execute(eq(NodeQueueRedisScripts.RECOVER_EXPIRED), anyList(), any(Object[].class)))
+                .thenThrow(new IllegalStateException("redis unavailable"))
+                .thenReturn(0L);
+        when(redisTemplate.execute(eq(NodeQueueRedisScripts.CLAIM), anyList(), any(Object[].class)))
+                .thenReturn(json)
+                .thenAnswer(invocation -> { poller.stop(); return null; });
+        DispatchMessageResp response = new DispatchMessageResp();
+        response.setResults(List.of(new DispatchResult("conn-1", true, "OK", "delivered")));
+        when(onlineDispatcher.dispatchMessage(any())).thenReturn(response);
+
+        poller = new NodeDeliveryPoller(redisTemplate, objectMapper, onlineDispatcher, connectionManager,
+                nodeIdentityProvider);
+        poller.start();
+
+        verify(onlineDispatcher, timeout(3000)).dispatchMessage(any());
+    }
+
+    @Test
+    void infrastructureMoveFailureShouldNotBeMisclassifiedAsMalformed() throws Exception {
+        DispatchMessageReq req = new DispatchMessageReq();
+        req.setUserId("userB");
+        String json = objectMapper.writeValueAsString(NodeQueueMessage.of(
+                NodeQueueMessageType.DELIVERY, objectMapper.writeValueAsString(req)));
+        String ready = RedisKeys.deliveryNodeQueue("test-node-1");
+        String processing = RedisKeys.deliveryNodeProcessingQueue("test-node-1");
+        String dead = RedisKeys.deliveryNodeDeadLetterQueue("test-node-1");
+        when(redisTemplate.execute(eq(NodeQueueRedisScripts.CLAIM), anyList(), any(Object[].class)))
+                .thenReturn(json)
+                .thenAnswer(invocation -> { poller.stop(); return null; });
+        when(onlineDispatcher.dispatchMessage(any())).thenThrow(new IllegalStateException("channel failed"));
+        when(redisTemplate.execute(eq(NodeQueueRedisScripts.COMPLETE),
+                eq(List.of(processing, processing + ":leases", ready)), any(Object[].class)))
+                .thenThrow(new IllegalStateException("redis unavailable"));
+
+        poller = new NodeDeliveryPoller(redisTemplate, objectMapper, onlineDispatcher, connectionManager,
+                nodeIdentityProvider);
+        poller.start();
+
+        verify(redisTemplate, timeout(3000)).execute(eq(NodeQueueRedisScripts.COMPLETE),
+                eq(List.of(processing, processing + ":leases", ready)), any(Object[].class));
+        verify(redisTemplate, never()).execute(eq(NodeQueueRedisScripts.COMPLETE),
+                eq(List.of(processing, processing + ":leases", dead)), any(Object[].class));
+    }
+
+    @Test
+    void readyOverflowShouldRetainClaimInsteadOfSendingToDeadLetter() throws Exception {
+        DispatchMessageReq req = new DispatchMessageReq();
+        req.setUserId("user-overflow");
+        String json = objectMapper.writeValueAsString(NodeQueueMessage.of(
+                NodeQueueMessageType.DELIVERY, objectMapper.writeValueAsString(req)));
+        String ready = RedisKeys.deliveryNodeQueue("test-node-1");
+        String processing = RedisKeys.deliveryNodeProcessingQueue("test-node-1");
+        String dead = RedisKeys.deliveryNodeDeadLetterQueue("test-node-1");
+        when(redisTemplate.execute(eq(NodeQueueRedisScripts.CLAIM), anyList(), any(Object[].class)))
+                .thenReturn(json)
+                .thenAnswer(invocation -> { poller.stop(); return null; });
+        when(onlineDispatcher.dispatchMessage(any())).thenThrow(new IllegalStateException("channel failed"));
+        when(redisTemplate.execute(eq(NodeQueueRedisScripts.COMPLETE),
+                eq(List.of(processing, processing + ":leases", ready)), any(Object[].class)))
+                .thenReturn(-1L);
+
+        poller = new NodeDeliveryPoller(redisTemplate, objectMapper, onlineDispatcher, connectionManager,
+                nodeIdentityProvider);
+        poller.start();
+
+        verify(redisTemplate, timeout(3000)).execute(eq(NodeQueueRedisScripts.COMPLETE),
+                eq(List.of(processing, processing + ":leases", ready)), any(Object[].class));
+        verify(redisTemplate, never()).execute(eq(NodeQueueRedisScripts.COMPLETE),
+                eq(List.of(processing, processing + ":leases", dead)), any(Object[].class));
+    }
+
+    @Test
+    void shouldRecoverExpiredClaimBeforeClaimingNextMessage() {
+        when(redisTemplate.execute(eq(NodeQueueRedisScripts.RECOVER_EXPIRED), anyList(), any(Object[].class)))
+                .thenReturn(1L, 0L);
+        when(redisTemplate.execute(eq(NodeQueueRedisScripts.CLAIM), anyList(), any(Object[].class)))
+                .thenAnswer(invocation -> { poller.stop(); return null; });
+
+        poller = new NodeDeliveryPoller(redisTemplate, objectMapper, onlineDispatcher, connectionManager,
+                nodeIdentityProvider);
+        poller.start();
+
+        verify(redisTemplate, timeout(3000).times(2)).execute(eq(NodeQueueRedisScripts.RECOVER_EXPIRED),
+                eq(List.of(RedisKeys.deliveryNodeProcessingQueue("test-node-1"),
+                        RedisKeys.deliveryNodeProcessingQueue("test-node-1") + ":leases",
+                        RedisKeys.deliveryNodeQueue("test-node-1"))), any(Object[].class));
     }
 }

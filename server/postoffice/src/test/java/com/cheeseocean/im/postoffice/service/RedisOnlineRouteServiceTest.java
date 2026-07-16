@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -47,7 +48,7 @@ class RedisOnlineRouteServiceTest {
         redisTemplate = mock(StringRedisTemplate.class);
         hashOps = mock(HashOperations.class);
         when(redisTemplate.opsForHash()).thenReturn(hashOps);
-        service = new RedisOnlineRouteService(redisTemplate, new ObjectMapper(), TTL);
+        service = new RedisOnlineRouteService(redisTemplate, new ObjectMapper(), TTL, () -> 1_000_000L);
     }
 
     @Test
@@ -175,9 +176,11 @@ class RedisOnlineRouteServiceTest {
         RouteSnapshot first = new RouteSnapshot();
         first.setUserId("u1");
         first.setDeviceId("zzz-1");
+        first.setHeartbeatAt(999_999L);
         RouteSnapshot second = new RouteSnapshot();
         second.setUserId("u1");
         second.setDeviceId("aaa-1");
+        second.setHeartbeatAt(999_999L);
 
         Map<Object, Object> entries = new LinkedHashMap<>();
         entries.put("route:zzz-1", mapper.writeValueAsString(first));
@@ -199,11 +202,13 @@ class RedisOnlineRouteServiceTest {
         first.setSessionId("sess-1");
         first.setDeviceId("ios-1");
         first.setGatewayNode("node-a");
+        first.setHeartbeatAt(999_999L);
         RouteSnapshot second = new RouteSnapshot();
         second.setUserId("u1");
         second.setSessionId("sess-1");
         second.setDeviceId("android-1");
         second.setGatewayNode("node-b");
+        second.setHeartbeatAt(999_999L);
 
         Map<Object, Object> entries = new LinkedHashMap<>();
         entries.put("u1:ios-1", mapper.writeValueAsString(first));
@@ -228,5 +233,37 @@ class RedisOnlineRouteServiceTest {
 
         // 解析失败不应抛异常，仅返回空
         assertTrue(service.findByUser("u1").isEmpty());
+    }
+
+    @Test
+    void findByUserShouldFilterAndCleanOnlyStaleDeviceRoute() throws Exception {
+        service = new RedisOnlineRouteService(redisTemplate, new ObjectMapper(), TTL,
+                () -> TTL.toMillis() + 1_000L);
+        ObjectMapper mapper = new ObjectMapper();
+        RouteSnapshot stale = route("u1", "old-device", 1L);
+        stale.setSessionId("session-old");
+        RouteSnapshot active = route("u1", "active-device", TTL.toMillis() + 999L);
+        Map<Object, Object> entries = new LinkedHashMap<>();
+        entries.put("route:old-device", mapper.writeValueAsString(stale));
+        entries.put("heartbeat:old-device", "1");
+        entries.put("route:active-device", mapper.writeValueAsString(active));
+        entries.put("heartbeat:active-device", String.valueOf(TTL.toMillis() + 999L));
+        when(hashOps.entries(RedisKeys.onlineUser("u1"))).thenReturn(entries);
+
+        List<RouteSnapshot> result = service.findByUser("u1");
+
+        assertEquals(List.of("active-device"), result.stream().map(RouteSnapshot::getDeviceId).toList());
+        verify(hashOps).delete(RedisKeys.onlineUser("u1"), "route:old-device", "heartbeat:old-device");
+        verify(hashOps).delete(RedisKeys.onlineSession("session-old"), "u1:old-device");
+        verify(hashOps, never()).delete(
+                RedisKeys.onlineUser("u1"), "route:active-device", "heartbeat:active-device");
+    }
+
+    private static RouteSnapshot route(String userId, String deviceId, long heartbeatAt) {
+        RouteSnapshot snapshot = new RouteSnapshot();
+        snapshot.setUserId(userId);
+        snapshot.setDeviceId(deviceId);
+        snapshot.setHeartbeatAt(heartbeatAt);
+        return snapshot;
     }
 }

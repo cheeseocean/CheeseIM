@@ -9,19 +9,25 @@ import com.cheeseocean.im.common.api.event.HistoryEvent;
 import com.cheeseocean.im.common.api.protocol.ProtoHistoryEventMapper;
 import com.cheeseocean.im.common.api.protocol.ProtoMessageMapper;
 import com.cheeseocean.im.common.core.constants.TopicNames;
+import com.cheeseocean.im.common.core.queue.KeyedMessage;
 import com.cheeseocean.im.common.core.queue.QueueAdapter;
 import com.cheeseocean.im.common.core.store.sequence.SequenceRange;
+import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
 import com.cheeseocean.im.postmaster.sender.HistoryEventProducer;
 import com.cheeseocean.im.postmaster.sender.MessageProducer;
 import com.cheeseocean.im.postmaster.service.ConversationSeqService;
 import com.cheeseocean.im.postmaster.service.DefaultMessagePolicyEngine;
 import com.cheeseocean.im.postmaster.service.GroupMembershipFacade;
+import com.cheeseocean.im.postmaster.service.UserMaxSeqPersistenceWriter;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -50,13 +56,12 @@ class IngressEventListenerTest {
         listener.handle(List.of(singleMessage()));
 
         var historyCaptor = forClass(byte[].class);
-        var deliveryCaptor = forClass(byte[].class);
         verify(queueAdapter).send(eq(TopicNames.HISTORY), eq("s:userA:userB"), historyCaptor.capture());
-        verify(queueAdapter).send(eq(TopicNames.DELIVERY), eq("s:userA:userB"), deliveryCaptor.capture());
+        List<KeyedMessage<byte[]>> deliveries = captureDeliveryBatch(queueAdapter);
 
         HistoryEvent history = ProtoHistoryEventMapper.parse(historyCaptor.getValue());
         Message delivery = ProtoMessageMapper.fromProto(
-                com.cheeseocean.im.common.api.protocol.proto.ProtoMessage.parseFrom(deliveryCaptor.getValue()));
+                com.cheeseocean.im.common.api.protocol.proto.ProtoMessage.parseFrom(deliveries.get(0).payload()));
 
         assertEquals(1001L, history.getBeginSeq());
         assertEquals(1001L, history.getEndSeq());
@@ -64,6 +69,28 @@ class IngressEventListenerTest {
         assertEquals(1001L, history.getMessages().get(0).getSeq());
         assertEquals("userB", delivery.getReceiverId());
         assertEquals(1001L, delivery.getSeq());
+    }
+
+    @Test
+    void shouldAtomicallyAdvanceDirectParticipantMaxSeqAndReceiverUnread() {
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
+        ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
+        ConversationStateStore stateStore = mock(ConversationStateStore.class);
+        UserMaxSeqPersistenceWriter writer = mock(UserMaxSeqPersistenceWriter.class);
+        when(conversationSeqService.allocateBatch("s:userA:userB", 1)).thenReturn(seqBatch(1001L, 1001L));
+        IngressEventListener listener = new IngressEventListener(
+                new MessageProducer(queueAdapter), new HistoryEventProducer(queueAdapter),
+                mock(GroupMembershipFacade.class), conversationSeqService,
+                new DefaultMessagePolicyEngine(), new com.cheeseocean.im.postmaster.service.GroupFanoutPlanner(500),
+                stateStore, writer);
+
+        listener.handle(List.of(singleMessage()));
+
+        verify(stateStore).advanceUserMaxSeq("userA", "s:userA:userB", 1001L, false);
+        verify(stateStore).advanceUserMaxSeq("userB", "s:userA:userB", 1001L, true);
+        verify(writer).enqueue("userA", "s:userA:userB", 1001L);
+        verify(writer).enqueue("userB", "s:userA:userB", 1001L);
+        verify(stateStore).setConversationMaxSeq("s:userA:userB", 1001L);
     }
 
     @Test
@@ -88,7 +115,10 @@ class IngressEventListenerTest {
         assertEquals(2, history.getMessages().size());
         assertEquals(10L, history.getMessages().get(0).getSeq());
         assertEquals(11L, history.getMessages().get(1).getSeq());
-        verify(queueAdapter, times(2)).send(eq(TopicNames.DELIVERY), eq("s:userA:userB"), org.mockito.ArgumentMatchers.any(byte[].class));
+        List<KeyedMessage<byte[]>> deliveries = captureDeliveryBatch(queueAdapter);
+        assertEquals(2, deliveries.size());
+        assertEquals("s:userA:userB", deliveries.get(0).key());
+        assertEquals("s:userA:userB", deliveries.get(1).key());
     }
 
     @Test
@@ -108,16 +138,14 @@ class IngressEventListenerTest {
         // history 仍是单条会话级 event
         verify(queueAdapter).send(eq(TopicNames.HISTORY), eq("g:crew"), org.mockito.ArgumentMatchers.any(byte[].class));
         // delivery 改为写扩散：每位成员一份 keyed DeliveryEvent，key 形如 g:{groupId}:{memberId}
-        var deliveryCaptor = forClass(byte[].class);
-        verify(queueAdapter, times(3)).send(eq(TopicNames.DELIVERY), org.mockito.ArgumentMatchers.any(String.class), deliveryCaptor.capture());
-        verify(queueAdapter).send(eq(TopicNames.DELIVERY), eq("g:crew:u1"), org.mockito.ArgumentMatchers.any(byte[].class));
-        verify(queueAdapter).send(eq(TopicNames.DELIVERY), eq("g:crew:u2"), org.mockito.ArgumentMatchers.any(byte[].class));
-        verify(queueAdapter).send(eq(TopicNames.DELIVERY), eq("g:crew:u3"), org.mockito.ArgumentMatchers.any(byte[].class));
+        List<KeyedMessage<byte[]>> deliveries = captureDeliveryBatch(queueAdapter);
+        assertEquals(List.of("g:crew:u1", "g:crew:u2", "g:crew:u3"),
+                deliveries.stream().map(KeyedMessage::key).toList());
 
         // 校验 delivery payload 中 receiverId 被替换为对应成员（而非群本身的 receiverId）
         for (int i = 0; i < 3; i++) {
             Message msg = ProtoMessageMapper.fromProto(
-                    com.cheeseocean.im.common.api.protocol.proto.ProtoMessage.parseFrom(deliveryCaptor.getAllValues().get(i)));
+                    com.cheeseocean.im.common.api.protocol.proto.ProtoMessage.parseFrom(deliveries.get(i).payload()));
             assertEquals("u" + (i + 1), msg.getReceiverId());
             assertEquals(ChatType.GROUP, msg.getChatType());
             assertEquals("crew", msg.getGroupId());
@@ -139,7 +167,7 @@ class IngressEventListenerTest {
         listener.handle(List.of(groupMessage()));
 
         verify(queueAdapter).send(eq(TopicNames.HISTORY), eq("g:crew"), org.mockito.ArgumentMatchers.any(byte[].class));
-        verify(queueAdapter, never()).send(eq(TopicNames.DELIVERY), org.mockito.ArgumentMatchers.any(String.class), org.mockito.ArgumentMatchers.any(byte[].class));
+        verify(queueAdapter, never()).sendBatch(eq(TopicNames.DELIVERY), anyList());
         verify(groupMembershipFacade, never()).loadGroupMembers("crew");
     }
 
@@ -157,7 +185,7 @@ class IngressEventListenerTest {
 
         listener.handle(List.of(groupMessage()));
 
-        verify(queueAdapter, times(2)).send(eq(TopicNames.DELIVERY), org.mockito.ArgumentMatchers.any(String.class), org.mockito.ArgumentMatchers.any(byte[].class));
+        assertEquals(2, captureDeliveryBatch(queueAdapter).size());
     }
 
     @Test
@@ -176,7 +204,7 @@ class IngressEventListenerTest {
         listener.handle(List.of(message));
 
         verify(queueAdapter).send(eq(TopicNames.HISTORY), eq("s:userA:userB"), org.mockito.ArgumentMatchers.any(byte[].class));
-        verify(queueAdapter, never()).send(eq(TopicNames.DELIVERY), eq("s:userA:userB"), org.mockito.ArgumentMatchers.any(byte[].class));
+        verify(queueAdapter, never()).sendBatch(eq(TopicNames.DELIVERY), anyList());
     }
 
     @Test
@@ -230,7 +258,8 @@ class IngressEventListenerTest {
 
         var historyCaptor = forClass(byte[].class);
         verify(queueAdapter).send(eq(TopicNames.HISTORY), eq("n:userB"), historyCaptor.capture());
-        verify(queueAdapter).send(eq(TopicNames.DELIVERY), eq("n:userB"), org.mockito.ArgumentMatchers.any(byte[].class));
+        List<KeyedMessage<byte[]>> deliveries = captureDeliveryBatch(queueAdapter);
+        assertEquals("n:userB", deliveries.get(0).key());
 
         HistoryEvent history = ProtoHistoryEventMapper.parse(historyCaptor.getValue());
         assertEquals("n:userB", history.getConversationId());
@@ -238,7 +267,7 @@ class IngressEventListenerTest {
     }
 
     @Test
-    void shouldKeepReadReceiptAsTransientWhenHistoryIsDisabled() {
+    void shouldDiscardLegacyReadReceiptBecauseChatReadIsTheOnlyReadPath() {
         QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
@@ -254,7 +283,7 @@ class IngressEventListenerTest {
 
         verify(conversationSeqService, never()).allocateBatch(eq("s:userA:userB"), anyInt());
         verify(queueAdapter, never()).send(eq(TopicNames.HISTORY), eq("s:userA:userB"), org.mockito.ArgumentMatchers.any(byte[].class));
-        verify(queueAdapter, never()).send(eq(TopicNames.DELIVERY), eq("s:userA:userB"), org.mockito.ArgumentMatchers.any(byte[].class));
+        verify(queueAdapter, never()).sendBatch(eq(TopicNames.DELIVERY), anyList());
     }
 
     @Test
@@ -270,13 +299,50 @@ class IngressEventListenerTest {
         Message message = singleMessage();
         listener.handle(List.of(message));
 
-        var deliveryCaptor = forClass(byte[].class);
-        verify(queueAdapter).send(eq(TopicNames.DELIVERY), eq("s:userA:userB"), deliveryCaptor.capture());
+        List<KeyedMessage<byte[]>> deliveries = captureDeliveryBatch(queueAdapter);
         Message actual = ProtoMessageMapper.fromProto(
-                com.cheeseocean.im.common.api.protocol.proto.ProtoMessage.parseFrom(deliveryCaptor.getValue()));
+                com.cheeseocean.im.common.api.protocol.proto.ProtoMessage.parseFrom(deliveries.get(0).payload()));
 
         assertArrayEquals("hello".getBytes(), actual.getContent());
         assertEquals(77L, actual.getSeq());
+    }
+
+    @Test
+    void shouldPropagateIngressFailureToQueueContainer() {
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
+        GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
+        ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
+        when(conversationSeqService.allocateBatch("s:userA:userB", 1))
+                .thenThrow(new IllegalStateException("sequence unavailable"));
+
+        IngressEventListener listener = listener(
+                queueAdapter, groupMembershipFacade, conversationSeqService);
+
+        assertThrows(IllegalStateException.class, () -> listener.onMessage(List.of(singleMessage())));
+    }
+
+    @Test
+    void shouldPropagateGroupMemberQueryFailureForQueueRetry() {
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
+        GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
+        ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
+        when(conversationSeqService.allocateBatch("g:crew", 1)).thenReturn(seqBatch(2002L, 2002L));
+        when(groupMembershipFacade.loadGroupType("crew"))
+                .thenReturn(com.cheeseocean.im.common.api.enums.GroupTypeEnum.NORMAL_GROUP);
+        when(groupMembershipFacade.loadGroupMembers("crew"))
+                .thenThrow(new IllegalStateException("membership unavailable"));
+
+        IngressEventListener listener = listener(
+                queueAdapter, groupMembershipFacade, conversationSeqService);
+
+        assertThrows(IllegalStateException.class, () -> listener.onMessage(List.of(groupMessage())));
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static List<KeyedMessage<byte[]>> captureDeliveryBatch(QueueAdapter queueAdapter) {
+        ArgumentCaptor<List<KeyedMessage<byte[]>>> captor = ArgumentCaptor.forClass((Class) List.class);
+        verify(queueAdapter).sendBatch(eq(TopicNames.DELIVERY), captor.capture());
+        return captor.getValue();
     }
 
     private static IngressEventListener listener(QueueAdapter queueAdapter,

@@ -41,10 +41,12 @@ cluster profile 不提供任何中间件的 `localhost` 默认值，部署时必
 | --- | --- |
 | `MONGODB_URI` | Mongo 副本集连接串 |
 | `KAFKA_BOOTSTRAP_SERVERS` | Kafka broker 列表 |
+| `KAFKA_TRANSACTION_ID_PREFIX` | 可选；Kafka 事务 producer 前缀，显式配置时必须包含 pod/节点唯一部分 |
 | `NACOS_SERVER_ADDR`、`NACOS_NAMESPACE` | 服务注册、配置与元数据中心 |
 | `REDIS_SENTINEL_*` 或 `REDIS_CLUSTER_*` | Redis 高可用拓扑 |
 | `REDIS_PASSWORD` | Redis 认证（如启用） |
 | `CHEESEIM_AUTH_JWT_SECRET` | authcenter JWT 签名密钥 |
+| `CHEESEIM_POSTOFFICE_NODE_ID` | postoffice 稳定节点 ID；cluster 下必填，重启不得变化 |
 
 集群默认 `CHEESEIM_QUEUE_TYPE=kafka`，并把会话 seq 切到 cluster 部署模式。仅可选择一个 Redis profile：`redis-sentinel` 或 `redis-cluster`。
 
@@ -65,3 +67,9 @@ cluster profile 不提供任何中间件的 `localhost` 默认值，部署时必
 | postbox | actuator（由 Spring 默认或部署环境配置） | 20882 |
 | postmaster | — | 20881 |
 | postman | actuator（由 Spring 默认或部署环境配置） | 20883 |
+
+## 6. 容量与故障验证
+
+集群发布前按 [`server/perf/README.md`](../server/perf/README.md) 执行 k6 长连接 smoke 和目标容量阶梯测试。脚本覆盖 auth、heartbeat、chat-send、read 与 delivery ACK，并用 broker ACK、唯一接收数和 delivery ACK 数核对已接受消息的零丢失/零重复。
+
+多节点 chaos 只允许在隔离的预发布环境执行。至少覆盖 postoffice 重启、Redis 短断、Kafka broker 不可用和 Mongo primary stepdown；保存 k6 summary、Prometheus 快照、consumer lag 与副本集状态。未附这些证据时，不得把估算连接数描述为已验证容量。

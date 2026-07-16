@@ -10,7 +10,7 @@ import com.cheeseocean.im.common.api.dto.conversation.ConversationIncrementalSyn
 import com.cheeseocean.im.common.api.enums.SessionStatus;
 import com.cheeseocean.im.common.api.message.MessageHistoryQueryService;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
-import com.cheeseocean.im.common.api.permission.ConversationPermissionDubboService;
+import com.cheeseocean.im.common.api.permission.ConversationPermissionService;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -33,7 +33,7 @@ class ConversationFacadeTest {
                 conversationService,
                 mock(ConversationSyncService.class),
                 mock(ReadStateService.class),
-                mock(ConversationPermissionDubboService.class),
+                mock(ConversationPermissionService.class),
                 mock(MessageHistoryQueryService.class)
         );
 
@@ -53,7 +53,7 @@ class ConversationFacadeTest {
                 conversationService,
                 mock(ConversationSyncService.class),
                 mock(ReadStateService.class),
-                mock(ConversationPermissionDubboService.class),
+                mock(ConversationPermissionService.class),
                 mock(MessageHistoryQueryService.class)
         );
 
@@ -78,7 +78,7 @@ class ConversationFacadeTest {
                 conversationService,
                 mock(ConversationSyncService.class),
                 mock(ReadStateService.class),
-                mock(ConversationPermissionDubboService.class),
+                mock(ConversationPermissionService.class),
                 mock(MessageHistoryQueryService.class)
         );
 
@@ -99,7 +99,7 @@ class ConversationFacadeTest {
                 conversationService,
                 mock(ConversationSyncService.class),
                 mock(ReadStateService.class),
-                mock(ConversationPermissionDubboService.class),
+                mock(ConversationPermissionService.class),
                 mock(MessageHistoryQueryService.class)
         );
 

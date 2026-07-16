@@ -39,7 +39,7 @@ import com.cheeseocean.im.common.api.dto.message.MessageMutationResult;
 import com.cheeseocean.im.common.api.dto.message.MessageMutationSyncResult;
 import com.cheeseocean.im.common.api.enums.ConversationKind;
 import com.cheeseocean.im.common.api.permission.ConversationPermissionRequest;
-import com.cheeseocean.im.common.api.permission.ConversationPermissionDubboService;
+import com.cheeseocean.im.common.api.permission.ConversationPermissionService;
 import com.cheeseocean.im.common.api.permission.PermissionCheckResult;
 import com.cheeseocean.im.common.api.message.MessageMutationService;
 import com.cheeseocean.im.common.api.message.MessageHistoryQueryService;
@@ -64,7 +64,7 @@ public class ConversationFacade {
     private final ConversationSyncService conversationSyncService;
     private final ReadStateService readStateService;
     @DubboReference(check = false)
-    private ConversationPermissionDubboService permissionService;
+    private ConversationPermissionService permissionService;
     @DubboReference(check = false)
     private ConversationControlEventQueryService controlEventQueryService;
 
@@ -80,7 +80,7 @@ public class ConversationFacade {
     public ConversationFacade(ConversationService conversationService,
                               ConversationSyncService conversationSyncService,
                               ReadStateService readStateService,
-                              ConversationPermissionDubboService permissionService,
+                              ConversationPermissionService permissionService,
                               MessageHistoryQueryService messageHistoryQueryService) {
         this(conversationService, conversationSyncService, readStateService, permissionService);
         this.messageHistoryQueryService = messageHistoryQueryService;
@@ -89,7 +89,7 @@ public class ConversationFacade {
     public ConversationFacade(ConversationService conversationService,
                               ConversationSyncService conversationSyncService,
                               ReadStateService readStateService,
-                              ConversationPermissionDubboService permissionService) {
+                              ConversationPermissionService permissionService) {
         this.conversationService = conversationService;
         this.conversationSyncService = conversationSyncService;
         this.readStateService = readStateService;

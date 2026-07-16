@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 class ReadStateServiceImplTest {
@@ -38,6 +39,8 @@ class ReadStateServiceImplTest {
         when(conversationService.getConversation("u1", "s:u1:u2")).thenReturn(conversation);
         when(stateStore.getUserReadSeq("u1", "s:u1:u2")).thenReturn(3L);
         when(stateStore.getUserMaxSeq("u1", "s:u1:u2")).thenReturn(10L);
+        when(stateStore.advanceReadState("u1", "s:u1:u2", 99L, 3L, 10L))
+                .thenReturn(new ConversationStateStore.ReadState(10L, 0, true));
 
         ReadStateServiceImpl service = new ReadStateServiceImpl(conversationService, sequenceRepository,
                 syncPointRepository, stateStore, writer, versionLogRepository);
@@ -47,8 +50,7 @@ class ReadStateServiceImplTest {
         assertTrue(result.isChanged());
         assertEquals(10L, result.getReadSeq());
         assertEquals(List.of("u1", "u2"), result.getNotifyUserIds());
-        verify(stateStore).setUserReadSeq("u1", "s:u1:u2", 10L);
-        verify(stateStore).setUnread("u1", "s:u1:u2", 0);
+        verify(stateStore).advanceReadState("u1", "s:u1:u2", 99L, 3L, 10L);
         verify(writer).enqueue("u1", "s:u1:u2", 10L);
         verify(versionLogRepository).append("u1", "s:u1:u2", ConversationVersionOperation.READ_STATE_UPDATED);
     }
@@ -69,20 +71,52 @@ class ReadStateServiceImplTest {
     void acknowledgeShouldKeepExistingCursorWhenRequestDoesNotAdvance() {
         ConversationService conversationService = mock(ConversationService.class);
         ConversationStateStore stateStore = mock(ConversationStateStore.class);
+        ReadSeqPersistenceWriter writer = mock(ReadSeqPersistenceWriter.class);
         UserConversation conversation = new UserConversation();
         conversation.setConversationId("g:crew");
         conversation.setChatType(ChatType.GROUP.getCode());
         when(conversationService.getConversation("u1", "g:crew")).thenReturn(conversation);
         when(stateStore.getUserReadSeq("u1", "g:crew")).thenReturn(7L);
         when(stateStore.getUserMaxSeq("u1", "g:crew")).thenReturn(10L);
+        when(stateStore.advanceReadState("u1", "g:crew", 6L, 7L, 10L))
+                .thenReturn(new ConversationStateStore.ReadState(7L, 3, false));
         ReadStateServiceImpl service = new ReadStateServiceImpl(conversationService,
                 mock(ConversationSequenceRepository.class), mock(UserConversationSyncPointRepository.class),
-                stateStore, mock(ReadSeqPersistenceWriter.class), mock(ConversationVersionLogRepository.class));
+                stateStore, writer, mock(ConversationVersionLogRepository.class));
 
         ReadSeqUpdate result = service.acknowledge("u1", "g:crew", 6L);
 
         assertFalse(result.isChanged());
         assertEquals(7L, result.getReadSeq());
         assertTrue(result.getNotifyUserIds().isEmpty());
+        verify(stateStore).advanceReadState("u1", "g:crew", 6L, 7L, 10L);
+        verify(writer).enqueue("u1", "g:crew", 7L);
+        verify(stateStore, never()).setUserReadSeq("u1", "g:crew", 6L);
+    }
+
+    @Test
+    void acknowledgeShouldUseAtomicStoreResultWhenConcurrentMessageAdvancesMaxSeq() {
+        ConversationService conversationService = mock(ConversationService.class);
+        ConversationStateStore stateStore = mock(ConversationStateStore.class);
+        ReadSeqPersistenceWriter writer = mock(ReadSeqPersistenceWriter.class);
+        ConversationVersionLogRepository versionLogRepository = mock(ConversationVersionLogRepository.class);
+        UserConversation conversation = new UserConversation();
+        conversation.setConversationId("g:crew");
+        conversation.setChatType(ChatType.GROUP.getCode());
+        when(conversationService.getConversation("u1", "g:crew")).thenReturn(conversation);
+        when(stateStore.getUserReadSeq("u1", "g:crew")).thenReturn(3L);
+        when(stateStore.getUserMaxSeq("u1", "g:crew")).thenReturn(10L);
+        when(stateStore.advanceReadState("u1", "g:crew", 10L, 3L, 10L))
+                .thenReturn(new ConversationStateStore.ReadState(10L, 1, true));
+        ReadStateServiceImpl service = new ReadStateServiceImpl(conversationService,
+                mock(ConversationSequenceRepository.class), mock(UserConversationSyncPointRepository.class),
+                stateStore, writer, versionLogRepository);
+
+        ReadSeqUpdate result = service.acknowledge("u1", "g:crew", 10L);
+
+        assertEquals(10L, result.getReadSeq());
+        assertTrue(result.isChanged());
+        verify(writer).enqueue("u1", "g:crew", 10L);
+        verify(versionLogRepository).append("u1", "g:crew", ConversationVersionOperation.READ_STATE_UPDATED);
     }
 }

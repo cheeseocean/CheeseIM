@@ -44,9 +44,7 @@
 
 ## 6. 配置
 
-`module-postbox.yml`：Mongo + Redis database 0 + Kafka `postbox-group`（concurrency 3, max-poll-records 100, ack-mode `manual_immediate`）+ 附件下载 token（secret/TTL）+ actuator。
-
-⚠️ Kafka bootstrap 在 `common.yml` 是注释状态，独立部署需解开。
+`module-postbox.yml`：Mongo + Redis database 0 + Kafka `postbox-group`（concurrency 3, max-poll-records 100, ack-mode `manual_immediate`）+ actuator。独立 cluster 部署的 broker 地址由 `application-cluster.yml` 与 `KAFKA_BOOTSTRAP_SERVERS` 提供，不应修改 `common.yml` 写死地址。
 
 ## 7. 改动评估 checklist
 

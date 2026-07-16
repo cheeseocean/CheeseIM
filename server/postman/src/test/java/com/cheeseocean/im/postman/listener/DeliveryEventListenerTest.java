@@ -12,16 +12,19 @@ import com.cheeseocean.im.common.api.event.OfflinePushEvent;
 import com.cheeseocean.im.common.api.protocol.ProtoOfflinePushEventMapper;
 import com.cheeseocean.im.common.api.route.OnlineRouteQueryService;
 import com.cheeseocean.im.common.api.rpc.OnlineDispatcher;
+import com.cheeseocean.im.common.api.rpc.NodeDeliveryService;
 import com.cheeseocean.im.common.core.constants.TopicNames;
 import com.cheeseocean.im.common.core.queue.QueueAdapter;
 import com.cheeseocean.im.postman.sender.OfflinePushEventProducer;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.beans.factory.ObjectProvider;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -37,6 +40,27 @@ import static org.mockito.Mockito.when;
  */
 class DeliveryEventListenerTest {
 
+    @SuppressWarnings("unchecked")
+    private static ObjectProvider<NodeDeliveryService> provider(NodeDeliveryService nodeDeliveryService) {
+        ObjectProvider<NodeDeliveryService> provider = mock(ObjectProvider.class);
+        when(provider.getIfAvailable()).thenReturn(nodeDeliveryService);
+        return provider;
+    }
+
+    @Test
+    void deliveryListenerShouldPropagateRetryableRouteFailure() {
+        OnlineRouteQueryService routeQueryRpc = mock(OnlineRouteQueryService.class);
+        OnlineDispatcher onlineDispatcher = mock(OnlineDispatcher.class);
+        QueueAdapter queueAdapter = mock(QueueAdapter.class);
+        when(routeQueryRpc.findByUser("userB")).thenThrow(new IllegalStateException("route unavailable"));
+
+        DeliveryEventListener listener = new DeliveryEventListener(
+                routeQueryRpc, onlineDispatcher, new OfflinePushEventProducer(queueAdapter), provider(null));
+
+        assertThrows(IllegalStateException.class, () -> listener.onMessage(message(true)));
+        verify(queueAdapter, never()).send(any(), any(), any(byte[].class));
+    }
+
     @Test
     void deliveryListenerShouldDispatchOnlineWhenRoutesExist() {
         OnlineRouteQueryService routeQueryRpc = mock(OnlineRouteQueryService.class);
@@ -49,7 +73,7 @@ class DeliveryEventListenerTest {
         when(onlineDispatcher.dispatchMessage(any())).thenReturn(dispatchResp);
 
         DeliveryEventListener listener = new DeliveryEventListener(
-                routeQueryRpc, onlineDispatcher, new OfflinePushEventProducer(queueAdapter));
+                routeQueryRpc, onlineDispatcher, new OfflinePushEventProducer(queueAdapter), provider(null));
         listener.handle(message(true));
 
         verify(onlineDispatcher).dispatchMessage(any(DispatchMessageReq.class));
@@ -65,7 +89,7 @@ class DeliveryEventListenerTest {
         when(routeQueryRpc.findByUser("userB")).thenReturn(List.of());
 
         DeliveryEventListener listener = new DeliveryEventListener(
-                routeQueryRpc, onlineDispatcher, new OfflinePushEventProducer(queueAdapter));
+                routeQueryRpc, onlineDispatcher, new OfflinePushEventProducer(queueAdapter), provider(null));
         listener.handle(message(true));
 
         verify(onlineDispatcher, never()).dispatchMessage(any());
@@ -81,7 +105,7 @@ class DeliveryEventListenerTest {
         when(routeQueryRpc.findByUser("userB")).thenReturn(List.of());
 
         DeliveryEventListener listener = new DeliveryEventListener(
-                routeQueryRpc, onlineDispatcher, new OfflinePushEventProducer(queueAdapter));
+                routeQueryRpc, onlineDispatcher, new OfflinePushEventProducer(queueAdapter), provider(null));
         listener.handle(message(false));
 
         verify(onlineDispatcher, never()).dispatchMessage(any());
@@ -97,7 +121,7 @@ class DeliveryEventListenerTest {
         when(routeQueryRpc.findByUser("userB")).thenReturn(List.of());
 
         DeliveryEventListener listener = new DeliveryEventListener(
-                routeQueryRpc, onlineDispatcher, new OfflinePushEventProducer(queueAdapter));
+                routeQueryRpc, onlineDispatcher, new OfflinePushEventProducer(queueAdapter), provider(null));
         Message m = message(true);
         m.getOptions().setNotification(true);
         m.setChatType(ChatType.NOTIFICATION);

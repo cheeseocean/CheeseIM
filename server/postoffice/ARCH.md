@@ -13,6 +13,8 @@
 
 TCP/WS 共用 `ProtoClientEnvelope` / `ProtoServerEnvelope`；异步在线投递同样经 `ProtoEnvelopeMapper` 编码为 Binary Frame，不再存在 JSON 命令体分支。
 
+TCP/WS frame 默认限制 64 KiB；`ChatMessageHandler` 在 Protobuf 解析前限制 envelope body，并按内容类型限制 content：文本 16 KiB、自定义 64 KiB、富媒体 metadata 32 KiB、其他 32 KiB。所有阈值在 `module-postoffice.yml` 可通过环境变量覆盖。旧普通消息 `READ_RECEIPT` 明确拒绝，已读只允许 typed `CHAT_READ`。
+
 网关不持有 JWT 签名密钥，也不本地解析 access token；认证和 session 有效性统一委托 authcenter 的 ticket / `SessionQueryService` 契约。
 
 ## 2. 核心组件
@@ -24,7 +26,8 @@ TCP/WS 共用 `ProtoClientEnvelope` / `ProtoServerEnvelope`；异步在线投递
 | `OnlineDispatcherImpl` | `api/OnlineDispatcherImpl.java:67` | Dubbo 投递入口，仅本地 dispatch |
 | `KickoffCommandServiceImpl` | `kickoff/KickoffCommandServiceImpl.java` | Dubbo 踢下线接口，按 `gatewayNode` 定向本地执行或节点队列转发 |
 | `HeartbeatMessageHandler` | `handler/HeartbeatMessageHandler.java:42` | 心跳处理 |
-| `ChatReadMessageHandler` | `handler/ChatReadMessageHandler.java` | 已读命令入口：认证、payload 校验、调用共享 readSeq 状态服务并返回 typed ACK |
+| `ChatReadMessageHandler` | `handler/ChatReadMessageHandler.java` | 唯一已读命令入口：认证、payload 校验、调用共享 readSeq 状态服务并返回 typed ACK |
+| `ChatDeliveryMessageHandler` | `handler/ChatDeliveryMessageHandler.java` | 设备送达高水位入口：校验当前 device、调用 `DeliveryStateService`，不接受网关 write 结果冒充 ACK |
 | `ChatTypingMessageHandler` | `handler/ChatTypingMessageHandler.java` | 输入中命令入口：认证、payload 校验、调用短 TTL `TypingStateService`；不进入普通消息链路 |
 | `BusinessMessageExecutor` | `server/BusinessMessageExecutor.java` | connection hash 分片的有界单线程队列；业务命令离开 Netty EventLoop，同连接保序，满载返回 503 |
 | `ChatRevokeMessageHandler` | `handler/ChatRevokeMessageHandler.java` | typed 撤回入口：认证、调用 `MessageMutationService`、返回 ACK 并触发在线通知 |
@@ -39,13 +42,18 @@ TCP/WS 共用 `ProtoClientEnvelope` / `ProtoServerEnvelope`；异步在线投递
 - 原子性：`register` / `refresh` / `unregister` 均走单脚本 Lua（参见 `RedisOnlineRouteService`），消除旧读改写竞态（ASSESSMENT P0-3 已修复）
 - 路由是跨节点共享真相，读写都直连 Redis；不得接入业务 CacheStore 或本地 L1
 - `findByUser` 走 `HGETALL`，Java 侧合并 `route:` / `heartbeat:` 双字段，按 `deviceId` 排序
-- `gatewayNode` 经 `NodeIdentityProvider` 写入真实节点 ID（配置或 UUID），不再是硬编码（ASSESSMENT P0-1，**已修复 2026-07-07**）
-- postman 按 `gatewayNode` 分组路由，通过 Redis LIST `delivery:node:{nodeId}` 投递到正确节点
+- `gatewayNode` 经 `NodeIdentityProvider` 写入真实节点 ID；all-in-one 可使用进程内默认值，cluster 必须显式配置稳定 node-id（ASSESSMENT P0-1）
+- postman 按 `gatewayNode` 分组路由，通过 Redis 节点可靠队列投递到正确节点：生产者统一写
+  `NodeQueueMessage` envelope；消费者用 Lua 将 ready 原子领取到 processing HASH，并在 ZSET 记录 60 秒租约，
+  成功 ACK，失败原子重入队；同 node-id 的重启/替代实例每 5 秒回收过期 claim，超过 5 次进入 dead
+- ready 最大 100,000 条、processing 最大 10,000 条、dead 最大 10,000 条，三者空闲 TTL 均为 24 小时。
+  ready 满时生产者明确失败；重试/恢复遇 ready 满时保留 processing claim 并续租，不丢消息；dead 满时淘汰最老死信。
+  因此永久下线节点的在途 key 最迟 24 小时释放，恢复同 node-id 后可继续处理
 - `OnlineDispatcherImpl.java:67` 仍只做本地连接查找；跨节点命中由 postman 的 `gatewayNode` 分组 + `NodeDeliveryPoller` 节点队列保证
 
 ## 4. 多端登录策略
 
-`module-postoffice.yml`：`multiLoginStrategy: SAME_TERMINAL_KICK`、`maxConnectionsPerUser: 10`、`connectionTimeoutMs: 300000`。当前是**每节点**独立计数，跨节点超限不会触发；修复见 ASSESSMENT P4-23。
+`module-postoffice.yml`：`multiLoginStrategy: SAME_TERMINAL_KICK`、`maxConnectionsPerUser: 10`、`timeoutMs: 300000`。当前是**每节点**独立计数，跨节点超限不会触发；修复见 ASSESSMENT P4-23。
 
 ## 5. 连接状态机
 

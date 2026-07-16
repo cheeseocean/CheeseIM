@@ -3,6 +3,15 @@ cheeseim:
     mode: cluster
   queue:
     type: ${CHEESEIM_QUEUE_TYPE:kafka}
+    kafka:
+      # 可显式设为包含 pod/节点唯一部分的前缀；留空时代码生成随机实例 ID，避免 producer fencing。
+      transaction-id-prefix: ${KAFKA_TRANSACTION_ID_PREFIX:}
+      topics:
+        auto-create-enabled: ${KAFKA_TOPICS_AUTO_CREATE_ENABLED:true}
+        partitions: ${KAFKA_TOPIC_PARTITIONS:12}
+        replication-factor: ${KAFKA_TOPIC_REPLICATION_FACTOR:3}
+        retention-ms: ${KAFKA_TOPIC_RETENTION_MS:604800000}
+        min-in-sync-replicas: ${KAFKA_TOPIC_MIN_ISR:2}
   conversation-seq:
     deployment-mode: cluster
 

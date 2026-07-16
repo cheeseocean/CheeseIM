@@ -17,7 +17,7 @@ import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import com.cheeseocean.im.common.core.util.ConversationIdUtil;
 import com.cheeseocean.im.postman.sender.OfflinePushEventProducer;
 import org.slf4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
@@ -32,23 +32,29 @@ public class DeliveryEventListener {
     private final OnlineRouteQueryService onlineRouteQueryService;
     private final OnlineDispatcher        onlineDispatcher;
     private final OfflinePushEventProducer offlinePushProducer;
-    @Autowired(required = false)
-    private NodeDeliveryService nodeDeliveryService;
+    private final NodeDeliveryService nodeDeliveryService;
 
     public DeliveryEventListener(OnlineRouteQueryService onlineRouteQueryService,
                                  OnlineDispatcher onlineDispatcher,
-                                 OfflinePushEventProducer offlinePushProducer) {
+                                 OfflinePushEventProducer offlinePushProducer,
+                                 ObjectProvider<NodeDeliveryService> nodeDeliveryServiceProvider) {
         this.onlineRouteQueryService = onlineRouteQueryService;
         this.onlineDispatcher = onlineDispatcher;
         this.offlinePushProducer = offlinePushProducer;
+        this.nodeDeliveryService = nodeDeliveryServiceProvider.getIfAvailable();
     }
 
     @QueueListener(topic = TopicNames.DELIVERY, group = "push-delivery")
     public void onMessage(Message message) {
         try {
             handle(message);
-        } catch (Exception e) {
-            log.error("Failed to handle delivery message: {}", message, e);
+        } catch (RuntimeException exception) {
+            // 路由、节点队列或离线事件发布失败均属于可重试故障，必须抛回队列容器，
+            // 不能用日志吞掉后让 Kafka/Chronicle 将本次消费视为成功。
+            log.error("投递事件处理失败，等待队列重试，serverMsgId={}, receiverId={}",
+                    message == null ? null : message.getServerMsgId(),
+                    message == null ? null : message.getReceiverId(), exception);
+            throw exception;
         }
     }
 

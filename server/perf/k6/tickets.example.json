@@ -1,0 +1,4 @@
+[
+  {"ticket":"one-time-ticket-user-1","userId":"load-user-1","peerId":"load-user-2","deviceId":"k6-device-1"},
+  {"ticket":"one-time-ticket-user-2","userId":"load-user-2","peerId":"load-user-1","deviceId":"k6-device-2"}
+]

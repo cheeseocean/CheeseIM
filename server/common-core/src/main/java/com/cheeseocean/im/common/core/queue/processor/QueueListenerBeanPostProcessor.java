@@ -1,6 +1,6 @@
 package com.cheeseocean.im.common.core.queue.processor;
 
-import com.cheeseocean.im.common.core.queue.BatchingMessageHandler;
+import com.cheeseocean.im.common.core.queue.KeyedMessage;
 import com.cheeseocean.im.common.core.queue.QueueAdapter;
 import com.cheeseocean.im.common.core.queue.QueueMessageHandler;
 import com.cheeseocean.im.common.core.queue.annotation.QueueListener;
@@ -18,6 +18,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class QueueListenerBeanPostProcessor implements BeanPostProcessor, ApplicationContextAware, BeanFactoryAware {
@@ -82,18 +83,21 @@ public class QueueListenerBeanPostProcessor implements BeanPostProcessor, Applic
                     "@QueueListener(batch=true) method must declare a List<T> parameter: " + method);
         }
         Class<?> elementType = (Class<?>) pt.getActualTypeArguments()[0];
-        BatchingMessageHandler batchHandler = new BatchingMessageHandler(
-                listener.batchSize(),
-                listener.batchIntervalMs(),
-                listener.concurrency(),
-                list -> ReflectionUtils.invokeMethod(method, bean, list)
-        );
-        queueAdapter.subscribeKeyed(
+        queueAdapter.subscribeBatch(
                 listener.topic(),
                 listener.group(),
                 listener.concurrency(),
+                listener.batchSize(),
+                listener.batchIntervalMs(),
                 elementType,
-                batchHandler
+                messages -> {
+                    Map<String, List<Object>> grouped = new LinkedHashMap<>();
+                    for (KeyedMessage<?> message : messages) {
+                        grouped.computeIfAbsent(message.key(), ignored -> new java.util.ArrayList<>())
+                                .add(message.payload());
+                    }
+                    grouped.values().forEach(list -> ReflectionUtils.invokeMethod(method, bean, list));
+                }
         );
     }
 
