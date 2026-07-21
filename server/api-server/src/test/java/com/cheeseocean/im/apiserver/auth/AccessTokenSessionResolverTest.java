@@ -1,5 +1,6 @@
 package com.cheeseocean.im.apiserver.auth;
 
+import com.cheeseocean.im.apiserver.exception.ApiAuthenticationException;
 import com.cheeseocean.im.common.api.enums.SessionStatus;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import com.cheeseocean.im.common.api.session.SessionQueryService;
@@ -40,7 +41,7 @@ class AccessTokenSessionResolverTest {
 
     @Test
     void resolveShouldRejectInvalidAuthorizationHeader() {
-        IllegalStateException ex = assertThrows(IllegalStateException.class,
+        ApiAuthenticationException ex = assertThrows(ApiAuthenticationException.class,
                 () -> resolver.resolve("Basic token-1"));
 
         assertEquals("access token missing", ex.getMessage());
@@ -53,7 +54,7 @@ class AccessTokenSessionResolverTest {
         principal.setStatus(SessionStatus.LOGOUT);
         when(sessionQueryService.getByAccessToken("token-1")).thenReturn(principal);
 
-        IllegalStateException ex = assertThrows(IllegalStateException.class,
+        ApiAuthenticationException ex = assertThrows(ApiAuthenticationException.class,
                 () -> resolver.resolve("Bearer token-1"));
 
         assertEquals("session invalid", ex.getMessage());

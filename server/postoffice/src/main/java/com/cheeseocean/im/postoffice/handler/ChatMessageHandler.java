@@ -9,6 +9,7 @@ import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.common.api.rpc.MessageSender;
 import com.cheeseocean.im.common.api.enums.CommandType;
 import com.cheeseocean.im.common.api.enums.ContentType;
+import com.cheeseocean.im.common.api.enums.MessageSource;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import com.cheeseocean.im.postoffice.auth.ConnectionSessionGuard;
 import com.cheeseocean.im.postoffice.connection.ConnectionContext;
@@ -31,7 +32,7 @@ public class ChatMessageHandler implements MessageHandler {
 
     private static final Logger logger = CommonLoggers.POSTOFFICE;
 
-    @DubboReference(check = false)
+    @DubboReference(check = false, retries = 0)
     private MessageSender messageSender;
 
     private final ConnectionSessionGuard connectionSessionGuard;
@@ -95,8 +96,12 @@ public class ChatMessageHandler implements MessageHandler {
                 logger.warn("Message send failed: userID={}, clientMsgID={}",
                         connection.getUserID(), msgData.getClientMsgId());
 
-                ServerEnvelope errorResp = ServerEnvelope.error(operationID, 1004, "消息发送失败");
-                return HandleResult.failure("消息发送失败", errorResp);
+                int errorCode = deliveryResult == null || deliveryResult.getErrorCode() <= 0
+                        ? 1004 : deliveryResult.getErrorCode();
+                String errorMessage = deliveryResult == null || deliveryResult.getErrorMessage() == null
+                        ? "消息发送失败" : deliveryResult.getErrorMessage();
+                ServerEnvelope errorResp = ServerEnvelope.error(operationID, errorCode, errorMessage);
+                return HandleResult.failure(errorMessage, errorResp);
             }
 
             logger.info("Message accepted successfully: userID={}, clientMsgID={}, serverMsgID={}",
@@ -154,6 +159,14 @@ public class ChatMessageHandler implements MessageHandler {
             message.setPlatformType(connection.getPlatformType());
         }
         message.setSenderId(context != null && context.getUserId() != null ? context.getUserId() : connection.getUserID());
+        // 以下字段只允许可信服务端生成；客户端不能伪装系统消息或改变历史/投递策略。
+        message.setSource(MessageSource.USER);
+        message.setOptions(null);
+        message.setServerMsgId(null);
+        message.setSendTime(null);
+        message.setCreateTime(null);
+        message.setStatus(null);
+        message.setSeq(null);
     }
 
     /**
@@ -176,6 +189,9 @@ public class ChatMessageHandler implements MessageHandler {
         }
         if (message.getContentType() == ContentType.READ_RECEIPT) {
             return "普通消息已读回执已废弃，请使用 CHAT_READ";
+        }
+        if (!isClientSendableContent(message.getContentType())) {
+            return "客户端不能发送该消息类型";
         }
 
         // 检查会话类型
@@ -210,6 +226,13 @@ public class ChatMessageHandler implements MessageHandler {
         }
 
         return null; // 验证通过
+    }
+
+    private boolean isClientSendableContent(ContentType contentType) {
+        return switch (contentType) {
+            case TEXT, IMAGE, VOICE, VIDEO, FILE, LOCATION, CUSTOM -> true;
+            default -> false;
+        };
     }
 
     private int maxContentBytes(ContentType contentType) {

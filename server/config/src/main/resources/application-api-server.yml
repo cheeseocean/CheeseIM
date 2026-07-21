@@ -1,0 +1,20 @@
+spring:
+  config:
+    import:
+      - classpath:common.yml
+      - classpath:module-api-server.yml
+      - classpath:application-cluster.yml
+
+dubbo:
+  application:
+    name: cheese-im-api-server
+  registry:
+    address: nacos://${nacos.server-addr:localhost:8848}
+    register: false
+    subscribe: true
+  config-center:
+    address: nacos://${nacos.server-addr:localhost:8848}
+  metadata-report:
+    address: nacos://${nacos.server-addr:localhost:8848}
+  consumer:
+    injvm: false

@@ -1,6 +1,7 @@
 package com.cheeseocean.im.postmaster.sender;
 
 import com.cheeseocean.im.common.api.dto.message.Message;
+import com.cheeseocean.im.common.api.event.GroupFanoutEvent;
 import com.cheeseocean.im.common.api.protocol.ProtoMessageMapper;
 import com.cheeseocean.im.common.api.protocol.proto.ProtoMessage;
 import com.cheeseocean.im.common.core.constants.TopicNames;
@@ -8,6 +9,9 @@ import com.cheeseocean.im.common.core.queue.QueueAdapter;
 import com.cheeseocean.im.common.core.queue.KeyedMessage;
 import com.cheeseocean.im.common.core.queue.QueueProducer;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,9 +27,40 @@ import java.util.List;
 public class MessageProducer implements QueueProducer<Message> {
 
     private final QueueAdapter queueAdapter;
+    private final ObjectMapper objectMapper;
+    private final int maxGroupFanoutWireBytes;
+
+    @Autowired
+    public MessageProducer(
+            QueueAdapter queueAdapter,
+            ObjectMapper objectMapper,
+            @Value("${cheeseim.delivery.group-fanout.max-wire-bytes:786432}")
+            int maxGroupFanoutWireBytes) {
+        this.queueAdapter = queueAdapter;
+        this.objectMapper = objectMapper;
+        this.maxGroupFanoutWireBytes = Math.max(64 * 1024, maxGroupFanoutWireBytes);
+    }
+
+    public MessageProducer(QueueAdapter queueAdapter, ObjectMapper objectMapper) {
+        this(queueAdapter, objectMapper, 786432);
+    }
 
     public MessageProducer(QueueAdapter queueAdapter) {
-        this.queueAdapter = queueAdapter;
+        this(queueAdapter, new ObjectMapper());
+    }
+
+    /** 发布紧凑群扩散任务，成员枚举与逐用户投递由独立 consumer 完成。 */
+    public void publishGroupFanout(String key, GroupFanoutEvent event) {
+        try {
+            byte[] payload = objectMapper.writeValueAsBytes(event);
+            if (payload.length > maxGroupFanoutWireBytes) {
+                throw new IllegalArgumentException(
+                        "Serialized group fanout event exceeds max-wire-bytes: " + payload.length);
+            }
+            queueAdapter.send(TopicNames.GROUP_FANOUT, key, payload);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException exception) {
+            throw new IllegalStateException("Failed to serialize group fanout event", exception);
+        }
     }
 
     @Override

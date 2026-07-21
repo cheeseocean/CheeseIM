@@ -8,28 +8,22 @@ spring:
       database: ${mongodb.database:cheese_im}
     redis:
       database: 0
-  kafka:
-    consumer:
-      group-id: postbox-group
-      max-poll-records: 100
-      fetch-min-size: 1
-      fetch-max-wait: 500ms
-    listener:
-      concurrency: 3
-      ack-mode: manual_immediate
+server:
+  port: -1
 
 management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus
+  server:
+    port: ${CHEESEIM_POSTBOX_MANAGEMENT_PORT:19082}
   endpoint:
     health:
-      show-details: always
-  metrics:
-    export:
-      prometheus:
-        enabled: true
+      group:
+        readiness:
+          include: readinessState,mongo,redis
+
+cheeseim:
+  message-send-inbox:
+    ttl-seconds: ${CHEESEIM_MESSAGE_SEND_INBOX_TTL_SECONDS:604800}
+    lease-seconds: ${CHEESEIM_MESSAGE_SEND_INBOX_LEASE_SECONDS:30}
 
 info:
   app:

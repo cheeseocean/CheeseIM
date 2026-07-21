@@ -1,0 +1,10 @@
+CheeseIM 已部署。
+
+1. 确认七个 Deployment 的 Available 副本：
+   kubectl get deploy,statefulset -l app.kubernetes.io/instance={{ .Release.Name }}
+
+2. 管理端口不会经公网暴露。通过 port-forward 检查 readiness：
+   kubectl port-forward svc/{{ include "cheeseim.fullname" . }}-api-server 19079:19079
+   curl http://127.0.0.1:19079/actuator/health/readiness
+
+3. 生产发布前必须覆盖 global.imageTag 或为每个服务填写 image.digest。

@@ -21,7 +21,15 @@ public class SessionRepository {
     }
 
     public void save(SessionPrincipal session) {
-        sessionStateStore.save(session);
+        sessionStateStore.save(session, remainingTtl(session));
+    }
+
+    public void updateSession(SessionPrincipal session) {
+        sessionStateStore.updateSession(session, remainingTtl(session));
+    }
+
+    public void updateSession(SessionPrincipal session, long ttlMs) {
+        sessionStateStore.updateSession(session, ttlMs);
     }
 
     public SessionPrincipal findBySessionId(String sessionId) {
@@ -46,5 +54,17 @@ public class SessionRepository {
 
     public WsTicketPrincipal consumeWsTicket(String ticket) {
         return sessionStateStore.consumeWsTicket(ticket);
+    }
+
+    private long remainingTtl(SessionPrincipal session) {
+        Long expireAt = session.getRefreshTokenExpireAt();
+        if (expireAt == null) {
+            throw new IllegalStateException("session refresh lifetime required");
+        }
+        long remainingTtlMs = expireAt - System.currentTimeMillis();
+        if (remainingTtlMs <= 0) {
+            throw new IllegalStateException("session refresh lifetime expired");
+        }
+        return remainingTtlMs;
     }
 }

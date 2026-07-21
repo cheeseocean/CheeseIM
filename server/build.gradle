@@ -29,6 +29,156 @@ ext {
     ]
 }
 
+def historyBoundarySources = files(
+        fileTree('common-api/src/main/java') { include '**/*.java' },
+        fileTree('common-core/src/main/java/com/cheeseocean/im/common/core/history/model') { include '**/*.java' },
+        fileTree('common-core/src/main/java') { include '**/*.java' },
+        fileTree('postbox/src/main/java') { include '**/*.java' },
+        fileTree('postmaster/src/main/java') { include '**/*.java' },
+        fileTree('business/src/main/java') { include '**/*.java' }
+)
+
+tasks.register('verifyHistoryArchitectureBoundary') {
+    group = 'verification'
+    description = '拒绝 history model/feature 泄漏 Mongo Document、BSON 或形成 storage-history 反向依赖。'
+    inputs.files(historyBoundarySources)
+    doLast {
+        def violations = []
+        fileTree('common-api/src/main/java') { include '**/*.java' }.each { source ->
+            if (source.text.contains('org.springframework.data.')) {
+                violations << "common-api depends on Spring Data: ${source}"
+            }
+        }
+        fileTree('common-core/src/main/java/com/cheeseocean/im/common/core/history/model') {
+            include '**/*.java'
+        }.each { source ->
+            if (source.text.contains('org.springframework.data.') || source.text.contains('org.bson.')) {
+                violations << "history model depends on persistence technology: ${source}"
+            }
+        }
+        ['postbox', 'postmaster', 'business'].each { moduleName ->
+            fileTree("${moduleName}/src/main/java") { include '**/*.java' }.each { source ->
+                def text = source.text
+                if (text.contains('history.mongo.document')
+                        || text.contains('common.core.history.document')
+                        || text.contains('org.bson.')) {
+                    violations << "feature leaks history persistence type: ${source}"
+                }
+            }
+        }
+        fileTree('common-core/src/main/java') { include '**/*.java' }.each { source ->
+            if (source.text.contains('com.cheeseocean.im.storage.history.')) {
+                violations << "common-core depends back on storage-history: ${source}"
+            }
+        }
+        if (!violations.isEmpty()) {
+            throw new GradleException(violations.join(System.lineSeparator()))
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('verifyHistoryArchitectureBoundary')
+}
+
+def queueBoundarySources = files(
+        fileTree('common-core/src') { include '**/*.java' },
+        fileTree('infra-queue/src/main/java') { include '**/*.java' },
+        fileTree('postoffice/src/main/java') { include '**/*.java' },
+        fileTree('postbox/src/main/java') { include '**/*.java' },
+        fileTree('postmaster/src/main/java') { include '**/*.java' },
+        fileTree('postman/src/main/java') { include '**/*.java' },
+        fileTree('business/src/main/java') { include '**/*.java' }
+)
+
+tasks.register('verifyQueueArchitectureBoundary') {
+    group = 'verification'
+    description = '拒绝 common-core/feature 依赖 Kafka、Chronicle 或 infra-queue 实现。'
+    inputs.files(queueBoundarySources)
+    doLast {
+        def violations = []
+        fileTree('common-core/src') { include '**/*.java' }.each { source ->
+            def text = source.text
+            if (text.contains('org.springframework.kafka.')
+                    || text.contains('org.apache.kafka.')
+                    || text.contains('net.openhft.chronicle.')
+                    || text.contains('com.cheeseocean.im.infra.queue.')) {
+                violations << "common-core depends on queue implementation: ${source}"
+            }
+        }
+        ['postoffice', 'postbox', 'postmaster', 'postman', 'business'].each { moduleName ->
+            fileTree("${moduleName}/src/main/java") { include '**/*.java' }.each { source ->
+                if (source.text.contains('com.cheeseocean.im.infra.queue.')) {
+                    violations << "feature imports queue implementation: ${source}"
+                }
+            }
+        }
+        fileTree('infra-queue/src/main/java') { include '**/*.java' }.each { source ->
+            if (source.text.contains('com.cheeseocean.im.postoffice.')
+                    || source.text.contains('com.cheeseocean.im.postbox.')
+                    || source.text.contains('com.cheeseocean.im.postmaster.')
+                    || source.text.contains('com.cheeseocean.im.postman.')
+                    || source.text.contains('com.cheeseocean.im.business.')) {
+                violations << "infra-queue depends back on feature: ${source}"
+            }
+        }
+        if (!violations.isEmpty()) {
+            throw new GradleException(violations.join(System.lineSeparator()))
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('verifyQueueArchitectureBoundary')
+}
+
+def businessStorageBoundarySources = files(
+        fileTree('common-core/src') { include '**/*.java' },
+        fileTree('storage-business/src/main/java') { include '**/*.java' },
+        fileTree('authcenter/src/main/java') { include '**/*.java' },
+        fileTree('business/src/main/java') { include '**/*.java' },
+        fileTree('postmaster/src/main/java') { include '**/*.java' },
+        fileTree('postman/src/main/java') { include '**/*.java' }
+)
+
+tasks.register('verifyBusinessStorageArchitectureBoundary') {
+    group = 'verification'
+    description = '拒绝 common-core/feature 泄漏 business Mongo adapter、Document 或形成反向依赖。'
+    inputs.files(businessStorageBoundarySources)
+    doLast {
+        def violations = []
+        fileTree('common-core/src') { include '**/*.java' }.each { source ->
+            if (source.text.contains('org.springframework.data.mongodb.')) {
+                violations << "common-core depends on Mongo implementation: ${source}"
+            }
+        }
+        ['authcenter', 'business', 'postmaster', 'postman'].each { moduleName ->
+            fileTree("${moduleName}/src/main/java") { include '**/*.java' }.each { source ->
+                def text = source.text
+                if (text.contains('common.core.business.mongo.document.')
+                        || text.contains('common.core.business.mongo.impl.')) {
+                    violations << "feature imports business persistence type: ${source}"
+                }
+            }
+        }
+        fileTree('storage-business/src/main/java') { include '**/*.java' }.each { source ->
+            if (source.text.contains('com.cheeseocean.im.authcenter.')
+                    || source.text.contains('com.cheeseocean.im.business.service.')
+                    || source.text.contains('com.cheeseocean.im.postmaster.')
+                    || source.text.contains('com.cheeseocean.im.postman.')) {
+                violations << "storage-business depends back on feature: ${source}"
+            }
+        }
+        if (!violations.isEmpty()) {
+            throw new GradleException(violations.join(System.lineSeparator()))
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('verifyBusinessStorageArchitectureBoundary')
+}
+
 subprojects {
     apply plugin: 'java'
     apply plugin: 'com.google.protobuf'
@@ -162,6 +312,12 @@ subprojects {
     tasks.withType(JavaCompile).configureEach {
         options.encoding = 'UTF-8'
         options.compilerArgs += ['-parameters']
+    }
+
+    tasks.named('compileJava') {
+        dependsOn rootProject.tasks.named('verifyHistoryArchitectureBoundary')
+        dependsOn rootProject.tasks.named('verifyQueueArchitectureBoundary')
+        dependsOn rootProject.tasks.named('verifyBusinessStorageArchitectureBoundary')
     }
 
     tasks.withType(JavaExec).configureEach {

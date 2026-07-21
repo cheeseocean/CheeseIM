@@ -1,0 +1,146 @@
+{{- range $serviceName, $service := .Values.services }}
+{{- if $service.enabled }}
+---
+apiVersion: apps/v1
+kind: {{ ternary "StatefulSet" "Deployment" (eq $serviceName "postoffice") }}
+metadata:
+  name: {{ include "cheeseim.serviceName" (dict "root" $ "service" $serviceName) }}
+  labels:
+    {{- include "cheeseim.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $serviceName }}
+spec:
+  replicas: {{ $service.replicas }}
+  revisionHistoryLimit: 5
+  {{- if eq $serviceName "postoffice" }}
+  serviceName: {{ include "cheeseim.serviceName" (dict "root" $ "service" "postoffice-headless") }}
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  {{- else }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "cheeseim.selectorLabels" $ | nindent 6 }}
+      app.kubernetes.io/component: {{ $serviceName }}
+  template:
+    metadata:
+      labels:
+        {{- include "cheeseim.selectorLabels" $ | nindent 8 }}
+        app.kubernetes.io/component: {{ $serviceName }}
+        {{- with $.Values.global.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        checksum/runtime-config: {{ include (print $.Template.BasePath "/configmap.yaml") $ | sha256sum }}
+        {{- with $.Values.global.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: {{ $service.terminationGracePeriodSeconds }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      {{- with $.Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "cheeseim.selectorLabels" $ | nindent 14 }}
+              app.kubernetes.io/component: {{ $serviceName }}
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "cheeseim.selectorLabels" $ | nindent 14 }}
+              app.kubernetes.io/component: {{ $serviceName }}
+      containers:
+        - name: {{ $serviceName }}
+          image: {{ include "cheeseim.image" (dict "root" $ "service" $serviceName "config" $service) }}
+          imagePullPolicy: {{ $.Values.global.imagePullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          envFrom:
+            - configMapRef:
+                name: {{ include "cheeseim.fullname" $ }}-runtime
+            - secretRef:
+                name: {{ required (printf "services.%s.secretName is required" $serviceName) $service.secretName }}
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: KAFKA_TRANSACTION_ID_PREFIX
+              value: {{ printf "cheeseim-%s-$(POD_NAME)-" $serviceName | quote }}
+            {{- if eq $serviceName "postoffice" }}
+            - name: CHEESEIM_POSTOFFICE_NODE_ID
+              value: "$(POD_NAME)"
+            {{- end }}
+          ports:
+            {{- range $portName, $port := $service.ports }}
+            - name: {{ $portName | trunc 15 }}
+              containerPort: {{ $port }}
+              protocol: TCP
+            {{- end }}
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: management
+            periodSeconds: 5
+            failureThreshold: 30
+            timeoutSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: management
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 2
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: management
+            periodSeconds: 5
+            failureThreshold: 3
+            timeoutSeconds: 2
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", {{ printf "sleep %d" (int $service.preStopSeconds) | quote }}]
+          resources:
+            {{- toYaml $service.resources | nindent 12 }}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+            - {name: logs, mountPath: /app/logs}
+            - {name: data, mountPath: /app/data}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: logs
+          emptyDir: {}
+        - name: data
+          emptyDir: {}
+{{- end }}
+{{- end }}

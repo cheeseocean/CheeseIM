@@ -39,8 +39,13 @@ public class ReadSeqPersistenceWriter {
     private static final long POLL_TIMEOUT_MS  = 1000;
 
     private static final int MAX_RETRY_ATTEMPTS = 3;
+    private static final long SHUTDOWN_JOIN_TIMEOUT_MS = 30_000L;
 
-    record ReadSeqEntry(String userId, String conversationId, long readSeq, int attempts) {}
+    record ReadSeqEntry(String userId, String conversationId, long readSeq, int attempts, long queuedAtMillis) {
+        ReadSeqEntry(String userId, String conversationId, long readSeq, int attempts) {
+            this(userId, conversationId, readSeq, attempts, System.currentTimeMillis());
+        }
+    }
 
     public record WriterStats(long accepted, long overflowFallbacks, long retryScheduled, long exhaustedFailures) {}
 
@@ -53,6 +58,9 @@ public class ReadSeqPersistenceWriter {
     private final AtomicLong overflowFallbacks = new AtomicLong();
     private final AtomicLong retryScheduled = new AtomicLong();
     private final AtomicLong exhaustedFailures = new AtomicLong();
+    private final AtomicLong inFlight = new AtomicLong();
+    private final AtomicLong inFlightOldestQueuedAtMillis = new AtomicLong();
+    private final AtomicLong nextBacklogObservationMillis = new AtomicLong();
     private volatile boolean running = true;
 
     public ReadSeqPersistenceWriter(UserConversationSyncPointRepository offsetRepository,
@@ -103,12 +111,14 @@ public class ReadSeqPersistenceWriter {
         ReadSeqEntry entry = new ReadSeqEntry(userId, conversationId, readSeq, 0);
         if (queues.get(bucket).offer(entry)) {
             accepted.incrementAndGet();
+            observeBacklog(false);
             return;
         }
         if (fallbackQueues.get(bucket).offer(entry)) {
             accepted.incrementAndGet();
             overflowFallbacks.incrementAndGet();
             ImMetrics.writer("read_seq", "fallback");
+            observeBacklog(false);
             return;
         }
         persistSynchronously(entry);
@@ -126,6 +136,7 @@ public class ReadSeqPersistenceWriter {
         for (Thread drainThread : drainThreads) {
             drainThread.interrupt();
         }
+        awaitDrainThreads();
         List<ReadSeqEntry> remaining = new ArrayList<>();
         for (LinkedBlockingQueue<ReadSeqEntry> queue : queues) {
             queue.drainTo(remaining);
@@ -134,7 +145,32 @@ public class ReadSeqPersistenceWriter {
             fallbackQueue.drainTo(remaining);
         }
         if (!remaining.isEmpty()) {
-            persist(remaining, null);
+            beginInFlight(remaining);
+            try {
+                persist(remaining, null);
+            } finally {
+                endInFlight(remaining.size());
+            }
+        }
+        observeBacklog(true);
+    }
+
+    private void awaitDrainThreads() {
+        long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(SHUTDOWN_JOIN_TIMEOUT_MS);
+        for (Thread drainThread : drainThreads) {
+            long remainingMillis = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
+            if (remainingMillis <= 0) break;
+            try {
+                drainThread.join(remainingMillis);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                ImMetrics.writer("read_seq", "shutdown_interrupted");
+                return;
+            }
+        }
+        if (drainThreads.stream().anyMatch(Thread::isAlive)) {
+            ImMetrics.writer("read_seq", "shutdown_timeout");
+            log.error("readSeq 停机等待 drain 超时，仍有持久化线程未退出");
         }
     }
 
@@ -155,7 +191,13 @@ public class ReadSeqPersistenceWriter {
                 if (batch.size() < DRAIN_BATCH_SIZE) {
                     queue.drainTo(batch, DRAIN_BATCH_SIZE - batch.size());
                 }
-                persist(batch, fallbackQueue);
+                beginInFlight(batch);
+                try {
+                    persist(batch, fallbackQueue);
+                } finally {
+                    endInFlight(batch.size());
+                    observeBacklog(true);
+                }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
@@ -188,18 +230,19 @@ public class ReadSeqPersistenceWriter {
             } catch (Exception ex) {
                 if (fallbackQueue != null && e.attempts() < MAX_RETRY_ATTEMPTS
                         && fallbackQueue.offer(new ReadSeqEntry(
-                        e.userId(), e.conversationId(), e.readSeq(), e.attempts() + 1))) {
+                        e.userId(), e.conversationId(), e.readSeq(), e.attempts() + 1, e.queuedAtMillis()))) {
                     retryScheduled.incrementAndGet();
                     ImMetrics.writer("read_seq", "retry");
                     log.warn("readSeq 持久化失败，已进入回退队列：userId={} convId={} seq={} attempt={}",
                             e.userId(), e.conversationId(), e.readSeq(), e.attempts() + 1, ex);
                 } else if (fallbackQueue != null) {
                     putReliably(fallbackQueue,
-                            new ReadSeqEntry(e.userId(), e.conversationId(), e.readSeq(), 0), "readSeq retry");
+                            new ReadSeqEntry(e.userId(), e.conversationId(), e.readSeq(), 0, e.queuedAtMillis()),
+                            "readSeq retry");
                     ImMetrics.writer("read_seq", "retry_exhausted_backpressure");
                 } else {
                     exhaustedFailures.incrementAndGet();
-                    ImMetrics.writer("read_seq", "drop");
+                    ImMetrics.writer("read_seq", "shutdown_drop");
                     log.error("readSeq 持久化最终失败：userId={} convId={} seq={} attempts={}",
                             e.userId(), e.conversationId(), e.readSeq(), e.attempts(), ex);
                 }
@@ -227,6 +270,52 @@ public class ReadSeqPersistenceWriter {
             ImMetrics.writer("read_seq", "sync_failed");
             throw new IllegalStateException("readSeq 有界缓冲已满且同步持久化失败", exception);
         }
+    }
+
+    private void beginInFlight(List<ReadSeqEntry> entries) {
+        long oldestQueuedAt = entries.stream()
+                .mapToLong(ReadSeqEntry::queuedAtMillis)
+                .min()
+                .orElse(0L);
+        inFlight.addAndGet(entries.size());
+        inFlightOldestQueuedAtMillis.updateAndGet(existing ->
+                existing <= 0 ? oldestQueuedAt : Math.min(existing, oldestQueuedAt));
+        ImMetrics.writerBacklog("read_seq", "inflight", inFlight.get(), inFlightOldestQueuedAtMillis.get());
+    }
+
+    private void endInFlight(int count) {
+        long remaining = inFlight.addAndGet(-count);
+        if (remaining <= 0) {
+            inFlight.set(0);
+            inFlightOldestQueuedAtMillis.set(0);
+        }
+        ImMetrics.writerBacklog("read_seq", "inflight", inFlight.get(), inFlightOldestQueuedAtMillis.get());
+    }
+
+    private void observeBacklog(boolean force) {
+        long now = System.currentTimeMillis();
+        if (!force) {
+            long next = nextBacklogObservationMillis.get();
+            if (now < next || !nextBacklogObservationMillis.compareAndSet(next, now + 1_000L)) {
+                return;
+            }
+        } else {
+            nextBacklogObservationMillis.set(now + 1_000L);
+        }
+        long depth = 0;
+        long oldestQueuedAt = Long.MAX_VALUE;
+        for (LinkedBlockingQueue<ReadSeqEntry> queue : queues) {
+            depth += queue.size();
+            ReadSeqEntry head = queue.peek();
+            if (head != null) oldestQueuedAt = Math.min(oldestQueuedAt, head.queuedAtMillis());
+        }
+        for (LinkedBlockingQueue<ReadSeqEntry> queue : fallbackQueues) {
+            depth += queue.size();
+            ReadSeqEntry head = queue.peek();
+            if (head != null) oldestQueuedAt = Math.min(oldestQueuedAt, head.queuedAtMillis());
+        }
+        ImMetrics.writerBacklog("read_seq", "queued", depth,
+                oldestQueuedAt == Long.MAX_VALUE ? 0L : oldestQueuedAt);
     }
 
 }

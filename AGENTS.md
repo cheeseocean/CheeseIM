@@ -22,7 +22,7 @@
 CheeseIM 是**多语言混合 Monorepo**，三块独立工程：
 
 ```
-server/      Java 17 + Spring Boot 3 + Dubbo 3 + Gradle 多模块（11 个子模块）
+server/      Java 17 + Spring Boot 3 + Dubbo 3 + Gradle 多模块（15 个子模块）
 sdks/go      通用 IM Client SDK（Go 1.24.2）
 apps/        CheeseBox（Go TUI 主联调客户端）
 ```

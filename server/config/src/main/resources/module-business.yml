@@ -12,6 +12,15 @@ spring:
 server:
   port: 18085
 
+management:
+  server:
+    port: ${CHEESEIM_BUSINESS_MANAGEMENT_PORT:19085}
+  endpoint:
+    health:
+      group:
+        readiness:
+          include: readinessState,mongo,redis
+
 logging:
   level:
     com.cheeseocean.im.business: INFO

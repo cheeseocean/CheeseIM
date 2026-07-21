@@ -62,17 +62,6 @@ public interface UserConversationRepository {
     List<String> findExistingOwnerUserIds(List<String> ownerUserIds, String conversationId);
 
     /**
-     * 从候选用户中找出对该会话设置了 NOT_RECEIVE 的用户 ID。
-     * 离线推送过滤时使用。
-     */
-    List<String> findNotReceiveUserIds(String conversationId, List<String> candidateUserIds);
-
-    /**
-     * 查询会话下全部设置为 NOT_RECEIVE 的用户 ID。
-     */
-    List<String> findAllNotReceiveUserIds(String conversationId);
-
-    /**
      * 查询用户所有设置为 RECEIVE_NOT_NOTIFY 的会话 ID。
      */
     List<String> findNotNotifyConversationIds(String ownerUserId);

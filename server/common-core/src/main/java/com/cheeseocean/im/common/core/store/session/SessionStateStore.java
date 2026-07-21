@@ -11,6 +11,11 @@ public interface SessionStateStore {
 
     void save(SessionPrincipal session);
 
+    /**
+     * 只更新 session 主记录，不改写 user/device 二级索引。
+     */
+    void updateSession(SessionPrincipal session, long ttlMs);
+
     SessionPrincipal findBySessionId(String sessionId);
 
     List<SessionPrincipal> findByUserId(String userId);

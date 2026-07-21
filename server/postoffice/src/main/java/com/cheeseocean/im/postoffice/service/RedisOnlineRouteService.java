@@ -8,6 +8,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.RedisCallback;
+import org.springframework.data.redis.connection.ReturnType;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
@@ -27,8 +29,9 @@ import java.util.function.LongSupplier;
  * <ul>
  *   <li>Key：{@code online:user:{userId}}，集中一个用户所有在线设备的路由记录</li>
  *   <li>Field {@code route:{deviceId}}：JSON 形式的 {@link RouteSnapshot}（不包含心跳实时字段）</li>
- *   <li>Field {@code heartbeat:{deviceId}}：心跳时间戳（字符串），高频刷新走这里，避免每次刷新都要解析/重写整条 JSON</li>
- *   <li>Key 整体 TTL：30 分钟，每次 register/refresh/unregister 都重新 EXPIRE，等同于活跃设备续期</li>
+ *   <li>Field {@code heartbeat:{deviceId}}：合并批刷后的心跳时间戳，避免每次刷新整条 JSON</li>
+ *   <li>Field {@code connection:{deviceId}}：当前连接身份，拒绝旧连接迟到刷新或注销</li>
+ *   <li>Key 整体 TTL：30 分钟，每次 register/批量 refresh/unregister 都重新 EXPIRE</li>
  * </ul>
  *
  * <p>这样设计的原因：
@@ -43,7 +46,7 @@ import java.util.function.LongSupplier;
  * </ol>
  */
 @Service
-public class RedisOnlineRouteService implements OnlineRouteService {
+public class RedisOnlineRouteService implements OnlineRouteService, OnlineRouteHeartbeatWriter {
 
     private static final Logger logger = LoggerFactory.getLogger(RedisOnlineRouteService.class);
 
@@ -54,6 +57,7 @@ public class RedisOnlineRouteService implements OnlineRouteService {
 
     /** HASH field 前缀：心跳时间戳字段 */
     private static final String HEARTBEAT_PREFIX = "heartbeat:";
+    private static final String CONNECTION_PREFIX = "connection:";
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
@@ -63,6 +67,7 @@ public class RedisOnlineRouteService implements OnlineRouteService {
     private final DefaultRedisScript<Long> registerScript;
     private final DefaultRedisScript<Long> refreshScript;
     private final DefaultRedisScript<Long> unregisterScript;
+    private final DefaultRedisScript<Long> unregisterSessionScript;
 
     public RedisOnlineRouteService(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
         this(redisTemplate, objectMapper, DEFAULT_ROUTE_TTL);
@@ -92,6 +97,7 @@ public class RedisOnlineRouteService implements OnlineRouteService {
         this.registerScript = new DefaultRedisScript<>(registerLua(), Long.class);
         this.refreshScript = new DefaultRedisScript<>(refreshLua(), Long.class);
         this.unregisterScript = new DefaultRedisScript<>(unregisterLua(), Long.class);
+        this.unregisterSessionScript = new DefaultRedisScript<>(unregisterSessionLua(), Long.class);
     }
 
     @Override
@@ -120,7 +126,8 @@ public class RedisOnlineRouteService implements OnlineRouteService {
                 deviceId,
                 routeJson,
                 String.valueOf(heartbeatAt),
-                String.valueOf(routeTtl.toSeconds())
+                String.valueOf(routeTtl.toSeconds()),
+                Objects.toString(snapshot.getConnectionId(), "")
         );
         registerSessionIndex(snapshot, routeJson);
     }
@@ -144,6 +151,65 @@ public class RedisOnlineRouteService implements OnlineRouteService {
         refreshSessionIndex(userId, deviceId, heartbeatAt);
     }
 
+    /**
+     * 将同一调度周期的连接心跳用 pipeline 写入 Redis；每条 Lua 仍是单 key，兼容 Redis Cluster。
+     */
+    @Override
+    public void refreshBatch(List<RouteHeartbeat> heartbeats) {
+        if (heartbeats == null || heartbeats.isEmpty()) {
+            return;
+        }
+        byte[] userScript = refreshGuardedLua().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] sessionScript = refreshSessionGuardedLua().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        List<RouteHeartbeat> valid = heartbeats.stream()
+                .filter(heartbeat -> heartbeat != null
+                        && heartbeat.userId() != null
+                        && heartbeat.deviceId() != null
+                        && heartbeat.connectionId() != null)
+                .toList();
+        List<Object> userResults = redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+            for (RouteHeartbeat heartbeat : valid) {
+                connection.scriptingCommands().eval(
+                        userScript,
+                        ReturnType.INTEGER,
+                        1,
+                        bytes(RedisKeys.onlineUser(heartbeat.userId())),
+                        bytes(heartbeat.deviceId()),
+                        bytes(heartbeat.connectionId()),
+                        bytes(Long.toString(heartbeat.heartbeatAt())),
+                        bytes(Long.toString(routeTtl.toSeconds())));
+            }
+            return null;
+        });
+        List<RouteHeartbeat> accepted = new ArrayList<>();
+        for (int i = 0; i < valid.size() && i < userResults.size(); i++) {
+            Object result = userResults.get(i);
+            RouteHeartbeat heartbeat = valid.get(i);
+            if (result instanceof Number number && number.longValue() == 1L
+                    && heartbeat.sessionId() != null && !heartbeat.sessionId().isBlank()) {
+                accepted.add(heartbeat);
+            }
+        }
+        if (accepted.isEmpty()) {
+            return;
+        }
+        redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+            for (RouteHeartbeat heartbeat : accepted) {
+                String field = sessionField(heartbeat.userId(), heartbeat.deviceId());
+                connection.scriptingCommands().eval(
+                        sessionScript,
+                        ReturnType.INTEGER,
+                        1,
+                        bytes(RedisKeys.onlineSession(heartbeat.sessionId())),
+                        bytes(field),
+                        bytes(heartbeat.connectionId()),
+                        bytes(Long.toString(heartbeat.heartbeatAt())),
+                        bytes(Long.toString(routeTtl.toSeconds())));
+            }
+            return null;
+        });
+    }
+
     @Override
     public void unregister(String userId, String deviceId, String connectionId) {
         // 同 refresh，热路径静默；unregister 对未存在的 hash 字段本就是 NOOP，无需区分。
@@ -154,13 +220,16 @@ public class RedisOnlineRouteService implements OnlineRouteService {
         if (!matchesConnection(snapshot, connectionId)) {
             return;
         }
-        redisTemplate.execute(
+        Long removed = redisTemplate.execute(
                 unregisterScript,
                 Collections.singletonList(RedisKeys.onlineUser(userId)),
                 deviceId,
-                String.valueOf(routeTtl.toSeconds())
+                String.valueOf(routeTtl.toSeconds()),
+                Objects.toString(connectionId, "")
         );
-        unregisterSessionIndex(snapshot);
+        if (Long.valueOf(1L).equals(removed)) {
+            unregisterSessionIndex(snapshot, connectionId);
+        }
     }
 
     @Override
@@ -216,16 +285,26 @@ public class RedisOnlineRouteService implements OnlineRouteService {
         }
         List<RouteSnapshot> snapshots = new ArrayList<>(entries.size());
         for (Map.Entry<Object, Object> entry : entries.entrySet()) {
+            String field = String.valueOf(entry.getKey());
+            if (field.startsWith(HEARTBEAT_PREFIX) || field.startsWith(CONNECTION_PREFIX)) {
+                continue;
+            }
             try {
                 RouteSnapshot snapshot = objectMapper.readValue(String.valueOf(entry.getValue()), RouteSnapshot.class);
+                Object heartbeatValue = entries.get(HEARTBEAT_PREFIX + field);
+                if (heartbeatValue != null) {
+                    snapshot.setHeartbeatAt(Long.parseLong(String.valueOf(heartbeatValue)));
+                }
                 if (isStale(snapshot)) {
-                    redisTemplate.opsForHash().delete(RedisKeys.onlineSession(sessionId), entry.getKey());
                     removeStaleUserRoute(snapshot.getUserId(), snapshot);
                     continue;
                 }
                 snapshots.add(snapshot);
             } catch (JsonProcessingException e) {
                 logger.warn("Failed to deserialize session RouteSnapshot: sessionId={}, field={}",
+                        sessionId, entry.getKey(), e);
+            } catch (NumberFormatException e) {
+                logger.warn("Failed to parse session heartbeat: sessionId={}, field={}",
                         sessionId, entry.getKey(), e);
             }
         }
@@ -246,8 +325,9 @@ public class RedisOnlineRouteService implements OnlineRouteService {
                 local ttlSeconds = tonumber(ARGV[4])
                 redis.call('HSET', key, 'route:' .. deviceId, routeJson)
                 redis.call('HSET', key, 'heartbeat:' .. deviceId, heartbeatAt)
+                redis.call('HSET', key, 'connection:' .. deviceId, ARGV[5])
                 redis.call('EXPIRE', key, ttlSeconds)
-                return math.floor(redis.call('HLEN', key) / 2)
+                return 1
                 """;
     }
 
@@ -270,6 +350,28 @@ public class RedisOnlineRouteService implements OnlineRouteService {
                 """;
     }
 
+    private String refreshGuardedLua() {
+        return """
+                local key = KEYS[1]
+                local deviceId = ARGV[1]
+                if redis.call('HGET', key, 'connection:' .. deviceId) ~= ARGV[2] then return 0 end
+                redis.call('HSET', key, 'heartbeat:' .. deviceId, ARGV[3])
+                redis.call('EXPIRE', key, tonumber(ARGV[4]))
+                return 1
+                """;
+    }
+
+    private String refreshSessionGuardedLua() {
+        return """
+                local key = KEYS[1]
+                local field = ARGV[1]
+                if redis.call('HGET', key, 'connection:' .. field) ~= ARGV[2] then return 0 end
+                redis.call('HSET', key, 'heartbeat:' .. field, ARGV[3])
+                redis.call('EXPIRE', key, tonumber(ARGV[4]))
+                return 1
+                """;
+    }
+
     /**
      * 注销：原子删除 route:{deviceId} 和 heartbeat:{deviceId}。
      * 如果删除后 HASH 已无任何字段，则 DEL 整个 key 以免留空 key 占内存；否则续期。
@@ -280,14 +382,20 @@ public class RedisOnlineRouteService implements OnlineRouteService {
                 local key = KEYS[1]
                 local deviceId = ARGV[1]
                 local ttlSeconds = tonumber(ARGV[2])
-                redis.call('HDEL', key, 'route:' .. deviceId, 'heartbeat:' .. deviceId)
+                local storedConnection = redis.call('HGET', key, 'connection:' .. deviceId)
+                if storedConnection then
+                    if storedConnection ~= ARGV[3] then return 0 end
+                elseif ARGV[3] ~= '' then
+                    return 0
+                end
+                redis.call('HDEL', key, 'route:' .. deviceId, 'heartbeat:' .. deviceId, 'connection:' .. deviceId)
                 local remaining = redis.call('HLEN', key)
                 if remaining == 0 then
                     redis.call('DEL', key)
                     return 0
                 end
                 redis.call('EXPIRE', key, ttlSeconds)
-                return math.floor(remaining / 2)
+                return 1
                 """;
     }
 
@@ -296,7 +404,12 @@ public class RedisOnlineRouteService implements OnlineRouteService {
             return;
         }
         String sessionKey = RedisKeys.onlineSession(snapshot.getSessionId());
-        redisTemplate.opsForHash().put(sessionKey, sessionField(snapshot.getUserId(), snapshot.getDeviceId()), routeJson);
+        String field = sessionField(snapshot.getUserId(), snapshot.getDeviceId());
+        redisTemplate.opsForHash().put(sessionKey, field, routeJson);
+        redisTemplate.opsForHash().put(sessionKey, HEARTBEAT_PREFIX + field,
+                Objects.toString(snapshot.getHeartbeatAt(), Objects.toString(snapshot.getConnectedAt(), "0")));
+        redisTemplate.opsForHash().put(sessionKey, CONNECTION_PREFIX + field,
+                Objects.toString(snapshot.getConnectionId(), ""));
         redisTemplate.expire(sessionKey, routeTtl);
     }
 
@@ -311,22 +424,43 @@ public class RedisOnlineRouteService implements OnlineRouteService {
             redisTemplate.opsForHash().put(sessionKey,
                     sessionField(snapshot.getUserId(), snapshot.getDeviceId()),
                     objectMapper.writeValueAsString(snapshot));
+            String field = sessionField(snapshot.getUserId(), snapshot.getDeviceId());
+            redisTemplate.opsForHash().put(sessionKey, HEARTBEAT_PREFIX + field, Long.toString(heartbeatAt));
+            redisTemplate.opsForHash().put(sessionKey, CONNECTION_PREFIX + field,
+                    Objects.toString(snapshot.getConnectionId(), ""));
             redisTemplate.expire(sessionKey, routeTtl);
         } catch (JsonProcessingException e) {
             logger.warn("Failed to refresh session route index: userId={}, deviceId={}", userId, deviceId, e);
         }
     }
 
-    private void unregisterSessionIndex(RouteSnapshot snapshot) {
+    private String unregisterSessionLua() {
+        return """
+                local key = KEYS[1]
+                local field = ARGV[1]
+                local storedConnection = redis.call('HGET', key, 'connection:' .. field)
+                if storedConnection then
+                    if storedConnection ~= ARGV[2] then return 0 end
+                elseif ARGV[2] ~= '' then
+                    return 0
+                end
+                redis.call('HDEL', key, field, 'heartbeat:' .. field, 'connection:' .. field)
+                if redis.call('HLEN', key) == 0 then redis.call('DEL', key) end
+                return 1
+                """;
+    }
+
+    private void unregisterSessionIndex(RouteSnapshot snapshot, String connectionId) {
         if (snapshot == null || snapshot.getSessionId() == null || snapshot.getSessionId().isBlank()) {
             return;
         }
         String sessionKey = RedisKeys.onlineSession(snapshot.getSessionId());
-        redisTemplate.opsForHash().delete(sessionKey, sessionField(snapshot.getUserId(), snapshot.getDeviceId()));
-        Long remaining = redisTemplate.opsForHash().size(sessionKey);
-        if (remaining == null || remaining == 0L) {
-            redisTemplate.delete(sessionKey);
-        }
+        String field = sessionField(snapshot.getUserId(), snapshot.getDeviceId());
+        redisTemplate.execute(
+                unregisterSessionScript,
+                Collections.singletonList(sessionKey),
+                field,
+                Objects.toString(connectionId, ""));
     }
 
     private RouteSnapshot findRouteByDevice(String userId, String deviceId) {
@@ -357,14 +491,7 @@ public class RedisOnlineRouteService implements OnlineRouteService {
         if (userId == null || snapshot.getDeviceId() == null) {
             return;
         }
-        redisTemplate.opsForHash().delete(RedisKeys.onlineUser(userId),
-                ROUTE_PREFIX + snapshot.getDeviceId(),
-                HEARTBEAT_PREFIX + snapshot.getDeviceId());
-        if (snapshot.getSessionId() != null && !snapshot.getSessionId().isBlank()) {
-            redisTemplate.opsForHash().delete(
-                    RedisKeys.onlineSession(snapshot.getSessionId()),
-                    sessionField(userId, snapshot.getDeviceId()));
-        }
+        unregister(userId, snapshot.getDeviceId(), snapshot.getConnectionId());
     }
 
     private static void sortByDevice(List<RouteSnapshot> snapshots) {
@@ -383,5 +510,9 @@ public class RedisOnlineRouteService implements OnlineRouteService {
             return true;
         }
         return connectionId.equals(snapshot.getConnectionId());
+    }
+
+    private byte[] bytes(String value) {
+        return redisTemplate.getStringSerializer().serialize(value);
     }
 }

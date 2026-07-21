@@ -10,7 +10,9 @@
     {"type":"timeseries","title":"Route and dedup","gridPos":{"h":8,"w":12,"x":0,"y":16},"targets":[{"expr":"sum by (result) (rate(cheeseim_online_route_lookup_total[5m]))","legendFormat":"route {{result}}"},{"expr":"sum by (status) (rate(cheeseim_delivery_dedup_claim_total[5m]))","legendFormat":"dedup {{status}}"}]},
     {"type":"timeseries","title":"Read, writer and typing","gridPos":{"h":8,"w":12,"x":12,"y":16},"targets":[{"expr":"sum by (result) (rate(cheeseim_read_advance_total[5m]))","legendFormat":"read {{result}}"},{"expr":"sum by (writer,result) (rate(cheeseim_writer_operation_total[5m]))","legendFormat":"{{writer}} {{result}}"},{"expr":"sum by (result) (rate(cheeseim_typing_signal_total[5m]))","legendFormat":"typing {{result}}"}]},
     {"type":"timeseries","title":"Offline push results","gridPos":{"h":8,"w":12,"x":0,"y":24},"targets":[{"expr":"sum by (provider,result) (rate(cheeseim_offline_push_total[5m]))","legendFormat":"{{provider}} {{result}}"}]},
-    {"type":"timeseries","title":"Offline push p95 latency","gridPos":{"h":8,"w":12,"x":12,"y":24},"targets":[{"expr":"histogram_quantile(0.95, sum by (le,provider) (rate(cheeseim_offline_push_latency_seconds_bucket[5m])))","legendFormat":"{{provider}}"}]}
+    {"type":"timeseries","title":"Offline push p95 latency","gridPos":{"h":8,"w":12,"x":12,"y":24},"targets":[{"expr":"histogram_quantile(0.95, sum by (le,provider) (rate(cheeseim_offline_push_latency_seconds_bucket[5m])))","legendFormat":"{{provider}}"}]},
+    {"type":"timeseries","title":"Write-behind backlog depth","gridPos":{"h":8,"w":12,"x":0,"y":32},"targets":[{"expr":"max by (writer,state) (cheeseim_writer_backlog_depth)","legendFormat":"{{writer}} {{state}}"}]},
+    {"type":"timeseries","title":"Write-behind oldest age","gridPos":{"h":8,"w":12,"x":12,"y":32},"fieldConfig":{"defaults":{"unit":"ms"}},"targets":[{"expr":"max by (writer,state) (cheeseim_writer_backlog_oldest_age_milliseconds)","legendFormat":"{{writer}} {{state}}"}]}
   ],
   "schemaVersion": 39,
   "tags": ["cheeseim", "server"],
@@ -18,5 +20,5 @@
   "time": {"from": "now-6h", "to": "now"},
   "title": "CheeseIM Server Main Flow",
   "uid": "cheeseim-server-main",
-  "version": 1
+  "version": 2
 }

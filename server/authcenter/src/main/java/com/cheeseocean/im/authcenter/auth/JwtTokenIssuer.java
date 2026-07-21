@@ -10,7 +10,6 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
-import java.util.UUID;
 
 @Component
 public class JwtTokenIssuer {
@@ -22,10 +21,9 @@ public class JwtTokenIssuer {
         this.authCenterConfig = authCenterConfig;
     }
 
-    public TokenPair issue(SessionPrincipal session) {
+    public TokenPair issue(SessionPrincipal session, String refreshToken, long refreshExpireAt) {
         long now = System.currentTimeMillis();
         long accessExpireAt = now + authCenterConfig.getSecurity().getTokenExpiration();
-        long refreshExpireAt = now + authCenterConfig.getRefreshToken().getTtlMs();
 
         String accessToken = Jwts.builder()
                 .setSubject(session.getUserId())
@@ -38,7 +36,6 @@ public class JwtTokenIssuer {
                 .signWith(getSecretKey(), SignatureAlgorithm.HS256)
                 .compact();
 
-        String refreshToken = UUID.randomUUID().toString();
         TokenPair pair = new TokenPair();
         pair.setAccessToken(accessToken);
         pair.setRefreshToken(refreshToken);

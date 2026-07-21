@@ -26,6 +26,19 @@ public interface GroupMembershipQueryService {
     List<String> queryGroupMembers(String groupId);
 
     /**
+     * 按成员关系版本和稳定 keyset 游标分页读取历史成员快照。
+     *
+     * <p>只读取满足 {@code joinedVersion <= snapshotVersion < leftVersionExclusive} 的 epoch。
+     * {@code snapshotVersion <= 0} 属于未迁移数据，必须失败，禁止静默回退到当前成员集合。</p>
+     */
+    GroupMemberPage queryGroupMembersPage(String groupId,
+                                          long snapshotVersion,
+                                          long afterJoinedVersion,
+                                          String afterUserId,
+                                          String afterEpochId,
+                                          int limit);
+
+    /**
      * 判断指定用户是否为群成员。
      */
     boolean isGroupMember(String groupId, String userId);

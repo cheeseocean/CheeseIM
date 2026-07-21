@@ -5,10 +5,29 @@ spring:
     mongodb:
       uri: ${AUTHCENTER_MONGODB_URI:${MONGODB_URI:mongodb://localhost:27017/cheese_im}}
 
+server:
+  port: -1
+
+management:
+  server:
+    port: ${CHEESEIM_AUTHCENTER_MANAGEMENT_PORT:19084}
+  endpoint:
+    health:
+      group:
+        readiness:
+          include: readinessState,mongo,redis
+
 cheeseim:
   authcenter:
     security:
       jwt-secret: ${CHEESEIM_AUTH_JWT_SECRET}
       tokenExpiration: 86400000
+    identity-assertion:
+      enabled: ${CHEESEIM_LOGIN_ASSERTION_ENABLED:false}
+      issuer: ${CHEESEIM_LOGIN_ASSERTION_ISSUER:cheeseim-account}
+      audience: ${CHEESEIM_LOGIN_ASSERTION_AUDIENCE:cheeseim-im}
+      hmac-secret: ${CHEESEIM_LOGIN_ASSERTION_SECRET:}
+      max-lifetime-ms: ${CHEESEIM_LOGIN_ASSERTION_MAX_LIFETIME_MS:60000}
+      allowed-clock-skew-ms: ${CHEESEIM_LOGIN_ASSERTION_CLOCK_SKEW_MS:5000}
     wsTicket:
       ttlMs: 60000

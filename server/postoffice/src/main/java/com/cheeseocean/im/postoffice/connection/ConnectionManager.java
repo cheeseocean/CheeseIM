@@ -1,17 +1,27 @@
 package com.cheeseocean.im.postoffice.connection;
 
 import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
+import com.cheeseocean.im.common.api.enums.PlatformType;
 import com.cheeseocean.im.common.api.protocol.ProtoEnvelopeMapper;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.postoffice.config.NodeIdentityProvider;
+import com.cheeseocean.im.postoffice.config.ServerProperties;
 import com.cheeseocean.im.postoffice.dedup.DeliveryDedupStore;
+import com.cheeseocean.im.postoffice.kickoff.NodeCommandPublisher;
+import com.cheeseocean.im.postoffice.login.LoginLease;
+import com.cheeseocean.im.postoffice.login.LoginLeaseClaim;
+import com.cheeseocean.im.postoffice.login.LoginLeaseRenewal;
+import com.cheeseocean.im.postoffice.login.LoginLeaseStore;
 import com.cheeseocean.im.postoffice.service.OnlineRouteService;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -52,6 +62,11 @@ public class ConnectionManager {
     private final DeliveryDedupStore deliveryDedupStore;
 
     private final NodeIdentityProvider nodeIdentityProvider;
+    private final int maxConnections;
+    private final int maxConnectionsPerUser;
+    private final boolean loginLeaseEnforced;
+    private final LoginLeaseStore loginLeaseStore;
+    private final NodeCommandPublisher nodeCommandPublisher;
     
     /**
      * Connection ID to connection metadata.
@@ -87,6 +102,8 @@ public class ConnectionManager {
      * Total active connection count.
      */
     private final AtomicLong totalConnectionCount = new AtomicLong(0);
+    private final AtomicLong rejectedConnectionCount = new AtomicLong(0);
+    private final AtomicLong unwritableWriteCount = new AtomicLong(0);
 
     private final ReentrantLock[] userLocks = createLocks(USER_LOCK_SHARDS);
 
@@ -109,15 +126,30 @@ public class ConnectionManager {
 
     public ConnectionManager(ObjectProvider<OnlineRouteService> onlineRouteServiceProvider,
                              ObjectProvider<DeliveryDedupStore> deliveryDedupStoreProvider,
-                             NodeIdentityProvider nodeIdentityProvider) {
+                             NodeIdentityProvider nodeIdentityProvider,
+                             ServerProperties serverProperties,
+                             ObjectProvider<LoginLeaseStore> loginLeaseStoreProvider,
+                             ObjectProvider<NodeCommandPublisher> nodeCommandPublisherProvider) {
         this.onlineRouteService = onlineRouteServiceProvider.getIfAvailable();
         this.deliveryDedupStore = deliveryDedupStoreProvider.getIfAvailable();
         this.nodeIdentityProvider = nodeIdentityProvider;
+        ServerProperties.ConnectionConfig config = serverProperties.getConnection();
+        this.multiLoginStrategy = resolveMultiLoginStrategy(config.getMultiLoginStrategy());
+        this.connectionTimeoutMs = Math.max(1_000L, config.getTimeoutMs());
+        this.maxConnections = Math.max(1, config.getMaxConnections());
+        this.maxConnectionsPerUser = Math.max(1, config.getMaxConnectionsPerUser());
+        this.loginLeaseEnforced = serverProperties.getLoginLease().isEnforce();
+        this.loginLeaseStore = loginLeaseStoreProvider.getIfAvailable();
+        this.nodeCommandPublisher = nodeCommandPublisherProvider.getIfAvailable();
+        if (loginLeaseEnforced && loginLeaseStore == null) {
+            throw new IllegalStateException("login lease enforce requires Redis LoginLeaseStore");
+        }
     }
     
     /**
      * 初始化连接管理器
      */
+    @PostConstruct
     public void init() {
         // 启动定时清理任务，每分钟执行一次
         scheduler.scheduleAtFixedRate(this::cleanupTimeoutConnections, 1, 1, TimeUnit.MINUTES);
@@ -125,8 +157,8 @@ public class ConnectionManager {
         // 启动统计任务，每30秒执行一次
         scheduler.scheduleAtFixedRate(this::updateStatistics, 30, 30, TimeUnit.SECONDS);
         
-        logger.info("ConnectionManager initialized, multiLoginStrategy: {}, timeoutMs: {}", 
-                   multiLoginStrategy.getName(), connectionTimeoutMs);
+        logger.info("ConnectionManager initialized, multiLoginStrategy={}, timeoutMs={}, maxConnections={}, maxConnectionsPerUser={}",
+                multiLoginStrategy.getName(), connectionTimeoutMs, maxConnections, maxConnectionsPerUser);
     }
     
     /**
@@ -148,10 +180,23 @@ public class ConnectionManager {
                 logger.warn("Pending connection already exists: {}", connectionID);
                 return false;
             }
+            if (existing == connection) {
+                return true;
+            }
+            if (!tryAcquireConnectionSlot()) {
+                rejectedConnectionCount.incrementAndGet();
+                logger.warn("Node connection limit reached: maxConnections={}, remoteAddress={}",
+                        maxConnections, connection.getChannel().remoteAddress());
+                return false;
+            }
 
-            connectionMap.put(connectionID, connection);
-            channelConnectionMap.put(connection.getChannel(), connectionID);
-            totalConnectionCount.incrementAndGet();
+            try {
+                connectionMap.put(connectionID, connection);
+                channelConnectionMap.put(connection.getChannel(), connectionID);
+            } catch (RuntimeException exception) {
+                totalConnectionCount.decrementAndGet();
+                throw exception;
+            }
 
             logger.info("Pending connection registered: connectionID={}, remoteAddress={}",
                     connectionID, connection.getChannel().remoteAddress());
@@ -172,7 +217,9 @@ public class ConnectionManager {
         ReentrantLock connectionLock = connectionLock(connection == null ? null : connection.getConnectionID());
         ReentrantLock userLock = userLock(connection == null ? null : connection.getUserID());
         List<UserConnection> connectionsToKick = List.of();
+        List<LoginLease> globallyEvicted = List.of();
         boolean added = false;
+        boolean leaseClaimed = false;
         connectionLock.lock();
         userLock.lock();
         try {
@@ -188,10 +235,36 @@ public class ConnectionManager {
             
             // 获取用户现有连接
             List<UserConnection> existingConnections = getUserConnections(userID);
-            
-            // 根据多端登录策略处理冲突
-            connectionsToKick = multiLoginStrategy.getConnectionsToKick(
-                    connection, existingConnections);
+
+            if (loginLeaseEnforced) {
+                LoginLeaseClaim claim = loginLeaseStore.claim(
+                        toLoginLease(connection),
+                        multiLoginStrategy,
+                        maxConnectionsPerUser);
+                if (!claim.accepted()) {
+                    rejectedConnectionCount.incrementAndGet();
+                    logger.warn("Global per-user connection limit reached: userID={}, maxConnectionsPerUser={}",
+                            userID, maxConnectionsPerUser);
+                    return false;
+                }
+                connection.setLoginLeaseGeneration(claim.generation());
+                globallyEvicted = claim.evicted();
+                leaseClaimed = true;
+            } else {
+                // 未开启全局 lease 时保留节点本地策略，供 all-in-one 与两阶段滚动升级 shadow 期使用。
+                List<UserConnection> kickCandidates = multiLoginStrategy.getConnectionsToKick(
+                        connection, existingConnections);
+                connectionsToKick = kickCandidates;
+                long remainingConnections = existingConnections.stream()
+                        .filter(existing -> !kickCandidates.contains(existing))
+                        .count();
+                if (remainingConnections >= maxConnectionsPerUser) {
+                    rejectedConnectionCount.incrementAndGet();
+                    logger.warn("Per-user connection limit reached: userID={}, maxConnectionsPerUser={}",
+                            userID, maxConnectionsPerUser);
+                    return false;
+                }
+            }
             
             // 添加或提升连接
             connectionMap.put(connectionID, connection);
@@ -226,10 +299,23 @@ public class ConnectionManager {
         } catch (Exception e) {
             logger.error("Failed to add connection: {}",
                     connection == null ? null : connection.getConnectionID(), e);
+            if (connection != null && connectionMap.get(connection.getConnectionID()) == connection) {
+                removeConnectionLocked(connection.getConnectionID());
+            }
             return false;
         } finally {
+            if (leaseClaimed && !added) {
+                releaseLoginLease(connection);
+            }
             userLock.unlock();
             connectionLock.unlock();
+        }
+        if (loginLeaseEnforced && !dispatchEvictedConnections(globallyEvicted)) {
+            releaseLoginLease(connection);
+            removeConnection(connection.getConnectionID());
+            logger.error("Global login victim dispatch failed; rejecting new connection: userID={}, connectionID={}",
+                    connection.getUserID(), connection.getConnectionID());
+            return false;
         }
         // 旧连接踢下线会再次进入 removeConnection。放在分片锁外执行，避免与并发断线形成 connection -> user / user -> connection 反向等待。
         for (UserConnection connToKick : connectionsToKick) {
@@ -306,6 +392,7 @@ public class ConnectionManager {
             if (userID != null) {
                 unregisterOnlineRoute(connection);
             }
+            releaseLoginLease(connection);
             
             logger.info("Connection removed: userID={}, connectionID={}, platform={}, total={}", 
                        userID, connectionID, connection.getPlatformName(), totalConnectionCount.get());
@@ -381,6 +468,24 @@ public class ConnectionManager {
         }
     }
 
+    /**
+     * 仅踢指定 connectionId；迟到命令找不到旧连接时保持 NOOP，绝不降级到 device/user 范围。
+     */
+    public void kickConnectionById(String connectionId, String reason) {
+        kickConnectionById(connectionId, null, reason);
+    }
+
+    /**
+     * generation 存在时执行 fencing 校验，迟到的旧命令不能关闭复用同一目标的新 lease。
+     */
+    public void kickConnectionById(String connectionId, Long generation, String reason) {
+        UserConnection connection = getConnection(connectionId);
+        if (connection != null && (generation == null
+                || generation.equals(connection.getLoginLeaseGeneration()))) {
+            kickConnection(connection, reason);
+        }
+    }
+
     public DeliveryDedupStore.Claim claimDelivery(String deliveryId, String userId, String deviceId) {
         if (deliveryDedupStore == null) {
             return DeliveryDedupStore.Claim.acquired("noop", UUID.randomUUID().toString());
@@ -408,6 +513,13 @@ public class ConnectionManager {
      */
     public Set<String> getOnlineUsers() {
         return new HashSet<>(userConnectionMap.keySet());
+    }
+
+    /**
+     * 返回当前连接快照，供节点级 lease 续租等批处理使用；调用方不得修改内部索引。
+     */
+    public List<UserConnection> snapshotConnections() {
+        return List.copyOf(connectionMap.values());
     }
     
     /**
@@ -438,32 +550,45 @@ public class ConnectionManager {
      * 向连接发送消息
      */
     public boolean sendMessageToConnection(UserConnection connection, ServerEnvelope envelope) {
-        if (envelope == null) {
-            return false;
-        }
-        return sendTransportMessage(connection, envelope);
+        return writeMessageToConnection(connection, envelope) != null;
     }
 
-    private boolean sendTransportMessage(UserConnection connection, ServerEnvelope envelope) {
+    /**
+     * 发起底层 Channel 写入。
+     *
+     * <p>返回非空只表示获得了可观察的写入 future；调用方若需要投递终态，必须检查 future，
+     * 不能把 writeAndFlush 没有同步抛异常当作成功。</p>
+     */
+    public ChannelFuture writeMessageToConnection(UserConnection connection, ServerEnvelope envelope) {
         try {
-            if (connection == null || connection.getChannel() == null || !connection.getChannel().isActive()) {
-                return false;
+            if (envelope == null || connection == null || connection.getChannel() == null
+                    || !connection.getChannel().isActive()) {
+                return null;
+            }
+            if (!connection.getChannel().isWritable()) {
+                unwritableWriteCount.incrementAndGet();
+                logger.debug("Skip write to unwritable channel: connectionID={}", connection.getConnectionID());
+                return null;
             }
 
+            ChannelFuture writeFuture;
             if ("TCP".equalsIgnoreCase(connection.getProtocol())) {
-                connection.getChannel().writeAndFlush(envelope);
+                writeFuture = connection.getChannel().writeAndFlush(envelope);
             } else {
                 byte[] payload = ProtoEnvelopeMapper.toProto(envelope).toByteArray();
-                connection.getChannel().writeAndFlush(new BinaryWebSocketFrame(
+                writeFuture = connection.getChannel().writeAndFlush(new BinaryWebSocketFrame(
                         connection.getChannel().alloc().buffer(payload.length).writeBytes(payload)));
             }
-            connection.incrementSendMsg();
-            
-            return true;
+            writeFuture.addListener(future -> {
+                if (future.isSuccess()) {
+                    connection.incrementSendMsg();
+                }
+            });
+            return writeFuture;
             
         } catch (Exception e) {
             logger.error("Failed to send message to connection: {}", connection.getConnectionID(), e);
-            return false;
+            return null;
         }
     }
 
@@ -529,8 +654,9 @@ public class ConnectionManager {
      */
     private void updateStatistics() {
         try {
-            logger.debug("Connection statistics: totalConnections={}, onlineUsers={}", 
-                        totalConnectionCount.get(), onlineUserCount.get());
+            logger.debug("Connection statistics: totalConnections={}, onlineUsers={}, rejectedConnections={}, unwritableWrites={}",
+                    totalConnectionCount.get(), onlineUserCount.get(),
+                    rejectedConnectionCount.get(), unwritableWriteCount.get());
             
             // 可以在这里添加更多统计信息的更新逻辑
             
@@ -549,7 +675,15 @@ public class ConnectionManager {
         snapshot.setConnectionId(connection.getConnectionID());
         snapshot.setSessionId(connection.getSessionId());
         snapshot.setDeviceId(deviceId);
+        snapshot.setPlatformId(connection.getPlatformType() == null
+                ? null
+                : connection.getPlatformType().getCode());
+        if (connection.getLoginLeaseGeneration() != null) {
+            snapshot.setLoginLeaseVersion(RouteSnapshot.LOGIN_LEASE_VERSION_1);
+            snapshot.setLoginLeaseGeneration(connection.getLoginLeaseGeneration());
+        }
         snapshot.setGatewayNode(nodeIdentityProvider.getNodeId());
+        snapshot.setDeliveryOutcomeVersion(RouteSnapshot.DELIVERY_OUTCOME_VERSION_1);
         snapshot.setConnectedAt(connection.getConnectTime());
         snapshot.setHeartbeatAt(connection.getLastActiveTime());
         onlineRouteService.register(snapshot);
@@ -572,6 +706,14 @@ public class ConnectionManager {
     public long getTotalConnectionCount() {
         return totalConnectionCount.get();
     }
+
+    public long getRejectedConnectionCount() {
+        return rejectedConnectionCount.get();
+    }
+
+    public long getUnwritableWriteCount() {
+        return unwritableWriteCount.get();
+    }
     
     public MultiLoginStrategy getMultiLoginStrategy() {
         return multiLoginStrategy;
@@ -593,7 +735,19 @@ public class ConnectionManager {
     /**
      * 销毁连接管理器
      */
+    @PreDestroy
     public void destroy() {
+        if (loginLeaseEnforced && loginLeaseStore != null) {
+            List<LoginLeaseRenewal> renewals = connectionMap.values().stream()
+                    .map(this::toRenewal)
+                    .filter(Objects::nonNull)
+                    .toList();
+            try {
+                loginLeaseStore.releaseBatch(renewals);
+            } catch (RuntimeException exception) {
+                logger.warn("Failed to release login leases during shutdown; leases will expire by TTL", exception);
+            }
+        }
         scheduler.shutdown();
         connectionMap.clear();
         userConnectionMap.clear();
@@ -601,6 +755,108 @@ public class ConnectionManager {
         deviceConnectionMap.clear();
         channelConnectionMap.clear();
         logger.info("ConnectionManager destroyed");
+    }
+
+    private boolean tryAcquireConnectionSlot() {
+        long current;
+        do {
+            current = totalConnectionCount.get();
+            if (current >= maxConnections) {
+                return false;
+            }
+        } while (!totalConnectionCount.compareAndSet(current, current + 1));
+        return true;
+    }
+
+    private MultiLoginStrategy resolveMultiLoginStrategy(String configured) {
+        if (configured == null || configured.isBlank()) {
+            return MultiLoginStrategy.SAME_TERMINAL_KICK;
+        }
+        try {
+            return MultiLoginStrategy.valueOf(configured.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalStateException("Unknown multi login strategy: " + configured, exception);
+        }
+    }
+
+    private LoginLease toLoginLease(UserConnection connection) {
+        PlatformType platformType = connection.getPlatformType();
+        return new LoginLease(
+                Objects.toString(connection.getTenantId(), "default"),
+                connection.getUserID(),
+                connection.getConnectionID(),
+                0L,
+                nodeIdentityProvider.getNodeId(),
+                routeDeviceId(connection),
+                platformType == null ? PlatformType.UNKNOWN.getCode() : platformType.getCode(),
+                platformClass(platformType),
+                connection.getSessionId(),
+                0L);
+    }
+
+    private String platformClass(PlatformType platformType) {
+        if (platformType == null) {
+            return "UNKNOWN";
+        }
+        if (platformType.isMobile()) {
+            return "MOBILE";
+        }
+        if (platformType.isPc()) {
+            return "PC";
+        }
+        if (platformType.isWeb()) {
+            return "WEB";
+        }
+        return "UNKNOWN";
+    }
+
+    private boolean dispatchEvictedConnections(List<LoginLease> evicted) {
+        for (LoginLease victim : evicted) {
+            if (nodeIdentityProvider.getNodeId().equals(victim.gatewayNode())) {
+                kickConnectionById(victim.connectionId(), victim.generation(), "新连接取得全局登录租约");
+                continue;
+            }
+            if (nodeCommandPublisher == null) {
+                return false;
+            }
+            com.cheeseocean.im.common.api.dto.user.KickoffCommand command =
+                    new com.cheeseocean.im.common.api.dto.user.KickoffCommand();
+            command.setUserId(victim.userId());
+            command.setSessionId(victim.sessionId());
+            command.setDeviceId(victim.deviceId());
+            command.setConnectionId(victim.connectionId());
+            command.setLoginLeaseGeneration(victim.generation());
+            command.setReason("新连接取得全局登录租约");
+            if (!nodeCommandPublisher.publishKickoff(victim.gatewayNode(), command)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void releaseLoginLease(UserConnection connection) {
+        LoginLeaseRenewal renewal = toRenewal(connection);
+        if (!loginLeaseEnforced || loginLeaseStore == null || renewal == null) {
+            return;
+        }
+        try {
+            loginLeaseStore.release(renewal);
+        } catch (RuntimeException exception) {
+            logger.warn("Failed to release login lease; lease will expire by TTL: connectionID={}",
+                    connection.getConnectionID(), exception);
+        }
+    }
+
+    private LoginLeaseRenewal toRenewal(UserConnection connection) {
+        if (connection == null || connection.getLoginLeaseGeneration() == null
+                || connection.getUserID() == null || connection.getConnectionID() == null) {
+            return null;
+        }
+        return new LoginLeaseRenewal(
+                Objects.toString(connection.getTenantId(), "default"),
+                connection.getUserID(),
+                connection.getConnectionID(),
+                connection.getLoginLeaseGeneration());
     }
 
     private List<UserConnection> getIndexedConnections(Set<String> connectionIDs) {

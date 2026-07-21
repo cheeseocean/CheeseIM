@@ -45,6 +45,7 @@ class NodeDeliveryPollerTest {
     private OnlineDispatcherImpl onlineDispatcher;
     private ConnectionManager connectionManager;
     private NodeIdentityProvider nodeIdentityProvider;
+    private NodeDeliveryOutcomeProducer outcomeProducer;
     private NodeDeliveryPoller poller;
 
     @BeforeEach
@@ -56,6 +57,7 @@ class NodeDeliveryPollerTest {
         onlineDispatcher = mock(OnlineDispatcherImpl.class);
         connectionManager = mock(ConnectionManager.class);
         nodeIdentityProvider = mock(NodeIdentityProvider.class);
+        outcomeProducer = mock(NodeDeliveryOutcomeProducer.class);
 
         when(redisTemplate.opsForList()).thenReturn(listOps);
         when(redisTemplate.execute(eq(NodeQueueRedisScripts.RECOVER_EXPIRED), anyList(), any(Object[].class)))
@@ -84,7 +86,7 @@ class NodeDeliveryPollerTest {
         when(onlineDispatcher.dispatchMessage(any(DispatchMessageReq.class))).thenReturn(resp);
 
         poller = new NodeDeliveryPoller(redisTemplate, objectMapper, onlineDispatcher, connectionManager,
-                nodeIdentityProvider);
+                nodeIdentityProvider, outcomeProducer);
         poller.start();
 
         verify(onlineDispatcher, timeout(3000)).dispatchMessage(any(DispatchMessageReq.class));
@@ -104,7 +106,7 @@ class NodeDeliveryPollerTest {
                 });
 
         poller = new NodeDeliveryPoller(redisTemplate, objectMapper, onlineDispatcher, connectionManager,
-                nodeIdentityProvider);
+                nodeIdentityProvider, outcomeProducer);
         poller.start();
 
         poller.stop();
@@ -123,7 +125,7 @@ class NodeDeliveryPollerTest {
                 .thenAnswer(invocation -> { poller.stop(); return null; });
 
         poller = new NodeDeliveryPoller(redisTemplate, objectMapper, onlineDispatcher, connectionManager,
-                nodeIdentityProvider);
+                nodeIdentityProvider, outcomeProducer);
         poller.start();
 
         verify(redisTemplate, timeout(3000)).execute(eq(NodeQueueRedisScripts.COMPLETE),
@@ -145,7 +147,7 @@ class NodeDeliveryPollerTest {
         when(onlineDispatcher.dispatchMessage(any())).thenThrow(new IllegalStateException("channel failed"));
 
         poller = new NodeDeliveryPoller(redisTemplate, objectMapper, onlineDispatcher, connectionManager,
-                nodeIdentityProvider);
+                nodeIdentityProvider, outcomeProducer);
         poller.start();
 
         verify(redisTemplate, timeout(3000)).execute(eq(NodeQueueRedisScripts.COMPLETE),
@@ -169,7 +171,7 @@ class NodeDeliveryPollerTest {
         when(onlineDispatcher.dispatchMessage(any())).thenReturn(response);
 
         poller = new NodeDeliveryPoller(redisTemplate, objectMapper, onlineDispatcher, connectionManager,
-                nodeIdentityProvider);
+                nodeIdentityProvider, outcomeProducer);
         poller.start();
 
         verify(onlineDispatcher, timeout(3000)).dispatchMessage(any());
@@ -193,7 +195,7 @@ class NodeDeliveryPollerTest {
                 .thenThrow(new IllegalStateException("redis unavailable"));
 
         poller = new NodeDeliveryPoller(redisTemplate, objectMapper, onlineDispatcher, connectionManager,
-                nodeIdentityProvider);
+                nodeIdentityProvider, outcomeProducer);
         poller.start();
 
         verify(redisTemplate, timeout(3000)).execute(eq(NodeQueueRedisScripts.COMPLETE),
@@ -220,7 +222,7 @@ class NodeDeliveryPollerTest {
                 .thenReturn(-1L);
 
         poller = new NodeDeliveryPoller(redisTemplate, objectMapper, onlineDispatcher, connectionManager,
-                nodeIdentityProvider);
+                nodeIdentityProvider, outcomeProducer);
         poller.start();
 
         verify(redisTemplate, timeout(3000)).execute(eq(NodeQueueRedisScripts.COMPLETE),
@@ -237,7 +239,7 @@ class NodeDeliveryPollerTest {
                 .thenAnswer(invocation -> { poller.stop(); return null; });
 
         poller = new NodeDeliveryPoller(redisTemplate, objectMapper, onlineDispatcher, connectionManager,
-                nodeIdentityProvider);
+                nodeIdentityProvider, outcomeProducer);
         poller.start();
 
         verify(redisTemplate, timeout(3000).times(2)).execute(eq(NodeQueueRedisScripts.RECOVER_EXPIRED),

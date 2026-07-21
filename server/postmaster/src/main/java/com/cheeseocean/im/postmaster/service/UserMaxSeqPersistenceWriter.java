@@ -31,8 +31,13 @@ public class UserMaxSeqPersistenceWriter {
     private static final long POLL_TIMEOUT_MS  = 1000;
 
     private static final int MAX_RETRY_ATTEMPTS = 3;
+    private static final long SHUTDOWN_JOIN_TIMEOUT_MS = 30_000L;
 
-    record UserMaxSeqEntry(String userId, String conversationId, long maxSeq, int attempts) {}
+    record UserMaxSeqEntry(String userId, String conversationId, long maxSeq, int attempts, long queuedAtMillis) {
+        UserMaxSeqEntry(String userId, String conversationId, long maxSeq, int attempts) {
+            this(userId, conversationId, maxSeq, attempts, System.currentTimeMillis());
+        }
+    }
 
     public record WriterStats(long accepted, long overflowFallbacks, long retryScheduled, long exhaustedFailures) {}
 
@@ -44,6 +49,9 @@ public class UserMaxSeqPersistenceWriter {
     private final AtomicLong overflowFallbacks = new AtomicLong();
     private final AtomicLong retryScheduled = new AtomicLong();
     private final AtomicLong exhaustedFailures = new AtomicLong();
+    private final AtomicLong inFlight = new AtomicLong();
+    private final AtomicLong inFlightOldestQueuedAtMillis = new AtomicLong();
+    private final AtomicLong nextBacklogObservationMillis = new AtomicLong();
     private volatile boolean running = true;
 
     public UserMaxSeqPersistenceWriter(UserConversationSyncPointRepository syncPointRepository,
@@ -90,12 +98,14 @@ public class UserMaxSeqPersistenceWriter {
         UserMaxSeqEntry entry = new UserMaxSeqEntry(userId, conversationId, maxSeq, 0);
         if (queues.get(bucket).offer(entry)) {
             accepted.incrementAndGet();
+            observeBacklog(false);
             return;
         }
         if (fallbackQueues.get(bucket).offer(entry)) {
             accepted.incrementAndGet();
             overflowFallbacks.incrementAndGet();
             ImMetrics.writer("user_max_seq", "fallback");
+            observeBacklog(false);
             return;
         }
         persistSynchronously(entry);
@@ -113,6 +123,7 @@ public class UserMaxSeqPersistenceWriter {
         for (Thread drainThread : drainThreads) {
             drainThread.interrupt();
         }
+        awaitDrainThreads();
         List<UserMaxSeqEntry> remaining = new ArrayList<>();
         for (LinkedBlockingQueue<UserMaxSeqEntry> queue : queues) {
             queue.drainTo(remaining);
@@ -121,7 +132,32 @@ public class UserMaxSeqPersistenceWriter {
             fallbackQueue.drainTo(remaining);
         }
         if (!remaining.isEmpty()) {
-            persist(remaining, null);
+            beginInFlight(remaining);
+            try {
+                persist(remaining, null);
+            } finally {
+                endInFlight(remaining.size());
+            }
+        }
+        observeBacklog(true);
+    }
+
+    private void awaitDrainThreads() {
+        long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(SHUTDOWN_JOIN_TIMEOUT_MS);
+        for (Thread drainThread : drainThreads) {
+            long remainingMillis = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
+            if (remainingMillis <= 0) break;
+            try {
+                drainThread.join(remainingMillis);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                ImMetrics.writer("user_max_seq", "shutdown_interrupted");
+                return;
+            }
+        }
+        if (drainThreads.stream().anyMatch(Thread::isAlive)) {
+            ImMetrics.writer("user_max_seq", "shutdown_timeout");
+            log.error("user maxSeq 停机等待 drain 超时，仍有持久化线程未退出");
         }
     }
 
@@ -142,7 +178,13 @@ public class UserMaxSeqPersistenceWriter {
                 if (batch.size() < DRAIN_BATCH_SIZE) {
                     queue.drainTo(batch, DRAIN_BATCH_SIZE - batch.size());
                 }
-                persist(batch, fallbackQueue);
+                beginInFlight(batch);
+                try {
+                    persist(batch, fallbackQueue);
+                } finally {
+                    endInFlight(batch.size());
+                    observeBacklog(true);
+                }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
@@ -164,24 +206,29 @@ public class UserMaxSeqPersistenceWriter {
             aggregated.merge(key, entry,
                     (existing, incoming) -> incoming.maxSeq() > existing.maxSeq() ? incoming : existing);
         }
-        for (UserMaxSeqEntry entry : aggregated.values()) {
-            try {
-                syncPointRepository.updateMaxSeq(entry.userId(), entry.conversationId(), entry.maxSeq());
-            } catch (Exception ex) {
+        List<UserMaxSeqEntry> compacted = new ArrayList<>(aggregated.values());
+        try {
+            syncPointRepository.updateMaxSeqBatch(compacted.stream()
+                    .map(entry -> new UserConversationSyncPointRepository.MaxSeqUpdate(
+                            entry.userId(), entry.conversationId(), entry.maxSeq()))
+                    .toList());
+        } catch (Exception ex) {
+            for (UserMaxSeqEntry entry : compacted) {
                 if (fallbackQueue != null && entry.attempts() < MAX_RETRY_ATTEMPTS
                         && fallbackQueue.offer(new UserMaxSeqEntry(entry.userId(), entry.conversationId(),
-                        entry.maxSeq(), entry.attempts() + 1))) {
+                        entry.maxSeq(), entry.attempts() + 1, entry.queuedAtMillis()))) {
                     retryScheduled.incrementAndGet();
                     ImMetrics.writer("user_max_seq", "retry");
                     log.warn("user maxSeq 持久化失败，已进入回退队列：userId={} convId={} seq={} attempt={}",
                             entry.userId(), entry.conversationId(), entry.maxSeq(), entry.attempts() + 1, ex);
                 } else if (fallbackQueue != null) {
                     putReliably(fallbackQueue,
-                            new UserMaxSeqEntry(entry.userId(), entry.conversationId(), entry.maxSeq(), 0));
+                            new UserMaxSeqEntry(entry.userId(), entry.conversationId(), entry.maxSeq(), 0,
+                                    entry.queuedAtMillis()));
                     ImMetrics.writer("user_max_seq", "retry_exhausted_backpressure");
                 } else {
                     exhaustedFailures.incrementAndGet();
-                    ImMetrics.writer("user_max_seq", "drop");
+                    ImMetrics.writer("user_max_seq", "shutdown_drop");
                     log.error("user maxSeq 持久化最终失败：userId={} convId={} seq={} attempts={}",
                             entry.userId(), entry.conversationId(), entry.maxSeq(), entry.attempts(), ex);
                 }
@@ -208,4 +255,49 @@ public class UserMaxSeqPersistenceWriter {
         }
     }
 
+    private void beginInFlight(List<UserMaxSeqEntry> entries) {
+        long oldestQueuedAt = entries.stream()
+                .mapToLong(UserMaxSeqEntry::queuedAtMillis)
+                .min()
+                .orElse(0L);
+        inFlight.addAndGet(entries.size());
+        inFlightOldestQueuedAtMillis.updateAndGet(existing ->
+                existing <= 0 ? oldestQueuedAt : Math.min(existing, oldestQueuedAt));
+        ImMetrics.writerBacklog("user_max_seq", "inflight", inFlight.get(), inFlightOldestQueuedAtMillis.get());
+    }
+
+    private void endInFlight(int count) {
+        long remaining = inFlight.addAndGet(-count);
+        if (remaining <= 0) {
+            inFlight.set(0);
+            inFlightOldestQueuedAtMillis.set(0);
+        }
+        ImMetrics.writerBacklog("user_max_seq", "inflight", inFlight.get(), inFlightOldestQueuedAtMillis.get());
+    }
+
+    private void observeBacklog(boolean force) {
+        long now = System.currentTimeMillis();
+        if (!force) {
+            long next = nextBacklogObservationMillis.get();
+            if (now < next || !nextBacklogObservationMillis.compareAndSet(next, now + 1_000L)) {
+                return;
+            }
+        } else {
+            nextBacklogObservationMillis.set(now + 1_000L);
+        }
+        long depth = 0;
+        long oldestQueuedAt = Long.MAX_VALUE;
+        for (LinkedBlockingQueue<UserMaxSeqEntry> queue : queues) {
+            depth += queue.size();
+            UserMaxSeqEntry head = queue.peek();
+            if (head != null) oldestQueuedAt = Math.min(oldestQueuedAt, head.queuedAtMillis());
+        }
+        for (LinkedBlockingQueue<UserMaxSeqEntry> queue : fallbackQueues) {
+            depth += queue.size();
+            UserMaxSeqEntry head = queue.peek();
+            if (head != null) oldestQueuedAt = Math.min(oldestQueuedAt, head.queuedAtMillis());
+        }
+        ImMetrics.writerBacklog("user_max_seq", "queued", depth,
+                oldestQueuedAt == Long.MAX_VALUE ? 0L : oldestQueuedAt);
+    }
 }

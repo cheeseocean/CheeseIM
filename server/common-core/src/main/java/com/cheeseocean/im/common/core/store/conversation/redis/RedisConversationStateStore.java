@@ -3,6 +3,8 @@ package com.cheeseocean.im.common.core.store.conversation.redis;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.RedisOperations;
+import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 
 import java.util.ArrayList;
@@ -10,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.nio.charset.StandardCharsets;
 
 public class RedisConversationStateStore implements ConversationStateStore {
 
@@ -145,10 +148,17 @@ public class RedisConversationStateStore implements ConversationStateStore {
             return new LinkedHashMap<>();
         }
         List<String> keys = ids.stream().map(RedisKeys::convLastMsg).toList();
-        List<String> values = redisTemplate.opsForValue().multiGet(keys);
+        List<Object> values = redisTemplate.executePipelined(new SessionCallback<>() {
+            @Override
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            public Object execute(RedisOperations operations) {
+                keys.forEach(key -> operations.opsForValue().get(key));
+                return null;
+            }
+        });
         Map<String, String> result = new LinkedHashMap<>();
         for (int i = 0; i < ids.size(); i++) {
-            String value = values == null ? null : values.get(i);
+            String value = values == null ? null : stringValue(values.get(i));
             if (value != null) {
                 result.put(ids.get(i), value);
             }
@@ -165,6 +175,16 @@ public class RedisConversationStateStore implements ConversationStateStore {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    private String stringValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof byte[] bytes) {
+            return new String(bytes, StandardCharsets.UTF_8);
+        }
+        return String.valueOf(value);
     }
 
     private static String advanceReadStateLua() {

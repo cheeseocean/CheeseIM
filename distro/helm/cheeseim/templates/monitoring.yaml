@@ -1,0 +1,74 @@
+{{- if .Values.monitoring.serviceMonitor.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "cheeseim.fullname" . }}
+  labels:
+    {{- include "cheeseim.labels" . | nindent 4 }}
+    {{- with .Values.monitoring.serviceMonitor.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "cheeseim.selectorLabels" . | nindent 6 }}
+      cheeseim.io/metrics: "true"
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  endpoints:
+    - port: management
+      path: /actuator/prometheus
+      interval: {{ .Values.monitoring.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.monitoring.serviceMonitor.scrapeTimeout }}
+      honorLabels: false
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_service_label_app_kubernetes_io_component]
+          targetLabel: cheeseim_service
+{{- end }}
+
+{{- if .Values.monitoring.prometheusRule.enabled }}
+{{- $warning := int64 .Values.monitoring.prometheusRule.writerOldestAgeWarningMilliseconds }}
+{{- $critical := int64 .Values.monitoring.prometheusRule.writerOldestAgeCriticalMilliseconds }}
+{{- if or (le $warning 0) (le $critical $warning) }}
+{{- fail "monitoring.prometheusRule writer age thresholds must be positive and critical > warning" }}
+{{- end }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "cheeseim.fullname" . }}
+  labels:
+    {{- include "cheeseim.labels" . | nindent 4 }}
+    {{- with .Values.monitoring.prometheusRule.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: cheeseim.write-behind
+      rules:
+        - alert: CheeseImWriterOldestAgeHigh
+          expr: max by (writer) (cheeseim_writer_backlog_oldest_age_milliseconds{namespace="{{ .Release.Namespace }}"}) > {{ $warning }}
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: CheeseIM write-behind oldest age exceeds warning threshold
+            description: Check Mongo latency, writer queued/inflight depth, and pause rolling updates.
+        - alert: CheeseImWriterOldestAgeCritical
+          expr: max by (writer) (cheeseim_writer_backlog_oldest_age_milliseconds{namespace="{{ .Release.Namespace }}"}) > {{ $critical }}
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: CheeseIM write-behind persistence RPO is at risk
+            description: Drain ingress and investigate Mongo before restarting any writer Pod.
+        - alert: CheeseImWriterPersistenceFailure
+          expr: sum(increase(cheeseim_writer_operation_total{namespace="{{ .Release.Namespace }}",result=~"sync_failed|shutdown_drop"}[5m])) > 0
+          labels:
+            severity: critical
+          annotations:
+            summary: CheeseIM write-behind reported an explicit persistence failure
+            description: Preserve logs and determine the affected writer window from backlog and Mongo state.
+{{- end }}

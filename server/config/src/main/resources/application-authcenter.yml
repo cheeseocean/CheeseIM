@@ -3,6 +3,7 @@ spring:
     import:
       - classpath:common.yml
       - classpath:module-authcenter.yml
+      - classpath:application-cluster.yml
 
 dubbo:
   application:

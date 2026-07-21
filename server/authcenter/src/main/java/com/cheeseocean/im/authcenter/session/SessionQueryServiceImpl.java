@@ -42,6 +42,10 @@ public class SessionQueryServiceImpl implements SessionQueryService {
             }
             return cached;
         }
+        if (principal.getSessionId() != null && !principal.getSessionId().isBlank()) {
+            throw new IllegalStateException("session invalid");
+        }
+        // 仅兼容尚未携带 sid 的历史 access token；新 token 的 session 状态必须以服务端存储为准。
         return sessionTicketService.buildSession(principal, principal.getDeviceId(), principal.getPlatform(), null);
     }
 

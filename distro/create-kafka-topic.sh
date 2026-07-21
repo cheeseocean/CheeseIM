@@ -4,13 +4,17 @@ set -euo pipefail
 
 DEFAULT_KAFKA_HOME="/Users/xxxcrel/Develop/middleware/kafka"
 DEFAULT_BOOTSTRAP_SERVER="localhost:9092"
-DEFAULT_PARTITIONS="3"
-DEFAULT_REPLICATION_FACTOR="1"
+DEFAULT_PARTITIONS="12"
+DEFAULT_REPLICATION_FACTOR="3"
+DEFAULT_MIN_IN_SYNC_REPLICAS="2"
+DEFAULT_RETENTION_MS="604800000"
 
 topic_name=""
 bootstrap_server="${BOOTSTRAP_SERVER:-$DEFAULT_BOOTSTRAP_SERVER}"
 partitions="${PARTITIONS:-$DEFAULT_PARTITIONS}"
 replication_factor="${REPLICATION_FACTOR:-$DEFAULT_REPLICATION_FACTOR}"
+min_in_sync_replicas="${MIN_IN_SYNC_REPLICAS:-$DEFAULT_MIN_IN_SYNC_REPLICAS}"
+retention_ms="${RETENTION_MS:-$DEFAULT_RETENTION_MS}"
 kafka_home="${KAFKA_HOME:-$DEFAULT_KAFKA_HOME}"
 kafka_topics_bin="${KAFKA_TOPICS_BIN:-}"
 
@@ -44,7 +48,9 @@ Usage:
 Options:
   --bootstrap-server <host:port>      Default: localhost:9092
   --partitions <count>                Default: 3
-  --replication-factor <count>        Default: 1
+  --replication-factor <count>        Default: 3
+  --min-in-sync-replicas <count>     Default: 2
+  --retention-ms <milliseconds>       Default: 604800000 (7 days)
   --kafka-home <path>                 Default: /Users/xxxcrel/Develop/middleware/kafka
   -h, --help                          Show this help
 
@@ -52,6 +58,8 @@ Environment overrides:
   BOOTSTRAP_SERVER
   PARTITIONS
   REPLICATION_FACTOR
+  MIN_IN_SYNC_REPLICAS
+  RETENTION_MS
   KAFKA_HOME
   KAFKA_TOPICS_BIN
 
@@ -73,6 +81,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --replication-factor)
       replication_factor="${2:-}"
+      shift 2
+      ;;
+    --min-in-sync-replicas)
+      min_in_sync_replicas="${2:-}"
+      shift 2
+      ;;
+    --retention-ms)
+      retention_ms="${2:-}"
       shift 2
       ;;
     --kafka-home)
@@ -106,6 +122,17 @@ if [[ -z "$topic_name" ]]; then
   exit 1
 fi
 
+for numeric_value in "$partitions" "$replication_factor" "$min_in_sync_replicas" "$retention_ms"; do
+  if ! [[ "$numeric_value" =~ ^[0-9]+$ ]] || (( numeric_value <= 0 )); then
+    echo "Partitions, replication, minISR and retention must be positive integers." >&2
+    exit 1
+  fi
+done
+if (( min_in_sync_replicas > replication_factor )); then
+  echo "min-in-sync-replicas cannot exceed replication-factor." >&2
+  exit 1
+fi
+
 if [[ -z "$kafka_topics_bin" ]]; then
   if [[ "${MOCK_ONLY:-0}" == "1" ]]; then
     kafka_topics_bin="$kafka_home/bin/kafka-topics.sh"
@@ -126,6 +153,8 @@ command_args=(
   --topic "$topic_name"
   --partitions "$partitions"
   --replication-factor "$replication_factor"
+  --config "min.insync.replicas=$min_in_sync_replicas"
+  --config "retention.ms=$retention_ms"
 )
 
 if [[ "${MOCK_ONLY:-0}" == "1" ]]; then

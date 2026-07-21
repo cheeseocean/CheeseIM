@@ -5,8 +5,7 @@ import com.cheeseocean.im.common.api.dto.dispatch.DispatchMessageResp;
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchPayload;
 import com.cheeseocean.im.common.api.dto.dispatch.DispatchResult;
 import com.cheeseocean.im.common.api.dto.message.Message;
-import com.cheeseocean.im.common.api.enums.ChatType;
-import com.cheeseocean.im.common.api.event.OfflinePushEvent;
+import com.cheeseocean.im.common.api.enums.OfflinePushTriggerReason;
 import com.cheeseocean.im.common.api.route.OnlineRouteQueryService;
 import com.cheeseocean.im.common.api.rpc.NodeDeliveryService;
 import com.cheeseocean.im.common.api.rpc.OnlineDispatcher;
@@ -14,13 +13,15 @@ import com.cheeseocean.im.common.core.constants.TopicNames;
 import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
 import com.cheeseocean.im.common.core.queue.annotation.QueueListener;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
-import com.cheeseocean.im.common.core.util.ConversationIdUtil;
+import com.cheeseocean.im.postman.delivery.OfflinePushCompensationService;
+import com.cheeseocean.im.postman.delivery.OfflinePushEventFactory;
 import com.cheeseocean.im.postman.sender.OfflinePushEventProducer;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -33,15 +34,43 @@ public class DeliveryEventListener {
     private final OnlineDispatcher        onlineDispatcher;
     private final OfflinePushEventProducer offlinePushProducer;
     private final NodeDeliveryService nodeDeliveryService;
+    private final OfflinePushCompensationService compensationService;
+    private final OfflinePushEventFactory offlinePushEventFactory;
+    private final long outcomeDeadlineMillis;
 
+    @Autowired
     public DeliveryEventListener(OnlineRouteQueryService onlineRouteQueryService,
                                  OnlineDispatcher onlineDispatcher,
                                  OfflinePushEventProducer offlinePushProducer,
-                                 ObjectProvider<NodeDeliveryService> nodeDeliveryServiceProvider) {
+                                 ObjectProvider<NodeDeliveryService> nodeDeliveryServiceProvider,
+                                 ObjectProvider<OfflinePushCompensationService> compensationServiceProvider,
+                                 OfflinePushEventFactory offlinePushEventFactory,
+                                 @Value("${cheeseim.delivery.outcome.deadline-ms:90000}")
+                                 long outcomeDeadlineMillis) {
         this.onlineRouteQueryService = onlineRouteQueryService;
         this.onlineDispatcher = onlineDispatcher;
         this.offlinePushProducer = offlinePushProducer;
         this.nodeDeliveryService = nodeDeliveryServiceProvider.getIfAvailable();
+        this.compensationService = compensationServiceProvider.getIfAvailable();
+        this.offlinePushEventFactory = offlinePushEventFactory;
+        // 必须覆盖 postoffice 60 秒 processing lease，避免租约恢复前就误判用户离线。
+        this.outcomeDeadlineMillis = Math.max(75_000L, outcomeDeadlineMillis);
+    }
+
+    /**
+     * 保留给不装配 Redis 补偿器的轻量测试与单机嵌入场景。
+     */
+    DeliveryEventListener(OnlineRouteQueryService onlineRouteQueryService,
+                          OnlineDispatcher onlineDispatcher,
+                          OfflinePushEventProducer offlinePushProducer,
+                          ObjectProvider<NodeDeliveryService> nodeDeliveryServiceProvider) {
+        this.onlineRouteQueryService = onlineRouteQueryService;
+        this.onlineDispatcher = onlineDispatcher;
+        this.offlinePushProducer = offlinePushProducer;
+        this.nodeDeliveryService = nodeDeliveryServiceProvider.getIfAvailable();
+        this.compensationService = null;
+        this.offlinePushEventFactory = new OfflinePushEventFactory();
+        this.outcomeDeadlineMillis = 90_000L;
     }
 
     @QueueListener(topic = TopicNames.DELIVERY, group = "push-delivery")
@@ -97,7 +126,7 @@ public class DeliveryEventListener {
     private void deliverToUser(String userId, Message message) {
         List<RouteSnapshot> routes = onlineRouteQueryService.findByUser(userId);
         if (routes == null || routes.isEmpty()) {
-            emitOfflinePushIfNeeded(userId, message);
+            emitOfflinePushIfNeeded(userId, message, OfflinePushTriggerReason.ROUTE_ABSENT);
             return;
         }
 
@@ -107,24 +136,75 @@ public class DeliveryEventListener {
                         r.getGatewayNode() != null && !r.getGatewayNode().isBlank()
                                 ? r.getGatewayNode() : ""));
 
-        boolean anyDelivered = false;
+        boolean anyDeliveredOrLegacyAccepted = false;
+        List<Map.Entry<String, List<RouteSnapshot>>> outcomeCapableNodes = new ArrayList<>();
         for (Map.Entry<String, List<RouteSnapshot>> entry : routesByNode.entrySet()) {
             String gatewayNode = entry.getKey();
             DispatchMessageReq req = buildDispatchReq(userId, entry.getValue(), message);
 
             if (!gatewayNode.isEmpty() && nodeDeliveryService != null) {
-                // P0-1: 按节点路由投递（Redis LIST）
-                anyDelivered |= nodeDeliveryService.deliver(gatewayNode, req);
+                if (entry.getValue().stream().allMatch(RouteSnapshot::supportsDeliveryOutcomeV1)) {
+                    outcomeCapableNodes.add(entry);
+                } else {
+                    // 滚动升级兼容：旧路由不会产生 outcome，暂时保留“成功入队即视为在线”的旧语义。
+                    anyDeliveredOrLegacyAccepted |= nodeDeliveryService.deliver(gatewayNode, req);
+                }
             } else {
                 // 降级：直接 Dubbo（all-in-one / gatewayNode 为空的历史数据 / NodeDeliveryService 不可用）
                 DispatchMessageResp resp = onlineDispatcher.dispatchMessage(req);
-                anyDelivered |= hasSuccessfulDispatch(resp);
+                anyDeliveredOrLegacyAccepted |= hasSuccessfulDispatch(resp);
             }
         }
 
-        if (!anyDelivered) {
-            // 极端兜底：所有节点投递均失败，走离线推送
-            emitOfflinePushIfNeeded(userId, message);
+        if (outcomeCapableNodes.isEmpty()) {
+            if (!anyDeliveredOrLegacyAccepted) {
+                emitOfflinePushIfNeeded(userId, message, OfflinePushTriggerReason.NODE_DELIVERY_FAILED);
+            }
+            return;
+        }
+
+        boolean compensationRequired = !anyDeliveredOrLegacyAccepted
+                && needsOfflinePush(message)
+                && compensationService != null;
+        String deliveryId = message.getServerMsgId();
+        if (compensationRequired) {
+            List<String> expectedNodes = outcomeCapableNodes.stream().map(Map.Entry::getKey).sorted().toList();
+            var registration = compensationService.register(
+                    deliveryId,
+                    userId,
+                    expectedNodes,
+                    offlinePushEventFactory.create(userId, message, OfflinePushTriggerReason.NODE_DELIVERY_FAILED),
+                    System.currentTimeMillis() + outcomeDeadlineMillis);
+            if (registration == com.cheeseocean.im.postman.state.NodeDeliveryPendingStore.Registration.DELIVERED
+                    || registration == com.cheeseocean.im.postman.state.NodeDeliveryPendingStore.Registration.PUBLISHING
+                    || registration == com.cheeseocean.im.postman.state.NodeDeliveryPendingStore.Registration.PUBLISHED) {
+                return;
+            }
+            if (registration
+                    == com.cheeseocean.im.postman.state.NodeDeliveryPendingStore.Registration.OFFLINE_READY) {
+                compensationService.publishIfReady(
+                        deliveryId, userId, OfflinePushTriggerReason.NODE_DELIVERY_FAILED);
+                return;
+            }
+        }
+
+        boolean anyAccepted = anyDeliveredOrLegacyAccepted;
+        for (Map.Entry<String, List<RouteSnapshot>> entry : outcomeCapableNodes) {
+            boolean accepted = nodeDeliveryService.deliver(
+                    entry.getKey(), buildDispatchReq(userId, entry.getValue(), message));
+            anyAccepted |= accepted;
+            if (!accepted && compensationRequired) {
+                compensationService.record(
+                        deliveryId,
+                        userId,
+                        entry.getKey(),
+                        false,
+                        OfflinePushTriggerReason.NODE_DELIVERY_FAILED);
+            }
+        }
+
+        if (!anyAccepted && !compensationRequired) {
+            emitOfflinePushIfNeeded(userId, message, OfflinePushTriggerReason.NODE_DELIVERY_FAILED);
         }
     }
 
@@ -138,8 +218,11 @@ public class DeliveryEventListener {
         DispatchMessageReq req = new DispatchMessageReq();
         req.setUserId(userId);
         req.setPayload(toDispatchPayload(message));
-        // 不设置 connectionIds——让 OnlineDispatcherImpl 通过 userId 查本地连接
-        // （节点路由已保证投递到正确节点，按 userId 全量投递即可）
+        req.setConnectionIds(nodeRoutes.stream()
+                .map(RouteSnapshot::getConnectionId)
+                .filter(connectionId -> connectionId != null && !connectionId.isBlank())
+                .distinct()
+                .toList());
         return req;
     }
 
@@ -155,34 +238,26 @@ public class DeliveryEventListener {
         return false;
     }
 
-    private void emitOfflinePushIfNeeded(String userId, Message message) {
-        if (message.getOptions() == null || !Boolean.TRUE.equals(message.getOptions().getNeedOfflinePush())) {
+    private void emitOfflinePushIfNeeded(String userId,
+                                         Message message,
+                                         OfflinePushTriggerReason reason) {
+        if (!needsOfflinePush(message)) {
             return;
         }
         // P0-6 修复：通过 QueueAdapter 而非直连 KafkaTemplate，使 OFFLINE_PUSH 在 cheeseim.queue.type=chronicle
         // 的单机联调模式下同样能投到 Chronicle 队列被 OfflinePushEventListener 消费。
-        offlinePushProducer.publish(userId, toOfflinePushEvent(userId, message));
+        offlinePushProducer.publish(userId, offlinePushEventFactory.create(userId, message, reason));
+    }
+
+    private boolean needsOfflinePush(Message message) {
+        return message.getOptions() != null
+                && Boolean.TRUE.equals(message.getOptions().getNeedOfflinePush());
     }
 
     private DispatchPayload toDispatchPayload(Message message) {
         DispatchPayload payload = new DispatchPayload();
         payload.setMsg(message);
+        payload.setDeliveryId(message.getServerMsgId());
         return payload;
-    }
-
-    private OfflinePushEvent toOfflinePushEvent(String userId, Message message) {
-        OfflinePushEvent event = new OfflinePushEvent();
-        event.setUserId(userId);
-        event.setConversationId(ConversationIdUtil.buildConversationId(message));
-        event.setSeq(message.getSeq());
-        event.setServerMsgId(message.getServerMsgId());
-        event.setSenderId(message.getSenderId());
-        event.setSessionType(message.getChatType() == null ? null : message.getChatType().getCode());
-        event.setContentType(message.getContentType() == null ? null : message.getContentType().getCode());
-        event.setNotification(message.getOptions() != null && Boolean.TRUE.equals(message.getOptions().getNotification()));
-        event.setTitle(message.getSenderId());
-        event.setContent(message.getContent() == null ? null : new String(message.getContent(), StandardCharsets.UTF_8));
-        event.setAttributes(message.getAttributes());
-        return event;
     }
 }

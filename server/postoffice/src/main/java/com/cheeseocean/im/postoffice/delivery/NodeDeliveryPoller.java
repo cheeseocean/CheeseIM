@@ -5,6 +5,8 @@ import com.cheeseocean.im.common.api.dto.dispatch.DispatchMessageResp;
 import com.cheeseocean.im.common.api.dto.route.NodeQueueMessage;
 import com.cheeseocean.im.common.api.dto.user.KickoffCommand;
 import com.cheeseocean.im.common.api.enums.NodeQueueMessageType;
+import com.cheeseocean.im.common.api.enums.DispatchResultCode;
+import com.cheeseocean.im.common.api.enums.NodeDeliveryOutcomeCode;
 import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import com.cheeseocean.im.common.core.queue.NodeQueueRedisScripts;
@@ -59,6 +61,7 @@ public class NodeDeliveryPoller {
     private final ObjectMapper objectMapper;
     private final OnlineDispatcherImpl onlineDispatcher;
     private final ConnectionManager connectionManager;
+    private final NodeDeliveryOutcomeProducer outcomeProducer;
     private final String queueKey;
     private final String processingQueueKey;
     private final String processingLeaseKey;
@@ -73,11 +76,13 @@ public class NodeDeliveryPoller {
                               ObjectMapper objectMapper,
                               OnlineDispatcherImpl onlineDispatcher,
                               ConnectionManager connectionManager,
-                              NodeIdentityProvider nodeIdentityProvider) {
+                              NodeIdentityProvider nodeIdentityProvider,
+                              NodeDeliveryOutcomeProducer outcomeProducer) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.onlineDispatcher = onlineDispatcher;
         this.connectionManager = connectionManager;
+        this.outcomeProducer = outcomeProducer;
         this.nodeId = nodeIdentityProvider.getNodeId();
         this.queueKey = RedisKeys.deliveryNodeQueue(nodeId);
         this.processingQueueKey = RedisKeys.deliveryNodeProcessingQueue(nodeId);
@@ -164,6 +169,9 @@ public class NodeDeliveryPoller {
             if (!Long.valueOf(1L).equals(acknowledged)) {
                 throw new IllegalStateException("Node processing claim disappeared before ACK");
             }
+        } catch (DeliveryPendingException pending) {
+            // 保留 processing claim，等待租约回收后再验证 dedup 终态，避免快速重试耗尽次数。
+            log.debug("Node delivery still pending, claimId={}, queueKey={}", claimId, queueKey);
         } catch (Exception e) {
             retryOrDeadLetter(claimId, json, e);
         }
@@ -201,8 +209,11 @@ public class NodeDeliveryPoller {
 
         message.setRetryCount(message.getRetryCount() + 1);
         try {
-            String retriedJson = objectMapper.writeValueAsString(message);
             boolean dead = message.getRetryCount() >= MAX_RETRY_COUNT;
+            if (dead) {
+                publishFinalFailure(message, cause);
+            }
+            String retriedJson = objectMapper.writeValueAsString(message);
             Long result = completeClaim(claimId, retriedJson, dead ? deadLetterQueueKey : queueKey, dead);
             if (Long.valueOf(-1L).equals(result)) {
                 ImMetrics.nodeRetry("ready_overflow");
@@ -260,14 +271,45 @@ public class NodeDeliveryPoller {
         if (resp == null || resp.getResults() == null || resp.getResults().isEmpty()) {
             throw new IllegalStateException("Local dispatch returned no result for userId=" + req.getUserId());
         }
-        if (resp.getResults().stream().noneMatch(result -> result != null && result.isSuccess())) {
-            throw new IllegalStateException("Local dispatch failed for all connections, userId=" + req.getUserId());
+        boolean anyDelivered = false;
+        for (var result : resp.getResults()) {
+            if (result == null) {
+                throw new IllegalStateException("Local dispatch returned null connection result");
+            }
+            if (result.isSuccess()) {
+                anyDelivered = true;
+                continue;
+            }
+            DispatchResultCode code = DispatchResultCode.fromCode(result.getCode());
+            if (code == DispatchResultCode.CONNECTION_NOT_FOUND) {
+                // 路由已陈旧属于当前节点的终态，postman 会按用户级结果决定离线推送。
+                continue;
+            }
+            if (code == DispatchResultCode.DELIVERY_IN_PROGRESS
+                    || code == DispatchResultCode.WRITE_PENDING) {
+                throw new DeliveryPendingException();
+            }
+            throw new IllegalStateException(
+                    "Local dispatch failed, userId=" + req.getUserId() + ", code=" + result.getCode());
         }
+        outcomeProducer.publish(
+                nodeId,
+                req,
+                anyDelivered
+                        ? NodeDeliveryOutcomeCode.DELIVERED
+                        : NodeDeliveryOutcomeCode.NO_ACTIVE_CONNECTION,
+                resp,
+                null);
     }
 
     private void executeKickoff(String json) throws Exception {
         KickoffCommand command = objectMapper.readValue(json, KickoffCommand.class);
-        if (command.getDeviceId() != null && !command.getDeviceId().isBlank()
+        if (command.getConnectionId() != null && !command.getConnectionId().isBlank()) {
+            connectionManager.kickConnectionById(
+                    command.getConnectionId(),
+                    command.getLoginLeaseGeneration(),
+                    command.getReason());
+        } else if (command.getDeviceId() != null && !command.getDeviceId().isBlank()
                 && command.getUserId() != null && !command.getUserId().isBlank()) {
             connectionManager.kickDeviceConnections(command.getUserId(), command.getDeviceId(), command.getReason());
         } else if (command.getSessionId() != null && !command.getSessionId().isBlank()) {
@@ -275,5 +317,21 @@ public class NodeDeliveryPoller {
         } else if (command.getUserId() != null && !command.getUserId().isBlank()) {
             connectionManager.kickUserConnections(command.getUserId(), command.getReason());
         }
+    }
+
+    private void publishFinalFailure(NodeQueueMessage message, Exception cause) throws Exception {
+        if (NodeQueueMessageType.fromCode(message.getType()) != NodeQueueMessageType.DELIVERY) {
+            return;
+        }
+        DispatchMessageReq request = objectMapper.readValue(message.getPayload(), DispatchMessageReq.class);
+        outcomeProducer.publish(
+                nodeId,
+                request,
+                NodeDeliveryOutcomeCode.FAILED_FINAL,
+                null,
+                cause == null ? "node delivery retry exhausted" : cause.getClass().getSimpleName());
+    }
+
+    private static final class DeliveryPendingException extends Exception {
     }
 }

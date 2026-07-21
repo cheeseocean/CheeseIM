@@ -11,6 +11,7 @@ import com.cheeseocean.im.common.api.enums.ReceiveOption;
 import com.cheeseocean.im.common.core.cache.CacheRegion;
 import com.cheeseocean.im.common.core.cache.CacheStore;
 import com.cheeseocean.im.common.core.business.repository.ConversationVersionLogRepository;
+import com.cheeseocean.im.common.core.business.repository.ConversationDeliveryPreferenceRepository;
 import com.cheeseocean.im.common.core.business.repository.UserConversationRepository;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.stereotype.Service;
@@ -46,6 +47,7 @@ public class ConversationServiceImpl implements ConversationService {
 
     private final UserConversationRepository stateRepository;
     private final ConversationVersionLogRepository versionLogRepository;
+    private final ConversationDeliveryPreferenceRepository deliveryPreferenceRepository;
     /**
      * 单条会话配置缓存。
      * key: ownerUserId:conversationId
@@ -79,15 +81,20 @@ public class ConversationServiceImpl implements ConversationService {
 
     public ConversationServiceImpl(UserConversationRepository stateRepository,
                                    ConversationVersionLogRepository versionLogRepository,
+                                   ConversationDeliveryPreferenceRepository deliveryPreferenceRepository,
                                    CacheStore cacheStore) {
         this.stateRepository = stateRepository;
         this.versionLogRepository = versionLogRepository;
+        this.deliveryPreferenceRepository = deliveryPreferenceRepository;
         this.conversationDetailCache = cacheStore.region("im:conv:detail:", UserConversation.class, CACHE_TTL);
         this.conversationIdsCache = cacheStore.listRegion("im:conv:ids:", String.class, CACHE_TTL);
         this.conversationIdsHashCache = cacheStore.region("im:conv:ids_hash:", Long.class, CACHE_TTL);
         this.pinnedConversationIdsCache = cacheStore.listRegion("im:conv:pinned:", String.class, CACHE_TTL);
         this.notNotifyConversationIdsCache = cacheStore.listRegion("im:conv:not_notify:", String.class, CACHE_TTL);
-        this.conversationNotReceiveUserIdsCache = cacheStore.listRegion("im:conv:not_receive:", String.class, CACHE_TTL);
+        this.conversationNotReceiveUserIdsCache = cacheStore.listRegion(
+                "im:conv:not_receive:v2:",
+                String.class,
+                Duration.ofSeconds(30));
     }
 
     @Override
@@ -305,7 +312,7 @@ public class ConversationServiceImpl implements ConversationService {
         }
         List<String> notReceiveUserIds = conversationNotReceiveUserIdsCache.getOrLoad(
                 conversationId,
-                () -> stateRepository.findAllNotReceiveUserIds(conversationId)
+                () -> deliveryPreferenceRepository.findBlockedOwnerUserIds(conversationId)
         );
         if (notReceiveUserIds == null) {
             notReceiveUserIds = new ArrayList<>();
@@ -380,6 +387,10 @@ public class ConversationServiceImpl implements ConversationService {
         }
         Map<String, Object> fields = buildUpdateFields(request);
         ConversationCacheEvictPlan plan = new ConversationCacheEvictPlan();
+        if (request.getRecvMsgOpt() != null) {
+            deliveryPreferenceRepository.setReceiveOptions(
+                    userIds, request.getConversationId(), request.getRecvMsgOpt());
+        }
         for (String userId : userIds) {
             boolean existed = stateRepository.findOne(userId, request.getConversationId()) != null;
             UserConversation state = buildExplicitState(
@@ -427,6 +438,7 @@ public class ConversationServiceImpl implements ConversationService {
             return;
         }
         stateRepository.delete(ownerUserId, conversationId);
+        deliveryPreferenceRepository.remove(ownerUserId, conversationId);
         versionLogRepository.append(ownerUserId, conversationId, ConversationVersionOperation.DELETE);
         ConversationCacheEvictPlan plan = new ConversationCacheEvictPlan();
         plan.addDetail(ownerUserId, conversationId);

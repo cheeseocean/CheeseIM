@@ -8,7 +8,9 @@ import com.cheeseocean.im.common.api.enums.CommandType;
 import com.cheeseocean.im.postoffice.connection.ConnectionManager;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
 import com.cheeseocean.im.postoffice.config.NodeIdentityProvider;
+import com.cheeseocean.im.postoffice.config.ServerProperties;
 import com.cheeseocean.im.postoffice.dedup.DeliveryDedupStore;
+import com.cheeseocean.im.postoffice.delivery.DeliveryWriteFinalizer;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
@@ -50,7 +52,7 @@ class OnlineDispatcherImplTest {
         connectionMap.put("conn-1", activeConnection);
         userConnectionMap.put("userB", Set.of("conn-1"));
 
-        OnlineDispatcherImpl service = new OnlineDispatcherImpl(connectionManager);
+        OnlineDispatcherImpl service = dispatcher(connectionManager);
 
         DispatchMessageReq req = new DispatchMessageReq();
         req.setUserId("userB");
@@ -87,7 +89,7 @@ class OnlineDispatcherImplTest {
         connectionMap.put("conn-2", activeConnection);
         userConnectionMap.put("userB", Set.of("conn-2"));
 
-        OnlineDispatcherImpl service = new OnlineDispatcherImpl(connectionManager);
+        OnlineDispatcherImpl service = dispatcher(connectionManager);
 
         DispatchMessageReq req = new DispatchMessageReq();
         req.setUserId("userB");
@@ -109,7 +111,7 @@ class OnlineDispatcherImplTest {
     void dispatchShouldReturnFailureWhenRequestedConnectionIsMissing() {
         ConnectionManager connectionManager = connectionManager();
 
-        OnlineDispatcherImpl service = new OnlineDispatcherImpl(connectionManager);
+        OnlineDispatcherImpl service = dispatcher(connectionManager);
 
         DispatchMessageReq req = new DispatchMessageReq();
         req.setUserId("userB");
@@ -142,7 +144,7 @@ class OnlineDispatcherImplTest {
         connectionMap.put("conn-3", activeConnection);
         userConnectionMap.put("userB", Set.of("conn-3"));
 
-        OnlineDispatcherImpl service = new OnlineDispatcherImpl(connectionManager);
+        OnlineDispatcherImpl service = dispatcher(connectionManager);
 
         DispatchPayload payload = payload("friend-evt-1", "refresh");
         payload.getMsg().getAttributes().put("notificationType", "friend_request_created");
@@ -166,16 +168,18 @@ class OnlineDispatcherImplTest {
     @Test
     void failedSendShouldAbortClaimAndAllowRetry() {
         ConnectionManager manager = mock(ConnectionManager.class);
-        UserConnection connection = mock(UserConnection.class);
-        when(connection.getConnectionID()).thenReturn("conn-1");
-        when(connection.getUserID()).thenReturn("userB");
+        EmbeddedChannel channel = new EmbeddedChannel();
+        UserConnection connection = new UserConnection("conn-1", "userB", 1, channel);
         when(manager.getConnection("conn-1")).thenReturn(connection);
         DeliveryDedupStore.Claim first = DeliveryDedupStore.Claim.acquired("key", "token-1");
         DeliveryDedupStore.Claim retry = DeliveryDedupStore.Claim.acquired("key", "token-2");
         when(manager.claimDelivery("srv-1", "userB", "conn-1")).thenReturn(first, retry);
-        when(manager.sendMessageToConnection(eq(connection), any(ServerEnvelope.class))).thenReturn(false, true);
+        when(manager.writeMessageToConnection(eq(connection), any(ServerEnvelope.class)))
+                .thenReturn(
+                        channel.newFailedFuture(new IllegalStateException("write failed")),
+                        channel.newSucceededFuture());
         when(manager.commitDelivery(retry)).thenReturn(true);
-        OnlineDispatcherImpl dispatcher = new OnlineDispatcherImpl(manager);
+        OnlineDispatcherImpl dispatcher = dispatcher(manager);
         DispatchMessageReq request = new DispatchMessageReq();
         request.setUserId("userB");
         request.setConnectionIds(List.of("conn-1"));
@@ -191,7 +195,16 @@ class OnlineDispatcherImplTest {
     }
 
     private static ConnectionManager connectionManager() {
-        return new ConnectionManager(emptyProvider(), emptyProvider(), new NodeIdentityProvider("test-node"));
+        return new ConnectionManager(emptyProvider(), emptyProvider(), new NodeIdentityProvider("test-node"),
+                new com.cheeseocean.im.postoffice.config.ServerProperties(), emptyProvider(), emptyProvider());
+    }
+
+    private static OnlineDispatcherImpl dispatcher(ConnectionManager connectionManager) {
+        ServerProperties properties = new ServerProperties();
+        return new OnlineDispatcherImpl(
+                connectionManager,
+                new DeliveryWriteFinalizer(connectionManager, properties),
+                properties);
     }
 
     private static <T> ObjectProvider<T> emptyProvider() {

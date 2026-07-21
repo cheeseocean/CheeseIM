@@ -1,5 +1,8 @@
 package com.cheeseocean.im.common.core.constants;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+
 public final class RedisKeys {
 
     private static final String AUTH_PREFIX = "cheese_im";
@@ -28,6 +31,24 @@ public final class RedisKeys {
 
     public static String userSecurity(String userId) {
         return AUTH_PREFIX + ":user_security:" + userId;
+    }
+
+    /**
+     * 已消费的上游登录断言 jti 摘要。
+     *
+     * <p>调用方必须传入固定长度摘要，避免外部 jti 直接改变 Redis key 结构。</p>
+     */
+    public static String loginAssertionReplay(String jtiDigest) {
+        return AUTH_PREFIX + ":login_assertion:" + jtiDigest;
+    }
+
+    /**
+     * Refresh token family 单 HASH 状态。
+     *
+     * <p>familyId 放入 hash tag，current/used/status/session 的 Lua 迁移始终位于同一槽。</p>
+     */
+    public static String refreshTokenFamily(String familyId) {
+        return AUTH_PREFIX + ":refresh_family:{" + familyId + "}";
     }
 
     public static String userFriends(String userId) {
@@ -86,6 +107,20 @@ public final class RedisKeys {
         return "online:conn:" + connectionId;
     }
 
+    /**
+     * 用户全局登录 lease 的活跃连接 ZSET。
+     *
+     * <p>active 与 meta 共享安全 hash tag，CLAIM/RENEW/RELEASE 可在 Redis Cluster 单槽 Lua 内完成。</p>
+     */
+    public static String loginLeaseActive(String tenantId, String userId) {
+        return "online:lease:v3:{" + hashTag("login-lease", tenantId, userId) + "}:active";
+    }
+
+    /** 用户全局登录 lease 的连接元数据 HASH。 */
+    public static String loginLeaseMetadata(String tenantId, String userId) {
+        return "online:lease:v3:{" + hashTag("login-lease", tenantId, userId) + "}:meta";
+    }
+
     public static String convMaxSeq(String conversationId) {
         return "conv:maxSeq:" + conversationId;
     }
@@ -99,15 +134,15 @@ public final class RedisKeys {
     }
 
     public static String userReadSeq(String userId, String conversationId) {
-        return "uc:read:" + userId + ":" + conversationId;
+        return "uc:read:{" + hashTag("uc", userId, conversationId) + "}";
     }
 
     public static String userMinSeq(String userId, String conversationId) {
-        return "uc:min:" + userId + ":" + conversationId;
+        return "uc:min:{" + hashTag("uc", userId, conversationId) + "}";
     }
 
     public static String userMaxSeq(String userId, String conversationId) {
-        return "uc:max:" + userId + ":" + conversationId;
+        return "uc:max:{" + hashTag("uc", userId, conversationId) + "}";
     }
 
     public static String userSyncCheckpointReadSeq(String userId, String conversationId) {
@@ -123,7 +158,7 @@ public final class RedisKeys {
     }
 
     public static String userUnread(String userId, String conversationId) {
-        return "uc:unread:" + userId + ":" + conversationId;
+        return "uc:unread:{" + hashTag("uc", userId, conversationId) + "}";
     }
 
     public static String deviceDeliveredSeq(String userId, String deviceId, String conversationId) {
@@ -136,6 +171,26 @@ public final class RedisKeys {
 
     public static String ingressIdem(String conversationId, String clientMsgId) {
         return "idem:ingress:" + conversationId + ":" + clientMsgId;
+    }
+
+    /**
+     * postmaster ingress inbox 单消息状态。
+     *
+     * <p>serverMsgIdFingerprint 是稳定 serverMsgId 的 SHA-256，保证 key 长度固定；
+     * 每条消息独立 key，使 Redis pipeline 可批量且所有 Lua 都保持单 key Cluster 安全。</p>
+     */
+    public static String ingressMessageInbox(String serverMsgIdFingerprint) {
+        return "idem:ingress-message:" + serverMsgIdFingerprint;
+    }
+
+    /**
+     * postbox 消息发送 inbox。
+     *
+     * <p>identityFingerprint 由调用方对 senderId、conversationId、clientMsgId 做长度分隔后计算，
+     * 避免不受信任的原始 ID 造成超长 key 或分隔符歧义。</p>
+     */
+    public static String messageSendInbox(String identityFingerprint) {
+        return "idem:message-send:" + identityFingerprint;
     }
 
     public static String postmanIdem(String conversationId, String clientMsgId) {
@@ -296,7 +351,7 @@ public final class RedisKeys {
      * @param nodeId 目标 postoffice 节点标识（来自 RouteSnapshot.gatewayNode）
      */
     public static String deliveryNodeQueue(String nodeId) {
-        return "delivery:node:" + nodeId;
+        return "delivery:node:{" + hashTag("node", nodeId) + "}";
     }
 
     /** 节点队列处理中列表，供 ACK、失败重试和进程重启恢复。 */
@@ -307,5 +362,42 @@ public final class RedisKeys {
     /** 节点队列死信列表，保存超过重试上限或无法解析的消息。 */
     public static String deliveryNodeDeadLetterQueue(String nodeId) {
         return deliveryNodeQueue(nodeId) + ":dead";
+    }
+
+    /**
+     * 用户级节点投递 attempt 状态。
+     *
+     * <p>attempt 与分片 deadline ZSET 共用 hash tag，Lua 可原子迁移状态并移除超时索引。</p>
+     */
+    public static String nodeDeliveryPending(int shard, String attemptId) {
+        return "delivery:pending:{" + nodeDeliveryPendingTag(shard) + "}:" + attemptId;
+    }
+
+    /** 用户级节点投递 attempt 的分片超时索引。 */
+    public static String nodeDeliveryPendingDeadlines(int shard) {
+        return "delivery:pending:{" + nodeDeliveryPendingTag(shard) + "}:deadlines";
+    }
+
+    private static String nodeDeliveryPendingTag(int shard) {
+        if (shard < 0 || shard >= 64) {
+            throw new IllegalArgumentException("node delivery pending shard must be in [0, 63]");
+        }
+        return "delivery-pending-" + shard;
+    }
+
+    /**
+     * 生成不会受未转义花括号影响的 Redis hash tag。
+     *
+     * <p>长度分隔保证多段 ID 组合无歧义，URL-safe Base64 保证结果不含 Redis tag 分隔符。</p>
+     */
+    private static String hashTag(String namespace, String... components) {
+        StringBuilder identity = new StringBuilder(namespace);
+        for (String component : components) {
+            String stable = component == null ? "" : component;
+            identity.append('|').append(stable.length()).append(':').append(stable);
+        }
+        return Base64.getUrlEncoder()
+                .withoutPadding()
+                .encodeToString(identity.toString().getBytes(StandardCharsets.UTF_8));
     }
 }

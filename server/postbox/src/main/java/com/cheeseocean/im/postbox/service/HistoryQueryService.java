@@ -13,13 +13,12 @@ import com.cheeseocean.im.common.api.enums.PlatformType;
 import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.api.permission.PermissionCheckResult;
 import com.cheeseocean.im.common.core.history.MessageHistoryRepository;
-import com.cheeseocean.im.common.core.history.document.MessageBlockDoc;
-import com.cheeseocean.im.common.core.history.document.MessageSlot;
-import com.cheeseocean.im.common.core.history.document.MessageMutationDoc;
+import com.cheeseocean.im.common.core.history.model.MessageBlock;
+import com.cheeseocean.im.common.core.history.model.MessageSlot;
+import com.cheeseocean.im.common.core.history.model.MessageMutation;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.apache.dubbo.rpc.RpcException;
-import org.bson.types.Binary;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -69,10 +68,10 @@ public class HistoryQueryService implements MessageHistoryQueryService {
             return new ArrayList<>();
         }
         int effectiveLimit = effectiveHistoryLimit(limit);
-        List<MessageBlockDoc> blocks = findRecentBlocks(conversationId, effectiveLimit);
+        List<MessageBlock> blocks = findRecentBlocks(conversationId, effectiveLimit);
 
         List<MessageSlot> slots = new ArrayList<>();
-        for (MessageBlockDoc block : blocks) {
+        for (MessageBlock block : blocks) {
             if (block == null || block.getMessages() == null) {
                 continue;
             }
@@ -83,7 +82,7 @@ public class HistoryQueryService implements MessageHistoryQueryService {
             }
         }
         slots.sort(Comparator.comparing(MessageSlot::getSeq, Comparator.nullsLast(Long::compareTo)).reversed());
-        Map<String, MessageMutationDoc> mutations = findRevokedMutations(
+        Map<String, MessageMutation> mutations = findRevokedMutations(
                 slots.stream().map(MessageSlot::getServerMsgId).toList());
 
         List<HistoryMessage> responses = new ArrayList<>();
@@ -96,7 +95,7 @@ public class HistoryQueryService implements MessageHistoryQueryService {
         return responses;
     }
 
-    private List<MessageBlockDoc> findRecentBlocks(String conversationId, int limit) {
+    private List<MessageBlock> findRecentBlocks(String conversationId, int limit) {
         if (conversationId == null || conversationId.isBlank()) {
             return new ArrayList<>();
         }
@@ -124,14 +123,14 @@ public class HistoryQueryService implements MessageHistoryQueryService {
             return new ArrayList<>();
         }
         int effectiveLimit = limit <= 0 ? Integer.MAX_VALUE : limit;
-        List<MessageBlockDoc> blocks = messageHistoryRepository.findBlocksBySeqRange(conversationId, beginSeq, endSeq);
+        List<MessageBlock> blocks = messageHistoryRepository.findBlocksBySeqRange(conversationId, beginSeq, endSeq);
         if (blocks == null || blocks.isEmpty()) {
             return new ArrayList<>();
         }
 
         List<Message> messages = new ArrayList<>();
         boolean limitReached = false;
-        for (MessageBlockDoc block : blocks) {
+        for (MessageBlock block : blocks) {
             if (block == null || block.getMessages() == null) {
                 continue;
             }
@@ -158,7 +157,7 @@ public class HistoryQueryService implements MessageHistoryQueryService {
 
     private HistoryMessage toHistoryMessage(MessageSlot slot,
                                             String viewerUserId,
-                                            MessageMutationDoc mutation) {
+                                            MessageMutation mutation) {
         MessagePreviewResolver.Preview preview = messagePreviewResolver.resolve(slot, viewerUserId);
         HistoryMessage response = new HistoryMessage();
         response.setSequence(slot.getSeq());
@@ -181,10 +180,10 @@ public class HistoryQueryService implements MessageHistoryQueryService {
     }
 
     private void applyMutations(List<Message> messages) {
-        Map<String, MessageMutationDoc> mutations = findRevokedMutations(
+        Map<String, MessageMutation> mutations = findRevokedMutations(
                 messages.stream().map(Message::getServerMsgId).toList());
         for (Message message : messages) {
-            MessageMutationDoc mutation = mutations.get(message.getServerMsgId());
+            MessageMutation mutation = mutations.get(message.getServerMsgId());
             if (mutation == null) {
                 continue;
             }
@@ -200,7 +199,7 @@ public class HistoryQueryService implements MessageHistoryQueryService {
         }
     }
 
-    private Map<String, MessageMutationDoc> findRevokedMutations(List<String> serverMsgIds) {
+    private Map<String, MessageMutation> findRevokedMutations(List<String> serverMsgIds) {
         Set<String> ids = new HashSet<>();
         for (String serverMsgId : serverMsgIds) {
             if (serverMsgId != null && !serverMsgId.isBlank()) {
@@ -210,9 +209,9 @@ public class HistoryQueryService implements MessageHistoryQueryService {
         if (ids.isEmpty()) {
             return Map.of();
         }
-        List<MessageMutationDoc> mutations = messageHistoryRepository.findRevokedMutations(serverMsgIds);
-        Map<String, MessageMutationDoc> byServerMsgId = new HashMap<>();
-        for (MessageMutationDoc mutation : mutations) {
+        List<MessageMutation> mutations = messageHistoryRepository.findRevokedMutations(serverMsgIds);
+        Map<String, MessageMutation> byServerMsgId = new HashMap<>();
+        for (MessageMutation mutation : mutations) {
             if (mutation != null && mutation.getServerMsgId() != null) {
                 byServerMsgId.put(mutation.getServerMsgId(), mutation);
             }
@@ -249,9 +248,6 @@ public class HistoryQueryService implements MessageHistoryQueryService {
         }
         if (value instanceof byte[] bytes) {
             return bytes;
-        }
-        if (value instanceof Binary binary) {
-            return binary.getData();
         }
         if (value instanceof String text) {
             return text.getBytes(java.nio.charset.StandardCharsets.UTF_8);

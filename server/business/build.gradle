@@ -1,5 +1,7 @@
 dependencies {
     implementation project(':common-core')
+    implementation project(':storage-business')
+    implementation project(':infra-queue')
     implementation project(':common-api')
     implementation project(':config')
     implementation 'org.springframework.boot:spring-boot-starter'
@@ -7,5 +9,8 @@ dependencies {
     implementation 'org.apache.dubbo:dubbo-spring-boot-starter'
     implementation 'com.fasterxml.jackson.core:jackson-databind'
     implementation 'org.springframework:spring-tx'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
     testImplementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
 }

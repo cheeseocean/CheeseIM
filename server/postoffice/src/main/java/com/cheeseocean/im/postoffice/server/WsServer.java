@@ -8,6 +8,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.WriteBufferWaterMark;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
@@ -79,9 +80,6 @@ public class WsServer implements CommandLineRunner, Server {
         WsChannelInitializer channelInitializer = new WsChannelInitializer();
         channelInitializer.initSslContext();
 
-        // 初始化连接管理器
-        connectionManager.init();
-
         // 创建事件循环组
         bossGroup = new NioEventLoopGroup(websocketConfig.getBossThreads());
         workerGroup = new NioEventLoopGroup(websocketConfig.getActualWorkerThreads());
@@ -98,7 +96,10 @@ public class WsServer implements CommandLineRunner, Server {
                     .childOption(ChannelOption.TCP_NODELAY, websocketConfig.isTcpNoDelay())
                     .childOption(ChannelOption.SO_KEEPALIVE, websocketConfig.isKeepAlive())
                     .childOption(ChannelOption.SO_RCVBUF, websocketConfig.getReceiveBufferSize())
-                    .childOption(ChannelOption.SO_SNDBUF, websocketConfig.getSendBufferSize());
+                    .childOption(ChannelOption.SO_SNDBUF, websocketConfig.getSendBufferSize())
+                    .childOption(ChannelOption.WRITE_BUFFER_WATER_MARK, new WriteBufferWaterMark(
+                            websocketConfig.getWriteBufferLowWaterMark(),
+                            websocketConfig.getWriteBufferHighWaterMark()));
 
             startTime = System.currentTimeMillis();
             // 绑定端口并启动服务器
@@ -112,7 +113,7 @@ public class WsServer implements CommandLineRunner, Server {
             logger.info("Server configuration: bossThreads={}, workerThreads={}, maxConnections={}",
                     websocketConfig.getBossThreads(),
                     websocketConfig.getActualWorkerThreads(),
-                    websocketConfig.getMaxConnections());
+                    serverProperties.getConnection().getMaxConnections());
 
         } catch (Exception e) {
             logger.error("Failed to start WebSocket Server", e);
@@ -132,11 +133,6 @@ public class WsServer implements CommandLineRunner, Server {
             // 关闭服务器Channel
             if (channelFuture != null) {
                 channelFuture.channel().close().sync();
-            }
-
-            // 销毁连接管理器
-            if (connectionManager != null) {
-                connectionManager.destroy();
             }
 
         } catch (Exception e) {

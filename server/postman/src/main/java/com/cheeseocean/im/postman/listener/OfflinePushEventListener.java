@@ -1,6 +1,7 @@
 package com.cheeseocean.im.postman.listener;
 
 import com.cheeseocean.im.common.api.event.OfflinePushEvent;
+import com.cheeseocean.im.common.api.enums.OfflinePushTriggerReason;
 import com.cheeseocean.im.common.api.protocol.ProtoOfflinePushEventMapper;
 import com.cheeseocean.im.common.api.route.OnlineRouteQueryService;
 import com.cheeseocean.im.common.core.constants.TopicNames;
@@ -31,9 +32,15 @@ public class OfflinePushEventListener {
     }
 
     void handle(OfflinePushEvent event) {
-        if (!onlineRouteQueryService.findByUser(event.getUserId()).isEmpty()) {
+        OfflinePushTriggerReason reason = event.getTriggerReason();
+        boolean nodeFailureCompensation = reason == OfflinePushTriggerReason.NODE_DELIVERY_FAILED
+                || reason == OfflinePushTriggerReason.NODE_DELIVERY_TIMEOUT;
+        if (!nodeFailureCompensation
+                && !onlineRouteQueryService.findByUser(event.getUserId()).isEmpty()) {
             return;
         }
+        // 触发原因只服务于内部消费决策，不下发给厂商或客户端。
+        event.setTriggerReason(null);
         messagePushService.pushOffline(event);
     }
 }

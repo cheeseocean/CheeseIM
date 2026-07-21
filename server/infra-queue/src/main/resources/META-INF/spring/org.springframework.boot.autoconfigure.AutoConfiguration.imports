@@ -1,0 +1,3 @@
+com.cheeseocean.im.infra.queue.kafka.KafkaQueueConfiguration
+com.cheeseocean.im.infra.queue.kafka.KafkaTopicConfiguration
+com.cheeseocean.im.infra.queue.config.QueueInfrastructureAutoConfiguration

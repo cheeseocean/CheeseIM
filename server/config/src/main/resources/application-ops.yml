@@ -1,0 +1,37 @@
+spring:
+  main:
+    web-application-type: none
+  data:
+    mongodb:
+      uri: ${MONGODB_URI}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    producer:
+      acks: ${KAFKA_PRODUCER_ACKS:all}
+      retries: ${KAFKA_PRODUCER_RETRIES:3}
+    consumer:
+      enable-auto-commit: false
+
+cheeseim:
+  runtime:
+    mode: cluster
+  queue:
+    type: kafka
+    kafka:
+      transaction-id-prefix: ${KAFKA_TRANSACTION_ID_PREFIX:}
+      topics:
+        # 运维查询/redrive 进程绝不能隐式创建业务 topic。
+        auto-create-enabled: ${KAFKA_TOPICS_AUTO_CREATE_ENABLED:false}
+        partitions: ${KAFKA_TOPIC_PARTITIONS:12}
+        replication-factor: ${KAFKA_TOPIC_REPLICATION_FACTOR:3}
+        retention-ms: ${KAFKA_TOPIC_RETENTION_MS:604800000}
+        min-in-sync-replicas: ${KAFKA_TOPIC_MIN_ISR:2}
+    dlt:
+      operations:
+        enabled: true
+        max-query-records: ${CHEESEIM_DLT_MAX_QUERY_RECORDS:100}
+        poll-timeout-millis: ${CHEESEIM_DLT_POLL_TIMEOUT_MILLIS:3000}
+        lease-millis: ${CHEESEIM_DLT_OPERATION_LEASE_MILLIS:60000}
+  delivery:
+    group-fanout:
+      completed-retention-seconds: ${CHEESEIM_DELIVERY_GROUP_FANOUT_COMPLETED_RETENTION_SECONDS:691200}

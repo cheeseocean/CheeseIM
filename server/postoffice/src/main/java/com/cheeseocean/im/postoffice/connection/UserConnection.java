@@ -67,6 +67,8 @@ public class UserConnection implements Serializable {
      * token版本
      */
     private              Long              tokenVersion;
+    /** Redis 全局登录 lease 的 fencing generation；未启用 lease 时为 null。 */
+    private              Long              loginLeaseGeneration;
     /**
      * 协议类型 (WebSocket/TCP)
      */

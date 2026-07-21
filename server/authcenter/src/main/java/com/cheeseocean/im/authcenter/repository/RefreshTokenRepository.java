@@ -1,31 +1,36 @@
 package com.cheeseocean.im.authcenter.repository;
 
-import com.cheeseocean.im.common.core.cache.CacheRegion;
-import com.cheeseocean.im.common.core.cache.CacheStore;
+import com.cheeseocean.im.common.core.store.session.refresh.RefreshTokenStateStore;
 import org.springframework.stereotype.Repository;
 
-import java.time.Duration;
-
+/**
+ * authcenter 对 refresh token family 状态机的仓储适配。
+ */
 @Repository
 public class RefreshTokenRepository {
 
-    private static final String REFRESH_TOKEN_PREFIX = "cheese_im:refresh_token:";
+    private final RefreshTokenStateStore refreshTokenStateStore;
 
-    private final CacheRegion<String> refreshTokenCache;
-
-    public RefreshTokenRepository(CacheStore cacheStore) {
-        this.refreshTokenCache = cacheStore.region(REFRESH_TOKEN_PREFIX, String.class, Duration.ofHours(24));
+    public RefreshTokenRepository(RefreshTokenStateStore refreshTokenStateStore) {
+        this.refreshTokenStateStore = refreshTokenStateStore;
     }
 
-    public void save(String refreshToken, String sessionId, long ttlMs) {
-        refreshTokenCache.put(refreshToken, sessionId, Duration.ofMillis(ttlMs));
+    public RefreshTokenStateStore.IssuedToken createFamily(
+            String sessionId,
+            long ttlMs,
+            long nowMillis) {
+        return refreshTokenStateStore.createFamily(sessionId, ttlMs, nowMillis);
     }
 
-    public String getSessionId(String refreshToken) {
-        return refreshTokenCache.get(refreshToken);
+    public RefreshTokenStateStore.Inspection inspect(String refreshToken, long nowMillis) {
+        return refreshTokenStateStore.inspect(refreshToken, nowMillis);
     }
 
-    public void delete(String refreshToken) {
-        refreshTokenCache.evict(refreshToken);
+    public RefreshTokenStateStore.Rotation rotate(String refreshToken, long nowMillis) {
+        return refreshTokenStateStore.rotate(refreshToken, nowMillis);
+    }
+
+    public void revokeFamily(String familyId) {
+        refreshTokenStateStore.revokeFamily(familyId);
     }
 }

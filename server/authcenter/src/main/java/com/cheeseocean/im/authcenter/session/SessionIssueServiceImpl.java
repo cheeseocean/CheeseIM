@@ -39,7 +39,6 @@ public class SessionIssueServiceImpl implements SessionIssueService {
             throw new IllegalStateException("token version mismatch");
         }
         SessionPrincipal session = resolveSession(principal, deviceId, platform, clientVersion);
-        sessionRepository.save(session, accessTokenService.getTokenExpirationMs());
 
         WsTicketPrincipal ticket = sessionTicketService.buildTicket(session);
         sessionRepository.saveWsTicket(ticket, sessionTicketService.wsTicketTtlMs());

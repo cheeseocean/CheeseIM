@@ -1,5 +1,6 @@
 dependencies {
     implementation project(':common-core')
+    implementation project(':infra-queue')
     implementation project(':common-api')
     implementation project(':config')
     implementation 'com.google.protobuf:protobuf-java:3.25.3'
@@ -8,6 +9,9 @@ dependencies {
     implementation 'org.apache.dubbo:dubbo-spring-boot-starter'
     implementation 'com.fasterxml.jackson.core:jackson-databind'
     implementation 'io.netty:netty-all'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 
     // 测试依赖
     testImplementation 'org.java-websocket:Java-WebSocket:1.5.6'

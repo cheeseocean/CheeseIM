@@ -1,0 +1,48 @@
+{{- range $serviceName, $service := .Values.services }}
+{{- if $service.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "cheeseim.serviceName" (dict "root" $ "service" $serviceName) }}
+  labels:
+    {{- include "cheeseim.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $serviceName }}
+    cheeseim.io/metrics: "true"
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: "/actuator/prometheus"
+    prometheus.io/port: {{ $service.ports.management | quote }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "cheeseim.selectorLabels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $serviceName }}
+  ports:
+    {{- range $portName, $port := $service.ports }}
+    - name: {{ $portName | trunc 15 }}
+      port: {{ $port }}
+      targetPort: {{ $portName | trunc 15 }}
+      protocol: TCP
+    {{- end }}
+{{- end }}
+{{- end }}
+{{- if .Values.services.postoffice.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "cheeseim.serviceName" (dict "root" . "service" "postoffice-headless") }}
+  labels:
+    {{- include "cheeseim.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postoffice
+spec:
+  clusterIP: None
+  selector:
+    {{- include "cheeseim.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: postoffice
+  ports:
+    - name: dubbo
+      port: {{ .Values.services.postoffice.ports.dubbo }}
+      targetPort: dubbo
+{{- end }}

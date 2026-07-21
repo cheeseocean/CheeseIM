@@ -2,7 +2,7 @@ package com.cheeseocean.im.postbox.service;
 
 import com.cheeseocean.im.common.api.enums.ContentType;
 import com.cheeseocean.im.common.api.enums.MessagePreviewType;
-import com.cheeseocean.im.common.core.history.document.MessageSlot;
+import com.cheeseocean.im.common.core.history.model.MessageSlot;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;

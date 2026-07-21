@@ -2,6 +2,10 @@ package com.cheeseocean.im.postmaster.service;
 
 import com.cheeseocean.im.common.api.enums.GroupTypeEnum;
 import com.cheeseocean.im.common.api.group.GroupMembershipQueryService;
+import com.cheeseocean.im.common.api.group.GroupMemberPage;
+import com.cheeseocean.im.common.api.permission.GroupMessageSendPermissionRequest;
+import com.cheeseocean.im.common.api.permission.GroupMessageSendPermissionResult;
+import com.cheeseocean.im.common.api.permission.GroupMessageSendPermissionService;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.stereotype.Component;
 
@@ -10,14 +14,31 @@ import java.util.List;
 @Component
 public class GroupMembershipFacade {
 
-    @DubboReference(check = false)
+    @DubboReference(check = false, retries = 0)
     private GroupMembershipQueryService groupMembershipQueryService;
+
+    @DubboReference(check = false, retries = 0)
+    private GroupMessageSendPermissionService groupMessageSendPermissionService;
 
     public GroupMembershipFacade() {
     }
 
     GroupMembershipFacade(GroupMembershipQueryService groupMembershipQueryService) {
         this.groupMembershipQueryService = groupMembershipQueryService;
+    }
+
+    /**
+     * 批量校验同一群内的消息发送者，并同时返回群扩散类型。
+     */
+    public GroupMessageSendPermissionResult checkSendPermissions(String groupId,
+                                                                 List<String> senderIds) {
+        if (groupMessageSendPermissionService == null) {
+            throw new IllegalStateException("GroupMessageSendPermissionService is not configured");
+        }
+        GroupMessageSendPermissionRequest request = new GroupMessageSendPermissionRequest();
+        request.setGroupId(groupId);
+        request.setSenderIds(senderIds);
+        return groupMessageSendPermissionService.check(request);
     }
 
     /**
@@ -31,6 +52,20 @@ public class GroupMembershipFacade {
             throw new IllegalStateException("GroupMembershipQueryDubboService is not configured");
         }
         return groupMembershipQueryService.queryGroupMembers(groupId);
+    }
+
+    /** 供 fanout worker 使用的稳定 keyset 分页入口。 */
+    public GroupMemberPage loadGroupMembersPage(String groupId,
+                                                long snapshotVersion,
+                                                long afterJoinedVersion,
+                                                String afterUserId,
+                                                String afterEpochId,
+                                                int limit) {
+        if (groupMembershipQueryService == null) {
+            throw new IllegalStateException("GroupMembershipQueryDubboService is not configured");
+        }
+        return groupMembershipQueryService.queryGroupMembersPage(
+                groupId, snapshotVersion, afterJoinedVersion, afterUserId, afterEpochId, limit);
     }
 
     /** 判断用户是否仍为群成员，供历史与 mutation 读路径做权限校验。 */

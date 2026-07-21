@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: cheese-im-api-server
+  data:
+    redis:
+      database: 0
+
+server:
+  port: ${CHEESEIM_API_SERVER_PORT:18079}
+  tomcat:
+    threads:
+      max: ${CHEESEIM_API_SERVER_MAX_THREADS:200}
+      min-spare: ${CHEESEIM_API_SERVER_MIN_SPARE_THREADS:20}
+    accept-count: ${CHEESEIM_API_SERVER_ACCEPT_COUNT:1000}
+    max-connections: ${CHEESEIM_API_SERVER_MAX_CONNECTIONS:10000}
+
+management:
+  server:
+    port: ${CHEESEIM_API_SERVER_MANAGEMENT_PORT:19079}
+  endpoint:
+    health:
+      group:
+        readiness:
+          include: readinessState,redis
+
+cheeseim:
+  api:
+    rate-limit:
+      enabled: ${CHEESEIM_API_RATE_LIMIT_ENABLED:true}
+      requests-per-window: ${CHEESEIM_API_RATE_LIMIT_REQUESTS_PER_WINDOW:120}
+      window-seconds: ${CHEESEIM_API_RATE_LIMIT_WINDOW_SECONDS:60}
+      trusted-proxy-hops: ${CHEESEIM_API_RATE_LIMIT_TRUSTED_PROXY_HOPS:0}
+      fail-open-retry-millis: ${CHEESEIM_API_RATE_LIMIT_FAIL_OPEN_RETRY_MILLIS:1000}
+    idempotency:
+      enabled: ${CHEESEIM_API_IDEMPOTENCY_ENABLED:true}
+      ttl-seconds: ${CHEESEIM_API_IDEMPOTENCY_TTL_SECONDS:300}
+
+logging:
+  level:
+    com.cheeseocean.im.apiserver: INFO

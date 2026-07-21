@@ -26,7 +26,7 @@ public class AuthMessageHandler implements MessageHandler {
     
     private static final Logger logger = CommonLoggers.POSTOFFICE;
     
-    @DubboReference(check = false)
+    @DubboReference(check = false, retries = 0)
     private ConnectionAuthService connectionAuthService;
 
     private final ConnectionBindService connectionBindService;

@@ -3,6 +3,7 @@ spring:
     import:
       - classpath:common.yml
       - classpath:module-postoffice.yml
+      - classpath:application-cluster.yml
 
 dubbo:
   application:

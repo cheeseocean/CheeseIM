@@ -1,5 +1,6 @@
 package com.cheeseocean.im.common.api.event;
 
+import com.cheeseocean.im.common.api.enums.OfflinePushTriggerReason;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
@@ -7,6 +8,7 @@ import java.util.Map;
 public class OfflinePushEvent implements Serializable {
 
     private static final long serialVersionUID = 1L;
+    public static final String TRIGGER_REASON_ATTRIBUTE = "_cheeseim_offline_trigger";
 
     private String              userId;
     private String              conversationId;
@@ -106,5 +108,20 @@ public class OfflinePushEvent implements Serializable {
 
     public void setAttributes(Map<String, String> attributes) {
         this.attributes = attributes == null ? new HashMap<>() : new HashMap<>(attributes);
+    }
+
+    /**
+     * 通过既有 attributes wire 字段携带内部触发原因，避免为内部队列语义修改客户端协议。
+     */
+    public void setTriggerReason(OfflinePushTriggerReason reason) {
+        if (reason == null) {
+            attributes.remove(TRIGGER_REASON_ATTRIBUTE);
+        } else {
+            attributes.put(TRIGGER_REASON_ATTRIBUTE, reason.getCode());
+        }
+    }
+
+    public OfflinePushTriggerReason getTriggerReason() {
+        return OfflinePushTriggerReason.fromCode(attributes.get(TRIGGER_REASON_ATTRIBUTE));
     }
 }

@@ -31,6 +31,8 @@ public class ConnectionBindService {
         context.setTokenVersion(session.getTokenVersion());
         context.setConnectedAt(connection.getConnectTime());
         context.setLastHeartbeatAt(connection.getLastActiveTime());
+        // WS ticket 刚由 authcenter 原子消费并返回有效 SessionPrincipal，无需首个心跳立即重复 RPC。
+        context.setSessionValidatedAt(System.currentTimeMillis());
         context.setState(ConnectionState.AUTHENTICATED);
 
         connection.setUserID(session.getUserId());

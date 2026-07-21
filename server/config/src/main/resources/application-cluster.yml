@@ -7,19 +7,29 @@ cheeseim:
       # 可显式设为包含 pod/节点唯一部分的前缀；留空时代码生成随机实例 ID，避免 producer fencing。
       transaction-id-prefix: ${KAFKA_TRANSACTION_ID_PREFIX:}
       topics:
-        auto-create-enabled: ${KAFKA_TOPICS_AUTO_CREATE_ENABLED:true}
+        # 生产默认由基础设施 migration 预创建；应用仍会在启动时强校验实际契约。
+        auto-create-enabled: ${KAFKA_TOPICS_AUTO_CREATE_ENABLED:false}
         partitions: ${KAFKA_TOPIC_PARTITIONS:12}
         replication-factor: ${KAFKA_TOPIC_REPLICATION_FACTOR:3}
         retention-ms: ${KAFKA_TOPIC_RETENTION_MS:604800000}
         min-in-sync-replicas: ${KAFKA_TOPIC_MIN_ISR:2}
+    dlt:
+      operations:
+        max-query-records: ${CHEESEIM_DLT_MAX_QUERY_RECORDS:100}
+        poll-timeout-millis: ${CHEESEIM_DLT_POLL_TIMEOUT_MILLIS:3000}
+        lease-millis: ${CHEESEIM_DLT_OPERATION_LEASE_MILLIS:60000}
   conversation-seq:
     deployment-mode: cluster
 
 spring:
+  config:
+    activate:
+      on-profile: cluster
   data:
     mongodb:
       uri: ${MONGODB_URI}
     redis:
+      database: 0
       password: ${REDIS_PASSWORD:}
       timeout: ${REDIS_TIMEOUT:3000ms}
       lettuce:

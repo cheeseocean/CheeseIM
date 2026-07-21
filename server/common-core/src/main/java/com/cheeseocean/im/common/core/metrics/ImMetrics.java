@@ -70,6 +70,30 @@ public final class ImMetrics {
         count("cheeseim.writer.operation", "writer", writer, "result", result);
     }
 
+    /**
+     * 记录 write-behind 当前积压和最老等待时长。
+     *
+     * <p>writer/state 必须是代码内固定值。传入最老入队 epoch millis，
+     * gauge 在 scrape 时动态计算 age，依赖调用卡死后时长仍会继续增长。</p>
+     */
+    public static void writerBacklog(String writer, String state, long depth, long oldestQueuedAtMillis) {
+        setGauge("writer:depth:" + writer + ':' + state,
+                "cheeseim.writer.backlog.depth", Math.max(0, depth),
+                "writer", writer, "state", state);
+        String key = "writer:oldest:" + writer + ':' + state;
+        AtomicLong holder = GAUGES.computeIfAbsent(key, ignored -> {
+            AtomicLong gauge = new AtomicLong();
+            Gauge.builder("cheeseim.writer.backlog.oldest.age.milliseconds", gauge,
+                            timestamp -> timestamp.get() <= 0
+                                    ? 0D
+                                    : (double) Math.max(0L, System.currentTimeMillis() - timestamp.get()))
+                    .tags("writer", writer, "state", state)
+                    .register(Metrics.globalRegistry);
+            return gauge;
+        });
+        holder.set(Math.max(0, oldestQueuedAtMillis));
+    }
+
     public static void typing(String result) {
         count("cheeseim.typing.signal", "result", result);
     }
@@ -78,6 +102,32 @@ public final class ImMetrics {
         count("cheeseim.offline.push", "provider", provider, "result", result);
         time("cheeseim.offline.push.latency", System.nanoTime() - startedAtNanos,
                 "provider", provider, "result", result);
+    }
+
+    /**
+     * 记录低频 DLT 运维操作。topic 只能传 {@code TopicNames} 中的固定值。
+     */
+    public static void dltOperation(
+            String operation,
+            String topic,
+            boolean success,
+            long startedAtNanos) {
+        count("cheeseim.dlt.operation",
+                "operation", operation,
+                "topic", topic,
+                "result", result(success));
+        time("cheeseim.dlt.operation.latency",
+                System.nanoTime() - startedAtNanos,
+                "operation", operation,
+                "topic", topic,
+                "result", result(success));
+    }
+
+    /**
+     * API 入口限流结果。result 仅允许 allowed/rejected/unavailable。
+     */
+    public static void apiRateLimit(String result) {
+        count("cheeseim.api.rate_limit", "result", result);
     }
 
     private static String result(boolean success) {
@@ -95,5 +145,16 @@ public final class ImMetrics {
     private static void time(String name, long nanos, String... tags) {
         Timer.builder(name).tags(tags).publishPercentileHistogram()
                 .register(Metrics.globalRegistry).record(Math.max(0, nanos), TimeUnit.NANOSECONDS);
+    }
+
+    private static void setGauge(String key, String name, long value, String... tags) {
+        AtomicLong holder = GAUGES.computeIfAbsent(key, ignored -> {
+            AtomicLong gauge = new AtomicLong();
+            Gauge.builder(name, gauge, AtomicLong::get)
+                    .tags(tags)
+                    .register(Metrics.globalRegistry);
+            return gauge;
+        });
+        holder.set(value);
     }
 }

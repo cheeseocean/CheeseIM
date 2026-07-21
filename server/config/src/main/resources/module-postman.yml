@@ -4,17 +4,28 @@ spring:
   data:
     redis:
       database: 0
-  kafka:
-    consumer:
-      group-id: postman-delivery-group
-      max-poll-records: 100
-      fetch-min-size: 1
-      fetch-max-wait: 500ms
-    listener:
-      concurrency: 3
-      ack-mode: manual_immediate
+
+server:
+  port: -1
+
+management:
+  server:
+    port: ${CHEESEIM_POSTMAN_MANAGEMENT_PORT:19083}
+  endpoint:
+    health:
+      group:
+        readiness:
+          include: readinessState,mongo,redis
 
 cheeseim:
+  queue:
+    listeners:
+      push-delivery:
+        concurrency: ${CHEESEIM_QUEUE_PUSH_DELIVERY_CONCURRENCY:3}
+      push-offline:
+        concurrency: ${CHEESEIM_QUEUE_PUSH_OFFLINE_CONCURRENCY:3}
+      postman-delivery-outcome:
+        concurrency: ${CHEESEIM_QUEUE_DELIVERY_OUTCOME_CONCURRENCY:3}
   push:
     executor:
       core-pool-size: ${CHEESEIM_PUSH_EXECUTOR_CORE_POOL_SIZE:8}
@@ -55,19 +66,6 @@ cheeseim:
       device-token-cleanup-interval-hours: 6
   push-state:
     ttl-seconds: ${CHEESEIM_PUSH_STATE_TTL_SECONDS:86400}
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus
-  endpoint:
-    health:
-      show-details: always
-  prometheus:
-    metrics:
-      export:
-        enabled: true
 
 info:
   app:

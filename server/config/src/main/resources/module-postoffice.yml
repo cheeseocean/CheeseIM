@@ -5,6 +5,18 @@ spring:
     redis:
       database: 1
 
+server:
+  port: -1
+
+management:
+  server:
+    port: ${CHEESEIM_POSTOFFICE_MANAGEMENT_PORT:19080}
+  endpoint:
+    health:
+      group:
+        readiness:
+          include: readinessState,redis
+
 cheeseim:
   postoffice:
     # 节点唯一标识。all-in-one 可留空；cluster 必须显式设置且重启后保持稳定。
@@ -14,6 +26,8 @@ cheeseim:
       port: 5147
       path: "/ws"
       max-frame-length: ${CHEESEIM_POSTOFFICE_WS_MAX_FRAME_LENGTH:65536}
+      write-buffer-low-water-mark: ${CHEESEIM_POSTOFFICE_WS_WRITE_BUFFER_LOW_WATER_MARK:32768}
+      write-buffer-high-water-mark: ${CHEESEIM_POSTOFFICE_WS_WRITE_BUFFER_HIGH_WATER_MARK:65536}
       ssl:
         enabled: false
         cert-path: ""
@@ -22,17 +36,38 @@ cheeseim:
       enabled: true
       port: 5148
       max-frame-length: ${CHEESEIM_POSTOFFICE_TCP_MAX_FRAME_LENGTH:65536}
+      write-buffer-low-water-mark: ${CHEESEIM_POSTOFFICE_TCP_WRITE_BUFFER_LOW_WATER_MARK:32768}
+      write-buffer-high-water-mark: ${CHEESEIM_POSTOFFICE_TCP_WRITE_BUFFER_HIGH_WATER_MARK:65536}
       ssl:
         enabled: false
         cert-path: ""
         key-path: ""
     connection:
-      multiLoginStrategy: SAME_TERMINAL_KICK
-      timeoutMs: 300000
-      maxConnectionsPerUser: 10
+      multi-login-strategy: ${CHEESEIM_POSTOFFICE_MULTI_LOGIN_STRATEGY:SAME_TERMINAL_KICK}
+      timeout-ms: ${CHEESEIM_POSTOFFICE_CONNECTION_TIMEOUT_MS:300000}
+      max-connections: ${CHEESEIM_POSTOFFICE_MAX_CONNECTIONS:100000}
+      max-connections-per-user: ${CHEESEIM_POSTOFFICE_MAX_CONNECTIONS_PER_USER:10}
     business:
       threads: ${CHEESEIM_POSTOFFICE_BUSINESS_THREADS:0}
       queue-capacity: ${CHEESEIM_POSTOFFICE_BUSINESS_QUEUE_CAPACITY:20000}
+    delivery:
+      write-timeout-ms: ${CHEESEIM_POSTOFFICE_DELIVERY_WRITE_TIMEOUT_MS:1000}
+      completion-threads: ${CHEESEIM_POSTOFFICE_DELIVERY_COMPLETION_THREADS:2}
+      completion-queue-capacity: ${CHEESEIM_POSTOFFICE_DELIVERY_COMPLETION_QUEUE_CAPACITY:10000}
+    session-validation:
+      # 主动撤销走 kickoff；该周期只用于丢通知兜底，过小会把每次客户端心跳放大为 RPC。
+      interval-ms: ${CHEESEIM_POSTOFFICE_SESSION_VALIDATION_INTERVAL_MS:60000}
+    route-heartbeat:
+      persist-interval-ms: ${CHEESEIM_POSTOFFICE_ROUTE_HEARTBEAT_PERSIST_INTERVAL_MS:60000}
+      flush-interval-ms: ${CHEESEIM_POSTOFFICE_ROUTE_HEARTBEAT_FLUSH_INTERVAL_MS:1000}
+      flush-batch-size: ${CHEESEIM_POSTOFFICE_ROUTE_HEARTBEAT_FLUSH_BATCH_SIZE:20000}
+    login-lease:
+      # 两阶段发布：所有节点先部署支持代码，再集中开启；混部期间不得启用。
+      enforce: ${CHEESEIM_POSTOFFICE_LOGIN_LEASE_ENFORCE:false}
+      ttl-ms: ${CHEESEIM_POSTOFFICE_LOGIN_LEASE_TTL_MS:180000}
+      key-grace-ms: ${CHEESEIM_POSTOFFICE_LOGIN_LEASE_KEY_GRACE_MS:60000}
+      renew-interval-ms: ${CHEESEIM_POSTOFFICE_LOGIN_LEASE_RENEW_INTERVAL_MS:60000}
+      renew-batch-size: ${CHEESEIM_POSTOFFICE_LOGIN_LEASE_RENEW_BATCH_SIZE:20000}
     message-limits:
       max-envelope-body-bytes: ${CHEESEIM_MESSAGE_MAX_ENVELOPE_BODY_BYTES:65536}
       max-text-bytes: ${CHEESEIM_MESSAGE_MAX_TEXT_BYTES:16384}

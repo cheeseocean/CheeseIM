@@ -1,9 +1,10 @@
 package com.cheeseocean.im.postbox.service;
 
 import com.cheeseocean.im.common.core.history.MessageHistoryRepository;
-import com.cheeseocean.im.common.core.history.document.AttachmentMetadataDoc;
-import com.cheeseocean.im.common.core.history.document.MessageIdMappingDoc;
-import com.cheeseocean.im.common.core.history.document.MessageSlot;
+import com.cheeseocean.im.common.core.history.model.AttachmentMetadata;
+import com.cheeseocean.im.common.core.history.model.MessageIdMapping;
+import com.cheeseocean.im.common.core.history.model.MessageSlot;
+import com.cheeseocean.im.common.core.util.BlockIndexUtil;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -26,7 +27,7 @@ public class BlockMessageQueryService {
     /**
      * 读取最近会话映射，用于拼装会话列表。
      */
-    public List<MessageIdMappingDoc> findRecentConversationMappings(int limit) {
+    public List<MessageIdMapping> findRecentConversationMappings(int limit) {
         return messageHistoryRepository.findRecentMappings(limit);
     }
 
@@ -46,7 +47,7 @@ public class BlockMessageQueryService {
         if (attachmentId == null || attachmentId.isBlank()) {
             return Optional.empty();
         }
-        AttachmentMetadataDoc metadata = messageHistoryRepository.findAttachmentMetadata(attachmentId);
+        AttachmentMetadata metadata = messageHistoryRepository.findAttachmentMetadata(attachmentId);
         if (metadata == null || metadata.getConversationId() == null || metadata.getSeq() == null) {
             return Optional.empty();
         }

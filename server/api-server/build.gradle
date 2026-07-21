@@ -1,9 +1,20 @@
 dependencies {
     implementation project(':common-api')
-    implementation project(':common-core')
+    // API 只复用 common-core 的 Redis 幂等 port/adapter；基础设施依赖由本模块显式声明。
+    implementation(project(':common-core')) {
+        transitive = false
+    }
     implementation project(':config')
 
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
     implementation 'org.apache.dubbo:dubbo-spring-boot-starter'
+    implementation 'org.apache.dubbo:dubbo-registry-nacos'
+}
+
+springBoot {
+    mainClass = 'com.cheeseocean.im.apiserver.ApiServerApplication'
 }

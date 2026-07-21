@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "cheeseim.fullname" . }}-runtime
+  labels:
+    {{- include "cheeseim.labels" . | nindent 4 }}
+data:
+  SPRING_PROFILES_ACTIVE: {{ .Values.global.springProfiles | quote }}
+  NACOS_SERVER_ADDR: {{ required "global.nacos.serverAddr is required" .Values.global.nacos.serverAddr | quote }}
+  NACOS_NAMESPACE: {{ required "global.nacos.namespace is required" .Values.global.nacos.namespace | quote }}
+  NACOS_GROUP: {{ .Values.global.nacos.group | quote }}
+  KAFKA_BOOTSTRAP_SERVERS: {{ required "global.kafka.bootstrapServers is required" .Values.global.kafka.bootstrapServers | quote }}
+  KAFKA_TOPICS_AUTO_CREATE_ENABLED: {{ .Values.global.kafka.autoCreateTopics | quote }}
+  REDIS_CLUSTER_NODES: {{ .Values.global.redis.clusterNodes | quote }}
+  REDIS_SENTINEL_MASTER: {{ .Values.global.redis.sentinelMaster | quote }}
+  REDIS_SENTINEL_NODES: {{ .Values.global.redis.sentinelNodes | quote }}
+  CHEESEIM_SHUTDOWN_TIMEOUT: {{ .Values.global.shutdownTimeout | quote }}

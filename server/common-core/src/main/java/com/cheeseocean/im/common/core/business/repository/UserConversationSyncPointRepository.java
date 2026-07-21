@@ -33,6 +33,25 @@ public interface UserConversationSyncPointRepository {
      */
     void updateMaxSeq(String userId, String conversationId, long maxSeq);
 
+    /**
+     * 批量单调推进服务端最大序列号。
+     *
+     * <p>实现必须使用 max 语义承受多副本乱序；默认实现仅用于非 Mongo 适配器兼容。</p>
+     */
+    default void updateMaxSeqBatch(List<MaxSeqUpdate> updates) {
+        if (updates == null) {
+            return;
+        }
+        for (MaxSeqUpdate update : updates) {
+            if (update != null) {
+                updateMaxSeq(update.userId(), update.conversationId(), update.maxSeq());
+            }
+        }
+    }
+
+    record MaxSeqUpdate(String userId, String conversationId, long maxSeq) {
+    }
+
     /** 查询用户在指定会话中的最小可见序列号。 */
     long getMinSeq(String userId, String conversationId);
 

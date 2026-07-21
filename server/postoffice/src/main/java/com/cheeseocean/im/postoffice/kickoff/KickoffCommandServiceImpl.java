@@ -148,7 +148,12 @@ public class KickoffCommandServiceImpl implements KickoffCommandService {
     }
 
     private void executeLocal(KickoffCommand command) {
-        if (command.getDeviceId() != null && !command.getDeviceId().isBlank()
+        if (command.getConnectionId() != null && !command.getConnectionId().isBlank()) {
+            connectionManager.kickConnectionById(
+                    command.getConnectionId(),
+                    command.getLoginLeaseGeneration(),
+                    command.getReason());
+        } else if (command.getDeviceId() != null && !command.getDeviceId().isBlank()
                 && command.getUserId() != null && !command.getUserId().isBlank()) {
             connectionManager.kickDeviceConnections(command.getUserId(), command.getDeviceId(), command.getReason());
         } else if (command.getSessionId() != null && !command.getSessionId().isBlank()) {

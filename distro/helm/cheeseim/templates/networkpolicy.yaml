@@ -1,0 +1,52 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- range $serviceName, $service := .Values.services }}
+{{- if $service.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "cheeseim.serviceName" (dict "root" $ "service" $serviceName) }}
+  labels:
+    {{- include "cheeseim.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $serviceName }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "cheeseim.selectorLabels" $ | nindent 6 }}
+      app.kubernetes.io/component: {{ $serviceName }}
+  policyTypes: ["Ingress"]
+  ingress:
+    {{- if or $service.ports.dubbo (eq $serviceName "business") }}
+    - from:
+        - podSelector: {}
+      ports:
+        {{- with $service.ports.dubbo }}
+        - {protocol: TCP, port: {{ . }}}
+        {{- end }}
+        {{- if and (eq $serviceName "business") $service.ports.http }}
+        - {protocol: TCP, port: {{ $service.ports.http }}}
+        {{- end }}
+    {{- end }}
+    - from:
+        - namespaceSelector:
+            {{- toYaml $.Values.networkPolicy.monitoringNamespaceSelector | nindent 12 }}
+      ports:
+        - {protocol: TCP, port: {{ $service.ports.management }}}
+    {{- if or (eq $serviceName "api-server") (eq $serviceName "postoffice") }}
+    - from:
+        - namespaceSelector:
+            {{- toYaml $.Values.networkPolicy.ingressNamespaceSelector | nindent 12 }}
+      ports:
+        {{- with $service.ports.http }}
+        - {protocol: TCP, port: {{ . }}}
+        {{- end }}
+        {{- with $service.ports.websocket }}
+        - {protocol: TCP, port: {{ . }}}
+        {{- end }}
+        {{- with $service.ports.tcp }}
+        - {protocol: TCP, port: {{ . }}}
+        {{- end }}
+    {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

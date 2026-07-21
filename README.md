@@ -45,7 +45,10 @@ sequenceDiagram
 | `server/postmaster` | 消息编排核心。消费 ingress event，分配会话序列，写入历史块，维护用户会话序列范围，并生成投递事件。 |
 | `server/postman` | 投递与离线推送模块。消费 delivery/offline push event，调用 `postoffice` 在线投递或走 vendor push。 |
 | `server/common-api` | 跨模块 API、领域模型、枚举、事件模型、Protobuf 协议定义。 |
-| `server/common-core` | 通用基础设施：Mongo Repository、队列抽象、typed `CacheStore`、通知发送、序列状态、工具类。 |
+| `server/common-core` | 共享 port/model 与通用状态基础设施：Repository/队列契约、typed `CacheStore`、通知发送、序列状态。 |
+| `server/infra-queue` | 队列运行时基础设施：Kafka/Chronicle adapter、监听器装配、topic 契约校验与 Kafka DLT 实现。 |
+| `server/storage-history` | 消息历史 Mongo adapter：Document、批量写、范围查询与纯 port model 转换。 |
+| `server/storage-business` | 用户、好友、群、会话、控制事件与 fanout job 等业务 Mongo adapter。 |
 | `server/config` | Spring/YAML 配置集合，包含 all-in-one 与各模块配置片段。 |
 | `server/bootstrap-all` | 开发与本地联调推荐入口。单 JVM 装配所有模块，Dubbo 走 injvm。 |
 | `sdks/go` | Go 侧通用 IM Client SDK，供 CheeseBox 和后续其他应用复用。 |
@@ -212,7 +215,7 @@ git diff --check
 - `docs/INDEX.md`：全仓文档地图 + 状态标注。
 - `server/AGENTS.md`：Java 服务端开发约束（已替代 `server/.claude/rules/`）。
 - `server/docs/architecture/ASSESSMENT.md`：服务端架构评估、百万级演进路线、阻断性问题清单。
-- 各模块 `ARCH.md` 事实快照：`server/{api-server,authcenter,business,common-api,common-core,postbox,postman,postmaster,postoffice,bootstrap-all}/ARCH.md`。
+- 各模块 `ARCH.md` 事实快照：以 `docs/INDEX.md` 登记清单为准，包含 feature、`infra-queue`、`storage-history` 与运维模块。
 - `sdks/go/AGENTS.md`、`apps/CheeseBox/AGENTS.md`：Go SDK 与 TUI 客户端约束。
 - `docs/CheeseIM-数据同步设计文档.md`：当前会话/消息同步设计。
 - `docs/client-runbook.md`：Go SDK 与 CheeseBox 联调入口。
@@ -240,7 +243,11 @@ git diff --check
     ├── bootstrap-all
     ├── common-api
     ├── common-core
+    ├── infra-queue
+    ├── storage-history
+    ├── storage-business
     ├── config
+    ├── ops-cli
     ├── postbox
     ├── postman
     ├── postmaster

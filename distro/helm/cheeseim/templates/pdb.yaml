@@ -1,0 +1,18 @@
+{{- range $serviceName, $service := .Values.services }}
+{{- if and $service.enabled $service.pdb.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "cheeseim.serviceName" (dict "root" $ "service" $serviceName) }}
+  labels:
+    {{- include "cheeseim.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $serviceName }}
+spec:
+  minAvailable: {{ $service.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "cheeseim.selectorLabels" $ | nindent 6 }}
+      app.kubernetes.io/component: {{ $serviceName }}
+{{- end }}
+{{- end }}

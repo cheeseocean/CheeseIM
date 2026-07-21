@@ -4,9 +4,20 @@ import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
 import com.cheeseocean.im.common.core.store.conversation.redis.RedisConversationStateStore;
 import com.cheeseocean.im.common.core.store.conversation.rocksdb.RocksDbConversationStateStore;
 import com.cheeseocean.im.common.core.store.idempotency.IdempotencyStore;
+import com.cheeseocean.im.common.core.store.idempotency.ingress.IngressMessageInboxProperties;
+import com.cheeseocean.im.common.core.store.idempotency.ingress.IngressMessageInboxStore;
+import com.cheeseocean.im.common.core.store.idempotency.ingress.redis.RedisIngressMessageInboxStore;
+import com.cheeseocean.im.common.core.store.idempotency.ingress.rocksdb.RocksDbIngressMessageInboxStore;
+import com.cheeseocean.im.common.core.store.idempotency.message.MessageSendInboxProperties;
+import com.cheeseocean.im.common.core.store.idempotency.message.MessageSendInboxStore;
+import com.cheeseocean.im.common.core.store.idempotency.message.redis.RedisMessageSendInboxStore;
+import com.cheeseocean.im.common.core.store.idempotency.message.rocksdb.RocksDbMessageSendInboxStore;
 import com.cheeseocean.im.common.core.store.idempotency.redis.RedisIdempotencyStore;
 import com.cheeseocean.im.common.core.store.idempotency.rocksdb.RocksDbIdempotencyStore;
 import com.cheeseocean.im.common.core.store.session.SessionStateStore;
+import com.cheeseocean.im.common.core.store.session.refresh.RefreshTokenStateStore;
+import com.cheeseocean.im.common.core.store.session.refresh.redis.RedisRefreshTokenStateStore;
+import com.cheeseocean.im.common.core.store.session.refresh.rocksdb.RocksDbRefreshTokenStateStore;
 import com.cheeseocean.im.common.core.store.session.redis.RedisSessionStateStore;
 import com.cheeseocean.im.common.core.store.session.rocksdb.RocksDbSessionStateStore;
 import com.cheeseocean.im.common.core.store.typing.TypingStateStore;
@@ -24,7 +35,11 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.beans.factory.annotation.Value;
 
 @Configuration
-@EnableConfigurationProperties(StateStoreProperties.class)
+@EnableConfigurationProperties({
+        StateStoreProperties.class,
+        MessageSendInboxProperties.class,
+        IngressMessageInboxProperties.class
+})
 public class StateStoreAutoConfigurer {
 
     @Bean
@@ -44,6 +59,22 @@ public class StateStoreAutoConfigurer {
     @Bean
     @ConditionalOnMissingBean
     @Conditional(RedisConfigurationConditions.RedisConfigured.class)
+    public RefreshTokenStateStore redisRefreshTokenStateStore(StringRedisTemplate redisTemplate) {
+        return new RedisRefreshTokenStateStore(redisTemplate);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @Conditional(RedisConfigurationConditions.RedisNotConfigured.class)
+    public RefreshTokenStateStore rocksDbRefreshTokenStateStore(
+            StateStoreProperties properties,
+            ObjectMapper objectMapper) {
+        return new RocksDbRefreshTokenStateStore(properties.resolve("session"), objectMapper);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @Conditional(RedisConfigurationConditions.RedisConfigured.class)
     public IdempotencyStore redisIdempotencyStore(StringRedisTemplate redisTemplate) {
         return new RedisIdempotencyStore(redisTemplate);
     }
@@ -53,6 +84,50 @@ public class StateStoreAutoConfigurer {
     @Conditional(RedisConfigurationConditions.RedisNotConfigured.class)
     public IdempotencyStore rocksDbIdempotencyStore(StateStoreProperties properties, ObjectMapper objectMapper) {
         return new RocksDbIdempotencyStore(properties.resolve("idempotency"), objectMapper);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @Conditional(RedisConfigurationConditions.RedisConfigured.class)
+    public MessageSendInboxStore redisMessageSendInboxStore(
+            StringRedisTemplate redisTemplate,
+            MessageSendInboxProperties properties) {
+        return new RedisMessageSendInboxStore(redisTemplate, properties);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @Conditional(RedisConfigurationConditions.RedisNotConfigured.class)
+    public MessageSendInboxStore rocksDbMessageSendInboxStore(
+            StateStoreProperties stateStoreProperties,
+            ObjectMapper objectMapper,
+            MessageSendInboxProperties properties) {
+        return new RocksDbMessageSendInboxStore(
+                stateStoreProperties.resolve("idempotency"),
+                objectMapper,
+                properties);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @Conditional(RedisConfigurationConditions.RedisConfigured.class)
+    public IngressMessageInboxStore redisIngressMessageInboxStore(
+            StringRedisTemplate redisTemplate,
+            IngressMessageInboxProperties properties) {
+        return new RedisIngressMessageInboxStore(redisTemplate, properties);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @Conditional(RedisConfigurationConditions.RedisNotConfigured.class)
+    public IngressMessageInboxStore rocksDbIngressMessageInboxStore(
+            StateStoreProperties stateStoreProperties,
+            ObjectMapper objectMapper,
+            IngressMessageInboxProperties properties) {
+        return new RocksDbIngressMessageInboxStore(
+                stateStoreProperties.resolve("idempotency"),
+                objectMapper,
+                properties);
     }
 
     @Bean

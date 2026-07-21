@@ -80,6 +80,13 @@ public class Group implements Serializable {
      * 创建时间（毫秒时间戳）
      */
     private long                 createTime;
+    /**
+     * 成员关系版本。
+     *
+     * <p>每次成员集合发生变化时单调递增；群消息权限校验与扩散任务使用同一版本，
+     * 从而在重试期间读取稳定的成员快照。</p>
+     */
+    private long                 membershipVersion;
 
     // ── 领域方法 ─────────────────────────────────────────────────────────────
 

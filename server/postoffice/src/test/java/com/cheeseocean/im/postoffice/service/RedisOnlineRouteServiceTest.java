@@ -62,14 +62,15 @@ class RedisOnlineRouteServiceTest {
 
         service.register(snapshot);
 
-        // 验证写路径必走 Lua 脚本（而非读-改-写），且 ARGV 顺序：deviceId, routeJson, heartbeatAt, ttlSeconds
+        // 验证写路径必走 Lua，ARGV 同时保存 connectionId，供迟到心跳/注销做原子身份校验。
         verify(redisTemplate).execute(
                 any(RedisScript.class),
                 eq(List.of(RedisKeys.onlineUser("u1"))),
                 eq("ios-1"),
                 any(String.class),
                 eq("200"),
-                eq(String.valueOf(TTL.toSeconds())));
+                eq(String.valueOf(TTL.toSeconds())),
+                eq(""));
     }
 
     @Test
@@ -88,7 +89,8 @@ class RedisOnlineRouteServiceTest {
                 eq("ios-1"),
                 any(String.class),
                 eq("100"),
-                eq(String.valueOf(TTL.toSeconds())));
+                eq(String.valueOf(TTL.toSeconds())),
+                eq(""));
     }
 
     @Test
@@ -101,7 +103,7 @@ class RedisOnlineRouteServiceTest {
 
         // 校验既没有调用 Lua 脚本，也没有访问 Redis HASH（提前 return 应跳过所有 IO）
         verify(redisTemplate, org.mockito.Mockito.never())
-                .execute(any(RedisScript.class), anyList(), any(), any(), any(), any());
+                .execute(any(RedisScript.class), anyList(), any(), any(), any(), any(), any());
         org.mockito.Mockito.verifyNoInteractions(hashOps);
     }
 
@@ -132,7 +134,8 @@ class RedisOnlineRouteServiceTest {
                 any(RedisScript.class),
                 eq(List.of(RedisKeys.onlineUser("u1"))),
                 eq("ios-1"),
-                eq(String.valueOf(TTL.toSeconds())));
+                eq(String.valueOf(TTL.toSeconds())),
+                eq("conn-1"));
     }
 
     @Test

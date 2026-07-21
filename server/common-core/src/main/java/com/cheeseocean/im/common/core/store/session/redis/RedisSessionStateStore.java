@@ -42,6 +42,15 @@ public class RedisSessionStateStore implements SessionStateStore {
     }
 
     @Override
+    public void updateSession(SessionPrincipal session, long ttlMs) {
+        redisTemplate.opsForValue().set(
+                RedisKeys.userSession(session.getSessionId()),
+                writeJson(session),
+                ttlMs,
+                TimeUnit.MILLISECONDS);
+    }
+
+    @Override
     public SessionPrincipal findBySessionId(String sessionId) {
         return readJson(redisTemplate.opsForValue().get(RedisKeys.userSession(sessionId)), SessionPrincipal.class);
     }

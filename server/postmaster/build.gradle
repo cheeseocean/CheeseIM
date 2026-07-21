@@ -1,27 +1,20 @@
 dependencies {
     implementation project(':common-core')
+    implementation project(':infra-queue')
+    implementation project(':storage-history')
+    implementation project(':storage-business')
     implementation project(':common-api')
     implementation project(':config')
     implementation 'org.springframework.boot:spring-boot-starter'
-    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
-    implementation 'org.springframework.kafka:spring-kafka'
-    implementation 'org.apache.dubbo:dubbo-spring-boot-starter'
-    implementation 'com.fasterxml.jackson.core:jackson-databind'
-    implementation 'com.google.protobuf:protobuf-java:3.25.3'
-
-    // Spring Data MongoDB
-    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
-
-    // JSON处理
-    implementation 'com.fasterxml.jackson.core:jackson-databind'
-    implementation 'com.fasterxml.jackson.core:jackson-core'
-    implementation 'com.fasterxml.jackson.core:jackson-annotations'
-
-    // RPC框架 (Dubbo)
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.apache.dubbo:dubbo-spring-boot-starter'
     implementation 'org.apache.dubbo:dubbo-registry-nacos'
+    implementation 'com.google.protobuf:protobuf-java:3.25.3'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'com.fasterxml.jackson.core:jackson-core'
+    runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 
-    // 测试依赖
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.kafka:spring-kafka-test'
     testRuntimeOnly 'ch.qos.logback:logback-core:1.5.3'

@@ -22,7 +22,9 @@ The diagram below is organized around the product experience: user-facing client
 | `server/postmaster` | Message orchestration. Consumes ingress events, allocates conversation/user seq, writes history blocks, and emits delivery events. |
 | `server/postman` | Delivery and offline push. Consumes delivery/offline events and dispatches online messages or vendor push requests. |
 | `server/common-api` | Cross-module APIs, domain models, enums, events, and Protobuf definitions. |
-| `server/common-core` | Shared infrastructure: Mongo repositories, queue abstraction, typed CacheStore, notifications, seq state, and utilities. |
+| `server/common-core` | Shared ports/models and state infrastructure: repository and queue contracts, typed CacheStore, notifications, and seq state. |
+| `server/infra-queue` | Queue runtime infrastructure: Kafka/Chronicle adapters, listener wiring, topic contract validation, and Kafka DLT operations. |
+| `server/storage-business` | Mongo adapters for users, relationships, groups, conversations, control events, fanout jobs, and DLT audit. |
 | `server/config` | Spring/YAML configuration for all-in-one and module deployments. |
 | `server/bootstrap-all` | Recommended local development entry. Runs all modules in one JVM with Dubbo injvm. |
 | `sdks/go` | Reusable Go IM client SDK. |
@@ -169,7 +171,11 @@ Reference-only documents:
     ├── bootstrap-all
     ├── common-api
     ├── common-core
+    ├── infra-queue
+    ├── storage-history
+    ├── storage-business
     ├── config
+    ├── ops-cli
     ├── postbox
     ├── postman
     ├── postmaster

@@ -3,15 +3,18 @@
 > 服务端所有模块的共享契约层。任何字段变更需评估对 8 个消费模块的影响。
 > 详细评估见 `server/docs/architecture/ASSESSMENT.md`。
 
+跨模块业务失败使用稳定 `ErrorCode` + `BusinessException`；不得把底层异常文本当作 RPC/HTTP 契约。
+
 ## 1. 子包
 
 | 包 | 内容 | 是否可变 |
 | --- | --- | --- |
 | `business/domain/` | 领域 POJO：User/Friendship/FriendRequest/Blacklist/Group/GroupMember/GroupRequest/Conversation 系列，以及 `ConversationControlEvent` | 频繁 |
-| `dto/message/` | `Message` + `MessageOptions` + `OfflinePushInfo`（1:1 映射 `ProtoMessage`） | 与 proto 同步 |
+| `dto/message/` | `Message` + `MessageOptions` + `OfflinePushInfo`（1:1 映射 `ProtoMessage`）；`SendMessageResp` 含稳定错误码 | 与 proto 同步 |
+| `permission/` | 单聊与群发送权限聚合契约；群权限支持同群多 sender 批查 | 稳定 |
 | `dto/dispatch/` | `DispatchPayload`（聊天消息或 typed `ServerEnvelope` 控制通知，含统一 deliveryId） | 稳定 |
 | `event/` | `DeliveryEvent` / `OfflinePushEvent` / `HistoryEvent` / `ConversationSettingsEvent` / `UserSettingsEvent` / `FriendRelationEvent` | 稳定 |
-| `enums/` | `CommandType` `ChatType` `ContentType` `MessageStatus` `MessageSource` `PlatformType` `ConversationKind` `ConversationAction` `ConversationVersionOperation` `ReceiveOption` `DeliveryState` `SessionStatus` `ConnectionState` `GroupStatusEnum` `GroupTypeEnum` `GroupMemberRoleEnum` `GroupAtTypeEnum` `NeedVerificationEnum` `HandleResultEnum` `MessagePreviewType` `TypingActionEnum` `ControlEventTypeEnum` `ControlEventDeliveryStateEnum` `ErrorCode` | 稳定但会扩 |
+| `enums/` | `CommandType` `ChatType` `ContentType` `MessageStatus` `MessageSource` `PlatformType` `ConversationKind` `ConversationAction` `ConversationVersionOperation` `ReceiveOption` `DeliveryState` `SessionStatus` `ConnectionState` `DispatchResultCode` 等 | 稳定但会扩 |
 | `protocol/proto/` | `protoc` 生成的 Java 代码，**不要手改** | 不可手改 |
 | `proto/` | `message_protocol.proto` 源文件 | 改需评估 + 重生成 |
 
@@ -41,6 +44,10 @@
 - `Message.seq` 是 server-filled，客户端发送时留空。
 - `MessageOptions` 八位 `Boolean` 与 `ProtoMessageOptions` 1:1。
 - 枚举新值一律加在末尾，受 Protobuf 兼容性约束。
+- `KickoffCommand.connectionId` 存在时必须精确踢指定连接，消费方不得在目标缺失时降级扩大到 device/session/user。
+- `RouteSnapshot.platformId` 使用 `PlatformType.code`，用于跨节点 admission；禁止用展示名作为稳定策略字段。
+- `KickoffCommand.loginLeaseGeneration` 与 `RouteSnapshot.loginLeaseGeneration` 是 fencing token；存在时消费端
+  必须同时匹配 connectionId + generation，禁止只比较用户或设备。
 
 ## 5. 事件载荷不变量
 
@@ -49,7 +56,14 @@
 - `HistoryEvent.lastMaxSeq` 用于 sync 增量；`beginSeq`/`endSeq` 标识块范围。
 - `ReadStateService` 是所有已读入口的唯一共享契约；`ConversationSyncService.ackReadSeq` 暂保留兼容，新增入口禁止绕过前者复制推进逻辑。
 - `DeliveryStateService` 是设备送达 ACK 唯一共享契约；Redis Lua 单调推进热水位，Mongo write-behind 只保存聚合后的设备会话高水位。
+- `DispatchResultCode` 是 postoffice 与节点投递消费者共享的稳定分类；`SOCKET_WRITTEN` 只表示 ChannelFuture 成功，不能替代客户端 `CHAT_DELIVERY` ACK。
+- `NodeDeliveryOutcomeCode` / `NodeDeliveryOutcome` 是 postoffice 到 postman 的节点终态契约；
+  `RouteSnapshot.deliveryOutcomeVersion` 用于滚动升级能力协商，旧路由缺失时按不支持处理。
+- `GroupFanoutEvent` 是 postmaster ingress 到独立群扩散 worker 的内部队列契约，不属于客户端协议。
+- `GroupMembershipCommandService` 是成员关系唯一写契约；批变更返回单调 `membershipVersion`。
+- `GroupMemberPage` 的游标固定为 `(joinedVersion,userId,epochId)`；禁止回退 offset 或 joinTime 快照。
 - `ConversationPermissionService` 是会话访问权限的共享契约；接口名不暴露 Dubbo/RPC 基础设施，provider 和 consumer 均使用该名称。
+- `GroupMessageSendPermissionService` 是群发送权限唯一共享契约；`GroupSendPermissionCode` 使用稳定 code，禁止退化为字符串原因或 ordinal。
 - `MessageMutationService` 是撤回入口唯一共享契约；撤回不改写 `message_block`，历史读取必须 merge `message_mutation`。
 - `ConversationControlEvent` 是已读、撤回的可靠控制事件载荷；业务侧只 append，`common-core` 负责 Mongo outbox 的 cursor、claim 与交付状态，客户端可按 cursor 补齐。输入中不属于可靠事件，只使用 Redis 短 TTL 状态和在线尽力通知。
 

@@ -1,6 +1,8 @@
 package com.cheeseocean.im.apiserver.exception;
 
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
+import com.cheeseocean.im.common.api.enums.ErrorCode;
+import com.cheeseocean.im.common.api.exception.BusinessException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.springframework.http.HttpStatus;
@@ -134,7 +136,7 @@ public class ApiExceptionHandler {
         Map<String, Object> error = new HashMap<>();
         error.put("success", false);
         error.put("errorCode", "RUNTIME_ERROR");
-        error.put("errorMessage", "系统运行时错误: " + e.getMessage());
+        error.put("errorMessage", "系统运行时错误");
         error.put("timestamp", System.currentTimeMillis());
         error.put("path", request.getRequestURI());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
@@ -161,5 +163,36 @@ public class ApiExceptionHandler {
             errors.put(fieldError.getField(), fieldError.getDefaultMessage());
         }
         return errors;
+    }
+
+    /**
+     * 认证失败统一返回 401，不再按 Controller 路径猜测错误语义。
+     */
+    @ExceptionHandler(ApiAuthenticationException.class)
+    public ResponseEntity<Map<String, Object>> handleAuthentication(ApiAuthenticationException exception) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("code", 40100, "message", exception.getMessage()));
+    }
+
+    /**
+     * 跨模块身份认证失败统一返回稳定业务码，避免泄露禁用、签名或重放的具体原因。
+     */
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<Map<String, Object>> handleBusinessException(BusinessException exception) {
+        ErrorCode errorCode = exception.getErrorCode();
+        HttpStatus status = errorCode == ErrorCode.AUTHENTICATION_FAILED
+                ? HttpStatus.UNAUTHORIZED
+                : HttpStatus.BAD_REQUEST;
+        return ResponseEntity.status(status)
+                .body(Map.of("code", errorCode.getCode(), "message", errorCode.getDesc()));
+    }
+
+    /**
+     * 已认证主体越权操作统一返回 403。
+     */
+    @ExceptionHandler(ApiAuthorizationException.class)
+    public ResponseEntity<Map<String, Object>> handleAuthorization(ApiAuthorizationException exception) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of("code", 40300, "message", exception.getMessage()));
     }
 }

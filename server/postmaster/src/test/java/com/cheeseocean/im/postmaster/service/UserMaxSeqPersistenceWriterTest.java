@@ -2,11 +2,13 @@ package com.cheeseocean.im.postmaster.service;
 
 import com.cheeseocean.im.common.core.business.repository.UserConversationSyncPointRepository;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -24,8 +26,13 @@ class UserMaxSeqPersistenceWriterTest {
         writer.enqueue("u2", "s:u2:u3", 8L);
         writer.shutdown();
 
-        verify(syncPointRepository).updateMaxSeq("u1", "s:u1:u2", 12L);
-        verify(syncPointRepository).updateMaxSeq("u2", "s:u2:u3", 8L);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<UserConversationSyncPointRepository.MaxSeqUpdate>> updates =
+                ArgumentCaptor.forClass(List.class);
+        verify(syncPointRepository).updateMaxSeqBatch(updates.capture());
+        org.assertj.core.api.Assertions.assertThat(updates.getValue()).containsExactlyInAnyOrder(
+                new UserConversationSyncPointRepository.MaxSeqUpdate("u1", "s:u1:u2", 12L),
+                new UserConversationSyncPointRepository.MaxSeqUpdate("u2", "s:u2:u3", 8L));
     }
 
     @Test
@@ -48,7 +55,7 @@ class UserMaxSeqPersistenceWriterTest {
     void mongoLongFailureShouldKeepCapacityBoundedAndFailExplicitlyWhenBothQueuesAreFull() {
         UserConversationSyncPointRepository repository = mock(UserConversationSyncPointRepository.class);
         doThrow(new IllegalStateException("mongo unavailable"))
-                .when(repository).updateMaxSeq("u1", "c3", 3L);
+                .when(repository).updateMaxSeqBatch(anyList());
         UserMaxSeqPersistenceWriter writer = new UserMaxSeqPersistenceWriter(
                 repository, 1, 1, false);
 
@@ -66,13 +73,13 @@ class UserMaxSeqPersistenceWriterTest {
     void mongoFailureShouldKeepRetryingInsteadOfPermanentlyDropping() {
         UserConversationSyncPointRepository repository = mock(UserConversationSyncPointRepository.class);
         doThrow(new IllegalStateException("mongo unavailable"))
-                .when(repository).updateMaxSeq(anyString(), anyString(), anyLong());
+                .when(repository).updateMaxSeqBatch(anyList());
         UserMaxSeqPersistenceWriter writer = new UserMaxSeqPersistenceWriter(repository, 1, 8, true);
 
         writer.enqueue("u1", "c1", 9L);
 
         verify(repository, org.mockito.Mockito.timeout(3000).atLeast(4))
-                .updateMaxSeq("u1", "c1", 9L);
+                .updateMaxSeqBatch(anyList());
         org.junit.jupiter.api.Assertions.assertTrue(writer.stats().retryScheduled() >= 3L);
         assertEquals(0L, writer.stats().exhaustedFailures());
         writer.shutdown();

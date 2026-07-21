@@ -41,6 +41,14 @@ public class RocksDbSessionStateStore implements SessionStateStore {
     }
 
     @Override
+    public void updateSession(SessionPrincipal session, long ttlMs) {
+        support.put(
+                RedisKeys.userSession(session.getSessionId()),
+                session,
+                Duration.ofMillis(ttlMs));
+    }
+
+    @Override
     public SessionPrincipal findBySessionId(String sessionId) {
         return support.get(RedisKeys.userSession(sessionId), SessionPrincipal.class);
     }

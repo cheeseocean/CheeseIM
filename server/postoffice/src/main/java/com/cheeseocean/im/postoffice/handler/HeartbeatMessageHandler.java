@@ -4,12 +4,11 @@ import com.cheeseocean.im.common.api.protocol.ClientEnvelope;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.common.api.enums.CommandType;
 import com.cheeseocean.im.postoffice.auth.ConnectionSessionGuard;
-import com.cheeseocean.im.postoffice.connection.ConnectionManager;
 import com.cheeseocean.im.postoffice.connection.UserConnection;
-import com.cheeseocean.im.postoffice.service.OnlineRouteService;
+import com.cheeseocean.im.postoffice.service.RouteHeartbeatBuffer;
+import com.cheeseocean.im.postoffice.login.LoginLeaseHeartbeatBuffer;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import org.slf4j.Logger;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 /**
@@ -23,14 +22,17 @@ public class HeartbeatMessageHandler implements MessageHandler {
     
     private static final Logger logger = CommonLoggers.POSTOFFICE;
 
-    private final OnlineRouteService onlineRouteService;
+    private final RouteHeartbeatBuffer routeHeartbeatBuffer;
 
     private final ConnectionSessionGuard connectionSessionGuard;
+    private final LoginLeaseHeartbeatBuffer loginLeaseHeartbeatBuffer;
 
-    public HeartbeatMessageHandler(ObjectProvider<OnlineRouteService> onlineRouteServiceProvider,
-                                   ConnectionSessionGuard connectionSessionGuard) {
-        this.onlineRouteService = onlineRouteServiceProvider.getIfAvailable();
+    public HeartbeatMessageHandler(RouteHeartbeatBuffer routeHeartbeatBuffer,
+                                   ConnectionSessionGuard connectionSessionGuard,
+                                   LoginLeaseHeartbeatBuffer loginLeaseHeartbeatBuffer) {
+        this.routeHeartbeatBuffer = routeHeartbeatBuffer;
         this.connectionSessionGuard = connectionSessionGuard;
+        this.loginLeaseHeartbeatBuffer = loginLeaseHeartbeatBuffer;
     }
     
     @Override
@@ -45,12 +47,8 @@ public class HeartbeatMessageHandler implements MessageHandler {
 
             // 更新连接的最后活跃时间
             connection.incrementHeartbeat();
-            String deviceId = ConnectionManager.routeDeviceId(connection);
-            if (onlineRouteService != null && connection.getUserID() != null && deviceId != null) {
-                onlineRouteService.refresh(connection.getUserID(),
-                        deviceId,
-                        connection.getLastActiveTime());
-            }
+            routeHeartbeatBuffer.record(connection);
+            loginLeaseHeartbeatBuffer.record(connection);
             
             String operationID = envelope.getRequestId();
             

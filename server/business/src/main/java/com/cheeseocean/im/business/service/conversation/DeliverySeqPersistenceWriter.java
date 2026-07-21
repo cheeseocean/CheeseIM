@@ -13,17 +13,27 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /** deliveredSeq 有界批量 write-behind；批内按用户、设备、会话聚合最大水位。 */
 @Component
 public class DeliverySeqPersistenceWriter {
     private static final Logger log = CommonLoggers.SOCIAL;
     private static final int MAX_RETRY_ATTEMPTS = 3;
-    record Entry(String userId, String deviceId, String conversationId, long seq, int attempts) {}
+    private static final long SHUTDOWN_JOIN_TIMEOUT_MS = 30_000L;
+    record Entry(String userId, String deviceId, String conversationId, long seq, int attempts,
+                 long queuedAtMillis) {
+        Entry(String userId, String deviceId, String conversationId, long seq, int attempts) {
+            this(userId, deviceId, conversationId, seq, attempts, System.currentTimeMillis());
+        }
+    }
     private final DeviceConversationDeliveryRepository repository;
     private final LinkedBlockingQueue<Entry> queue;
     private final LinkedBlockingQueue<Entry> fallbackQueue;
     private final Thread worker;
+    private final AtomicLong inFlight = new AtomicLong();
+    private final AtomicLong inFlightOldestQueuedAtMillis = new AtomicLong();
+    private final AtomicLong nextBacklogObservationMillis = new AtomicLong();
     private volatile boolean running = true;
 
     public DeliverySeqPersistenceWriter(DeviceConversationDeliveryRepository repository) {
@@ -46,9 +56,13 @@ public class DeliverySeqPersistenceWriter {
 
     public boolean enqueue(String userId, String deviceId, String conversationId, long seq) {
         Entry entry = new Entry(userId, deviceId, conversationId, seq, 0);
-        if (queue.offer(entry)) return true;
+        if (queue.offer(entry)) {
+            observeBacklog(false);
+            return true;
+        }
         if (fallbackQueue.offer(entry)) {
             ImMetrics.writer("delivery_seq", "fallback");
+            observeBacklog(false);
             return true;
         }
         persistSynchronously(entry);
@@ -66,7 +80,13 @@ public class DeliverySeqPersistenceWriter {
                 entries.add(first);
                 fallbackQueue.drainTo(entries, 499);
                 if (entries.size() < 500) queue.drainTo(entries, 500 - entries.size());
-                persist(entries);
+                beginInFlight(entries);
+                try {
+                    persist(entries);
+                } finally {
+                    endInFlight(entries.size());
+                    observeBacklog(true);
+                }
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
                 break;
@@ -77,6 +97,10 @@ public class DeliverySeqPersistenceWriter {
     }
 
     void persist(List<Entry> entries) {
+        persist(entries, true);
+    }
+
+    private void persist(List<Entry> entries, boolean allowRetry) {
         Map<String, Entry> maxByDeviceConversation = new HashMap<>();
         for (Entry entry : entries) {
             String key = entry.userId() + '\0' + entry.deviceId() + '\0' + entry.conversationId();
@@ -86,14 +110,20 @@ public class DeliverySeqPersistenceWriter {
             try {
                 repository.updateDeliveredSeq(entry.userId(), entry.deviceId(), entry.conversationId(), entry.seq());
             } catch (RuntimeException exception) {
-                if (entry.attempts() < MAX_RETRY_ATTEMPTS && fallbackQueue.offer(new Entry(
-                        entry.userId(), entry.deviceId(), entry.conversationId(), entry.seq(), entry.attempts() + 1))) {
+                if (allowRetry && entry.attempts() < MAX_RETRY_ATTEMPTS && fallbackQueue.offer(new Entry(
+                        entry.userId(), entry.deviceId(), entry.conversationId(), entry.seq(),
+                        entry.attempts() + 1, entry.queuedAtMillis()))) {
                     ImMetrics.writer("delivery_seq", "retry");
                     log.warn("deliveredSeq 持久化失败，已进入重试队列：userId={} deviceId={} convId={} attempt={}",
                             entry.userId(), entry.deviceId(), entry.conversationId(), entry.attempts() + 1, exception);
-                } else {
-                    putReliably(new Entry(entry.userId(), entry.deviceId(), entry.conversationId(), entry.seq(), 0));
+                } else if (allowRetry) {
+                    putReliably(new Entry(entry.userId(), entry.deviceId(), entry.conversationId(), entry.seq(), 0,
+                            entry.queuedAtMillis()));
                     ImMetrics.writer("delivery_seq", "retry_exhausted_backpressure");
+                } else {
+                    ImMetrics.writer("delivery_seq", "shutdown_drop");
+                    log.error("deliveredSeq 停机 drain 最终失败：userId={} deviceId={} convId={} seq={}",
+                            entry.userId(), entry.deviceId(), entry.conversationId(), entry.seq(), exception);
                 }
             }
         }
@@ -126,9 +156,71 @@ public class DeliverySeqPersistenceWriter {
     public void shutdown() {
         running = false;
         worker.interrupt();
+        awaitWorker();
         List<Entry> remaining = new ArrayList<>();
         queue.drainTo(remaining);
         fallbackQueue.drainTo(remaining);
-        if (!remaining.isEmpty()) persist(remaining);
+        if (!remaining.isEmpty()) {
+            beginInFlight(remaining);
+            try {
+                persist(remaining, false);
+            } finally {
+                endInFlight(remaining.size());
+            }
+        }
+        observeBacklog(true);
+    }
+
+    private void awaitWorker() {
+        try {
+            worker.join(SHUTDOWN_JOIN_TIMEOUT_MS);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            ImMetrics.writer("delivery_seq", "shutdown_interrupted");
+            return;
+        }
+        if (worker.isAlive()) {
+            ImMetrics.writer("delivery_seq", "shutdown_timeout");
+            log.error("deliveredSeq 停机等待 drain 超时，持久化线程仍未退出");
+        }
+    }
+
+    private void beginInFlight(List<Entry> entries) {
+        long oldestQueuedAt = entries.stream()
+                .mapToLong(Entry::queuedAtMillis)
+                .min()
+                .orElse(0L);
+        inFlight.addAndGet(entries.size());
+        inFlightOldestQueuedAtMillis.updateAndGet(existing ->
+                existing <= 0 ? oldestQueuedAt : Math.min(existing, oldestQueuedAt));
+        ImMetrics.writerBacklog("delivery_seq", "inflight", inFlight.get(), inFlightOldestQueuedAtMillis.get());
+    }
+
+    private void endInFlight(int count) {
+        long remaining = inFlight.addAndGet(-count);
+        if (remaining <= 0) {
+            inFlight.set(0);
+            inFlightOldestQueuedAtMillis.set(0);
+        }
+        ImMetrics.writerBacklog("delivery_seq", "inflight", inFlight.get(), inFlightOldestQueuedAtMillis.get());
+    }
+
+    private void observeBacklog(boolean force) {
+        long now = System.currentTimeMillis();
+        if (!force) {
+            long next = nextBacklogObservationMillis.get();
+            if (now < next || !nextBacklogObservationMillis.compareAndSet(next, now + 1_000L)) {
+                return;
+            }
+        } else {
+            nextBacklogObservationMillis.set(now + 1_000L);
+        }
+        Entry primaryHead = queue.peek();
+        Entry fallbackHead = fallbackQueue.peek();
+        long oldestQueuedAt = Long.MAX_VALUE;
+        if (primaryHead != null) oldestQueuedAt = Math.min(oldestQueuedAt, primaryHead.queuedAtMillis());
+        if (fallbackHead != null) oldestQueuedAt = Math.min(oldestQueuedAt, fallbackHead.queuedAtMillis());
+        ImMetrics.writerBacklog("delivery_seq", "queued", queue.size() + fallbackQueue.size(),
+                oldestQueuedAt == Long.MAX_VALUE ? 0L : oldestQueuedAt);
     }
 }

@@ -8,6 +8,9 @@
 | 组件 | 文件 | 职责 |
 | --- | --- | --- |
 | `DeliveryEventListener` | `listener/DeliveryEventListener.java:40` | 消费 `TopicNames.DELIVERY`，做在线投递 + 触发离线推送 |
+| `NodeDeliveryOutcomeListener` | `listener/NodeDeliveryOutcomeListener.java` | 幂等聚合各 postoffice 节点真实投递终态 |
+| `RedisNodeDeliveryPendingStore` | `state/RedisNodeDeliveryPendingStore.java` | 保存用户级 attempt、冻结节点和超时索引 |
+| `NodeDeliveryTimeoutScheduler` | `task/NodeDeliveryTimeoutScheduler.java` | 超时 attempt 的离线补偿与发布租约恢复 |
 | `OfflinePushEventListener` | `listener/OfflinePushEventListener.java:24` | 消费 `TopicNames.OFFLINE_PUSH`，调用厂商推送 |
 | `OnlineDispatcherImpl` | **在 postoffice**（`postoffice/api/OnlineDispatcherImpl.java:67`） | Dubbo 投递执行 |
 | `OfflinePushServiceImpl` | `service/impl/OfflinePushServiceImpl.java:58` | 多厂商推送 fan-out 编排 |
@@ -27,6 +30,11 @@
    - 否则降级为直接 Dubbo 调用（all-in-one / gatewayNode 为空的历史数据）
 4. 目标 postoffice 节点的 `NodeDeliveryPoller` 用 `BRPOPLPUSH` 搬到 processing 后本地投递；成功 ACK，
    失败原子重入 ready，重启恢复 processing，超过 5 次进入 dead-letter LIST
+5. v1 路由由 postoffice 发布 `DELIVERY_OUTCOME`；postman 按用户 attempt 聚合，任一节点成功即结束，
+   全部失败或默认 90 秒超时才发布离线事件
+
+滚动升级期间只有 `RouteSnapshot.deliveryOutcomeVersion >= 1` 的节点进入强结果聚合；旧路由保留入队成功语义。
+attempt 与 64 分片 deadline ZSET 同槽，离线事件通过 30 秒发布租约实现 broker ACK 后完成，崩溃可恢复。
 
 ✅ 跨节点在线投递已修复：postman 按路由表中的真实节点 ID 精准投递，不再依赖 Dubbo 随机 LB。
 
@@ -85,10 +93,13 @@ postman `DeliveryEventListener.resolveTargets` 已**移除** `ChatType.GROUP` �
 - 5 厂商开关全部 `enabled:false`
 - `max-retry=3`、`max-daily-push-count=100`
 - 定时任务清理 `scheduled-tasks interval=6h`
-- Kafka consumer group `postman-delivery-group`
+- 稳定 consumer group：`push-delivery`、`push-offline`、`postman-delivery-outcome`；
+  并发分别由 `cheeseim.queue.listeners.<group>.concurrency` 配置
 - 所有厂商配置统一在 `cheeseim.push.*`，由 `CHEESEIM_PUSH_*` 环境变量注入
 - actuator + Prometheus
 - 控制事件补偿：`cheeseim.control-event.delivery`，默认每秒扫描、每次 100 条、30 秒 claim lease、最多 3 次在线投递；repository 按 64 个 cursor shard 轮转扫描 PENDING / 租约过期 CLAIMED，使用与查询顺序对齐的复合索引，避免 DELIVERED backlog 参与全局排序；scheduler 对候选 eventId 再去重。超出次数的离线补齐交由客户端 control-events cursor 拉取。
+- 节点结果补偿：`cheeseim.delivery.outcome.deadline-ms` 默认 90000（下限 75000）；
+  `timeout-scan-interval-ms` 默认 1000，`timeout-scan-batch` 默认每 shard 100。
 
 ## 9. 改动评估 checklist
 

@@ -6,12 +6,18 @@ import com.cheeseocean.im.apiserver.model.request.LogoutRequest;
 import com.cheeseocean.im.common.api.auth.AuthenticationCommand;
 import com.cheeseocean.im.common.api.auth.AuthenticationResult;
 import com.cheeseocean.im.common.api.auth.AuthenticationService;
+import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.core.MethodParameter;
+import org.springframework.web.bind.support.WebDataBinderFactory;
+import org.springframework.web.context.request.NativeWebRequest;
+import org.springframework.web.method.support.HandlerMethodArgumentResolver;
+import org.springframework.web.method.support.ModelAndViewContainer;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -27,13 +33,18 @@ class AuthControllerTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private AuthenticationService sessionLifecycleService;
     private MockMvc mockMvc;
+    private SessionPrincipal principal;
 
     @BeforeEach
     void setUp() {
         sessionLifecycleService = mock(AuthenticationService.class);
+        principal = new SessionPrincipal();
+        principal.setUserId("u100");
+        principal.setSessionId("sid-1");
         AuthController controller = new AuthController(sessionLifecycleService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new ApiExceptionHandler())
+                .setCustomArgumentResolvers(new FixedPrincipalArgumentResolver(principal))
                 .build();
     }
 
@@ -125,5 +136,26 @@ class AuthControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(40001))
                 .andExpect(jsonPath("$.message").value("bad request"));
+    }
+
+    private static final class FixedPrincipalArgumentResolver implements HandlerMethodArgumentResolver {
+        private final SessionPrincipal principal;
+
+        private FixedPrincipalArgumentResolver(SessionPrincipal principal) {
+            this.principal = principal;
+        }
+
+        @Override
+        public boolean supportsParameter(MethodParameter parameter) {
+            return SessionPrincipal.class.isAssignableFrom(parameter.getParameterType());
+        }
+
+        @Override
+        public Object resolveArgument(MethodParameter parameter,
+                                      ModelAndViewContainer mavContainer,
+                                      NativeWebRequest webRequest,
+                                      WebDataBinderFactory binderFactory) {
+            return principal;
+        }
     }
 }

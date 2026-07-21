@@ -14,8 +14,8 @@ import com.cheeseocean.im.common.api.permission.ConversationPermissionRequest;
 import com.cheeseocean.im.common.api.permission.PermissionCheckResult;
 import com.cheeseocean.im.common.core.business.repository.ConversationControlEventRepository;
 import com.cheeseocean.im.common.core.history.MessageHistoryRepository;
-import com.cheeseocean.im.common.core.history.document.MessageIdMappingDoc;
-import com.cheeseocean.im.common.core.history.document.MessageMutationDoc;
+import com.cheeseocean.im.common.core.history.model.MessageIdMapping;
+import com.cheeseocean.im.common.core.history.model.MessageMutation;
 import com.cheeseocean.im.postmaster.service.GroupMembershipFacade;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
 import com.cheeseocean.im.common.api.rpc.ControlNotificationDispatcher;
@@ -78,7 +78,7 @@ public class MessageMutationServiceImpl implements MessageMutationService {
             return MessageMutationResult.rejected("CONVERSATION_FORBIDDEN", "无会话访问权限");
         }
 
-        MessageIdMappingDoc mapping = messageHistoryRepository.findMappingByServerMessageId(serverMsgId);
+        MessageIdMapping mapping = messageHistoryRepository.findMappingByServerMessageId(serverMsgId);
         if (mapping == null) {
             return MessageMutationResult.rejected("MESSAGE_NOT_FOUND", "消息不存在");
         }
@@ -93,13 +93,13 @@ public class MessageMutationServiceImpl implements MessageMutationService {
         }
 
         String mutationId = serverMsgId + REVOKED_SUFFIX;
-        MessageMutationDoc existing = messageHistoryRepository.findMutationById(mutationId);
+        MessageMutation existing = messageHistoryRepository.findMutationById(mutationId);
         if (existing != null) {
             return notifyOnline(toResult(existing));
         }
 
         Instant now = Instant.now();
-        MessageMutationDoc pending = new MessageMutationDoc();
+        MessageMutation pending = new MessageMutation();
         pending.setId(mutationId);
         pending.setServerMsgId(serverMsgId);
         pending.setConversationId(conversationId);
@@ -112,10 +112,10 @@ public class MessageMutationServiceImpl implements MessageMutationService {
         pending.setMutationVersion(now.toEpochMilli());
         pending.setCreatedAt(now);
         try {
-            MessageMutationDoc mutation = messageHistoryRepository.upsertMutation(pending);
+            MessageMutation mutation = messageHistoryRepository.upsertMutation(pending);
             return notifyOnline(toResult(mutation));
         } catch (DuplicateKeyException ignored) {
-            MessageMutationDoc mutation = messageHistoryRepository.findMutationById(mutationId);
+            MessageMutation mutation = messageHistoryRepository.findMutationById(mutationId);
             return mutation == null
                     ? MessageMutationResult.rejected("MUTATION_RETRY", "撤回写入冲突，请重试")
                     : notifyOnline(toResult(mutation));
@@ -135,7 +135,7 @@ public class MessageMutationServiceImpl implements MessageMutationService {
         long cursorMillis = Math.max(0L, afterCreatedAt);
         Instant cursorTime = Instant.ofEpochMilli(cursorMillis);
         int pageSize = effectiveLimit(limit);
-        List<MessageMutationDoc> docs = messageHistoryRepository.findMutationsAfter(
+        List<MessageMutation> docs = messageHistoryRepository.findMutationsAfter(
                 conversationId, cursorTime, afterMutationId, pageSize + 1);
 
         MessageMutationSyncResult result = new MessageMutationSyncResult();
@@ -143,11 +143,11 @@ public class MessageMutationServiceImpl implements MessageMutationService {
         result.setHasMore(docs.size() > pageSize);
         int returned = Math.min(docs.size(), pageSize);
         for (int index = 0; index < returned; index++) {
-            MessageMutationDoc doc = docs.get(index);
+            MessageMutation doc = docs.get(index);
             result.getMutations().add(toResult(doc));
         }
         if (returned > 0) {
-            MessageMutationDoc last = docs.get(returned - 1);
+            MessageMutation last = docs.get(returned - 1);
             result.setNextCreatedAt(last.getCreatedAt().toEpochMilli());
             result.setNextMutationId(last.getId());
         } else {
@@ -157,7 +157,7 @@ public class MessageMutationServiceImpl implements MessageMutationService {
         return result;
     }
 
-    private MessageMutationResult toResult(MessageMutationDoc mutation) {
+    private MessageMutationResult toResult(MessageMutation mutation) {
         MessageMutationResult result = new MessageMutationResult();
         result.setSuccess(true);
         result.setMutationId(mutation.getId());

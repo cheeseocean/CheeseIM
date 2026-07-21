@@ -2,18 +2,23 @@ package com.cheeseocean.im.postmaster.listener;
 
 import com.cheeseocean.im.common.api.conversation.ConversationService;
 import com.cheeseocean.im.common.api.dto.message.Message;
+import com.cheeseocean.im.common.api.event.GroupFanoutEvent;
 import com.cheeseocean.im.common.api.enums.ContentType;
 import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.api.enums.GroupTypeEnum;
 import com.cheeseocean.im.common.api.event.HistoryEvent;
+import com.cheeseocean.im.common.api.permission.GroupMessageSendPermissionDecision;
+import com.cheeseocean.im.common.api.permission.GroupMessageSendPermissionResult;
+import com.cheeseocean.im.common.core.constants.RedisKeys;
 import com.cheeseocean.im.common.core.constants.TopicNames;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import com.cheeseocean.im.common.core.metrics.ImMetrics;
 import com.cheeseocean.im.common.core.queue.annotation.QueueListener;
 import com.cheeseocean.im.common.core.queue.KeyedMessage;
-import com.cheeseocean.im.common.core.util.ConversationIdUtil;
 import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
-import com.cheeseocean.im.postmaster.service.UserMaxSeqPersistenceWriter;
+import com.cheeseocean.im.common.core.store.idempotency.ingress.IngressMessageInboxStore;
+import com.cheeseocean.im.common.core.util.ConversationIdUtil;
+import com.cheeseocean.im.common.core.util.IdGenerator;
 import com.cheeseocean.im.postmaster.sender.HistoryEventProducer;
 import com.cheeseocean.im.postmaster.sender.MessageProducer;
 import com.cheeseocean.im.postmaster.service.ConversationSeqService;
@@ -21,6 +26,7 @@ import com.cheeseocean.im.postmaster.service.GroupFanoutPlanner;
 import com.cheeseocean.im.postmaster.service.GroupMembershipFacade;
 import com.cheeseocean.im.postmaster.service.MessagePolicyEngine;
 import com.cheeseocean.im.postmaster.service.MessageRouteDecision;
+import com.cheeseocean.im.postmaster.service.UserMaxSeqPersistenceWriter;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.slf4j.Logger;
 import org.springframework.stereotype.Component;
@@ -29,6 +35,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Component
@@ -43,6 +50,7 @@ public class IngressEventListener {
     private final        GroupFanoutPlanner    groupFanoutPlanner;
     private final        ConversationStateStore conversationStateStore;
     private final        UserMaxSeqPersistenceWriter userMaxSeqPersistenceWriter;
+    private final        IngressMessageInboxStore ingressMessageInboxStore;
     @DubboReference(check = false, retries = 0)
     private              ConversationService    conversationService;
 
@@ -53,7 +61,8 @@ public class IngressEventListener {
                                 MessagePolicyEngine messagePolicyEngine,
                                 GroupFanoutPlanner groupFanoutPlanner,
                                 ConversationStateStore conversationStateStore,
-                                UserMaxSeqPersistenceWriter userMaxSeqPersistenceWriter) {
+                                UserMaxSeqPersistenceWriter userMaxSeqPersistenceWriter,
+                                IngressMessageInboxStore ingressMessageInboxStore) {
         this.messageProducer = messageProducer;
         this.historyEventProducer = historyEventProducer;
         this.groupMembershipFacade = groupMembershipFacade;
@@ -62,6 +71,7 @@ public class IngressEventListener {
         this.groupFanoutPlanner = groupFanoutPlanner;
         this.conversationStateStore = conversationStateStore;
         this.userMaxSeqPersistenceWriter = userMaxSeqPersistenceWriter;
+        this.ingressMessageInboxStore = ingressMessageInboxStore;
     }
 
     // 包级可见，供测试注入 ConversationService（生产路径由 @DubboReference 注入字段）
@@ -71,9 +81,11 @@ public class IngressEventListener {
                          ConversationSeqService conversationSeqService,
                          MessagePolicyEngine messagePolicyEngine,
                          GroupFanoutPlanner groupFanoutPlanner,
+                         IngressMessageInboxStore ingressMessageInboxStore,
                          ConversationService conversationService) {
         this(messageProducer, historyEventProducer, groupMembershipFacade,
-                conversationSeqService, messagePolicyEngine, groupFanoutPlanner, null, null);
+                conversationSeqService, messagePolicyEngine, groupFanoutPlanner, null, null,
+                ingressMessageInboxStore);
         this.conversationService = conversationService;
     }
 
@@ -109,6 +121,45 @@ public class IngressEventListener {
             return;
         }
 
+        Map<String, Message> uniqueMessages = uniqueMessages(acceptedMessages);
+        String ownerToken = IdGenerator.generateUUID();
+        List<IngressMessageInboxStore.Claim> claims = acquireClaims(uniqueMessages, ownerToken);
+        Map<String, IngressMessageInboxStore.Claim> claimByKey = claims.stream()
+                .collect(Collectors.toMap(
+                        IngressMessageInboxStore.Claim::key,
+                        claim -> claim,
+                        (left, right) -> left,
+                        LinkedHashMap::new));
+        List<Message> processingMessages = uniqueMessages.entrySet().stream()
+                .filter(entry -> claimByKey.get(entry.getKey()).status()
+                        == IngressMessageInboxStore.ClaimStatus.ACQUIRED)
+                .map(Map.Entry::getValue)
+                .toList();
+        if (processingMessages.isEmpty()) {
+            return;
+        }
+        List<String> processingKeys = processingMessages.stream()
+                .map(this::inboxKey)
+                .toList();
+        try {
+            Map<String, GroupMessageSendPermissionResult> groupPermissions =
+                    validateGroupSendPermissions(processingMessages);
+            handleClaimed(processingMessages, claimByKey, groupPermissions, ownerToken);
+            ingressMessageInboxStore.completeBatch(processingKeys, ownerToken);
+        } catch (RuntimeException exception) {
+            try {
+                ingressMessageInboxStore.releaseBatch(processingKeys, ownerToken);
+            } catch (RuntimeException releaseFailure) {
+                exception.addSuppressed(releaseFailure);
+            }
+            throw exception;
+        }
+    }
+
+    private void handleClaimed(List<Message> acceptedMessages,
+                               Map<String, IngressMessageInboxStore.Claim> claimByKey,
+                               Map<String, GroupMessageSendPermissionResult> groupPermissions,
+                               String ownerToken) {
         Message sample             = acceptedMessages.get(0);
         String  convId             = ConversationIdUtil.buildConversationId(sample);
         String  notificationConvId = ConversationIdUtil.buildNotificationConversationId(sample);
@@ -118,13 +169,23 @@ public class IngressEventListener {
         List<EventCtx> transientList = new ArrayList<>();
         for (Message msg : acceptedMessages) {
             MessageRouteDecision d = messagePolicyEngine.decide(msg);
-            (d.persistHistory() ? storageList : transientList).add(new EventCtx(msg, d.notification() ? notificationConvId : convId, d));
+            String key = inboxKey(msg);
+            IngressMessageInboxStore.Claim claim = claimByKey.get(key);
+            (d.persistHistory() ? storageList : transientList).add(new EventCtx(
+                    msg,
+                    d.notification() ? notificationConvId : convId,
+                    d,
+                    key,
+                    claim.assignedSeq()));
         }
 
-        handleMessage(storageList, transientList);
+        handleMessage(storageList, transientList, groupPermissions, ownerToken);
     }
 
-    private void handleMessage(List<EventCtx> storageList, List<EventCtx> transientList) {
+    private void handleMessage(List<EventCtx> storageList,
+                               List<EventCtx> transientList,
+                               Map<String, GroupMessageSendPermissionResult> groupPermissions,
+                               String ownerToken) {
         if (storageList.isEmpty() && transientList.isEmpty()) return;
 
         // 瞬时消息：输入中, 无需存储的通知等
@@ -137,30 +198,30 @@ public class IngressEventListener {
             (storageMsg.decision().notification() ? storageNotificationList : storageMsgList).add(storageMsg);
         }
 
-        ConversationSeqService.SeqBatch seqBatch             = null;
-        ConversationSeqService.SeqBatch notificationSeqBatch = null;
+        SeqAssignmentResult seqBatch             = null;
+        SeqAssignmentResult notificationSeqBatch = null;
 
         // 处理普通消息(单聊、群聊)
         if (!storageMsgList.isEmpty()) {
             // 持久化消息需分配序列号（会话严格递增）
             EventCtx msgSample = storageMsgList.get(0);
-            seqBatch = conversationSeqService.allocateBatch(msgSample.convId(), storageMsgList.size());
-            bindSeqs(storageMsgList, seqBatch.range().startInclusive());
-            long currentMaxSeq = seqBatch.range().endInclusive();
+            seqBatch = bindStableSeqs(storageMsgList, ownerToken);
+            long currentMaxSeq = seqBatch.endSeq();
             updateDirectUserState(storageMsgList, currentMaxSeq);
             if (conversationStateStore != null) {
                 conversationStateStore.setConversationMaxSeq(msgSample.convId(), currentMaxSeq);
             }
             // 首次会话需为用户创建会话状态
-            createConversationIfNeeded(msgSample.msg(), msgSample.convId(), seqBatch.isNewConversation());
+            createConversationIfNeeded(
+                    msgSample.msg(),
+                    msgSample.convId(),
+                    seqBatch.newConversation(),
+                    groupPermissions);
         }
 
         // 处理通知消息
         if (!storageNotificationList.isEmpty()) {
-            EventCtx notificationSample = storageNotificationList.get(0);
-            notificationSeqBatch =
-                    conversationSeqService.allocateBatch(notificationSample.convId(), storageNotificationList.size());
-            bindSeqs(storageNotificationList, notificationSeqBatch.range().startInclusive());
+            notificationSeqBatch = bindStableSeqs(storageNotificationList, ownerToken);
         }
 
 
@@ -172,7 +233,10 @@ public class IngressEventListener {
         // 在线推送：按批次聚合，群聊同一 groupId 只查询一次群类型和成员。
         List<KeyedMessage<Message>> directDeliveries = new ArrayList<>();
         Map<String, List<Message>> groupDeliveries = new LinkedHashMap<>();
-        for (EventCtx p : storageList) {
+        List<EventCtx> orderedStorage = new ArrayList<>(storageList.size());
+        orderedStorage.addAll(storageMsgList);
+        orderedStorage.addAll(storageNotificationList);
+        for (EventCtx p : orderedStorage) {
             if (!p.decision().sendDelivery()) {
                 continue;
             }
@@ -185,58 +249,74 @@ public class IngressEventListener {
             }
         }
         messageProducer.publishBatch(directDeliveries);
-        groupDeliveries.forEach(this::fanoutGroupDeliveryBatch);
+        boolean createGroupConversation = (seqBatch != null && seqBatch.newConversation())
+                || (notificationSeqBatch != null && notificationSeqBatch.newConversation());
+        groupDeliveries.forEach((groupId, messages) -> {
+            GroupMessageSendPermissionResult permission =
+                    requireGroupPermission(groupPermissions, groupId);
+            publishGroupFanoutJob(
+                    groupId,
+                    messages,
+                    permission.getGroupType(),
+                    permission.getMembershipVersion(),
+                    createGroupConversation);
+        });
     }
 
     /**
-     * 群消息扩散投递。
+     * 群消息扩散任务发布。
      *
      * <ul>
-     *   <li>{@link GroupTypeEnum#NORMAL_GROUP}：写扩散——查询群成员，按 {@link GroupFanoutPlanner#partition}
-     *       切片后，逐成员 publish 一个 keyed DeliveryEvent（{@code g:{groupId}:{memberId}}），
-     *       postman 收到后按 {@code receiverId} 直投。</li>
+     *   <li>{@link GroupTypeEnum#NORMAL_GROUP}：发布紧凑任务，成员查询和切片由独立 worker 完成。</li>
      *   <li>{@link GroupTypeEnum#SUPER_GROUP}：读扩散——不投递，仅持久化即可，客户端按 seq 同步。</li>
-     *   <li>{@code null}：按 NORMAL_GROUP 写扩散兜底，兼容未返回群类型的旧 provider。</li>
      * </ul>
      *
-     * <p>群类型或成员查询异常必须上抛给队列容器，由队列重试/DLT 处理。不能把依赖故障降级成
-     * “无投递”，否则普通群成员不会收到实时消息，且消费位点仍会推进。
+     * <p>任务发布必须取得 broker ACK；成员依赖故障只重试 fanout consumer，不再占用 ingress。
      */
-    private void fanoutGroupDeliveryBatch(String groupId, List<Message> groupMessages) {
+    private void publishGroupFanoutJob(String groupId,
+                                       List<Message> groupMessages,
+                                       GroupTypeEnum groupType,
+                                       long membershipVersion,
+                                       boolean createConversation) {
         Message sample = groupMessages == null || groupMessages.isEmpty() ? null : groupMessages.get(0);
         if (groupId == null || groupId.isBlank()) {
             log.warn("Group delivery skipped: groupId is missing, serverMsgId={}",
                     sample == null ? null : sample.getServerMsgId());
             return;
         }
-        GroupTypeEnum groupType = groupMembershipFacade.loadGroupType(groupId);
         if (groupType == GroupTypeEnum.SUPER_GROUP) {
             // 读扩散：仅持久化，客户端按 seq 拉取。无投递事件 publish。
             log.debug("Group messages sent in read-fanout mode (SUPER_GROUP): groupId={}, messages={}",
                     groupId, groupMessages.size());
             return;
         }
-        // null 或 NORMAL_GROUP：写扩散
-        List<String> members = groupMembershipFacade.loadGroupMembers(groupId);
-        if (members == null || members.isEmpty()) {
-            log.warn("Group has no members to fan out: groupId={}, serverMsgId={}", groupId,
-                    sample == null ? null : sample.getServerMsgId());
-            return;
+        if (membershipVersion <= 0L) {
+            throw new IllegalStateException(
+                    "Group membership epoch baseline is unavailable: groupId=" + groupId);
         }
-        List<List<String>> batches = groupFanoutPlanner.partition(members);
-        for (List<String> batch : batches) {
-            List<KeyedMessage<String>> targets = new ArrayList<>(batch.size());
-            for (String memberId : batch) {
-                targets.add(new KeyedMessage<>(groupFanoutPlanner.deliveryKey(groupId, memberId), memberId));
-            }
-            messageProducer.publishForTargets(groupMessages, targets);
-            for (String memberId : batch) {
-                advanceUserState(memberId, "g:" + groupId, groupMessages.get(groupMessages.size() - 1).getSeq(),
-                        !memberId.equals(sample.getSenderId()));
-            }
+        for (List<Message> jobMessages : groupFanoutPlanner.partitionMessages(groupMessages)) {
+            publishGroupFanoutJobChunk(
+                    groupId,
+                    jobMessages,
+                    membershipVersion,
+                    createConversation);
         }
-        log.debug("Group messages fanned out: groupId={}, members={}, batches={}, messages={}",
-                groupId, members.size(), batches.size(), groupMessages.size());
+    }
+
+    private void publishGroupFanoutJobChunk(String groupId,
+                                            List<Message> groupMessages,
+                                            long membershipVersion,
+                                            boolean createConversation) {
+        GroupFanoutEvent event = new GroupFanoutEvent();
+        event.setJobId(groupFanoutJobId(groupId, groupMessages));
+        event.setGroupId(groupId);
+        event.setConversationId("g:" + groupId);
+        // newConversation 是首次分配时的瞬时结果；seq=1 是 inbox 重放后仍稳定的首会话事实。
+        event.setCreateConversation(createConversation
+                || groupMessages.stream().anyMatch(message -> message != null && message.getSeq() == 1L));
+        event.setMembershipVersion(membershipVersion);
+        event.setMessages(groupMessages);
+        messageProducer.publishGroupFanout(groupFanoutPlanner.fanoutKey(groupId), event);
     }
 
     private void updateDirectUserState(List<EventCtx> messages, long maxSeq) {
@@ -269,33 +349,173 @@ public class IngressEventListener {
         messageProducer.publishBatch(deliveries);
     }
 
-    private void bindSeqs(List<EventCtx> ctxList, long startSeq) {
-        long seq = startSeq;
-        for (EventCtx ctx : ctxList) {
-            ctx.msg.setSeq(seq++);
+    private SeqAssignmentResult bindStableSeqs(List<EventCtx> messages, String ownerToken) {
+        List<EventCtx> missing = messages.stream()
+                .filter(ctx -> ctx.assignedSeq() <= 0L)
+                .toList();
+        ConversationSeqService.SeqBatch allocated = null;
+        if (!missing.isEmpty()) {
+            allocated = conversationSeqService.allocateBatch(missing.get(0).convId(), missing.size());
+            long proposedSeq = allocated.range().startInclusive();
+            List<IngressMessageInboxStore.SequenceBinding> bindings = new ArrayList<>(missing.size());
+            for (EventCtx ctx : missing) {
+                bindings.add(new IngressMessageInboxStore.SequenceBinding(ctx.inboxKey(), proposedSeq++));
+            }
+            Map<String, Long> stableSequences = ingressMessageInboxStore.bindSequences(
+                    bindings,
+                    ownerToken);
+            for (EventCtx ctx : missing) {
+                Long stableSeq = stableSequences.get(ctx.inboxKey());
+                if (stableSeq == null || stableSeq <= 0L) {
+                    throw new IllegalStateException("Ingress inbox did not return stable seq");
+                }
+                ctx.msg().setSeq(stableSeq);
+            }
+        }
+        for (EventCtx ctx : messages) {
+            if (ctx.assignedSeq() > 0L) {
+                ctx.msg().setSeq(ctx.assignedSeq());
+            }
+        }
+        messages.sort(java.util.Comparator.comparingLong(ctx -> ctx.msg().getSeq()));
+        long beginSeq = messages.stream().mapToLong(ctx -> ctx.msg().getSeq()).min().orElseThrow();
+        long endSeq = messages.stream().mapToLong(ctx -> ctx.msg().getSeq()).max().orElseThrow();
+        long lastMaxSeq = allocated == null ? Math.max(0L, beginSeq - 1L) : allocated.lastMaxSeq();
+        boolean newConversation = messages.stream().anyMatch(ctx -> ctx.msg().getSeq() == 1L);
+        return new SeqAssignmentResult(beginSeq, endSeq, lastMaxSeq, newConversation);
+    }
+
+    private Map<String, Message> uniqueMessages(List<Message> messages) {
+        Map<String, Message> unique = new LinkedHashMap<>();
+        Map<String, String> fingerprints = new LinkedHashMap<>();
+        for (Message message : messages) {
+            if (message.getServerMsgId() == null || message.getServerMsgId().isBlank()) {
+                throw new IllegalArgumentException("Ingress message requires serverMsgId");
+            }
+            String key = inboxKey(message);
+            String fingerprint = IngressMessageFingerprint.payload(message);
+            String previous = fingerprints.putIfAbsent(key, fingerprint);
+            if (previous != null && !previous.equals(fingerprint)) {
+                throw new IllegalStateException("Duplicate serverMsgId carries conflicting ingress payload");
+            }
+            unique.putIfAbsent(key, message);
+        }
+        return unique;
+    }
+
+    private Map<String, GroupMessageSendPermissionResult> validateGroupSendPermissions(
+            List<Message> messages) {
+        Map<String, List<String>> sendersByGroup = new LinkedHashMap<>();
+        for (Message message : messages) {
+            if (message.getChatType() != ChatType.GROUP) {
+                continue;
+            }
+            if (message.getGroupId() == null || message.getGroupId().isBlank()
+                    || message.getSenderId() == null || message.getSenderId().isBlank()) {
+                throw new IllegalArgumentException("Group ingress requires groupId and senderId");
+            }
+            sendersByGroup.computeIfAbsent(message.getGroupId(), ignored -> new ArrayList<>())
+                    .add(message.getSenderId());
+        }
+        Map<String, GroupMessageSendPermissionResult> results = new LinkedHashMap<>();
+        sendersByGroup.forEach((groupId, senderIds) -> {
+            List<String> uniqueSenderIds = senderIds.stream().distinct().toList();
+            GroupMessageSendPermissionResult result =
+                    groupMembershipFacade.checkSendPermissions(groupId, uniqueSenderIds);
+            if (result == null || result.getGroupType() == null) {
+                throw new IllegalStateException("Group send permission provider returned incomplete result");
+            }
+            for (String senderId : uniqueSenderIds) {
+                GroupMessageSendPermissionDecision decision = result.decisionFor(senderId);
+                if (decision == null || !decision.isAllowed()) {
+                    throw new IllegalStateException("Group ingress sender is not allowed: groupId="
+                            + groupId + ", senderId=" + senderId + ", permission="
+                            + (decision == null ? "MISSING" : decision.permission().name()));
+                }
+            }
+            results.put(groupId, result);
+        });
+        return results;
+    }
+
+    private List<IngressMessageInboxStore.Claim> acquireClaims(Map<String, Message> messages,
+                                                               String ownerToken) {
+        List<IngressMessageInboxStore.ClaimRequest> requests = messages.entrySet().stream()
+                .map(entry -> new IngressMessageInboxStore.ClaimRequest(
+                        entry.getKey(),
+                        IngressMessageFingerprint.payload(entry.getValue())))
+                .toList();
+        while (true) {
+            long now = System.currentTimeMillis();
+            List<IngressMessageInboxStore.Claim> claims =
+                    ingressMessageInboxStore.claimBatch(requests, ownerToken, now);
+            if (claims.size() != requests.size()) {
+                throw new IllegalStateException("Ingress inbox returned incomplete claim batch");
+            }
+            if (claims.stream().anyMatch(claim ->
+                    claim.status() == IngressMessageInboxStore.ClaimStatus.CONFLICT)) {
+                throw new IllegalStateException("Stable serverMsgId carries conflicting ingress payload");
+            }
+            long earliestLease = claims.stream()
+                    .filter(claim -> claim.status() == IngressMessageInboxStore.ClaimStatus.IN_PROGRESS)
+                    .mapToLong(IngressMessageInboxStore.Claim::leaseUntil)
+                    .min()
+                    .orElse(0L);
+            if (earliestLease == 0L) {
+                return claims;
+            }
+            List<String> acquiredKeys = claims.stream()
+                    .filter(claim -> claim.status() == IngressMessageInboxStore.ClaimStatus.ACQUIRED)
+                    .map(IngressMessageInboxStore.Claim::key)
+                    .toList();
+            ingressMessageInboxStore.releaseBatch(acquiredKeys, ownerToken);
+            waitForLease(earliestLease - now);
         }
     }
 
-    private void publishHistoryEvent(List<EventCtx> ctxList, ConversationSeqService.SeqBatch seqBatch) {
+    private void waitForLease(long remainingMillis) {
+        try {
+            Thread.sleep(Math.max(1L, Math.min(1_000L, remainingMillis)));
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while waiting for ingress inbox lease", exception);
+        }
+    }
+
+    private String inboxKey(Message message) {
+        return RedisKeys.ingressMessageInbox(
+                IngressMessageFingerprint.serverMessageId(message.getServerMsgId()));
+    }
+
+    private void publishHistoryEvent(List<EventCtx> ctxList, SeqAssignmentResult seqBatch) {
         if (ctxList == null || ctxList.isEmpty() || seqBatch == null) {
             return;
         }
         HistoryEvent historyEvent = new HistoryEvent();
         historyEvent.setConversationId(ctxList.get(0).convId());
         historyEvent.setLastMaxSeq(seqBatch.lastMaxSeq());
-        historyEvent.setBeginSeq(seqBatch.range().startInclusive());
-        historyEvent.setEndSeq(seqBatch.range().endInclusive());
+        historyEvent.setBeginSeq(seqBatch.beginSeq());
+        historyEvent.setEndSeq(seqBatch.endSeq());
         historyEvent.setMessages(ctxList.stream().map(EventCtx::msg).collect(Collectors.toList()));
         historyEventProducer.publish(historyEvent.getConversationId(), historyEvent);
     }
 
-    private void createConversationIfNeeded(Message sample, String conversationId, boolean newConversation) {
+    private void createConversationIfNeeded(
+            Message sample,
+            String conversationId,
+            boolean newConversation,
+            Map<String, GroupMessageSendPermissionResult> groupPermissions) {
         if (!newConversation) {
             return;
         }
         if (sample.getChatType() != null && sample.getChatType() == ChatType.GROUP) {
-            List<String> userIds = groupMembershipFacade.loadGroupMembers(sample.getGroupId());
-            conversationService.createGroupChatConversations(sample.getGroupId(), conversationId, userIds);
+            GroupTypeEnum groupType = requireGroupPermission(
+                    groupPermissions, sample.getGroupId()).getGroupType();
+            if (groupType == GroupTypeEnum.SUPER_GROUP) {
+                // 超级群走读扩散，不能在首条消息时枚举全量成员创建用户会话。
+                return;
+            }
+            // 普通群成员枚举与首会话创建由 GROUP_FANOUT worker 完成，避免阻塞 ingress。
             return;
         }
         conversationService.createSingleChatConversation(
@@ -306,10 +526,46 @@ public class IngressEventListener {
         );
     }
 
+    private GroupMessageSendPermissionResult requireGroupPermission(
+            Map<String, GroupMessageSendPermissionResult> permissions,
+            String groupId) {
+        GroupMessageSendPermissionResult result = permissions.get(groupId);
+        if (result == null || result.getGroupType() == null) {
+            throw new IllegalStateException("Missing validated group send context: " + groupId);
+        }
+        return result;
+    }
+
+    private String groupFanoutJobId(String groupId, List<Message> messages) {
+        try {
+            StringBuilder identity = new StringBuilder()
+                    .append(groupId.length()).append(':').append(groupId);
+            for (Message message : messages) {
+                String serverMsgId = message == null ? "" : java.util.Objects.toString(message.getServerMsgId(), "");
+                identity.append('|').append(serverMsgId.length()).append(':').append(serverMsgId);
+            }
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(identity.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest);
+        } catch (java.security.NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException("SHA-256 is unavailable", impossible);
+        }
+    }
+
     /**
      * 路由决策结果与原始事件的绑定，避免对同一条消息重复调用 decide()
      */
-    private record EventCtx(Message msg, String convId, MessageRouteDecision decision) {
+    private record EventCtx(Message msg,
+                            String convId,
+                            MessageRouteDecision decision,
+                            String inboxKey,
+                            long assignedSeq) {
+    }
+
+    private record SeqAssignmentResult(long beginSeq,
+                                       long endSeq,
+                                       long lastMaxSeq,
+                                       boolean newConversation) {
     }
 
 

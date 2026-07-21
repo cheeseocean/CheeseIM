@@ -25,6 +25,7 @@
 | `AGENTS.md` | 权威 | **Agent 跨端开发约束**，所有 AI 代理（Claude/Codex/Cursor/Cline）入门必读 |
 | `docs/INDEX.md` | 权威 | 本文件，全仓文档地图 |
 | `server/docs/architecture/ASSESSMENT.md` | 权威 | 服务端架构评估、百万级演进路线、阻断性问题清单 |
+| `server/docs/architecture/server-design-review-2026-07-19.md` | 权威 | 服务端全量设计评审、百万 DAU 生产化基线与小任务执行账本 |
 
 ## 二、服务端文档（`server/`）
 
@@ -70,10 +71,21 @@
 | 路径 | 状态 | 说明 |
 | --- | --- | --- |
 | `distro/docker/docker-compose.middleware.yml` | 权威 | 中间件本地启动 |
+| `distro/create-im-topics.sh` | 权威 | 从 TopicNames 创建六个主 topic 及对应 DLT，并写入生产分区/副本/retention/minISR |
+| `server/Dockerfile` | 权威 | 七个生产 Java 服务的统一非 root OCI 镜像构建入口 |
+| `distro/helm/cheeseim/README.md` | 权威 | 七服务 Helm 部署、Secret 边界、NetworkPolicy 与发布前置条件 |
+| `distro/helm/cheeseim/` | 权威 | Kubernetes 工作负载、Service、PDB、探针和拓扑分散模板 |
 | `distro/mongo/enable-im-sharding.js` | 权威 | 已就绪 Mongo 分片集群的 CheeseIM 集合分片与索引初始化脚本 |
+| `distro/mongo/README.md` | 权威 | Mongo 分片 migration 的执行前提、范围、验证与回滚约束 |
 | `server/config/src/main/resources/application-*.yml` | 权威 | 模块配置（详见 `server/AGENTS.md`） |
 | `docs/DEPLOYMENT.md` | 权威 | 单机、独立模块与 cluster overlay 的部署矩阵 |
 | `docs/observability.md` | 权威 | Micrometer 主链路指标目录与 Grafana dashboard 导入说明 |
+| `docs/dlt-runbook.md` | 权威 | Kafka DLT 摘要查询、单条受控 redrive、审计与故障处置手册 |
+| `docs/disaster-recovery.md` | 权威（待演练） | Mongo/Redis/Kafka/Nacos/对象存储恢复边界、顺序、RPO/RTO 与演练证据 |
+| `server/ops-cli/ARCH.md` | 权威 | 独立运维命令模块边界与 DLT 不变量 |
+| `server/storage-history/ARCH.md` | 权威 | 消息历史 Mongo adapter、自动装配、Document 与 port model 边界 |
+| `server/storage-business/ARCH.md` | 权威 | 业务 Mongo adapter、事务装配、Document/port 边界与迁移债务 |
+| `server/infra-queue/ARCH.md` | 权威 | 队列 port/runtime 边界、Kafka/Chronicle 装配、顺序与 DLT 不变量 |
 | `server/perf/README.md` | 权威 | k6 长连接容量场景、正确性阈值与多节点 chaos 执行手册 |
 
 ## 六、缺失文档（建议补）

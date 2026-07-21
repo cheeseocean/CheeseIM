@@ -1,0 +1,13 @@
+dependencies {
+    implementation project(':common-api')
+    implementation project(':common-core')
+    implementation project(':infra-queue')
+    implementation project(':storage-business')
+    implementation project(':config')
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+}
+
+springBoot {
+    mainClass = 'com.cheeseocean.im.ops.DltOpsCli'
+}

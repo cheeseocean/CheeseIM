@@ -18,9 +18,13 @@ server/
 ├── authcenter        鉴权：JWT/refresh/ticket/session/踢下线
 ├── business          用户/好友/黑名单/群/会话/**同步点业务域（CacheStore）
 ├── common-api        跨模块契约：领域模型 + Protobuf + 事件 + 枚举
-├── common-core        基础设施：Mongo Repo + 队列 + CacheStore + 序列状态 + Idgen
+├── common-core        共享 port/model + 业务 Mongo Repo + CacheStore + 序列状态 + Idgen
+├── infra-queue        队列运行时：Kafka/Chronicle adapter + listener 装配 + DLT 实现
+├── storage-history    消息历史 Mongo adapter：Document + bulk/query + port 转换
+├── storage-business   用户/群/会话等业务 Mongo adapter + Document + transaction
 ├── config            application-*.yml 配置集合
 ├── bootstrap-all      all-in-one 单 JVM 联调入口（推荐）
+├── ops-cli            DLT 等独立运维命令，不开放业务端口
 ├── postoffice        TCP/WS 网关 + 在线路由 + 心跳 + 踢下线
 ├── postbox           MessageSender 入口 + ingress event 发布 + 历史查询
 ├── postmaster        编排核心：seq 分配 + 历史块持久化 + delivery event 发出
@@ -31,7 +35,7 @@ server/
 
 | 模块 | 职责 | 不要做的事 |
 | --- | --- | --- |
-| `api-server` | Controller + Facade + Auth Principal | Controller 不调 Mongo Repository；Response 模型不下沉 |
+| `api-server` | 独立 HTTP 入口 + Controller + Facade + Auth Principal | Controller 不调 Mongo Repository；Response 模型不下沉；不扫描 common-core 全量实现 |
 | `authcenter` | **完整**鉴权链：登录/刷新/登出/ticket/踢下线/session 状态 | 不只是"轻量 demo 入口"——先看代码再下判断 |
 | `business` | 业务域 + 同步点；历史在 postmaster，连接在 postoffice | 不持有消息历史、不操作连接 |
 | `postoffice` | 网关接入 + 在线路由 + 连接管理 + 踢下线 | 不做消息存储、不做 seq 分配 |
@@ -39,22 +43,30 @@ server/
 | `postmaster` | seq 分配（`ConversationSeqService`）+ history block 持久化 + delivery event 发布 + 策略引擎 | 不接客户端、不做最终在线投递 |
 | `postman` | 在线投递执行 + 离线推送 + 厂商适配 | 不分配 seq、不写历史 |
 | `common-api` | 领域模型（`domain/`）+ Protobuf（`proto/` + 生成 `protocol/`）+ 事件（`event/`）+ 枚举 + DTO | **不写业务逻辑**、**不依赖 Spring Data** |
-| `common-core` | Mongo Repository 接口与 impl + `QueueAdapter` + `CacheStore` + 序列/会话状态机 + 推送发送 | 业务模块不绕过这里直接调 Mongo |
+| `common-core` | Repository/store port + 队列 port/model + `CacheStore` + 序列/会话状态机 + 推送发送 | 不依赖 Mongo/Kafka/Chronicle adapter 实现 |
+| `infra-queue` | Kafka/Chronicle adapter、listener runtime、topic 校验与 Kafka DLT 实现 | 不放业务 listener；不被 feature 源码直接 import |
+| `storage-history` | `MessageHistoryRepository` 的 Mongo 实现、历史 Document 与转换 | 不放历史业务规则；不向 feature 暴露 Document/BSON |
+| `storage-business` | 业务 Repository/store 的 Mongo 实现、Document 与事务装配 | 不放领域服务；不向 feature 暴露 Document/MongoTemplate |
 | `config` | `application-*.yml` + `module-*.yml` + `common.yml` | 不写 Java 代码 |
 | `bootstrap-all` | 单 JVM 拉起全部模块，Dubbo injvm + Chronicle | 不与 kafka/远程 Dubbo 混用 |
+| `ops-cli` | Kafka DLT 摘要查询、受控单条 redrive 与 Mongo 审计 | 不开放业务 HTTP/Dubbo；不输出 payload；不做无界批量重放 |
 
 ### 1.2 依赖矩阵
 
 ```
 bootstrap-all → 所有模块
+ops-cli       → common-api, common-core, infra-queue, storage-business, config
 api-server    → authcenter, business, postbox, common-api, common-core
-postoffice    → common-api, common-core, authcenter（嵌入式）
-postbox       → common-api, common-core
-postmaster    → common-api, common-core, business（Dubbo）
-postman       → common-api, common-core
-authcenter    → common-api, common-core
-business      → common-api, common-core
+postoffice    → common-api, common-core, infra-queue, authcenter（嵌入式）
+postbox       → common-api, common-core, infra-queue, storage-history
+postmaster    → common-api, common-core, infra-queue, storage-history, storage-business, business（Dubbo）
+postman       → common-api, common-core, infra-queue, storage-business
+authcenter    → common-api, common-core, storage-business
+business      → common-api, common-core, infra-queue, storage-business
+infra-queue   → common-api, common-core
 common-core   → common-api
+storage-history → common-api, common-core
+storage-business → common-api, common-core
 common-api    → 无其它 Java 业务模块
 ```
 
@@ -91,12 +103,14 @@ api-server Controller  ──HTTP──> Facade ──Dubbo──> business / po
                                                           │
                                                           └──> common-core Repository 接口
                                                                    │
-                                                                   └──> common-core Repository Impl（Mongo）
-                                                                   └──> common-core Cache / Queue / StateStore
+                                                                   ├──> storage-business 业务 Repository Impl（Mongo）
+                                                                   ├──> storage-history 历史 Repository Impl（Mongo）
+                                                                   └──> common-core Cache / Queue / StateStore port
 ```
 
 - **领域对象**（`common-api/business/domain/`）不得 `import org.springframework.data.*`。
-- **Document**（`common-core/.../document/`）只在 `common-core/.../mongo/impl/` 出现。
+- **Document** 只在所属 Mongo adapter 内出现：历史归 `storage-history`，业务域归 `storage-business`。
+  feature 模块禁止 import Document/BSON/MongoTemplate。
 - 转换集中在 `Converter`，禁止 Service 层内联 `toDomain`/`toDocument`。
 - HTTP Request/Response 只许在 `api-server/.../controller/` 出现；下层返回领域对象或基础结果。
 
@@ -114,6 +128,7 @@ api-server Controller  ──HTTP──> Facade ──Dubbo──> business / po
 - 持久化对象统一后缀 `Doc`，标 `@Document("collection_name")` + `@CompoundIndexes`。
 - 复合 `_id` 用拼接字符串（如 `{ownerUserId}:{conversationId}`），shard-friendly。
 - 查询走 `MongoTemplate` 或 `MongoRepository`，禁止拼接 BSON 字符串。
+- 已分片或计划分片集合的 upsert 必须在 Query 中显式携带完整 shard key；不能只把字段写在 Update 中。
 - 批量写用 `bulkOps`（unordered 默认）；**不要**在循环里逐条 `save`。
 - 写热点文档（如 `conversation_sequence`）必须用 `findAndModify $inc` 原子化，禁止 read-modify-write。
 - 历史块 (`message_block`) 按 `blockNo = seq / blockSize` 分桶，避免单文档无限增长。
@@ -136,7 +151,9 @@ api-server Controller  ──HTTP──> Facade ──Dubbo──> business / po
 - 后端切换：`cheeseim.queue.type=chronicle`（默认，单机文件）→ `=kafka`（集群）。
 - **Chronicle 仅 dev/单机**，禁止生产使用。
 - Kafka 路径 P0-6 已修复；集群部署用 `application-cluster.yml` 通过环境变量启用 `cheeseim.queue.type=kafka` 与 `spring.kafka.bootstrap-servers`，默认 all-in-one 仍保持 Chronicle。
-- Kafka 主 topic（ingress/history/delivery/offlinepush）及各自 `.DLT` 由统一 topic 契约声明；cluster 强制启用创建/校验，默认 12 分区、3 副本、minISR 2、retention 7 天，可通过 `KAFKA_TOPIC_*` 覆盖。
+- Kafka 主 topic（ingress/history/delivery/delivery-outcome/group-fanout/offlinepush）及各自 `.DLT`
+  由统一 topic 契约声明；cluster 强制校验，生产默认不授予应用 DDL 权限，由 migration 预创建。
+  默认 12 分区、3 副本、minISR 2、retention 7 天，可通过 `KAFKA_TOPIC_*` 覆盖。
 - Kafka 批量发送使用事务；`transaction-id-prefix` 必须包含节点唯一部分，多副本不得共用固定 prefix。
 - Topic 命名集中在 `TopicNames`；`buildQueueKey` 用 `ConversationIdUtil`，保证同会话同一 Kafka 分区。
 - 消费者用 `@QueueListener`，批量消费 `batch=true` 优先。
@@ -153,13 +170,14 @@ api-server Controller  ──HTTP──> Facade ──Dubbo──> business / po
 | 模块 | profile | 配置文件 | 暴露端口 | Dubbo 端口 |
 | --- | --- | --- | --- | --- |
 | all-in-one | `application-all.yml` | + `module-*` | HTTP 18079 / WS 5147 / TCP 5148 | injvm |
-| authcenter | `application-authcenter.yml` | `module-authcenter.yml` | – | 20884 |
-| business | `application-business.yml` | `module-business.yml` | HTTP 18085 | 20885 |
-| postoffice | `application-postoffice.yml` | `module-postoffice.yml` | WS 5147 / TCP 5148 | 20880 |
-| postbox | `application-postbox.yml` | `module-postbox.yml` | – + actuator | 20882 |
-| postmaster | `application-postmaster.yml` | `module-postmaster.yml` | – | 20881 |
-| postman | `application-postman.yml` | `module-postman.yml` | – + actuator | 20883 |
-| api-server | 嵌入 bootstrap-all | – | HTTP 18079 | – |
+| authcenter | `application-authcenter.yml` | `module-authcenter.yml` | management 19084 | 20884 |
+| business | `application-business.yml` | `module-business.yml` | HTTP 18085 / management 19085 | 20885 |
+| postoffice | `application-postoffice.yml` | `module-postoffice.yml` | WS 5147 / TCP 5148 / management 19080 | 20880 |
+| postbox | `application-postbox.yml` | `module-postbox.yml` | management 19082 | 20882 |
+| postmaster | `application-postmaster.yml` | `module-postmaster.yml` | management 19081 | 20881 |
+| postman | `application-postman.yml` | `module-postman.yml` | management 19083 | 20883 |
+| api-server | `application-api-server.yml` | `module-api-server.yml` | HTTP 18079 / management 19079 | consumer only |
+| ops-cli | `application-ops.yml` | 独立命令进程 | – | – |
 | cluster overlay | `application-cluster.yml` | 与分模块 profile 叠加 | 沿用模块端口 | 沿用模块端口 |
 
 中间件事实：
@@ -168,6 +186,20 @@ api-server Controller  ──HTTP──> Facade ──Dubbo──> business / po
 - authcenter 单独启动需要 Mongo 支撑 `user_security_state`；standalone 保留本地 `mongodb://localhost:27017/cheese_im` 便捷默认，cluster 必须由 `AUTHCENTER_MONGODB_URI` 或 `MONGODB_URI` 覆盖。
 - JWT 签名密钥只由 authcenter 的 `CHEESEIM_AUTH_JWT_SECRET` 注入，且必须至少 32 个字符；任何其它模块不得配置或复制 JWT 密钥。all-in-one 与 authcenter standalone 启动前均必须提供该环境变量。
 - 分模块 cluster：在模块 profile 外叠加 `cluster`，并按 Redis 形态追加 `redis-sentinel` 或 `redis-cluster`。`application-cluster.yml` 不提供 `localhost` 默认值，必须通过 `MONGODB_URI`、`KAFKA_BOOTSTRAP_SERVERS`、`NACOS_SERVER_ADDR`、`NACOS_NAMESPACE`、`REDIS_SENTINEL_*` 或 `REDIS_CLUSTER_*` 配置；该 profile 默认 `CHEESEIM_QUEUE_TYPE=kafka`、`cheeseim.conversation-seq.deployment-mode=cluster`。
+- Redis Cluster profile 强制使用 database 0；Cluster 不支持 SELECT，命名空间隔离必须依赖 key 前缀/ACL。
+- 全局多端策略通过 `CHEESEIM_POSTOFFICE_LOGIN_LEASE_ENFORCE` 启用。发布时必须先升级所有 postoffice
+  并 drain 旧连接，再集中设为 true；混部期间禁止开启。
+- GROUP_FANOUT 默认 Kafka retention 7 天，完成 job 默认保留 8 天；
+  `CHEESEIM_DELIVERY_GROUP_FANOUT_COMPLETED_RETENTION_SECONDS` 必须始终大于实际 topic retention，
+  Kafka 模式启动守卫会拒绝不满足该关系的配置。
+- DLT 查询/redrive 只允许通过 `ops-cli`；查询不提交 offset，redrive 必须提供 operationId、checksum、
+  operatorId 和 reason，并长期写入 `dlt_redrive_audit`。详见 `docs/dlt-runbook.md`。
+- 七个独立生产进程显式拥有 Actuator/Prometheus，管理端口固定为 19079–19085，可由
+  `CHEESEIM_*_MANAGEMENT_PORT` 覆盖。只暴露 health/info/prometheus；liveness 不包含中间件，
+  readiness 包含该模块的 Mongo/Redis。管理端口必须只对 kubelet/Prometheus/运维网开放。
+- 所有 `application-{module}.yml` 必须显式 import 带 `on-profile: cluster` 的
+  `application-cluster.yml`；仅设置 `spring.profiles.active=cluster` 不会绕过自定义
+  `spring.config.name` 自动找到该文件。
 - 任何新的生产/集群配置不得写死 `localhost:27017` / `localhost:6379`，应走环境变量。
 
 ## 10. Protobuf 协议

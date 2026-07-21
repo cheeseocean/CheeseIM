@@ -1,5 +1,6 @@
 package com.cheeseocean.im.apiserver.auth;
 
+import com.cheeseocean.im.apiserver.exception.ApiAuthenticationException;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
 import com.cheeseocean.im.common.api.session.SessionQueryService;
@@ -20,12 +21,17 @@ public class AccessTokenSessionResolver {
 
     public SessionPrincipal resolve(String authorization) {
         if (!StringUtils.hasText(authorization) || !authorization.startsWith("Bearer ")) {
-            throw new IllegalStateException("access token missing");
+            throw new ApiAuthenticationException("access token missing");
         }
         String token = authorization.substring("Bearer ".length()).trim();
-        SessionPrincipal session = sessionQueryService.getByAccessToken(token);
+        SessionPrincipal session;
+        try {
+            session = sessionQueryService.getByAccessToken(token);
+        } catch (IllegalStateException exception) {
+            throw new ApiAuthenticationException(exception.getMessage());
+        }
         if (session == null || !session.isActive()) {
-            throw new IllegalStateException("session invalid");
+            throw new ApiAuthenticationException("session invalid");
         }
         return session;
     }

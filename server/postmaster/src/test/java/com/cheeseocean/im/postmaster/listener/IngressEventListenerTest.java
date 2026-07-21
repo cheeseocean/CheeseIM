@@ -6,11 +6,14 @@ import com.cheeseocean.im.common.api.dto.message.MessageOptions;
 import com.cheeseocean.im.common.api.enums.ContentType;
 import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.api.event.HistoryEvent;
+import com.cheeseocean.im.common.api.event.GroupFanoutEvent;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.cheeseocean.im.common.api.protocol.ProtoHistoryEventMapper;
 import com.cheeseocean.im.common.api.protocol.ProtoMessageMapper;
 import com.cheeseocean.im.common.core.constants.TopicNames;
 import com.cheeseocean.im.common.core.queue.KeyedMessage;
 import com.cheeseocean.im.common.core.queue.QueueAdapter;
+import com.cheeseocean.im.common.core.store.idempotency.ingress.IngressMessageInboxStore;
 import com.cheeseocean.im.common.core.store.sequence.SequenceRange;
 import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
 import com.cheeseocean.im.postmaster.sender.HistoryEventProducer;
@@ -23,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.util.List;
+import java.util.LinkedHashMap;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,10 +34,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -81,8 +86,8 @@ class IngressEventListenerTest {
         IngressEventListener listener = new IngressEventListener(
                 new MessageProducer(queueAdapter), new HistoryEventProducer(queueAdapter),
                 mock(GroupMembershipFacade.class), conversationSeqService,
-                new DefaultMessagePolicyEngine(), new com.cheeseocean.im.postmaster.service.GroupFanoutPlanner(500),
-                stateStore, writer);
+                new DefaultMessagePolicyEngine(), new com.cheeseocean.im.postmaster.service.GroupFanoutPlanner(500, 10, 524288),
+                stateStore, writer, inboxStore());
 
         listener.handle(List.of(singleMessage()));
 
@@ -103,7 +108,11 @@ class IngressEventListenerTest {
         IngressEventListener listener = listener(
                 queueAdapter, groupMembershipFacade, conversationSeqService);
 
-        listener.handle(List.of(singleMessage(), singleMessage()));
+        Message first = singleMessage();
+        Message second = singleMessage();
+        second.setClientMsgId("client-single-2");
+        second.setServerMsgId("msg-single-2");
+        listener.handle(List.of(first, second));
 
         var historyCaptor = forClass(byte[].class);
         verify(queueAdapter).send(eq(TopicNames.HISTORY), eq("s:userA:userB"), historyCaptor.capture());
@@ -122,13 +131,12 @@ class IngressEventListenerTest {
     }
 
     @Test
-    void shouldPublishGroupHistoryAndFanoutPerMemberForNormalGroup() throws Exception {
+    void shouldPublishCompactGroupFanoutJobForNormalGroup() throws Exception {
         QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
         when(conversationSeqService.allocateBatch("g:crew", 1)).thenReturn(seqBatch(2002L, 2002L));
         when(groupMembershipFacade.loadGroupType("crew")).thenReturn(com.cheeseocean.im.common.api.enums.GroupTypeEnum.NORMAL_GROUP);
-        when(groupMembershipFacade.loadGroupMembers("crew")).thenReturn(List.of("u1", "u2", "u3"));
 
         IngressEventListener listener = listener(
                 queueAdapter, groupMembershipFacade, conversationSeqService);
@@ -137,20 +145,12 @@ class IngressEventListenerTest {
 
         // history 仍是单条会话级 event
         verify(queueAdapter).send(eq(TopicNames.HISTORY), eq("g:crew"), org.mockito.ArgumentMatchers.any(byte[].class));
-        // delivery 改为写扩散：每位成员一份 keyed DeliveryEvent，key 形如 g:{groupId}:{memberId}
-        List<KeyedMessage<byte[]>> deliveries = captureDeliveryBatch(queueAdapter);
-        assertEquals(List.of("g:crew:u1", "g:crew:u2", "g:crew:u3"),
-                deliveries.stream().map(KeyedMessage::key).toList());
-
-        // 校验 delivery payload 中 receiverId 被替换为对应成员（而非群本身的 receiverId）
-        for (int i = 0; i < 3; i++) {
-            Message msg = ProtoMessageMapper.fromProto(
-                    com.cheeseocean.im.common.api.protocol.proto.ProtoMessage.parseFrom(deliveries.get(i).payload()));
-            assertEquals("u" + (i + 1), msg.getReceiverId());
-            assertEquals(ChatType.GROUP, msg.getChatType());
-            assertEquals("crew", msg.getGroupId());
-            assertEquals(2002L, msg.getSeq());
-        }
+        ArgumentCaptor<byte[]> fanout = forClass(byte[].class);
+        verify(queueAdapter).send(eq(TopicNames.GROUP_FANOUT), eq("g:crew"), fanout.capture());
+        GroupFanoutEvent event = new ObjectMapper().readValue(fanout.getValue(), GroupFanoutEvent.class);
+        assertEquals("crew", event.getGroupId());
+        assertEquals(2002L, event.getMessages().get(0).getSeq());
+        verify(groupMembershipFacade, never()).loadGroupMembers("crew");
     }
 
     @Test
@@ -172,7 +172,7 @@ class IngressEventListenerTest {
     }
 
     @Test
-    void shouldFallbackToWriteFanoutWhenGroupTypeUnknown() {
+    void shouldFailClosedWhenGroupTypeUnknown() {
         QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
@@ -183,9 +183,7 @@ class IngressEventListenerTest {
         IngressEventListener listener = listener(
                 queueAdapter, groupMembershipFacade, conversationSeqService);
 
-        listener.handle(List.of(groupMessage()));
-
-        assertEquals(2, captureDeliveryBatch(queueAdapter).size());
+        assertThrows(IllegalStateException.class, () -> listener.handle(List.of(groupMessage())));
     }
 
     @Test
@@ -225,7 +223,7 @@ class IngressEventListenerTest {
     }
 
     @Test
-    void shouldCreateGroupConversationWhenFirstGroupMessageArrives() {
+    void shouldCreateGroupConversationWhenFirstGroupMessageArrives() throws Exception {
         QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
@@ -239,9 +237,12 @@ class IngressEventListenerTest {
 
         listener.handle(List.of(groupMessage()));
 
-        // 首条群消息：一次用于 createConversationIfNeeded，一次用于 fanout
-        verify(groupMembershipFacade, times(2)).loadGroupMembers("crew");
-        verify(conversationService).createGroupChatConversations("crew", "g:crew", List.of("u1", "u2", "u3"));
+        ArgumentCaptor<byte[]> fanout = forClass(byte[].class);
+        verify(queueAdapter).send(eq(TopicNames.GROUP_FANOUT), eq("g:crew"), fanout.capture());
+        GroupFanoutEvent event = new ObjectMapper().readValue(fanout.getValue(), GroupFanoutEvent.class);
+        org.junit.jupiter.api.Assertions.assertTrue(event.isCreateConversation());
+        verify(groupMembershipFacade, never()).loadGroupMembers("crew");
+        verify(conversationService, never()).createGroupChatConversations(anyString(), anyString(), anyList());
     }
 
     @Test
@@ -322,7 +323,7 @@ class IngressEventListenerTest {
     }
 
     @Test
-    void shouldPropagateGroupMemberQueryFailureForQueueRetry() {
+    void shouldNotQueryGroupMembersOnIngressThread() {
         QueueAdapter queueAdapter = mock(QueueAdapter.class);
         GroupMembershipFacade groupMembershipFacade = mock(GroupMembershipFacade.class);
         ConversationSeqService conversationSeqService = mock(ConversationSeqService.class);
@@ -335,7 +336,8 @@ class IngressEventListenerTest {
         IngressEventListener listener = listener(
                 queueAdapter, groupMembershipFacade, conversationSeqService);
 
-        assertThrows(IllegalStateException.class, () -> listener.onMessage(List.of(groupMessage())));
+        listener.onMessage(List.of(groupMessage()));
+        verify(queueAdapter).send(eq(TopicNames.GROUP_FANOUT), eq("g:crew"), org.mockito.ArgumentMatchers.any(byte[].class));
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -356,15 +358,53 @@ class IngressEventListenerTest {
                                                  GroupMembershipFacade groupMembershipFacade,
                                                  ConversationSeqService conversationSeqService,
                                                  ConversationService conversationService) {
+        when(groupMembershipFacade.checkSendPermissions(anyString(), anyList())).thenAnswer(invocation -> {
+            String groupId = invocation.getArgument(0);
+            List<String> senderIds = invocation.getArgument(1);
+            com.cheeseocean.im.common.api.permission.GroupMessageSendPermissionResult result =
+                    new com.cheeseocean.im.common.api.permission.GroupMessageSendPermissionResult();
+            result.setGroupId(groupId);
+            result.setGroupType(groupMembershipFacade.loadGroupType(groupId));
+            result.setDecisions(senderIds.stream()
+                    .map(senderId -> com.cheeseocean.im.common.api.permission.GroupMessageSendPermissionDecision.of(
+                            senderId,
+                            com.cheeseocean.im.common.api.enums.GroupSendPermissionCode.ALLOWED,
+                            0L))
+                    .toList());
+            return result;
+        });
         return new IngressEventListener(
                 new MessageProducer(queueAdapter),
                 new HistoryEventProducer(queueAdapter),
                 groupMembershipFacade,
                 conversationSeqService,
                 new DefaultMessagePolicyEngine(),
-                new com.cheeseocean.im.postmaster.service.GroupFanoutPlanner(500),
+                new com.cheeseocean.im.postmaster.service.GroupFanoutPlanner(500, 10, 524288),
+                inboxStore(),
                 conversationService
         );
+    }
+
+    private static IngressMessageInboxStore inboxStore() {
+        IngressMessageInboxStore store = mock(IngressMessageInboxStore.class);
+        when(store.claimBatch(anyList(), anyString(), anyLong())).thenAnswer(invocation -> {
+            List<IngressMessageInboxStore.ClaimRequest> requests = invocation.getArgument(0);
+            long leaseUntil = invocation.<Long>getArgument(2) + 30_000L;
+            return requests.stream()
+                    .map(request -> new IngressMessageInboxStore.Claim(
+                            request.key(),
+                            IngressMessageInboxStore.ClaimStatus.ACQUIRED,
+                            0L,
+                            leaseUntil))
+                    .toList();
+        });
+        when(store.bindSequences(anyList(), anyString())).thenAnswer(invocation -> {
+            List<IngressMessageInboxStore.SequenceBinding> bindings = invocation.getArgument(0);
+            LinkedHashMap<String, Long> result = new LinkedHashMap<>();
+            bindings.forEach(binding -> result.put(binding.key(), binding.proposedSeq()));
+            return result;
+        });
+        return store;
     }
 
     private static Message singleMessage() {

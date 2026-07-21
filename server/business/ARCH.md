@@ -9,7 +9,7 @@
 | --- | --- |
 | `service/friend/` | 好友关系 + 申请 + 实时通知 |
 | `service/conversation/` | 会话 CRUD + 增量同步（version-log）+ sync point |
-| `service/group/` | 群成员查询（最小集，群管理入群申请待补） |
+| `service/group/` | 群成员查询 + 群发送权限聚合（群状态/成员/禁言/扩散类型） |
 | `service/user/` | 用户信息 + 全局 receiveOpt |
 | `service/permission/` | 发送权限聚合：黑名单 + 用户 receiveOpt + 会话 receiveOpt 一次性返回给 postbox |
 | `service/blacklist/` | 黑名单 |
@@ -37,6 +37,8 @@
 
 - `Group.groupType`：`NORMAL_GROUP(2)` 写扩散 / `SUPER_GROUP(3)` 读扩散
 - 群成员 `GroupMember._id = {groupId}:{userId}`，角色 owner/admin/member
+- 群成员关系写入统一走 `GroupMembershipCommandService`：cluster profile 在一个 Mongo 事务内更新
+  当前成员、`group_member_epoch` 与 `Group.membershipVersion`；存量群首次使用前建立版本 1 基线
 - 禁言 `muteEndTime`，`isMuted()` 即时计算
 
 ## 3. 同步模型
@@ -45,8 +47,16 @@
 
 - **会话元数据同步**：服务端维护 `ownerUserId` 维度的 `ConversationVersionLog`，客户端用 cursor 做增量同步，超过 200 条回退全量（`ConversationServiceImpl.fillFullSync` line 469）
 - **消息同步**：会话维度 seq/range/maxSeq，客户端按会话拉缺口消息
-- **readSeq**：Redis 即写（`ackReadSeq` line 144）+ Mongo 写 behind（`ReadSeqPersistenceWriter` 按 userId 分桶多线程 drain，单桶聚合最大 readSeq，workerCount/queueCapacity 可配，Redis 仍权威）
+- **readSeq / deliveredSeq**：Redis 即写 + Mongo write-behind。writer 使用有界主/回退队列，
+  上报 queued/inflight depth 与动态 oldest age；停机先等待当前批次最多 30 秒，再 drain 剩余队列。
+  `ReadSeqPersistenceWriter` 按 userId 分桶并聚合最大 readSeq，`DeliverySeqPersistenceWriter`
+  按用户/设备/会话聚合最大 deliveredSeq。Mongo 是恢复水位，Redis 是即时热状态。
 - **发送权限聚合**：`MessageSendPermissionServiceImpl` 聚合 `FriendRelationService` / `UserInfoService` / `ConversationService` 本地调用，让 postbox 发送热路径从三次 Dubbo 收敛为一次；黑名单先短路，避免无谓的接收选项查询。
+- **群发送权限聚合**：`GroupMessageSendPermissionServiceImpl` 一次群点查 + 一次 sender 批量成员查询，返回群状态、成员/禁言结论与 groupType；postbox 单 sender、postmaster 同群批 sender 共用该契约。
+- 群发送权限使用 2 秒 Redis 快照缓存，并缓存不存在群/非成员拒绝结果；发送者 key 含
+  membershipVersion，同群 key 使用共同 hash tag。成员 mutation 精确失效群元数据，旧版本 sender key 自然隔离。
+- 会话当前态按 owner 存在 `conversation`；conversation 维度的非默认投递偏好单独写入
+  `conversation_delivery_preference`。离线推送禁止回退扫描 owner 当前态集合。
 
 ## 4. 缓存规范
 
@@ -84,3 +94,4 @@ shard-friendly 但**未声明 sharding**，ASSESSMENT P1-7 修复项。
 - [ ] 改 conversationId 形态会破坏所有 Mongo 文档 _id，禁止
 - [ ] 改 sync point 字段需同步 sdks/go 拉取协议
 - [ ] 新增 cache 默认 `REMOTE`，验证写后清除时序
+- [ ] 改群成员/禁言/群状态写路径时同步失效 `group:send-permission`，在此之前不得放大 2 秒 TTL

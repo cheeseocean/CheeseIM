@@ -44,6 +44,18 @@ public interface GroupRepository {
     void updateStatus(String groupId, int status);
 
     /**
+     * 将未迁移群的成员版本从 0 原子初始化为基线版本 1。
+     *
+     * @return 当前调用是否赢得初始化
+     */
+    boolean initializeMembershipVersion(String groupId);
+
+    /**
+     * 原子递增并返回新的成员关系版本；群不存在时返回 0。
+     */
+    long incrementMembershipVersion(String groupId);
+
+    /**
      * 按群名称关键字分页搜索群组。
      */
     List<Group> pageByKeyword(String keyword, int limit, int offset);

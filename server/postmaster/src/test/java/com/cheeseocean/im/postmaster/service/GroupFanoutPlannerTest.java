@@ -10,7 +10,7 @@ class GroupFanoutPlannerTest {
 
     @Test
     void hotGroupShouldBeSplitIntoFanoutBatches() {
-        GroupFanoutPlanner planner = new GroupFanoutPlanner(500);
+        GroupFanoutPlanner planner = new GroupFanoutPlanner(500, 10, 524288);
         List<List<String>> batches = planner.partition(java.util.stream.IntStream.rangeClosed(1, 1201)
                 .mapToObj(i -> "user-" + i)
                 .toList());
@@ -23,7 +23,7 @@ class GroupFanoutPlannerTest {
 
     @Test
     void groupMessageShouldCreateSingleBatchWhenTargetsFit() {
-        GroupFanoutPlanner planner = new GroupFanoutPlanner(500);
+        GroupFanoutPlanner planner = new GroupFanoutPlanner(500, 10, 524288);
         List<List<String>> batches = planner.partition(List.of("userB", "userC"));
 
         assertEquals(1, batches.size());

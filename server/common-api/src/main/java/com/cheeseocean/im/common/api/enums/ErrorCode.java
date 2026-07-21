@@ -23,7 +23,19 @@ public enum ErrorCode implements IEnum {
     /** 请求频率超过服务保护阈值。 */
     RATE_LIMITED(1006, "请求过于频繁"),
     /** 幂等键已被同一请求使用。 */
-    IDEMPOTENCY_CONFLICT(1007, "请求正在处理或已处理");
+    IDEMPOTENCY_CONFLICT(1007, "幂等键对应的请求内容冲突"),
+    /** 相同幂等请求正在由其它执行者处理。 */
+    MESSAGE_IN_PROGRESS(1008, "消息正在处理"),
+    /** 登录身份凭据缺失、无效或已被重放。 */
+    AUTHENTICATION_FAILED(1009, "身份认证失败"),
+    /** 群不存在。 */
+    GROUP_NOT_FOUND(1101, "群不存在"),
+    /** 群已解散或封禁。 */
+    GROUP_UNAVAILABLE(1102, "群当前不可用"),
+    /** 发送者不是群成员。 */
+    GROUP_NOT_MEMBER(1103, "发送者不是群成员"),
+    /** 发送者处于群禁言状态。 */
+    GROUP_MEMBER_MUTED(1104, "发送者处于禁言状态");
 
     private final int code;
     private final String desc;

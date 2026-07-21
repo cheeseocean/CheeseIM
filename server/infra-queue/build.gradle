@@ -1,0 +1,17 @@
+dependencies {
+    implementation project(':common-api')
+    implementation project(':common-core')
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.kafka:spring-kafka'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'com.google.protobuf:protobuf-java:3.25.3'
+    implementation 'net.openhft:chronicle-queue:2026.2'
+}
+
+bootJar {
+    enabled = false
+}
+
+jar {
+    enabled = true
+}

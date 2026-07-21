@@ -3,6 +3,7 @@ package com.cheeseocean.im.business.service.group;
 import com.cheeseocean.im.common.api.business.domain.Group;
 import com.cheeseocean.im.common.api.business.domain.GroupMember;
 import com.cheeseocean.im.common.api.enums.GroupTypeEnum;
+import com.cheeseocean.im.common.core.business.repository.GroupMemberEpochRepository;
 import com.cheeseocean.im.common.core.business.repository.GroupMemberRepository;
 import com.cheeseocean.im.common.core.business.repository.GroupRepository;
 import org.junit.jupiter.api.Test;
@@ -34,7 +35,7 @@ class GroupMembershipQueryServiceImplTest {
         group.setGroupType(GroupTypeEnum.NORMAL_GROUP);
         when(groupRepo.findById("crew")).thenReturn(Optional.of(group));
 
-        GroupMembershipQueryServiceImpl service = new GroupMembershipQueryServiceImpl(memberRepo, groupRepo);
+        GroupMembershipQueryServiceImpl service = service(memberRepo, groupRepo);
 
         assertEquals(GroupTypeEnum.NORMAL_GROUP, service.queryGroupType("crew"));
     }
@@ -48,7 +49,7 @@ class GroupMembershipQueryServiceImplTest {
         group.setGroupType(GroupTypeEnum.SUPER_GROUP);
         when(groupRepo.findById("big")).thenReturn(Optional.of(group));
 
-        GroupMembershipQueryServiceImpl service = new GroupMembershipQueryServiceImpl(memberRepo, groupRepo);
+        GroupMembershipQueryServiceImpl service = service(memberRepo, groupRepo);
 
         assertEquals(GroupTypeEnum.SUPER_GROUP, service.queryGroupType("big"));
     }
@@ -59,7 +60,7 @@ class GroupMembershipQueryServiceImplTest {
         GroupRepository groupRepo = mock(GroupRepository.class);
         when(groupRepo.findById("ghost")).thenReturn(Optional.empty());
 
-        GroupMembershipQueryServiceImpl service = new GroupMembershipQueryServiceImpl(memberRepo, groupRepo);
+        GroupMembershipQueryServiceImpl service = service(memberRepo, groupRepo);
 
         // null 表示群不存在或异常，postmaster 端按 NORMAL_GROUP 兜底
         assertNull(service.queryGroupType("ghost"));
@@ -70,7 +71,7 @@ class GroupMembershipQueryServiceImplTest {
         GroupMemberRepository memberRepo = mock(GroupMemberRepository.class);
         GroupRepository groupRepo = mock(GroupRepository.class);
 
-        GroupMembershipQueryServiceImpl service = new GroupMembershipQueryServiceImpl(memberRepo, groupRepo);
+        GroupMembershipQueryServiceImpl service = service(memberRepo, groupRepo);
 
         assertNull(service.queryGroupType(null));
         assertNull(service.queryGroupType(""));
@@ -85,7 +86,7 @@ class GroupMembershipQueryServiceImplTest {
         member.setUserId("u1");
         when(memberRepo.findByGroupId("crew")).thenReturn(List.of(member));
 
-        GroupMembershipQueryServiceImpl service = new GroupMembershipQueryServiceImpl(memberRepo, groupRepo);
+        GroupMembershipQueryServiceImpl service = service(memberRepo, groupRepo);
 
         // 当前 ConversationIdUtil.group 产出 "g:{groupId}"，新前缀必须支持
         List<String> members = service.queryConversationMembers("g:crew");
@@ -96,8 +97,16 @@ class GroupMembershipQueryServiceImplTest {
     void queryConversationMembersShouldRejectUnknownPrefix() {
         GroupMemberRepository memberRepo = mock(GroupMemberRepository.class);
         GroupRepository groupRepo = mock(GroupRepository.class);
-        GroupMembershipQueryServiceImpl service = new GroupMembershipQueryServiceImpl(memberRepo, groupRepo);
+        GroupMembershipQueryServiceImpl service = service(memberRepo, groupRepo);
 
         assertEquals(List.of(), service.queryConversationMembers("unknown:legacy"));
+    }
+
+    private GroupMembershipQueryServiceImpl service(GroupMemberRepository memberRepo,
+                                                    GroupRepository groupRepo) {
+        return new GroupMembershipQueryServiceImpl(
+                memberRepo,
+                mock(GroupMemberEpochRepository.class),
+                groupRepo);
     }
 }

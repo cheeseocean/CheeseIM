@@ -6,11 +6,30 @@ spring:
       uri: ${POSTMASTER_MONGODB_URI:${MONGODB_URI:mongodb://localhost:27017/cheese_im}}
     redis:
       database: 0
-  kafka:
-    consumer:
-      group-id: postmaster-ingress-group
+
+server:
+  port: -1
+
+management:
+  server:
+    port: ${CHEESEIM_POSTMASTER_MANAGEMENT_PORT:19081}
+  endpoint:
+    health:
+      group:
+        readiness:
+          include: readinessState,mongo,redis
 
 cheeseim:
+  queue:
+    listeners:
+      postmaster-ingress:
+        concurrency: ${CHEESEIM_QUEUE_POSTMASTER_INGRESS_CONCURRENCY:1}
+        batch-size: ${CHEESEIM_QUEUE_POSTMASTER_INGRESS_BATCH_SIZE:500}
+        batch-interval-millis: ${CHEESEIM_QUEUE_POSTMASTER_INGRESS_BATCH_INTERVAL_MILLIS:500}
+      postmaster-history:
+        concurrency: ${CHEESEIM_QUEUE_POSTMASTER_HISTORY_CONCURRENCY:1}
+      postmaster-group-fanout:
+        concurrency: ${CHEESEIM_QUEUE_POSTMASTER_GROUP_FANOUT_CONCURRENCY:3}
   message-mutation:
     revoke-window-seconds: ${CHEESEIM_MESSAGE_REVOKE_WINDOW_SECONDS:120}
   typing:
@@ -18,7 +37,16 @@ cheeseim:
     max-normal-group-members: ${CHEESEIM_TYPING_MAX_NORMAL_GROUP_MEMBERS:100}
   delivery:
     group-fanout:
-      batch-size: ${CHEESEIM_DELIVERY_GROUP_FANOUT_BATCH_SIZE:500}
+      batch-size: ${CHEESEIM_DELIVERY_GROUP_FANOUT_BATCH_SIZE:200}
+      member-page-size: ${CHEESEIM_DELIVERY_GROUP_FANOUT_MEMBER_PAGE_SIZE:200}
+      max-job-messages: ${CHEESEIM_DELIVERY_GROUP_FANOUT_MAX_JOB_MESSAGES:50}
+      max-job-bytes: ${CHEESEIM_DELIVERY_GROUP_FANOUT_MAX_JOB_BYTES:524288}
+      max-wire-bytes: ${CHEESEIM_DELIVERY_GROUP_FANOUT_MAX_WIRE_BYTES:786432}
+      job-lease-seconds: ${CHEESEIM_DELIVERY_GROUP_FANOUT_JOB_LEASE_SECONDS:60}
+      completed-retention-seconds: ${CHEESEIM_DELIVERY_GROUP_FANOUT_COMPLETED_RETENTION_SECONDS:691200}
+  ingress-inbox:
+    ttl-seconds: ${CHEESEIM_INGRESS_INBOX_TTL_SECONDS:604800}
+    lease-seconds: ${CHEESEIM_INGRESS_INBOX_LEASE_SECONDS:30}
 
 logging:
   level:

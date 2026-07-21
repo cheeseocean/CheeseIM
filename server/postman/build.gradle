@@ -1,13 +1,15 @@
 dependencies {
     implementation project(':common-core')
+    implementation project(':infra-queue')
     implementation project(':common-api')
+    implementation project(':storage-business')
     implementation project(':config')
     implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-    implementation 'org.springframework.kafka:spring-kafka'
     implementation 'org.apache.dubbo:dubbo-spring-boot-starter'
     implementation 'com.fasterxml.jackson.core:jackson-databind'
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
     // 极光推送依赖 - 升级版本
     implementation 'cn.jpush.api:jpush-client:3.4.10'
@@ -20,6 +22,6 @@ dependencies {
     implementation 'com.google.firebase:firebase-admin:9.1.1'
 
     // Micrometer for metrics
-    implementation 'io.micrometer:micrometer-registry-prometheus'
+    runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 
 }

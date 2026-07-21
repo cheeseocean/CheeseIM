@@ -10,6 +10,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.WriteBufferWaterMark;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
@@ -91,7 +92,10 @@ public class TcpServer implements CommandLineRunner, Server {
                     .childOption(ChannelOption.SO_KEEPALIVE, tcpConfig.isKeepAlive())
                     .childOption(ChannelOption.TCP_NODELAY, tcpConfig.isTcpNoDelay())
                     .childOption(ChannelOption.SO_RCVBUF, tcpConfig.getReceiveBufferSize())
-                    .childOption(ChannelOption.SO_SNDBUF, tcpConfig.getSendBufferSize());
+                    .childOption(ChannelOption.SO_SNDBUF, tcpConfig.getSendBufferSize())
+                    .childOption(ChannelOption.WRITE_BUFFER_WATER_MARK, new WriteBufferWaterMark(
+                            tcpConfig.getWriteBufferLowWaterMark(),
+                            tcpConfig.getWriteBufferHighWaterMark()));
 
             startTime = System.currentTimeMillis();
             // 绑定端口并启动服务器

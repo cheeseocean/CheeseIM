@@ -4,8 +4,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.RedisOperations;
+import org.springframework.data.redis.core.SessionCallback;
 
 import java.time.Duration;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -55,13 +58,21 @@ public class RedisCacheStore implements CacheStore {
             return Map.of();
         }
         List<String> logicalKeys = List.copyOf(keys);
-        List<String> values = redisTemplate.opsForValue().multiGet(logicalKeys.stream().map(fullKey).toList());
+        List<String> redisKeys = logicalKeys.stream().map(fullKey).toList();
+        List<Object> values = redisTemplate.executePipelined(new SessionCallback<>() {
+            @Override
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            public Object execute(RedisOperations operations) {
+                redisKeys.forEach(key -> operations.opsForValue().get(key));
+                return null;
+            }
+        });
         if (values == null || values.isEmpty()) {
             return Map.of();
         }
         Map<String, T> result = new LinkedHashMap<>();
         for (int index = 0; index < logicalKeys.size(); index++) {
-            String json = values.get(index);
+            String json = stringValue(values.get(index));
             if (json != null) {
                 String logicalKey = logicalKeys.get(index);
                 result.put(logicalKey, deserialize(fullKey.apply(logicalKey), json, valueType));
@@ -78,11 +89,25 @@ public class RedisCacheStore implements CacheStore {
         if (values == null || values.isEmpty()) {
             return;
         }
+        Map<String, String> serialized = new LinkedHashMap<>();
         for (Map.Entry<String, T> entry : values.entrySet()) {
             if (entry.getValue() != null) {
-                put(fullKey.apply(entry.getKey()), entry.getValue(), ttl);
+                String key = fullKey.apply(entry.getKey());
+                serialized.put(key, serialize(key, entry.getValue()));
             }
         }
+        if (serialized.isEmpty()) {
+            return;
+        }
+        redisTemplate.executePipelined(new SessionCallback<>() {
+            @Override
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            public Object execute(RedisOperations operations) {
+                serialized.forEach((key, json) ->
+                        operations.opsForValue().set(key, json, ttl));
+                return null;
+            }
+        });
     }
 
     void evict(String key) {
@@ -93,7 +118,15 @@ public class RedisCacheStore implements CacheStore {
         if (keys == null || keys.isEmpty()) {
             return;
         }
-        redisTemplate.delete(keys.stream().map(fullKey).toList());
+        List<String> redisKeys = keys.stream().map(fullKey).toList();
+        redisTemplate.executePipelined(new SessionCallback<>() {
+            @Override
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            public Object execute(RedisOperations operations) {
+                redisKeys.forEach(operations::delete);
+                return null;
+            }
+        });
     }
 
     private String serialize(String key, Object value) {
@@ -110,5 +143,15 @@ public class RedisCacheStore implements CacheStore {
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("缓存反序列化失败，key=" + key, exception);
         }
+    }
+
+    private String stringValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof byte[] bytes) {
+            return new String(bytes, StandardCharsets.UTF_8);
+        }
+        return String.valueOf(value);
     }
 }

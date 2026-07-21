@@ -9,6 +9,8 @@ TOPIC_NAMES_FILE="$ROOT_DIR/../server/common-core/src/main/java/com/cheeseocean/
 bootstrap_server=""
 partitions=""
 replication_factor=""
+min_in_sync_replicas=""
+retention_ms=""
 kafka_home=""
 dry_run=0
 
@@ -21,6 +23,8 @@ Options:
   --bootstrap-server <host:port>
   --partitions <count>
   --replication-factor <count>
+  --min-in-sync-replicas <count>
+  --retention-ms <milliseconds>
   --kafka-home <path>
   --dry-run
   -h, --help
@@ -42,6 +46,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --replication-factor)
       replication_factor="${2:-}"
+      shift 2
+      ;;
+    --min-in-sync-replicas)
+      min_in_sync_replicas="${2:-}"
+      shift 2
+      ;;
+    --retention-ms)
+      retention_ms="${2:-}"
       shift 2
       ;;
     --kafka-home)
@@ -83,7 +95,8 @@ topic_names=()
 topic_tmp_file="$(mktemp)"
 trap 'rm -f "$topic_tmp_file"' EXIT
 
-sed -En 's/.*public static final String [A-Z_][A-Z_0-9]* = "([^"]*)";.*/\1/p' "$TOPIC_NAMES_FILE" > "$topic_tmp_file"
+sed -En 's/.*public static final String [A-Z_][A-Z_0-9]*[[:space:]]*=[[:space:]]*"([^"]*)";.*/\1/p' \
+  "$TOPIC_NAMES_FILE" > "$topic_tmp_file"
 
 while IFS= read -r topic_name || [ -n "$topic_name" ]; do
   if [[ -n "$topic_name" ]]; then
@@ -106,26 +119,34 @@ fi
 if [[ -n "$replication_factor" ]]; then
   extra_args+=(--replication-factor "$replication_factor")
 fi
+if [[ -n "$min_in_sync_replicas" ]]; then
+  extra_args+=(--min-in-sync-replicas "$min_in_sync_replicas")
+fi
+if [[ -n "$retention_ms" ]]; then
+  extra_args+=(--retention-ms "$retention_ms")
+fi
 if [[ -n "$kafka_home" ]]; then
   extra_args+=(--kafka-home "$kafka_home")
 fi
 
-echo "Discovered ${#topic_names[@]} IM topics from TopicNames.java"
+echo "Discovered ${#topic_names[@]} IM base topics from TopicNames.java"
 
 for topic_name in "${topic_names[@]}"; do
-  echo "==> $topic_name"
-  command_args=("$CREATE_TOPIC_SCRIPT" "$topic_name")
-  if [[ ${#extra_args[@]} -gt 0 ]]; then
-    command_args+=("${extra_args[@]}")
-  fi
-  if [[ "$dry_run" == "1" ]]; then
-    printf '%q ' "${command_args[@]}"
-    printf '\n'
-    continue
-  fi
-  if [[ "${MOCK_ONLY:-0}" == "1" ]]; then
-    MOCK_ONLY=1 "${command_args[@]}"
-    continue
-  fi
-  "${command_args[@]}"
+  for concrete_topic in "$topic_name" "$topic_name.DLT"; do
+    echo "==> $concrete_topic"
+    command_args=("$CREATE_TOPIC_SCRIPT" "$concrete_topic")
+    if [[ ${#extra_args[@]} -gt 0 ]]; then
+      command_args+=("${extra_args[@]}")
+    fi
+    if [[ "$dry_run" == "1" ]]; then
+      printf '%q ' "${command_args[@]}"
+      printf '\n'
+      continue
+    fi
+    if [[ "${MOCK_ONLY:-0}" == "1" ]]; then
+      MOCK_ONLY=1 "${command_args[@]}"
+      continue
+    fi
+    "${command_args[@]}"
+  done
 done

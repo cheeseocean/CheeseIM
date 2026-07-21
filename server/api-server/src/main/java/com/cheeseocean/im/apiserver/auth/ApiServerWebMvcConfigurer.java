@@ -15,11 +15,14 @@ import java.util.List;
 public class ApiServerWebMvcConfigurer implements WebMvcConfigurer {
 
     private final CurrentPrincipalArgumentResolver currentPrincipalArgumentResolver;
+    private final ApiAuthenticationInterceptor apiAuthenticationInterceptor;
     private final ApiIdempotencyInterceptor apiIdempotencyInterceptor;
 
     public ApiServerWebMvcConfigurer(CurrentPrincipalArgumentResolver currentPrincipalArgumentResolver,
+                                     ApiAuthenticationInterceptor apiAuthenticationInterceptor,
                                      ApiIdempotencyInterceptor apiIdempotencyInterceptor) {
         this.currentPrincipalArgumentResolver = currentPrincipalArgumentResolver;
+        this.apiAuthenticationInterceptor = apiAuthenticationInterceptor;
         this.apiIdempotencyInterceptor = apiIdempotencyInterceptor;
     }
 
@@ -30,6 +33,9 @@ public class ApiServerWebMvcConfigurer implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(apiAuthenticationInterceptor)
+                .addPathPatterns("/api/**")
+                .order(-100);
         registry.addInterceptor(apiIdempotencyInterceptor).addPathPatterns("/api/**");
     }
 }

@@ -3,6 +3,7 @@ spring:
     import:
       - classpath:common.yml
       - classpath:module-business.yml
+      - classpath:application-cluster.yml
 
 dubbo:
   application:
