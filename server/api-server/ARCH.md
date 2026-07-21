@@ -3,8 +3,9 @@
 > Controller + Facade + Auth Principal，不下沉 Response 模型。
 
 生产入口为 `ApiServerApplication`，加载 `application-api-server.yml`，HTTP 18079、management 19079。
-它只扫描 `com.cheeseocean.im.apiserver`，通过 non-transitive common-core 依赖复用 Redis 幂等 port/adapter；
-禁止改回扫描 `com.cheeseocean.im.common`，否则会把 Mongo/Kafka/Chronicle/RocksDB 全量装配进无状态 API。
+它只扫描 `com.cheeseocean.im.apiserver`，通过 non-transitive common-core/infra-state 依赖分别复用幂等 port
+和最小 Redis adapter，并设置 `cheeseim.state.auto-config-enabled=false`；禁止改回扫描
+`com.cheeseocean.im.common` 或启用完整 state runtime，否则会把 session/conversation/seq/RocksDB 装入无状态 API。
 
 ## 1. Controller 总览
 

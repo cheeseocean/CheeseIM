@@ -1,5 +1,6 @@
 dependencies {
     implementation project(':common-core')
+    implementation project(':infra-state')
     implementation project(':storage-business')
     implementation project(':common-api')
     implementation project(':config')

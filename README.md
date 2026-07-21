@@ -47,6 +47,7 @@ sequenceDiagram
 | `server/common-api` | 跨模块 API、领域模型、枚举、事件模型、Protobuf 协议定义。 |
 | `server/common-core` | 共享 port/model 与通用状态基础设施：Repository/队列契约、typed `CacheStore`、通知发送、序列状态。 |
 | `server/infra-queue` | 队列运行时基础设施：Kafka/Chronicle adapter、监听器装配、topic 契约校验与 Kafka DLT 实现。 |
+| `server/infra-state` | 状态运行时基础设施：Redis/RocksDB adapter、typed cache、幂等 inbox 与 seq cache 装配。 |
 | `server/storage-history` | 消息历史 Mongo adapter：Document、批量写、范围查询与纯 port model 转换。 |
 | `server/storage-business` | 用户、好友、群、会话、控制事件与 fanout job 等业务 Mongo adapter。 |
 | `server/config` | Spring/YAML 配置集合，包含 all-in-one 与各模块配置片段。 |
@@ -244,6 +245,7 @@ git diff --check
     ├── common-api
     ├── common-core
     ├── infra-queue
+    ├── infra-state
     ├── storage-history
     ├── storage-business
     ├── config

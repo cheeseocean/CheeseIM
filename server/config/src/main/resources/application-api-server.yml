@@ -5,6 +5,11 @@ spring:
       - classpath:module-api-server.yml
       - classpath:application-cluster.yml
 
+cheeseim:
+  state:
+    # API 只显式装配幂等 Redis adapter，不加载 session/conversation/seq 等完整状态运行时。
+    auto-config-enabled: false
+
 dubbo:
   application:
     name: cheese-im-api-server

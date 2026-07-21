@@ -24,6 +24,7 @@ The diagram below is organized around the product experience: user-facing client
 | `server/common-api` | Cross-module APIs, domain models, enums, events, and Protobuf definitions. |
 | `server/common-core` | Shared ports/models and state infrastructure: repository and queue contracts, typed CacheStore, notifications, and seq state. |
 | `server/infra-queue` | Queue runtime infrastructure: Kafka/Chronicle adapters, listener wiring, topic contract validation, and Kafka DLT operations. |
+| `server/infra-state` | State runtime infrastructure: Redis/RocksDB adapters, typed cache, idempotency inboxes, and seq-cache wiring. |
 | `server/storage-business` | Mongo adapters for users, relationships, groups, conversations, control events, fanout jobs, and DLT audit. |
 | `server/config` | Spring/YAML configuration for all-in-one and module deployments. |
 | `server/bootstrap-all` | Recommended local development entry. Runs all modules in one JVM with Dubbo injvm. |
@@ -172,6 +173,7 @@ Reference-only documents:
     ├── common-api
     ├── common-core
     ├── infra-queue
+    ├── infra-state
     ├── storage-history
     ├── storage-business
     ├── config

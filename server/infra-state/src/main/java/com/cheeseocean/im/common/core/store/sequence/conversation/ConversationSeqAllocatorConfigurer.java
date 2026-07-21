@@ -5,9 +5,10 @@ import com.cheeseocean.im.common.core.store.config.StateStoreProperties;
 import com.cheeseocean.im.common.core.store.sequence.conversation.redis.RedisConversationSeqCacheStore;
 import com.cheeseocean.im.common.core.store.sequence.conversation.rocksdb.RocksDbConversationSeqCacheStore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.lang.Nullable;
 
@@ -20,8 +21,10 @@ import org.springframework.lang.Nullable;
  *   <li>集群模式：必须使用 Redis 作为共享缓存段</li>
  * </ul>
  */
-@Configuration
-@EnableConfigurationProperties(ConversationSeqAllocatorProperties.class)
+@AutoConfiguration
+@ConditionalOnProperty(prefix = "cheeseim.state", name = "auto-config-enabled",
+        havingValue = "true", matchIfMissing = true)
+@EnableConfigurationProperties({ConversationSeqAllocatorProperties.class, StateStoreProperties.class})
 public class ConversationSeqAllocatorConfigurer {
 
     @Bean

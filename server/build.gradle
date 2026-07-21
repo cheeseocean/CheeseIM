@@ -179,6 +179,68 @@ tasks.named('check') {
     dependsOn tasks.named('verifyBusinessStorageArchitectureBoundary')
 }
 
+def stateBoundarySources = files(
+        fileTree('common-core/src') { include '**/*.java' },
+        fileTree('infra-state/src/main/java') { include '**/*.java' },
+        fileTree('api-server/src/main/java') { include '**/*.java' },
+        fileTree('authcenter/src/main/java') { include '**/*.java' },
+        fileTree('business/src/main/java') { include '**/*.java' },
+        fileTree('postbox/src/main/java') { include '**/*.java' },
+        fileTree('postmaster/src/main/java') { include '**/*.java' },
+        fileTree('postman/src/main/java') { include '**/*.java' },
+        fileTree('postoffice/src/main/java') { include '**/*.java' }
+)
+
+tasks.register('verifyStateArchitectureBoundary') {
+    group = 'verification'
+    description = '拒绝 common-core 依赖 Redis/RocksDB 实现，或 feature 越过 state port 使用 adapter。'
+    inputs.files(stateBoundarySources)
+    doLast {
+        def violations = []
+        fileTree('common-core/src') { include '**/*.java' }.each { source ->
+            def text = source.text
+            if (text.contains('org.springframework.data.redis.')
+                    || text.contains('org.rocksdb.')
+                    || text.contains('RedisCacheStore')
+                    || text.contains('NodeQueueRedisScripts')
+                    || text.contains('com.cheeseocean.im.infra.state.')) {
+                violations << "common-core depends on state implementation: ${source}"
+            }
+        }
+        ['api-server', 'authcenter', 'business', 'postbox', 'postmaster', 'postman', 'postoffice'].each { moduleName ->
+            fileTree("${moduleName}/src/main/java") { include '**/*.java' }.each { source ->
+                def text = source.text
+                def importsStateAdapter = text =~ /com\.cheeseocean\.im\.common\.core\.store\..*\.(redis|rocksdb)\./
+                def allowedApiComposition = moduleName == 'api-server'
+                        && source.name == 'ApiServerInfrastructureConfiguration.java'
+                        && text.contains('RedisIdempotencyStore')
+                if (importsStateAdapter && !allowedApiComposition) {
+                    violations << "feature imports state adapter: ${source}"
+                }
+            }
+        }
+        fileTree('infra-state/src/main/java') { include '**/*.java' }.each { source ->
+            def text = source.text
+            if (text.contains('com.cheeseocean.im.apiserver.')
+                    || text.contains('com.cheeseocean.im.authcenter.')
+                    || text.contains('com.cheeseocean.im.business.service.')
+                    || text.contains('com.cheeseocean.im.postbox.')
+                    || text.contains('com.cheeseocean.im.postmaster.')
+                    || text.contains('com.cheeseocean.im.postman.')
+                    || text.contains('com.cheeseocean.im.postoffice.')) {
+                violations << "infra-state depends back on feature: ${source}"
+            }
+        }
+        if (!violations.isEmpty()) {
+            throw new GradleException(violations.join(System.lineSeparator()))
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('verifyStateArchitectureBoundary')
+}
+
 subprojects {
     apply plugin: 'java'
     apply plugin: 'com.google.protobuf'
@@ -318,6 +380,7 @@ subprojects {
         dependsOn rootProject.tasks.named('verifyHistoryArchitectureBoundary')
         dependsOn rootProject.tasks.named('verifyQueueArchitectureBoundary')
         dependsOn rootProject.tasks.named('verifyBusinessStorageArchitectureBoundary')
+        dependsOn rootProject.tasks.named('verifyStateArchitectureBoundary')
     }
 
     tasks.withType(JavaExec).configureEach {

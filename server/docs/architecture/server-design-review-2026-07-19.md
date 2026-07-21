@@ -191,7 +191,7 @@ QUEUED -> SOCKET_WRITTEN -> CLIENT_DELIVERED
 
 `common-core` 在评审时同时承载 Mongo、Redis、Kafka、Chronicle、RocksDB、Web、Dubbo 和 Micrometer；
 截至 2026-07-21，Kafka/Chronicle 已迁入 infra-queue，历史/业务 Mongo 已迁入 storage 模块，
-剩余主要耦合是 Redis/RocksDB state/cache 与 Dubbo/通知客户端。
+Redis/RocksDB state/cache 已迁入 infra-state；common-core 剩余主要耦合是 Dubbo/通知客户端与共享工具。
 
 建议演进为：
 
@@ -318,7 +318,7 @@ storage-auth
 | D-02A | common-core Web/Prometheus 依赖去外溢 | 已完成 | common-core/六个服务 | 非 Web 服务不再隐式携带并启动 Tomcat，管理依赖回归可执行模块所有 |
 | D-02B | 七服务显式管理端口与健康探针 | 已完成（待运行环境验收） | 七个服务/config/docs | 统一可抓取指标、进程存活与依赖就绪语义，为 Kubernetes 探针提供稳定契约 |
 | D-03A | 独立 api-server 生产入口与真实 cluster overlay | 已完成（待运行环境验收） | api-server/config/bootstrap/Docker | 补齐集群 HTTP 控制面，并修复自定义 config name 导致 cluster 配置未加载 |
-| D-03B | API Redis Lua 限流实现复原 | 已完成（待编译/运行验收） | api-server/common-core/config | 恢复多副本入口保护，统一可信代理、429 和 Redis 故障语义 |
+| D-03B | API Redis Lua 限流实现复原 | 已完成（待编译/运行验收） | api-server/infra-state/config | 恢复多副本入口保护，统一可信代理、429 和 Redis 故障语义 |
 | D-04A | 七服务 Helm 工作负载基线 | 已完成（待 Helm/集群验收） | distro/helm/docs | 把镜像、探针、资源、安全、PDB、拓扑和网络入口形成一致部署契约 |
 | D-04B | Kafka topic DDL 与启动校验解耦 | 已完成（待真实 broker 验收） | common-core/config/distro/docs | 让业务 Pod 去 DDL 权限，同时保证主/DLT topic 契约在启动时强校验 |
 | D-05A | 分级灾备恢复 Runbook 与 RPO/RTO | 已完成（待真实演练验收） | docs/全服务状态边界 | 禁止不一致快照复活旧状态，形成 Mongo/Redis/Kafka 恢复顺序与证据契约 |
@@ -329,6 +329,7 @@ storage-auth
 | D-06C | infra-queue 物理模块拆分 | 已完成（待编译/装配验收） | infra-queue/common-core/queue feature/build/docs | 队列 port 与 Kafka/Chronicle runtime 分离，按后端条件装配并以构建门禁阻止实现泄漏 |
 | D-06D | Queue Subscription 生命周期收口 | 已完成（待编译/运行验收） | infra-queue | context shutdown 统一停止 Kafka container/Chronicle poller，避免滚动发布残留线程与无界停机 |
 | D-06E | storage-business 物理模块拆分 | 已完成（待编译/装配验收） | storage-business/common-core/auth/business/postmaster/postman/ops | 业务 Mongo adapter 与 port 分离，无关进程不再因 common-core 携带 Mongo driver |
+| D-06F | infra-state 物理模块拆分 | 已完成（待编译/装配验收） | infra-state/common-core/state consumers/build/docs | Redis/RocksDB adapter 与 port 分离，api-server 保持最小 Redis 幂等装配 |
 | C-01A | session 本地复核租约 | 已完成 | postoffice/authcenter | 消除每次心跳两次重复 RPC，并保留撤销兜底 SLA |
 | C-01B | 路由心跳合并与批刷 | 已完成 | postoffice | 降低在线连接对 Redis 的写入和 RTT 放大 |
 | C-02 | 群 fanout worker 化 | 已完成 | common-api/common-core/postmaster | 隔离热点群成员枚举与写扩散，释放 ingress consumer |
@@ -408,7 +409,7 @@ storage-auth
 内聚性：
 
 - postbox 负责客户端发送接入与 ACK，因此编排位于 `MessageSenderImpl`；
-- Redis/RocksDB、TTL、Lua 和状态记录位于 common-core 基础设施 seam，业务层只依赖状态机接口；
+- 状态 port/model 位于 common-core；Redis/RocksDB、TTL、Lua 和状态记录已由 D-06F 迁入 infra-state；
 - 未把多状态发送语义塞进通用 `IdempotencyStore`，避免简单去重抽象被 message 特例污染。
 
 一致性与后续价值：
@@ -528,7 +529,7 @@ storage-auth
 
 实现摘要：
 
-- common-core 新增 `RefreshTokenStateStore`，Redis 使用一个 token family 对应一个 HASH，inspect/rotate/revoke 均为单 key Lua；all-in-one 使用 RocksDB 同步状态机；
+- common-core 新增 `RefreshTokenStateStore` port；Redis/RocksDB 实现已由 D-06F 迁入 infra-state；
 - refresh token 改为 `rt.<familyId>.<secret>`，存储层只保存 SHA-256；familyId 只负责定位状态，授权强度来自随机 secret；
 - 每次登录创建独立 family，并把 `refreshTokenFamilyId/refreshTokenExpireAt` 写入 `SessionPrincipal`；
 - refresh 先检查 session active、ban、tokenVersion 和 family 绑定，再原子消费当前 token并签发下一代；
@@ -1574,7 +1575,7 @@ storage-auth
 遗留风险：
 
 - 五个非 postman bootJar 仅减少约 4.7–4.8 MiB，仍为 150–167 MiB；
-- common-core 仍同时编译 Mongo、Redis、Kafka、Chronicle、RocksDB 与 Dubbo，native/backend 依赖隔离未完成；
+- 本任务当时 common-core 仍同时编译多种 backend；D-06B/C/E/F 已完成 Mongo、queue、state 的后续物理隔离；
 - D-02A 完成时 postbox/postman 的 actuator 声明仍缺依赖；该项已由 D-02B 统一解决；
 - 未做进程启动 smoke，只有编译、打包与 dependencyInsight 证据。
 
@@ -1641,7 +1642,7 @@ storage-auth
   调用 authcenter/business/postbox 等领域服务；
 - 新增 HTTP 18079、management 19079、Tomcat 有界线程/连接配置和 Redis readiness；
 - 启动类只扫描 `com.cheeseocean.im.apiserver`，不再借 all-in-one 才能提供客户 HTTP API；
-- common-core project dependency 设为 non-transitive，API 只显式装配 `RedisIdempotencyStore`，
+- common-core/infra-state project dependency 均设为 non-transitive，API 只显式装配 `RedisIdempotencyStore`，
   runtime 不携带 Mongo/Kafka/Chronicle/RocksDB；
 - Dockerfile 白名单扩展为七个生产服务；all-in-one component scan 显式排除独立 API 启动配置；
 - 所有独立应用显式 import `application-cluster.yml`，该 overlay 增加 `on-profile: cluster` 激活条件。
@@ -1670,7 +1671,7 @@ storage-auth
 
 遗留风险：
 
-- api-server 仍直接引用 common-core Redis adapter class，最终应拆成小型 `state-redis` adapter 模块；
+- api-server 对 Redis adapter 的直接引用已由 D-06F 收口到 infra-state composition 例外，完整 state auto-config 关闭；
 - Dubbo starter 当前带入宽泛 Netty/Dubbo runtime，仍需依赖锁定和版本收敛；
 - cluster overlay 仍包含所有中间件属性；虽然 API 不会绑定无类路径的 Mongo/Kafka配置，
   其它服务的数据所有权和最小权限凭据仍需继续拆分；
@@ -2033,7 +2034,7 @@ storage-auth
 
 遗留风险：
 
-- common-core 的 business Mongo 与 Kafka adapter 已由 D-06E/D-06C 迁出，剩余主要是 Redis/RocksDB state/cache；
+- common-core 的 business Mongo、Kafka 与 Redis/RocksDB adapter 已由 D-06E/D-06C/D-06F 迁出；
 - MessageHistoryRepository 当前同时含 read/write/mutation，后续 storage-history 拆分时应按消费者能力分 port，
   但不要在未出现第二实现前制造过细接口；
 - MessageSlot.content 为兼容历史数据仍是 Object，adapter 目前只规范已知 Binary；其他遗留 BSON 类型需样本验证；
@@ -2079,13 +2080,13 @@ storage-auth
 后续价值：
 
 - 可独立做 storage-history adapter contract test、Mongo 版本升级和查询压测；
-- storage-business 与 infra-queue 已复用该 module + auto-config 模板完成迁移；下一目标是 infra-state；
+- storage-business、infra-queue 与 infra-state 已复用该 module + auto-config 模板完成迁移；
 - 未来历史冷存储/分层读取只需新增 adapter 或组合实现，不改变 postbox/postmaster；
 - 依赖分析、SBOM 与漏洞处置可把 Mongo driver 的用途归因到明确模块。
 
 遗留风险：
 
-- common-core 的 business Mongo 已由 D-06E 迁出；当前仍直接携带 Redis 与 RocksDB；
+- common-core 的 business Mongo、Redis 与 RocksDB 已由 D-06E/D-06F 迁出；
 - 未在运行环境证明 AutoConfiguration 条件顺序、MongoTemplate 可见性与 all-in-one 单 Bean 装配；
 - Spring Data 自动索引发现需在本地/预发布验证；cluster 仍以 `distro/mongo` migration 为权威；
 - storage-history 目前是共享 library，不是独立网络服务；名称表示物理代码所有权，不意味着增加 RPC 跳数；
@@ -2256,3 +2257,63 @@ storage-auth
 - authcenter/business/postmaster/postman 主源码无 Document/impl import，storage-business 无 feature 反向 import；
 - AutoConfiguration imports、MongoTemplate 条件、五个显式 module dependency 与 DLT enabled 双门禁人工审计通过；
 - Ruby 等价边界扫描和 `git diff --check` 通过；Gradle boundary/compile/context 装配待工具恢复后验证。
+
+### D-06F infra-state 物理模块拆分
+
+实现摘要：
+
+- 新增 `infra-state` library，迁入 30 个 Redis/RocksDB/cache/config 源文件和 11 个实现测试；
+- common-core 只保留 CacheStore/CacheRegion、各类 StateStore、inbox/seq port、状态结果与
+  ConversationSeqAllocator，删除 Spring Data Redis 与 RocksDB JNI 依赖；
+- Redis typed cache、session/refresh、conversation/delivery/typing、通用/消息/ingress 幂等、seq cache、
+  RocksDB support、NodeQueue Redis Lua 与三类自动配置归 infra-state；
+- authcenter/business/postoffice/postbox/postmaster/postman 显式依赖 infra-state；
+- api-server 对 common-core/infra-state 均使用 non-transitive dependency，只显式声明自身需要的 Redis、
+  Jackson/Web/Dubbo 依赖，并继续在 composition root 构造 RedisIdempotencyStore；
+- 三类自动配置通过 `AutoConfiguration.imports` 注册，并由
+  `cheeseim.state.auto-config-enabled` 统一开关；api-server 固定为 false；
+- 根构建新增 `verifyStateArchitectureBoundary` 并挂入 check/compileJava，阻止驱动、实现与反向依赖回流；
+- 新增 infra-state ARCH，同步模块数、依赖矩阵、README、INDEX、common-core/api-server 事实文档。
+
+合理性：
+
+- StateStore 是业务正确性端口，Redis/RocksDB 是部署实现；放在 common-core 会让只需要 port 的模块
+  隐式携带 native library、Redis client 和全部自动配置；
+- cluster 共享状态与单机 RocksDB fallback 仍由同一 runtime 模块实现，原状态 code、Lua、TTL、key、codec
+  和调用路径不变，本任务不改变任何持久化/wire 格式；
+- api-server 不应为了一个 SETNX 幂等 port 装配 session、conversation、refresh、seq 等十余个 Bean，
+  因此使用显式 composition + 禁用完整 auto-config，而不是恢复 common package 扫描；
+- NodeQueueRedisScripts 是 Redis 节点队列实现细节，不属于通用 QueueAdapter，迁入 state runtime 比留在
+  queue port 包更符合实际依赖。
+
+内聚性与一致性：
+
+- infra-state 只包含 Redis/RocksDB adapter、codec、properties 和装配，不包含业务 Service/Controller；
+- feature → common-core port，infra-state → common-core/common-api，依赖无环；
+- cluster 缺 Redis 仍 fail-fast，RocksDB 仅是单 JVM fallback，没有因拆模块改变一致性等级；
+- 自动配置方式与 infra-queue/storage-* 一致，模块能力不再依赖 common-core 的偶然传递依赖。
+
+后续价值：
+
+- common-core 已不再直接编译 Mongo、Redis、Kafka、Chronicle 或 RocksDB，可逐步收敛为轻量 kernel/port 模块；
+- Redis/RocksDB 状态契约测试、Lua cluster 验收、native library 升级和 CVE 处置可独立进行；
+- 可按部署目标进一步形成 redis-only 与 rocksdb-only runtime artifact，而不修改 feature；
+- api-server 镜像可继续维持无 RocksDB/Mongo/Kafka/Chronicle 的轻量边界。
+
+遗留风险：
+
+- 为避免同时制造大规模无语义 diff，实现 package 暂保留 `com.cheeseocean.im.common.core.*` 历史前缀；
+  Gradle module 和门禁已强制物理所有权，package 改名应作为独立机械任务；
+- infra-state 当前同时携带 Redis 与 RocksDB JNI；生产 feature 镜像仍可能包含未使用的 RocksDB native，
+  是否拆 redis/rocksdb artifact 应先用 bootJar/SBOM 数据决策；
+- api-server 的 RedisIdempotencyStore 是 composition root 唯一允许的直接 adapter import，门禁已固定该例外；
+- 自动配置开关优先级、all-in-one RocksDB/Redis 选择、cluster 缺 Redis fail-fast 与 API 无多余 state Bean
+  尚未通过真实 Spring context 验收；
+- Gradle 编译受当前执行环境限制尚未执行。
+
+验证证据：
+
+- 按阶段约定未执行单元测试；
+- 静态检查确认 common-core main/test 无 Spring Data Redis、RocksDB、RedisCacheStore 或 NodeQueueRedisScripts；
+- 三个自动配置 import 均能映射到源文件，七个消费模块依赖与 API non-transitive/disabled 配置人工核对通过；
+- Ruby 等价边界扫描、模块计数与 `git diff --check` 通过；Gradle boundary/compile/context 待工具恢复后验证。

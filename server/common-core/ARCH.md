@@ -1,6 +1,6 @@
 # common-core/ARCH.md — 基础设施事实快照
 
-> 服务端共享 port/model 与状态基础设施层：Mongo Repo + 队列契约 + 缓存 + 序列状态机。
+> 服务端共享 port/model 与状态机内核：Repository/Queue/Cache/State port + 序列状态机。
 > 改公共组件前必读。
 
 common-core 是基础设施 library，不拥有 HTTP server。只为厂商调用共享 `spring-web` 客户端类型，
@@ -13,13 +13,13 @@ common-core 是基础设施 library，不拥有 HTTP server。只为厂商调用
 | --- | --- | --- |
 | `business/repository/` | 业务 Repository port；Mongo adapter 在 storage-business | `UserRepository` 等 |
 | `business/transaction/` | 持久化事务 port；Mongo transaction executor 在 storage-business | `PersistenceTransactionExecutor` |
-| `cache/` | typed `CacheStore` / `CacheRegion`（Redis JSON） | `RedisCacheStore.java` |
+| `cache/` | typed `CacheStore` / `CacheRegion` port；Redis 实现在 infra-state | `CacheStore` |
 | `history/` | 历史 port + 无框架 model；Mongo 实现在 storage-history | `MessageHistoryRepository`、`history/model` |
 | `queue/` | `QueueAdapter` port、消息/订阅模型、handler 与监听注解；运行时实现在 infra-queue | `QueueAdapter`、`QueueListener` |
 | `queue/dlt/` | DLT 查询/redrive port 与审计存储契约；Kafka 实现在 infra-queue | `DltOperations`、`DltRedriveAuditStore` |
-| `store/sequence/conversation/` | **会话 seq 状态机（生产级）** | `ConversationSeqAllocator.java:54`、`RedisConversationSeqCacheStore.java:129`、`ConversationSeqAllocatorConfigurer.java:40` |
-| `store/session/` | SessionStateStore（redis/rocksdb 两实现） | `StateStoreAutoConfigurer.java` |
-| `store/session/refresh/` | Refresh token family 原子轮换、复用检测与整族撤销 | Redis 单 key Lua / RocksDB 同步状态机 |
+| `store/sequence/conversation/` | **会话 seq allocator/状态 model/port**；cache adapter 在 infra-state | `ConversationSeqAllocator` |
+| `store/session/` | SessionStateStore port；Redis/RocksDB 实现在 infra-state | `SessionStateStore` |
+| `store/session/refresh/` | Refresh token family port/result；codec 与实现位于 infra-state | `RefreshTokenStateStore` |
 | `store/conversation/` | ConversationStateStore（每用户 maxSeq/readSeq/minSeq hot state） | |
 | `store/idempotency/message/` | postbox 发送 inbox（稳定消息身份、短租约、首次 ACK） | Redis Lua / RocksDB 两实现 |
 | `store/idempotency/ingress/` | postmaster ingress inbox（处理租约、稳定 seq、完成状态） | Redis pipeline + 单 key Lua / RocksDB |
@@ -48,7 +48,7 @@ common-core 是基础设施 library，不拥有 HTTP server。只为厂商调用
 
 - 路径：`store/sequence/conversation/ConversationSeqAllocator.allocate`
 - 状态机：`ALLOCATED` / `MISS` / `EXHAUSTED` / `LOCKED`
-- Redis Lua 单脚本原子操作 + lock owner UUID + lock TTL 3s（`RedisConversationSeqCacheStore.java:129`）
+- Redis Lua 单脚本原子操作 + lock owner UUID + lock TTL 3s（实现位于 infra-state）
 - Mongo `findAndModify $inc` 作全局真相，Redis 是热缓存段
 - `CLUSTER` 模式启动强校验 Redis 存在（`ConversationSeqAllocatorConfigurer.java:40`）
 - 段预分配：单聊 50 / 群聊 100
@@ -58,6 +58,7 @@ common-core 是基础设施 library，不拥有 HTTP server。只为厂商调用
 ## 4. 队列与缓存
 
 - `QueueAdapter` 后端实现在 `infra-queue`：Chronicle（默认，单机文件）/ Kafka（集群，两种后端 payload 语义一致）
+- Cache/State/seq cache 的 Redis/RocksDB 实现在 `infra-state`；common-core 禁止重新依赖对应驱动
 - common-core 禁止 import Spring Kafka、Kafka client、Chronicle 或 `infra.queue`；根构建门禁执行该边界
 - 发送：`MessageProducer` 发 Protobuf bytes，key = `ConversationIdUtil.buildQueueKey`，保证同会话同 Kafka 分区
 - 消费身份：`@QueueListener.group` 是稳定数据契约；禁止用环境变量改变 group

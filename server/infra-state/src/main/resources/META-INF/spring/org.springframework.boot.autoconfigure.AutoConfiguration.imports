@@ -1,0 +1,3 @@
+com.cheeseocean.im.common.core.store.config.StateStoreAutoConfigurer
+com.cheeseocean.im.common.core.cache.config.CacheAutoConfigurer
+com.cheeseocean.im.common.core.store.sequence.conversation.ConversationSeqAllocatorConfigurer

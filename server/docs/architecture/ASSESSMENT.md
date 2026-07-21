@@ -21,7 +21,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 
 | 能力 | 实现 | 关键代码 |
 | --- | --- | --- |
-| 会话 seq 分配 | Redis Lua 状态机（ALLOCATED/MISS/EXHAUSTED/LOCKED）+ Mongo `findAndModify $inc` 段预分配 + 启动时 Redis 守卫 | `common-core/.../store/sequence/conversation/ConversationSeqAllocator.java`、`RedisConversationSeqCacheStore.java:129`、`ConversationSeqAllocatorConfigurer.java:40` |
+| 会话 seq 分配 | Redis Lua 状态机（ALLOCATED/MISS/EXHAUSTED/LOCKED）+ Mongo `findAndModify $inc` 段预分配 + 启动时 Redis 守卫 | common-core `ConversationSeqAllocator` port/状态机；infra-state `RedisConversationSeqCacheStore`/自动配置 |
 | api-server 无状态 HTTP Facade | Controller 不下沉 Response 模型，Facade 编排 Dubbo | `api-server/.../controller/*`、`*Facade.java` |
 | JWT 无状态 access token | HS256，跨节点共享验证 | `authcenter/.../auth/JwtTokenIssuer.java:25` |
 | Postbox ingress 按 conversation key 分区 | 保序投递到 Kafka 分区 | `postbox/.../IngressMessagePublisher.java:23` |
@@ -213,8 +213,8 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
     SBOM/签名/扫描及真实镜像构建仍未完成。
 38. **共享依赖去外溢**：**第一阶段已完成 2026-07-19**。common-core 不再通过
     `spring-boot-starter-web` 和 Prometheus registry 让所有服务隐式携带 servlet server/exporter，
-    仅保留实际使用的 `spring-web` 客户端与 micrometer-core。Chronicle/RocksDB/Kafka/Redis/Mongo
-    adapter 仍同处 common-core，需后续物理拆模块，不能用 exclude 假解耦。
+    仅保留实际使用的 `spring-web` 客户端与 micrometer-core。Kafka/Chronicle、Mongo、Redis/RocksDB
+    adapter 已分别由第 49、48/51、52 项物理迁出 common-core。
 39. **显式管理面与健康语义**：**仓库侧已完成 2026-07-19，运行环境验收待办**。七个独立服务
     各自声明 Actuator、Prometheus 和 Web runtime；worker/Dubbo 服务关闭无意义业务 HTTP，
     只开放独立 19080–19085 管理端口。liveness 只看进程，readiness 纳入模块 Mongo/Redis，
@@ -222,7 +222,8 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
     NetworkPolicy 与真实 kubelet probe 尚未完成。
 40. **独立 API 生产入口**：**仓库侧已完成 2026-07-19，运行环境验收待办**。api-server 新增
     独立 Spring Boot/Dubbo consumer 入口、18079 业务端口、19079 管理端口和生产镜像；
-    只扫描 HTTP adapter，并以 non-transitive common-core 依赖显式装配 Redis 幂等 store。
+    只扫描 HTTP adapter，并以 non-transitive common-core/infra-state 依赖分别获得幂等 port/Redis adapter；
+    `cheeseim.state.auto-config-enabled=false` 阻止完整状态运行时装配。
     其 74.4 MiB bootJar 不含 Mongo/Kafka/Chronicle/RocksDB。all-in-one 显式排除该启动配置，
     保留原本嵌入式 controller 模式。
 41. **API 限流实现复原**：**仓库侧已完成 2026-07-19，运行环境验收待办**。修复文档声称完成、
@@ -258,7 +259,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 48. **storage-history 物理模块拆分**：**仓库侧已完成 2026-07-21，编译/装配验收待办**。
     历史 Mongo adapter、四类 Document 与自动配置迁入独立 library；仅 postbox/postmaster 显式依赖，
     feature 不再直接声明 Mongo starter。common-core 保留 port/model，构建门禁阻止 Document/BSON 回流与
-    common-core 反向依赖。common-core 其余 business Mongo adapter 已由第 51 项迁出，Redis/RocksDB adapter 待拆。
+    common-core 反向依赖。common-core 其余 business Mongo 与 Redis/RocksDB adapter 已由第 51/52 项迁出。
 49. **infra-queue 物理模块拆分**：**仓库侧已完成 2026-07-21，编译/装配验收待办**。
     `QueueAdapter`、监听注解和 DLT port 留在 common-core；Kafka/Chronicle adapter、listener runtime、
     byte producer、topic 校验与 Kafka DLT 实现迁入独立 library。实际生产/消费队列的 feature 显式依赖
@@ -271,6 +272,11 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
     业务 Mongo Document、39 个 adapter/config 源文件与相应测试迁入独立 library；common-core 只保留
     Repository/store port 与事务抽象，并移除 Mongo starter。authcenter/business/postmaster/postman/ops-cli
     显式依赖 adapter，自动配置只在 MongoTemplate 存在时生效。DLT operations 改为显式 enabled，仅 ops-cli 开启。
+52. **infra-state 物理模块拆分**：**仓库侧已完成 2026-07-21，编译/装配验收待办**。
+    Redis/RocksDB state、typed cache、message/ingress inbox、refresh family、conversation seq cache、节点队列 Lua
+    与三类自动配置迁入独立 library；common-core 只保留 port/model/allocator，并删除 Redis/RocksDB 依赖。
+    api-server 以 non-transitive 依赖只显式构造 RedisIdempotencyStore，关闭完整状态自动配置，避免 RocksDB/其他
+    state Bean 回流。构建门禁阻止技术依赖与 adapter import 回流。
 
 ---
 

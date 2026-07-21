@@ -20,6 +20,7 @@ server/
 ├── common-api        跨模块契约：领域模型 + Protobuf + 事件 + 枚举
 ├── common-core        共享 port/model + 业务 Mongo Repo + CacheStore + 序列状态 + Idgen
 ├── infra-queue        队列运行时：Kafka/Chronicle adapter + listener 装配 + DLT 实现
+├── infra-state        状态运行时：Redis/RocksDB adapter + Cache/State/seq 装配
 ├── storage-history    消息历史 Mongo adapter：Document + bulk/query + port 转换
 ├── storage-business   用户/群/会话等业务 Mongo adapter + Document + transaction
 ├── config            application-*.yml 配置集合
@@ -45,6 +46,7 @@ server/
 | `common-api` | 领域模型（`domain/`）+ Protobuf（`proto/` + 生成 `protocol/`）+ 事件（`event/`）+ 枚举 + DTO | **不写业务逻辑**、**不依赖 Spring Data** |
 | `common-core` | Repository/store port + 队列 port/model + `CacheStore` + 序列/会话状态机 + 推送发送 | 不依赖 Mongo/Kafka/Chronicle adapter 实现 |
 | `infra-queue` | Kafka/Chronicle adapter、listener runtime、topic 校验与 Kafka DLT 实现 | 不放业务 listener；不被 feature 源码直接 import |
+| `infra-state` | Redis/RocksDB 状态、typed cache、幂等 inbox、seq cache 与自动装配 | 不放业务编排；cluster 不得回退本地状态 |
 | `storage-history` | `MessageHistoryRepository` 的 Mongo 实现、历史 Document 与转换 | 不放历史业务规则；不向 feature 暴露 Document/BSON |
 | `storage-business` | 业务 Repository/store 的 Mongo 实现、Document 与事务装配 | 不放领域服务；不向 feature 暴露 Document/MongoTemplate |
 | `config` | `application-*.yml` + `module-*.yml` + `common.yml` | 不写 Java 代码 |
@@ -56,14 +58,15 @@ server/
 ```
 bootstrap-all → 所有模块
 ops-cli       → common-api, common-core, infra-queue, storage-business, config
-api-server    → authcenter, business, postbox, common-api, common-core
-postoffice    → common-api, common-core, infra-queue, authcenter（嵌入式）
-postbox       → common-api, common-core, infra-queue, storage-history
-postmaster    → common-api, common-core, infra-queue, storage-history, storage-business, business（Dubbo）
-postman       → common-api, common-core, infra-queue, storage-business
-authcenter    → common-api, common-core, storage-business
-business      → common-api, common-core, infra-queue, storage-business
+api-server    → authcenter, business, postbox, common-api, common-core, infra-state（仅显式 Redis 幂等 adapter）
+postoffice    → common-api, common-core, infra-queue, infra-state, authcenter（嵌入式）
+postbox       → common-api, common-core, infra-queue, infra-state, storage-history
+postmaster    → common-api, common-core, infra-queue, infra-state, storage-history, storage-business, business（Dubbo）
+postman       → common-api, common-core, infra-queue, infra-state, storage-business
+authcenter    → common-api, common-core, infra-state, storage-business
+business      → common-api, common-core, infra-queue, infra-state, storage-business
 infra-queue   → common-api, common-core
+infra-state   → common-api, common-core
 common-core   → common-api
 storage-history → common-api, common-core
 storage-business → common-api, common-core
@@ -105,6 +108,7 @@ api-server Controller  ──HTTP──> Facade ──Dubbo──> business / po
                                                                    │
                                                                    ├──> storage-business 业务 Repository Impl（Mongo）
                                                                    ├──> storage-history 历史 Repository Impl（Mongo）
+                                                                   ├──> infra-state Redis/RocksDB adapter
                                                                    └──> common-core Cache / Queue / StateStore port
 ```
 

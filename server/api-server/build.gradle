@@ -1,7 +1,10 @@
 dependencies {
     implementation project(':common-api')
-    // API 只复用 common-core 的 Redis 幂等 port/adapter；基础设施依赖由本模块显式声明。
+    // API 只复用 common-core port 与 infra-state 中的最小 Redis 幂等 adapter；传递依赖由本模块显式声明。
     implementation(project(':common-core')) {
+        transitive = false
+    }
+    implementation(project(':infra-state')) {
         transitive = false
     }
     implementation project(':config')

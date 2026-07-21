@@ -86,6 +86,7 @@
 | `server/storage-history/ARCH.md` | 权威 | 消息历史 Mongo adapter、自动装配、Document 与 port model 边界 |
 | `server/storage-business/ARCH.md` | 权威 | 业务 Mongo adapter、事务装配、Document/port 边界与迁移债务 |
 | `server/infra-queue/ARCH.md` | 权威 | 队列 port/runtime 边界、Kafka/Chronicle 装配、顺序与 DLT 不变量 |
+| `server/infra-state/ARCH.md` | 权威 | 状态 port/runtime 边界、Redis/RocksDB 装配、Lua 与单机 fallback 不变量 |
 | `server/perf/README.md` | 权威 | k6 长连接容量场景、正确性阈值与多节点 chaos 执行手册 |
 
 ## 六、缺失文档（建议补）

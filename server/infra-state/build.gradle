@@ -1,0 +1,15 @@
+dependencies {
+    implementation project(':common-api')
+    implementation project(':common-core')
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'org.rocksdb:rocksdbjni:9.10.0'
+}
+
+bootJar {
+    enabled = false
+}
+
+jar {
+    enabled = true
+}
