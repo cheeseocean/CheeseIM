@@ -318,18 +318,18 @@ storage-auth
 | D-02A | common-core Web/Prometheus 依赖去外溢 | 已完成 | common-core/六个服务 | 非 Web 服务不再隐式携带并启动 Tomcat，管理依赖回归可执行模块所有 |
 | D-02B | 七服务显式管理端口与健康探针 | 已完成（待运行环境验收） | 七个服务/config/docs | 统一可抓取指标、进程存活与依赖就绪语义，为 Kubernetes 探针提供稳定契约 |
 | D-03A | 独立 api-server 生产入口与真实 cluster overlay | 已完成（待运行环境验收） | api-server/config/bootstrap/Docker | 补齐集群 HTTP 控制面，并修复自定义 config name 导致 cluster 配置未加载 |
-| D-03B | API Redis Lua 限流实现复原 | 已完成（待编译/运行验收） | api-server/infra-state/config | 恢复多副本入口保护，统一可信代理、429 和 Redis 故障语义 |
+| D-03B | API Redis Lua 限流实现复原 | 已完成（编译/装配验收通过） | api-server/infra-state/config | 恢复多副本入口保护，统一可信代理、429 和 Redis 故障语义 |
 | D-04A | 七服务 Helm 工作负载基线 | 已完成（待 Helm/集群验收） | distro/helm/docs | 把镜像、探针、资源、安全、PDB、拓扑和网络入口形成一致部署契约 |
 | D-04B | Kafka topic DDL 与启动校验解耦 | 已完成（待真实 broker 验收） | common-core/config/distro/docs | 让业务 Pod 去 DDL 权限，同时保证主/DLT topic 契约在启动时强校验 |
 | D-05A | 分级灾备恢复 Runbook 与 RPO/RTO | 已完成（待真实演练验收） | docs/全服务状态边界 | 禁止不一致快照复活旧状态，形成 Mongo/Redis/Kafka 恢复顺序与证据契约 |
 | D-05B | write-behind RPO 可观测与停机 drain | 已完成（待编译/演练验收） | common-core/business/postmaster/Helm/docs | 让热水位积压、卡死批次和停机丢失从隐式窗口变成可告警事实 |
 | D-05C | Prometheus Operator 采集与告警交付 | 已完成（待 Helm/集群验收） | Helm/observability/docs | 把指标 endpoint、抓取发现、告警规则和 NetworkPolicy 边界连成可选生产闭环 |
-| D-06A | history port 与 Mongo Document 解耦 | 已完成（待编译验收） | common-core/postbox/postmaster/docs | 关闭持久化模型和 BSON 类型向历史查询/撤回业务泄漏，为 storage-history 物理拆分建立边界 |
-| D-06B | storage-history 物理模块拆分 | 已完成（待编译/装配验收） | storage-history/common-core/postbox/postmaster/build/docs | 历史 Mongo adapter 不再由所有 common-core 消费者携带源码类型，形成显式存储所有权与构建门禁 |
-| D-06C | infra-queue 物理模块拆分 | 已完成（待编译/装配验收） | infra-queue/common-core/queue feature/build/docs | 队列 port 与 Kafka/Chronicle runtime 分离，按后端条件装配并以构建门禁阻止实现泄漏 |
-| D-06D | Queue Subscription 生命周期收口 | 已完成（待编译/运行验收） | infra-queue | context shutdown 统一停止 Kafka container/Chronicle poller，避免滚动发布残留线程与无界停机 |
-| D-06E | storage-business 物理模块拆分 | 已完成（待编译/装配验收） | storage-business/common-core/auth/business/postmaster/postman/ops | 业务 Mongo adapter 与 port 分离，无关进程不再因 common-core 携带 Mongo driver |
-| D-06F | infra-state 物理模块拆分 | 已完成（待编译/装配验收） | infra-state/common-core/state consumers/build/docs | Redis/RocksDB adapter 与 port 分离，api-server 保持最小 Redis 幂等装配 |
+| D-06A | history port 与 Mongo Document 解耦 | 已完成（编译/装配验收通过） | common-core/postbox/postmaster/docs | 关闭持久化模型和 BSON 类型向历史查询/撤回业务泄漏，为 storage-history 物理拆分建立边界 |
+| D-06B | storage-history 物理模块拆分 | 已完成（编译/装配验收通过） | storage-history/common-core/postbox/postmaster/build/docs | 历史 Mongo adapter 不再由所有 common-core 消费者携带源码类型，形成显式存储所有权与构建门禁 |
+| D-06C | infra-queue 物理模块拆分 | 已完成（编译/装配验收通过） | infra-queue/common-core/queue feature/build/docs | 队列 port 与 Kafka/Chronicle runtime 分离，按后端条件装配并以构建门禁阻止实现泄漏 |
+| D-06D | Queue Subscription 生命周期收口 | 已完成（编译/生命周期测试通过） | infra-queue | context shutdown 统一停止 Kafka container/Chronicle poller，避免滚动发布残留线程与无界停机 |
+| D-06E | storage-business 物理模块拆分 | 已完成（编译/装配验收通过） | storage-business/common-core/auth/business/postmaster/postman/ops | 业务 Mongo adapter 与 port 分离，无关进程不再因 common-core 携带 Mongo driver |
+| D-06F | infra-state 物理模块拆分 | 已完成（编译/装配验收通过） | infra-state/common-core/state consumers/build/docs | Redis/RocksDB adapter 与 port 分离，api-server 保持最小 Redis 幂等装配 |
 | C-01A | session 本地复核租约 | 已完成 | postoffice/authcenter | 消除每次心跳两次重复 RPC，并保留撤销兜底 SLA |
 | C-01B | 路由心跳合并与批刷 | 已完成 | postoffice | 降低在线连接对 Redis 的写入和 RTT 放大 |
 | C-02 | 群 fanout worker 化 | 已完成 | common-api/common-core/postmaster | 隔离热点群成员枚举与写扩散，释放 ingress consumer |
@@ -1721,7 +1721,7 @@ storage-auth
 - 固定窗口在边界允许瞬时双倍突发；精细产品配额可升级 token bucket，但边缘层仍应先削峰；
 - NAT 下多用户共享来源预算，登录/高成本端点还应增加独立规则和已认证 user/device 维度；
 - fail-open 期间失去应用层限流，必须依赖边缘防护；
-- 当前环境工具额度阻止再次调用 Gradle，新增 Filter 尚只有静态审计/YAML 解析证据，需下一可用窗口补编译；
+- 2026-07-24 已完成默认 configuration-cache 构建、api-server 测试与 bootJar 装配验收；
 - 尚未真实验证 Redis Cluster、可信代理链和 429 客户端退避。
 
 验证证据：
@@ -1730,7 +1730,8 @@ storage-auth
 - 完成 Lua 原子性、TTL、窗口边界、代理头伪造、Redis null/exception、cooldown 并发恢复、
   downstream exception 不重入和敏感错误泄漏人工审计；
 - 全配置 YAML 解析与 `git diff --check` 通过；
-- Gradle 编译证据待工具额度恢复后补齐，账本状态明确标记“待编译/运行验收”。
+- `./gradlew compileJava`、相关模块测试和 api-server bootJar 已于 2026-07-24 通过；
+  真实 Redis Cluster、可信代理链和客户端 429 退避仍属于部署环境验收。
 
 ### D-04A 七服务 Helm 工作负载基线
 
@@ -2038,7 +2039,7 @@ storage-auth
 - MessageHistoryRepository 当前同时含 read/write/mutation，后续 storage-history 拆分时应按消费者能力分 port，
   但不要在未出现第二实现前制造过细接口；
 - MessageSlot.content 为兼容历史数据仍是 Object，adapter 目前只规范已知 Binary；其他遗留 BSON 类型需样本验证；
-- Java 变更因 Gradle 执行额度限制尚未编译，状态明确为“待编译验收”。
+- Java 边界、调用方与 adapter 已于 2026-07-24 完成编译和模块测试验收。
 
 验证证据：
 
@@ -2046,7 +2047,7 @@ storage-auth
 - 静态边界检查确认 postbox/postmaster/business 主源码无 `history.document` 或 `org.bson` import；
 - 五个 history model 无 Spring Data/BSON import，MessageHistoryRepository 签名无 `*Doc`；
 - 人工逐项核对 recent/range/slot/mapping/attachment/revoked/upsert/cursor 的 adapter 转换路径；
-- `git diff --check` 通过；Gradle compile 保留待工具额度恢复后执行。
+- `./gradlew compileJava`、相关模块测试和架构门禁已于 2026-07-24 通过。
 
 ### D-06B storage-history 物理模块拆分
 
@@ -2090,7 +2091,7 @@ storage-auth
 - 未在运行环境证明 AutoConfiguration 条件顺序、MongoTemplate 可见性与 all-in-one 单 Bean 装配；
 - Spring Data 自动索引发现需在本地/预发布验证；cluster 仍以 `distro/mongo` migration 为权威；
 - storage-history 目前是共享 library，不是独立网络服务；名称表示物理代码所有权，不意味着增加 RPC 跳数；
-- Gradle 编译受工具额度限制尚未执行。
+- Gradle 编译与调用方装配已于 2026-07-24 通过；真实 mongos targeted query 仍需环境验收。
 
 验证证据：
 
@@ -2098,7 +2099,7 @@ storage-auth
 - 静态检查确认 common-core history 目录无 Spring Data/BSON，Mongo adapter/Document 只存在 storage-history；
 - postbox/postmaster 主源码无 Document/BSON import，build.gradle 不再直接声明 Mongo starter；
 - AutoConfiguration imports、条件 Bean、module dependency DAG、bootJar/jar 边界人工审计通过；
-- Ruby 等价边界扫描与 `git diff --check` 通过；Gradle boundary/compile/boot 装配待工具恢复后验证。
+- Gradle boundary、compile、相关模块测试及生产 bootJar 装配已于 2026-07-24 通过。
 
 ### D-06C infra-queue 物理模块拆分
 
@@ -2145,7 +2146,7 @@ storage-auth
   `infra-queue-kafka` / `infra-queue-chronicle`，当前不提前增加模块数量；
 - `@QueueListener` 基于 BeanPostProcessor 在 bean 初始化期订阅，优雅停机与 rebalance 生命周期仍需运行测试证明；
 - 自动配置顺序、Kafka 模式单一 QueueAdapter、Chronicle 模式无 Kafka bean 和 all-in-one 单 Bean 尚未实际启动验收；
-- Gradle 编译受工具额度限制尚未执行。
+- Gradle 编译、Kafka/Chronicle 自动配置测试与生产 bootJar 装配已于 2026-07-24 通过。
 
 验证证据：
 
@@ -2153,7 +2154,7 @@ storage-auth
 - 静态检查确认 common-core main/test 无 Spring Kafka、Kafka client、Chronicle 或 infra-queue import；
 - feature 主源码无 `com.cheeseocean.im.infra.queue` import，直接 KafkaTemplate/@KafkaListener 路径为零；
 - Kafka/Chronicle/运行时配置实现只存在 infra-queue，AutoConfiguration imports 与 queue type 条件人工审计通过；
-- Ruby 等价边界扫描与 `git diff --check` 通过；Gradle boundary/compile/context 启动待工具恢复后验证。
+- Gradle boundary、compile、Kafka/Chronicle context 测试及生产 bootJar 装配已于 2026-07-24 通过。
 
 ### D-06D Queue Subscription 生命周期收口
 
@@ -2194,14 +2195,14 @@ storage-auth
   做运行数据校准；
 - 未关闭 ChronicleQueue 文件句柄，当前由进程退出回收；若要支持同 JVM context 反复启停，应在明确 destroy
   顺序后为 adapter 增加 close 生命周期；
-- Gradle 编译与运行测试受工具额度限制尚未执行。
+- Gradle 编译与 Queue Subscription context close/adapter 生命周期测试已于 2026-07-24 通过。
 
 验证证据：
 
 - 按阶段约定未执行单元测试；
 - 人工审计三条 listener 注册路径均进入 track，三条 Chronicle subscription 均进入 stopPoller；
 - stopPoller 有幂等 compareAndSet、30 秒有界等待、超时/中断兜底；destroy 对单订阅异常隔离；
-- `git diff --check` 与队列边界等价静态扫描通过，编译/context close 测试待工具恢复后执行。
+- 队列边界门禁、编译、context close 和 Kafka/Chronicle adapter 测试已于 2026-07-24 通过。
 
 ### D-06E storage-business 物理模块拆分
 
@@ -2248,7 +2249,7 @@ storage-auth
 - storage-business 仍聚合 auth、social、conversation、fanout 与 DLT audit 多个数据域，尚不是最终 bounded context；
 - 所有使用任一业务 Mongo port 的进程当前携带整个 adapter jar；需先用镜像/SBOM数据再决定是否继续细拆；
 - 自动配置条件顺序、all-in-one 单事务管理器、postman 控制事件 adapter 和 ops DLT Bean 尚未运行验收；
-- Gradle 编译受工具额度限制尚未执行。
+- Gradle 编译、storage-business adapter 测试和生产 bootJar 装配已于 2026-07-24 通过。
 
 验证证据：
 
@@ -2256,7 +2257,7 @@ storage-auth
 - 静态检查确认 common-core main/test 无 Spring Data Mongo 或 business mongo document/impl/config；
 - authcenter/business/postmaster/postman 主源码无 Document/impl import，storage-business 无 feature 反向 import；
 - AutoConfiguration imports、MongoTemplate 条件、五个显式 module dependency 与 DLT enabled 双门禁人工审计通过；
-- Ruby 等价边界扫描和 `git diff --check` 通过；Gradle boundary/compile/context 装配待工具恢复后验证。
+- Gradle boundary、compile、storage-business context/adapter 测试及生产 bootJar 装配已于 2026-07-24 通过。
 
 ### D-06F infra-state 物理模块拆分
 
@@ -2309,11 +2310,29 @@ storage-auth
 - api-server 的 RedisIdempotencyStore 是 composition root 唯一允许的直接 adapter import，门禁已固定该例外；
 - 自动配置开关优先级、all-in-one RocksDB/Redis 选择、cluster 缺 Redis fail-fast 与 API 无多余 state Bean
   尚未通过真实 Spring context 验收；
-- Gradle 编译受当前执行环境限制尚未执行。
+- Gradle 编译、Redis/RocksDB 状态测试和生产 bootJar 装配已于 2026-07-24 通过。
 
 验证证据：
 
 - 按阶段约定未执行单元测试；
 - 静态检查确认 common-core main/test 无 Spring Data Redis、RocksDB、RedisCacheStore 或 NodeQueueRedisScripts；
 - 三个自动配置 import 均能映射到源文件，七个消费模块依赖与 API non-transitive/disabled 配置人工核对通过；
-- Ruby 等价边界扫描、模块计数与 `git diff --check` 通过；Gradle boundary/compile/context 待工具恢复后验证。
+- Gradle boundary、compile、Redis/RocksDB 状态测试及生产 bootJar 装配已于 2026-07-24 通过。
+
+## 11. 2026-07-24 编译与装配验收补记
+
+- 修复四个架构边界任务在 configuration cache 下引用 Gradle script object 的失败；门禁改为基于任务输入扫描
+  真实 Java import，避免 Javadoc 示例字符串造成反向依赖假阳性。
+- `MessageMutationServiceImpl` 不再依赖 Spring DAO；Mongo 并发 upsert 的 `DuplicateKeyException`
+  由 storage-history adapter 收敛为确定性 `_id` 幂等读取。
+- 修复 API 429 状态常量与重构后测试 fixture 漂移，未放宽 Redis fail-closed、membership version、
+  Queue/DLT、异步 ChannelFuture 或路由 compare-and-delete 语义。
+- `./gradlew compileJava` 成功；第二次执行明确显示 `Configuration cache entry reused`。
+- api-server、storage-history、infra-queue、storage-business、infra-state、postbox、postmaster、
+  authcenter、business、postman、postoffice、ops-cli、bootstrap-all 的测试任务全部成功；
+  无测试模块按 Gradle `NO-SOURCE` 处理。
+- api-server、authcenter、business、postoffice、postbox、postmaster、postman、ops-cli、bootstrap-all
+  的 bootJar 全部构建成功。产物检查确认 api-server 不包含 Mongo/Kafka/Chronicle/RocksDB 运行库；
+  postbox/postmaster/postman 只携带各自显式声明的 infra/storage adapter jar。
+- 本次结论只关闭仓库内编译、门禁、单元/context 测试和产物装配；真实 Redis Cluster、mongos、Kafka broker、
+  Kubernetes 滚动发布与长压/chaos 仍按原路线单独验收。

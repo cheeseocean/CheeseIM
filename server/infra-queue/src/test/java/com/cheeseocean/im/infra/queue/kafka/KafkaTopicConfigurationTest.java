@@ -25,7 +25,7 @@ class KafkaTopicConfigurationTest {
         KafkaTopicProperties properties = properties();
         NewTopic[] topics = new KafkaTopicConfiguration().topicDeclarations(properties).toArray(NewTopic[]::new);
 
-        assertEquals(8, topics.length);
+        assertEquals(12, topics.length);
         assertTrue(Arrays.stream(topics).anyMatch(topic -> topic.name().equals("ingress.DLT")));
         assertTrue(Arrays.stream(topics).allMatch(topic -> topic.numPartitions() == 12));
         assertTrue(Arrays.stream(topics).allMatch(topic -> topic.replicationFactor() == 3));
@@ -38,14 +38,24 @@ class KafkaTopicConfigurationTest {
     }
 
     @Test
-    void clusterShouldRejectDisabledTopicContract() {
+    void clusterShouldValidateTopicsWhenAutoCreateIsDisabled() {
         KafkaTopicProperties properties = properties();
         properties.setAutoCreateEnabled(false);
         Environment environment = mock(Environment.class);
         when(environment.getProperty("cheeseim.runtime.mode")).thenReturn("cluster");
+        when(environment.getProperty(
+                "cheeseim.delivery.group-fanout.completed-retention-seconds",
+                Long.class,
+                691_200L)).thenReturn(691_200L);
+        Admin admin = mock(Admin.class);
+        org.apache.kafka.clients.admin.DescribeTopicsResult result =
+                mock(org.apache.kafka.clients.admin.DescribeTopicsResult.class);
+        when(admin.describeTopics(anyCollection())).thenReturn(result);
+        when(result.allTopicNames()).thenReturn(
+                org.apache.kafka.common.KafkaFuture.completedFuture(Map.of()));
 
         assertThrows(IllegalStateException.class, () -> new KafkaTopicConfiguration()
-                .kafkaTopicContractValidator(properties, environment, mock(Admin.class))
+                .kafkaTopicContractValidator(properties, environment, admin)
                 .run(mock(ApplicationArguments.class)));
     }
 

@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 
@@ -62,7 +63,8 @@ class OnlineDispatcherImplTest {
 
         assertEquals(1, resp.getResults().size());
         assertEquals("conn-1", resp.getResults().get(0).getConnectionId());
-        assertEquals(true, resp.getResults().get(0).isSuccess());
+        assertFalse(resp.getResults().get(0).isSuccess());
+        assertEquals("WRITE_PENDING", resp.getResults().get(0).getCode());
 
         BinaryWebSocketFrame outbound = activeChannel.readOutbound();
         assertNotNull(outbound);
@@ -98,7 +100,8 @@ class OnlineDispatcherImplTest {
         var resp = service.dispatchMessage(req);
 
         assertEquals(1, resp.getResults().size());
-        assertEquals(true, resp.getResults().get(0).isSuccess());
+        assertFalse(resp.getResults().get(0).isSuccess());
+        assertEquals("WRITE_PENDING", resp.getResults().get(0).getCode());
 
         Object outbound = activeChannel.readOutbound();
         assertNotNull(outbound);
@@ -156,7 +159,8 @@ class OnlineDispatcherImplTest {
         var resp = service.dispatchMessage(req);
 
         assertEquals(1, resp.getResults().size());
-        assertTrue(resp.getResults().get(0).isSuccess());
+        assertFalse(resp.getResults().get(0).isSuccess());
+        assertEquals("WRITE_PENDING", resp.getResults().get(0).getCode());
 
         BinaryWebSocketFrame outbound = activeChannel.readOutbound();
         assertNotNull(outbound);
@@ -188,10 +192,10 @@ class OnlineDispatcherImplTest {
         var failed = dispatcher.dispatchMessage(request);
         var retried = dispatcher.dispatchMessage(request);
 
-        assertEquals("SEND_FAILED", failed.getResults().get(0).getCode());
-        assertEquals("OK", retried.getResults().get(0).getCode());
-        verify(manager).abortDelivery(first);
-        verify(manager).commitDelivery(retry);
+        assertEquals("WRITE_PENDING", failed.getResults().get(0).getCode());
+        assertEquals("WRITE_PENDING", retried.getResults().get(0).getCode());
+        verify(manager, timeout(1_000)).abortDelivery(first);
+        verify(manager, timeout(1_000)).commitDelivery(retry);
     }
 
     private static ConnectionManager connectionManager() {

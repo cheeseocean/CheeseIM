@@ -23,7 +23,6 @@ import org.apache.dubbo.config.annotation.DubboReference;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.beans.factory.annotation.Value;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.dao.DuplicateKeyException;
 
 import java.time.Instant;
 import java.util.List;
@@ -111,15 +110,10 @@ public class MessageMutationServiceImpl implements MessageMutationService {
         pending.setReason(normalizeReason(reason));
         pending.setMutationVersion(now.toEpochMilli());
         pending.setCreatedAt(now);
-        try {
-            MessageMutation mutation = messageHistoryRepository.upsertMutation(pending);
-            return notifyOnline(toResult(mutation));
-        } catch (DuplicateKeyException ignored) {
-            MessageMutation mutation = messageHistoryRepository.findMutationById(mutationId);
-            return mutation == null
-                    ? MessageMutationResult.rejected("MUTATION_RETRY", "撤回写入冲突，请重试")
-                    : notifyOnline(toResult(mutation));
-        }
+        MessageMutation mutation = messageHistoryRepository.upsertMutation(pending);
+        return mutation == null
+                ? MessageMutationResult.rejected("MUTATION_RETRY", "撤回写入冲突，请重试")
+                : notifyOnline(toResult(mutation));
     }
 
     @Override

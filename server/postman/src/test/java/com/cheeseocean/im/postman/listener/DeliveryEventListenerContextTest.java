@@ -3,6 +3,7 @@ package com.cheeseocean.im.postman.listener;
 import com.cheeseocean.im.common.api.route.OnlineRouteQueryService;
 import com.cheeseocean.im.common.api.rpc.OnlineDispatcher;
 import com.cheeseocean.im.common.core.queue.QueueAdapter;
+import com.cheeseocean.im.postman.delivery.OfflinePushEventFactory;
 import com.cheeseocean.im.postman.sender.OfflinePushEventProducer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -19,7 +20,8 @@ class DeliveryEventListenerContextTest {
     void deliveryEventListenerShouldBeCreatableInSpringContext() {
         assertDoesNotThrow(() -> {
             try (AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext()) {
-                context.register(TestConfig.class, DeliveryEventListener.class, OfflinePushEventProducer.class);
+                context.register(TestConfig.class, DeliveryEventListener.class,
+                        OfflinePushEventProducer.class, OfflinePushEventFactory.class);
                 context.refresh();
                 context.getBean(DeliveryEventListener.class);
             }

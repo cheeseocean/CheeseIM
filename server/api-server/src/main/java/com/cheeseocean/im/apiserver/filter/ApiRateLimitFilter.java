@@ -178,7 +178,7 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
     private void writeTooManyRequests(HttpServletResponse response, long now) throws IOException {
         long remainingMillis = windowMillis - Math.floorMod(now, windowMillis);
         long retryAfterSeconds = Math.max(1L, (remainingMillis + 999L) / 1_000L);
-        response.setStatus(HttpServletResponse.SC_TOO_MANY_REQUESTS);
+        response.setStatus(429);
         response.setHeader("Retry-After", Long.toString(retryAfterSeconds));
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());

@@ -226,7 +226,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
     `cheeseim.state.auto-config-enabled=false` 阻止完整状态运行时装配。
     其 74.4 MiB bootJar 不含 Mongo/Kafka/Chronicle/RocksDB。all-in-one 显式排除该启动配置，
     保留原本嵌入式 controller 模式。
-41. **API 限流实现复原**：**仓库侧已完成 2026-07-19，运行环境验收待办**。修复文档声称完成、
+41. **API 限流实现复原**：**仓库侧已完成 2026-07-19，编译/装配验收通过 2026-07-24，真实 Redis 环境验收待办**。修复文档声称完成、
     但源码只剩 Redis key 常量的漂移；新增 `/api/**` 多副本 Lua 固定窗口、429/Retry-After、
     来源地址指纹、显式可信代理跳数和 Redis 故障短熔断 fail-open 指标。边缘连接/带宽/DDoS
     防护仍是生产前置条件。
@@ -252,27 +252,27 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
     Chart 可选生成只选择普通管理 Service 的 ServiceMonitor，以及 namespace-scoped writer oldest-age/
     persistence-failure PrometheusRule；默认关闭避免缺 CRD 集群安装失败，阈值关系启动时校验。
     Prometheus selector labels、NetworkPolicy 和告警路由仍需按真实集群 values 验收。
-47. **history port 去 Mongo Document 泄漏**：**仓库侧已完成 2026-07-21，编译验收待办**。
+47. **history port 去 Mongo Document 泄漏**：**仓库侧已完成 2026-07-21，编译/装配验收通过 2026-07-24**。
     新增无 Spring Data/BSON import 的 history model，`MessageHistoryRepository` 不再返回 `*Doc`；
     postbox/postmaster 历史查询与撤回服务只依赖 port model。Mongo adapter 负责 Document 转换并将
     BSON Binary 规范为 `byte[]`。Mongo adapter 的物理迁移已由第 48 项完成。
-48. **storage-history 物理模块拆分**：**仓库侧已完成 2026-07-21，编译/装配验收待办**。
+48. **storage-history 物理模块拆分**：**仓库侧已完成 2026-07-21，编译/装配验收通过 2026-07-24**。
     历史 Mongo adapter、四类 Document 与自动配置迁入独立 library；仅 postbox/postmaster 显式依赖，
     feature 不再直接声明 Mongo starter。common-core 保留 port/model，构建门禁阻止 Document/BSON 回流与
     common-core 反向依赖。common-core 其余 business Mongo 与 Redis/RocksDB adapter 已由第 51/52 项迁出。
-49. **infra-queue 物理模块拆分**：**仓库侧已完成 2026-07-21，编译/装配验收待办**。
+49. **infra-queue 物理模块拆分**：**仓库侧已完成 2026-07-21，编译/装配验收通过 2026-07-24**。
     `QueueAdapter`、监听注解和 DLT port 留在 common-core；Kafka/Chronicle adapter、listener runtime、
     byte producer、topic 校验与 Kafka DLT 实现迁入独立 library。实际生产/消费队列的 feature 显式依赖
     infra-queue，但源码只 import port。自动配置按 queue type 隔离：Chronicle 模式不再创建 Kafka
     producer/admin。根构建门禁阻止 common-core/feature 回流实现依赖。
-50. **队列订阅生命周期**：**仓库侧已完成 2026-07-21，运行验收待办**。listener runtime 集中持有
+50. **队列订阅生命周期**：**仓库侧已完成 2026-07-21，编译/生命周期测试通过 2026-07-24**。listener runtime 集中持有
     `QueueAdapter.subscribe*` 返回的 Subscription，Spring context 关闭时逆序释放；Chronicle poller 从立即
     `shutdownNow` 改为最多 30 秒协作式 drain 后再中断，Kafka container 统一经 Subscription.stop 关闭。
-51. **storage-business 物理模块拆分**：**仓库侧已完成 2026-07-21，编译/装配验收待办**。
+51. **storage-business 物理模块拆分**：**仓库侧已完成 2026-07-21，编译/装配验收通过 2026-07-24**。
     业务 Mongo Document、39 个 adapter/config 源文件与相应测试迁入独立 library；common-core 只保留
     Repository/store port 与事务抽象，并移除 Mongo starter。authcenter/business/postmaster/postman/ops-cli
     显式依赖 adapter，自动配置只在 MongoTemplate 存在时生效。DLT operations 改为显式 enabled，仅 ops-cli 开启。
-52. **infra-state 物理模块拆分**：**仓库侧已完成 2026-07-21，编译/装配验收待办**。
+52. **infra-state 物理模块拆分**：**仓库侧已完成 2026-07-21，编译/装配验收通过 2026-07-24**。
     Redis/RocksDB state、typed cache、message/ingress inbox、refresh family、conversation seq cache、节点队列 Lua
     与三类自动配置迁入独立 library；common-core 只保留 port/model/allocator，并删除 Redis/RocksDB 依赖。
     api-server 以 non-transitive 依赖只显式构造 RedisIdempotencyStore，关闭完整状态自动配置，避免 RocksDB/其他

@@ -56,6 +56,8 @@ class UserMaxSeqPersistenceWriterTest {
         UserConversationSyncPointRepository repository = mock(UserConversationSyncPointRepository.class);
         doThrow(new IllegalStateException("mongo unavailable"))
                 .when(repository).updateMaxSeqBatch(anyList());
+        doThrow(new IllegalStateException("mongo unavailable"))
+                .when(repository).updateMaxSeq("u1", "c3", 3L);
         UserMaxSeqPersistenceWriter writer = new UserMaxSeqPersistenceWriter(
                 repository, 1, 1, false);
 

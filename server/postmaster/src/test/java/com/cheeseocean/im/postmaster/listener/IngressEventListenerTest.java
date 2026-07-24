@@ -365,6 +365,7 @@ class IngressEventListenerTest {
                     new com.cheeseocean.im.common.api.permission.GroupMessageSendPermissionResult();
             result.setGroupId(groupId);
             result.setGroupType(groupMembershipFacade.loadGroupType(groupId));
+            result.setMembershipVersion(1L);
             result.setDecisions(senderIds.stream()
                     .map(senderId -> com.cheeseocean.im.common.api.permission.GroupMessageSendPermissionDecision.of(
                             senderId,

@@ -52,7 +52,7 @@ class MessageSenderImplTest {
     void sendMessageShouldRejectWhenAggregatedPermissionIsBlocked() {
         IngressMessagePublisher publisher = mock(IngressMessagePublisher.class);
         MessageSendPermissionService permissionService = mock(MessageSendPermissionService.class);
-        MessageSenderImpl sender = new MessageSenderImpl(publisher, mock(MessageSendInboxStore.class));
+        MessageSenderImpl sender = new MessageSenderImpl(publisher, acquiredInboxStore());
         ReflectionTestUtils.setField(sender, "messageSendPermissionService", permissionService);
         when(permissionService.check(any(MessageSendPermissionRequest.class))).thenReturn(
                 MessageSendPermissionResult.blocked(

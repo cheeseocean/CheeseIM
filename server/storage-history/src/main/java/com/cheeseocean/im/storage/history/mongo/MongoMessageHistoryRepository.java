@@ -22,6 +22,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.dao.DuplicateKeyException;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -188,20 +189,25 @@ public class MongoMessageHistoryRepository implements MessageHistoryRepository {
 
     @Override
     public MessageMutation upsertMutation(MessageMutation mutation) {
-        return toModel(mongoTemplate.findAndModify(
-                Query.query(Criteria.where("_id").is(mutation.getId())),
-                new Update()
-                        .setOnInsert("serverMsgId", mutation.getServerMsgId())
-                        .setOnInsert("conversationId", mutation.getConversationId())
-                        .setOnInsert("mutationType", mutation.getMutationType())
-                        .setOnInsert("operatorUserId", mutation.getOperatorUserId())
-                        .setOnInsert("operatorName", mutation.getOperatorName())
-                        .setOnInsert("targetSenderId", mutation.getTargetSenderId())
-                        .setOnInsert("targetSenderName", mutation.getTargetSenderName())
-                        .setOnInsert("reason", mutation.getReason())
-                        .setOnInsert("mutationVersion", mutation.getMutationVersion())
-                        .setOnInsert("createdAt", mutation.getCreatedAt()),
-                FindAndModifyOptions.options().upsert(true).returnNew(true), MessageMutationDoc.class));
+        try {
+            return toModel(mongoTemplate.findAndModify(
+                    Query.query(Criteria.where("_id").is(mutation.getId())),
+                    new Update()
+                            .setOnInsert("serverMsgId", mutation.getServerMsgId())
+                            .setOnInsert("conversationId", mutation.getConversationId())
+                            .setOnInsert("mutationType", mutation.getMutationType())
+                            .setOnInsert("operatorUserId", mutation.getOperatorUserId())
+                            .setOnInsert("operatorName", mutation.getOperatorName())
+                            .setOnInsert("targetSenderId", mutation.getTargetSenderId())
+                            .setOnInsert("targetSenderName", mutation.getTargetSenderName())
+                            .setOnInsert("reason", mutation.getReason())
+                            .setOnInsert("mutationVersion", mutation.getMutationVersion())
+                            .setOnInsert("createdAt", mutation.getCreatedAt()),
+                    FindAndModifyOptions.options().upsert(true).returnNew(true), MessageMutationDoc.class));
+        } catch (DuplicateKeyException ignored) {
+            // 并发撤回可能同时尝试插入同一确定性 _id；adapter 在持久化边界收敛为幂等读取。
+            return findMutationById(mutation.getId());
+        }
     }
 
     @Override

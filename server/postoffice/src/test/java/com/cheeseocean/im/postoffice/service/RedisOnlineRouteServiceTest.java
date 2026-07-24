@@ -252,12 +252,29 @@ class RedisOnlineRouteServiceTest {
         entries.put("route:active-device", mapper.writeValueAsString(active));
         entries.put("heartbeat:active-device", String.valueOf(TTL.toMillis() + 999L));
         when(hashOps.entries(RedisKeys.onlineUser("u1"))).thenReturn(entries);
+        when(hashOps.get(RedisKeys.onlineUser("u1"), "route:old-device"))
+                .thenReturn(mapper.writeValueAsString(stale));
+        when(redisTemplate.execute(
+                any(RedisScript.class),
+                eq(List.of(RedisKeys.onlineUser("u1"))),
+                eq("old-device"),
+                eq(String.valueOf(TTL.toSeconds())),
+                eq(""))).thenReturn(1L);
 
         List<RouteSnapshot> result = service.findByUser("u1");
 
         assertEquals(List.of("active-device"), result.stream().map(RouteSnapshot::getDeviceId).toList());
-        verify(hashOps).delete(RedisKeys.onlineUser("u1"), "route:old-device", "heartbeat:old-device");
-        verify(hashOps).delete(RedisKeys.onlineSession("session-old"), "u1:old-device");
+        verify(redisTemplate).execute(
+                any(RedisScript.class),
+                eq(List.of(RedisKeys.onlineUser("u1"))),
+                eq("old-device"),
+                eq(String.valueOf(TTL.toSeconds())),
+                eq(""));
+        verify(redisTemplate).execute(
+                any(RedisScript.class),
+                eq(List.of(RedisKeys.onlineSession("session-old"))),
+                eq("u1:old-device"),
+                eq(""));
         verify(hashOps, never()).delete(
                 RedisKeys.onlineUser("u1"), "route:active-device", "heartbeat:active-device");
     }

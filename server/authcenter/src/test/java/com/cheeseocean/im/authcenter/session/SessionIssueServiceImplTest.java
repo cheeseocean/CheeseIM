@@ -13,13 +13,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SessionIssueServiceImplTest {
 
     @Test
-    void issueWsTicketShouldPersistSessionThroughSessionRepository() {
+    void issueWsTicketShouldReusePersistedSessionAndSaveOnlyTicket() {
         AccessTokenService accessTokenService = mock(AccessTokenService.class);
         SessionTicketService sessionTicketService = mock(SessionTicketService.class);
         SessionRepository sessionRepository = mock(SessionRepository.class);
@@ -58,7 +59,7 @@ class SessionIssueServiceImplTest {
         WsTicketPrincipal result = service.issueWsTicket("token-1", "d1", "android", "1.0");
 
         assertThat(result).isSameAs(ticket);
-        verify(sessionRepository).save(session, 5000L);
+        verify(sessionRepository, never()).save(session, 5000L);
         verify(sessionRepository).saveWsTicket(eq(ticket), eq(1000L));
     }
 

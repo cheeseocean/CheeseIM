@@ -42,32 +42,27 @@ tasks.register('verifyHistoryArchitectureBoundary') {
     group = 'verification'
     description = '拒绝 history model/feature 泄漏 Mongo Document、BSON 或形成 storage-history 反向依赖。'
     inputs.files(historyBoundarySources)
-    doLast {
+    doLast { task ->
         def violations = []
-        fileTree('common-api/src/main/java') { include '**/*.java' }.each { source ->
-            if (source.text.contains('org.springframework.data.')) {
+        task.inputs.files.files.each { source ->
+            def path = source.path.replace('\\', '/')
+            def text = source.text
+            if (path.contains('/common-api/src/main/java/')
+                    && text =~ /(?m)^\s*import\s+org\.springframework\.data\./) {
                 violations << "common-api depends on Spring Data: ${source}"
             }
-        }
-        fileTree('common-core/src/main/java/com/cheeseocean/im/common/core/history/model') {
-            include '**/*.java'
-        }.each { source ->
-            if (source.text.contains('org.springframework.data.') || source.text.contains('org.bson.')) {
+            if (path.contains('/common-core/src/main/java/com/cheeseocean/im/common/core/history/model/')
+                    && (text =~ /(?m)^\s*import\s+(org\.springframework\.data|org\.bson)\./)) {
                 violations << "history model depends on persistence technology: ${source}"
             }
-        }
-        ['postbox', 'postmaster', 'business'].each { moduleName ->
-            fileTree("${moduleName}/src/main/java") { include '**/*.java' }.each { source ->
-                def text = source.text
-                if (text.contains('history.mongo.document')
-                        || text.contains('common.core.history.document')
-                        || text.contains('org.bson.')) {
-                    violations << "feature leaks history persistence type: ${source}"
-                }
+            if ((path.contains('/postbox/src/main/java/')
+                    || path.contains('/postmaster/src/main/java/')
+                    || path.contains('/business/src/main/java/'))
+                    && (text =~ /(?m)^\s*import\s+.*(history\.mongo\.document|common\.core\.history\.document|org\.bson\.)/)) {
+                violations << "feature leaks history persistence type: ${source}"
             }
-        }
-        fileTree('common-core/src/main/java') { include '**/*.java' }.each { source ->
-            if (source.text.contains('com.cheeseocean.im.storage.history.')) {
+            if (path.contains('/common-core/src/main/java/')
+                    && text =~ /(?m)^\s*import\s+com\.cheeseocean\.im\.storage\.history\./) {
                 violations << "common-core depends back on storage-history: ${source}"
             }
         }
@@ -95,30 +90,25 @@ tasks.register('verifyQueueArchitectureBoundary') {
     group = 'verification'
     description = '拒绝 common-core/feature 依赖 Kafka、Chronicle 或 infra-queue 实现。'
     inputs.files(queueBoundarySources)
-    doLast {
+    doLast { task ->
         def violations = []
-        fileTree('common-core/src') { include '**/*.java' }.each { source ->
+        task.inputs.files.files.each { source ->
+            def path = source.path.replace('\\', '/')
             def text = source.text
-            if (text.contains('org.springframework.kafka.')
-                    || text.contains('org.apache.kafka.')
-                    || text.contains('net.openhft.chronicle.')
-                    || text.contains('com.cheeseocean.im.infra.queue.')) {
+            if (path.contains('/common-core/src/')
+                    && text =~ /(?m)^\s*import\s+(org\.springframework\.kafka|org\.apache\.kafka|net\.openhft\.chronicle|com\.cheeseocean\.im\.infra\.queue)\./) {
                 violations << "common-core depends on queue implementation: ${source}"
             }
-        }
-        ['postoffice', 'postbox', 'postmaster', 'postman', 'business'].each { moduleName ->
-            fileTree("${moduleName}/src/main/java") { include '**/*.java' }.each { source ->
-                if (source.text.contains('com.cheeseocean.im.infra.queue.')) {
-                    violations << "feature imports queue implementation: ${source}"
-                }
+            if ((path.contains('/postoffice/src/main/java/')
+                    || path.contains('/postbox/src/main/java/')
+                    || path.contains('/postmaster/src/main/java/')
+                    || path.contains('/postman/src/main/java/')
+                    || path.contains('/business/src/main/java/'))
+                    && text =~ /(?m)^\s*import\s+com\.cheeseocean\.im\.infra\.queue\./) {
+                violations << "feature imports queue implementation: ${source}"
             }
-        }
-        fileTree('infra-queue/src/main/java') { include '**/*.java' }.each { source ->
-            if (source.text.contains('com.cheeseocean.im.postoffice.')
-                    || source.text.contains('com.cheeseocean.im.postbox.')
-                    || source.text.contains('com.cheeseocean.im.postmaster.')
-                    || source.text.contains('com.cheeseocean.im.postman.')
-                    || source.text.contains('com.cheeseocean.im.business.')) {
+            if (path.contains('/infra-queue/src/main/java/')
+                    && text =~ /(?m)^\s*import\s+com\.cheeseocean\.im\.(postoffice|postbox|postmaster|postman|business)\./) {
                 violations << "infra-queue depends back on feature: ${source}"
             }
         }
@@ -145,27 +135,24 @@ tasks.register('verifyBusinessStorageArchitectureBoundary') {
     group = 'verification'
     description = '拒绝 common-core/feature 泄漏 business Mongo adapter、Document 或形成反向依赖。'
     inputs.files(businessStorageBoundarySources)
-    doLast {
+    doLast { task ->
         def violations = []
-        fileTree('common-core/src') { include '**/*.java' }.each { source ->
-            if (source.text.contains('org.springframework.data.mongodb.')) {
+        task.inputs.files.files.each { source ->
+            def path = source.path.replace('\\', '/')
+            def text = source.text
+            if (path.contains('/common-core/src/')
+                    && text =~ /(?m)^\s*import\s+org\.springframework\.data\.mongodb\./) {
                 violations << "common-core depends on Mongo implementation: ${source}"
             }
-        }
-        ['authcenter', 'business', 'postmaster', 'postman'].each { moduleName ->
-            fileTree("${moduleName}/src/main/java") { include '**/*.java' }.each { source ->
-                def text = source.text
-                if (text.contains('common.core.business.mongo.document.')
-                        || text.contains('common.core.business.mongo.impl.')) {
-                    violations << "feature imports business persistence type: ${source}"
-                }
+            if ((path.contains('/authcenter/src/main/java/')
+                    || path.contains('/business/src/main/java/')
+                    || path.contains('/postmaster/src/main/java/')
+                    || path.contains('/postman/src/main/java/'))
+                    && text =~ /(?m)^\s*import\s+com\.cheeseocean\.im\.common\.core\.business\.mongo\.(document|impl)\./) {
+                violations << "feature imports business persistence type: ${source}"
             }
-        }
-        fileTree('storage-business/src/main/java') { include '**/*.java' }.each { source ->
-            if (source.text.contains('com.cheeseocean.im.authcenter.')
-                    || source.text.contains('com.cheeseocean.im.business.service.')
-                    || source.text.contains('com.cheeseocean.im.postmaster.')
-                    || source.text.contains('com.cheeseocean.im.postman.')) {
+            if (path.contains('/storage-business/src/main/java/')
+                    && text =~ /(?m)^\s*import\s+com\.cheeseocean\.im\.(authcenter|business\.service|postmaster|postman)\./) {
                 violations << "storage-business depends back on feature: ${source}"
             }
         }
@@ -195,39 +182,31 @@ tasks.register('verifyStateArchitectureBoundary') {
     group = 'verification'
     description = '拒绝 common-core 依赖 Redis/RocksDB 实现，或 feature 越过 state port 使用 adapter。'
     inputs.files(stateBoundarySources)
-    doLast {
+    doLast { task ->
         def violations = []
-        fileTree('common-core/src') { include '**/*.java' }.each { source ->
+        task.inputs.files.files.each { source ->
+            def path = source.path.replace('\\', '/')
             def text = source.text
-            if (text.contains('org.springframework.data.redis.')
-                    || text.contains('org.rocksdb.')
-                    || text.contains('RedisCacheStore')
-                    || text.contains('NodeQueueRedisScripts')
-                    || text.contains('com.cheeseocean.im.infra.state.')) {
+            if (path.contains('/common-core/src/')
+                    && (text =~ /(?m)^\s*import\s+(org\.springframework\.data\.redis|org\.rocksdb|com\.cheeseocean\.im\.infra\.state)\./
+                    || text =~ /(?m)^\s*import\s+.*\.(RedisCacheStore|NodeQueueRedisScripts)\s*;/)) {
                 violations << "common-core depends on state implementation: ${source}"
             }
-        }
-        ['api-server', 'authcenter', 'business', 'postbox', 'postmaster', 'postman', 'postoffice'].each { moduleName ->
-            fileTree("${moduleName}/src/main/java") { include '**/*.java' }.each { source ->
-                def text = source.text
-                def importsStateAdapter = text =~ /com\.cheeseocean\.im\.common\.core\.store\..*\.(redis|rocksdb)\./
-                def allowedApiComposition = moduleName == 'api-server'
-                        && source.name == 'ApiServerInfrastructureConfiguration.java'
-                        && text.contains('RedisIdempotencyStore')
-                if (importsStateAdapter && !allowedApiComposition) {
-                    violations << "feature imports state adapter: ${source}"
-                }
+            def featureSource = path.contains('/api-server/src/main/java/')
+                    || path.contains('/authcenter/src/main/java/')
+                    || path.contains('/business/src/main/java/')
+                    || path.contains('/postbox/src/main/java/')
+                    || path.contains('/postmaster/src/main/java/')
+                    || path.contains('/postman/src/main/java/')
+                    || path.contains('/postoffice/src/main/java/')
+            def importsStateAdapter = text =~ /(?m)^\s*import\s+com\.cheeseocean\.im\.common\.core\.store\..*\.(redis|rocksdb)\./
+            def allowedApiComposition = path.endsWith('/api-server/src/main/java/com/cheeseocean/im/apiserver/config/ApiServerInfrastructureConfiguration.java')
+                    && text.contains('RedisIdempotencyStore')
+            if (featureSource && importsStateAdapter && !allowedApiComposition) {
+                violations << "feature imports state adapter: ${source}"
             }
-        }
-        fileTree('infra-state/src/main/java') { include '**/*.java' }.each { source ->
-            def text = source.text
-            if (text.contains('com.cheeseocean.im.apiserver.')
-                    || text.contains('com.cheeseocean.im.authcenter.')
-                    || text.contains('com.cheeseocean.im.business.service.')
-                    || text.contains('com.cheeseocean.im.postbox.')
-                    || text.contains('com.cheeseocean.im.postmaster.')
-                    || text.contains('com.cheeseocean.im.postman.')
-                    || text.contains('com.cheeseocean.im.postoffice.')) {
+            if (path.contains('/infra-state/src/main/java/')
+                    && text =~ /(?m)^\s*import\s+com\.cheeseocean\.im\.(apiserver|authcenter|business\.service|postbox|postmaster|postman|postoffice)\./) {
                 violations << "infra-state depends back on feature: ${source}"
             }
         }

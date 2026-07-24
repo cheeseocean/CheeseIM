@@ -14,7 +14,9 @@ class KafkaQueueConfigurationTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withUserConfiguration(KafkaQueueConfiguration.class)
-            .withPropertyValues("spring.application.name=postmaster");
+            .withPropertyValues(
+                    "spring.application.name=postmaster",
+                    "cheeseim.queue.type=kafka");
 
     @Test
     void shouldGenerateInstanceUniqueTransactionPrefixByDefault() {
