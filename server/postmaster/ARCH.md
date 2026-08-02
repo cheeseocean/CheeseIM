@@ -12,7 +12,6 @@
 | `IngressEventListener` | `listener/IngressEventListener.java:51` | 消费 ingress topic，批处理 batchSize=500，按会话分桶保序 |
 | `IngressMessageFingerprint` | `listener/IngressMessageFingerprint.java` | 对 ingress 载荷做确定性指纹，seq 不参与重放冲突判定 |
 | `HistoryEventListener` | `listener/HistoryEventListener.java:23` | 消费 history topic，写入 `message_block` |
-| `DeliveryEventListener` | `listener/DeliveryEventListener.java:40` | **postman 在本模块** ⚠️ 实际在 postman，见 postman/ARCH.md |
 | `ConversationSeqService` | `service/ConversationSeqService.java:20` | seq 分配薄包装，委托 `ConversationSeqAllocator`（common-core） |
 | `BlockHistoryPersistenceService` | `history/BlockHistoryPersistenceService.java:25` | 历史块 + message id mapping 双 unordered bulk upsert（2026-07-08 P1-8 修复） |
 | `DefaultMessagePolicyEngine` | `policy/DefaultMessagePolicyEngine.java:11` | 输出 `MessageRouteDecision`（persistHistory/notification/sendDelivery/needOfflinePush/senderSync） |

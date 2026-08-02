@@ -2,58 +2,62 @@
 
 ## Project Structure
 - Root: `/Users/xxxcrel/Develop/backend/java/CheeseIM/server`
-- Modules: `common-api`, `common-core`, `postmaster`, `postoffice`, `postman`, `postbox`, `postmaster`, `authcenter`, `social`, `bootstrap-all`, `config`
+- Modules (16): `common-api`, `common-core`, `infra-queue`, `infra-state`, `storage-history`, `storage-business`, `postoffice`, `postmaster`, `postbox`, `postman`, `authcenter`, `business`, `api-server`, `config`, `bootstrap-all`, `ops-cli`
 - Main branch: `1.0.0`
-- Build: Maven multi-module
+- Build: Gradle multi-module (Java 17, Spring Boot 3.2.4, Dubbo 3.2.8)
 
 ## Architecture
-Based on OpenIM Go reference (`/Users/xxxcrel/Develop/backend/go/Open-IM-Server`).
+Postal-system metaphor for the message pipeline:
+
+```
+Client ──TCP/WS──> postoffice ──> postbox ──ingress event──> postmaster ──delivery event──> postman ──> postoffice ──> Client
+                                          │                       │                          │
+                                          └──> Mongo history      └──> seq allocate         └──> APNs/FCM/Huawei/Xiaomi/JPush
+```
 
 Key pipeline (postmaster IngressEventListener):
-1. Pre-process READ_RECEIPT → `MessageStateService.processReadReceipts()`
-2. Categorize by `persistHistory()` → storage vs notStorage
-3. Fast-push notStorage before seq allocation
-4. `ConversationSeqService.allocateBatch()` — single INCRBY
-5. Bind seq + split by `notification()` → regularProcessed / notificationProcessed
-6. `MessageStateService.applyBatch()` — batched Redis writes
-7. Publish single `HistoryEvent` for the whole batch
-8. If regularProcessed non-empty: `createIfNew` → delivery (allProcessed) → `sync`; else notification-only delivery
+1. Claim ingress inbox on stable `serverMsgId`（重放安全）
+2. Group messages: defensive permission query, get groupType
+3. `DefaultMessagePolicyEngine.decide` → `MessageRouteDecision`（persistHistory/notification/sendDelivery/needOfflinePush/senderSync）
+4. Batch seq allocation via `ConversationSeqAllocator`（Redis Lua 状态机 + Mongo `$inc` 段预分配）
+5. Publish history event（unordered bulk upsert: id mapping + message_block）
+6. Delivery: NORMAL_GROUP → GROUP_FANOUT job（写扩散）; SUPER_GROUP → persist only（读扩散）
+7. Broker ACK → inbox COMPLETED
+
+## Key Infrastructure (post-2026-07 refactor)
+- `common-core`: ports/models only（`CacheStore`, `QueueAdapter`, `ConversationSeqAllocator`, Repository ports）
+- `infra-queue`: Kafka/Chronicle adapter runtime
+- `infra-state`: Redis/RocksDB state/cache/seq adapters（package still `com.cheeseocean.im.common.core.*`, migration debt）
+- `storage-history`: Message history Mongo adapter（`MessageHistoryRepository` impl）
+- `storage-business`: Business Mongo adapter（user/friend/group/conversation Documents + impls）
 
 ## Key Files
 - `common-core/.../logging/CommonLoggers.java` — centralized named Loggers per module
 - `config/src/main/resources/logback-spring.xml` — per-module file appenders + console root
-- `config/src/main/resources/common.yml` — shared config (logging now deferred to logback-spring.xml)
-- `postmaster/.../listener/IngressEventListener.java` — ingress pipeline (Chinese comments)
-- `postmaster/.../service/MessageStateService.java` — Redis state, processReadReceipts, applyBatch
-- `postmaster/.../service/ConversationService.java` — createIfNew, sync
-- `postmaster/.../conversation/ReadSeqPersistenceWriter.java` — async MongoDB write-behind for readSeq
-- `postmaster/.../history/BlockHistoryPersistenceService.java` — MongoDB block storage
+- `config/src/main/resources/common.yml` — shared config
+- `postmaster/.../listener/IngressEventListener.java` — ingress pipeline（batch=500, per-conversation ordering）
+- `postmaster/.../history/BlockHistoryPersistenceService.java` — MongoDB block storage（unordered bulkOps）
+- `postmaster/.../service/GroupFanoutPlanner.java` — group fanout（NORMAL_GROUP write, SUPER_GROUP read）
+- `business/.../conversation/ReadSeqPersistenceWriter.java` — async MongoDB write-behind for readSeq
+- `business/.../conversation/DeliverySeqPersistenceWriter.java` — delivery seq write-behind
+- `common-core/.../store/sequence/conversation/ConversationSeqAllocator.java` — seq allocation port
 
 ## Logging Convention
 - Each module uses `CommonLoggers.<MODULE>` (e.g. `CommonLoggers.POSTMASTER`)
 - Named loggers route to per-module files (postmaster.log, postoffice.log, etc.)
 - `additivity=true` propagates all module logs to root → CONSOLE
 - `com.cheeseocean.im.common` package → common.log (via package rule, not named logger)
-- common-core infra classes (serializers, queue adapters) keep `LoggerFactory.getLogger(Class)` — covered by package rule
 
 ## Conventions
-- `@author xxxcrel` on all source files (no `@author CheeseIM` remaining)
-- Chinese comments in core pipeline logic (IngressEventListener, etc.)
-- No `LoggerFactory.getLogger(Class.class)` in module sources — only in CommonLoggers itself
-
-## Completed Cleanup (session 1.0.0)
-- Deleted 10 dead-code files: ReceiptAckRpc, ReceiptAckReq, ReceiptAckRpcImpl,
-  ConversationReceiptService, DeliveryTask, DeliveryResult, MessageIdempotencyService,
-  SendMessageCommand, MessageSendPermissionChecker, MessageFlowMetrics
-- Created CommonLoggers.java + logback-spring.xml
-- Updated all module loggers to CommonLoggers (postmaster/postoffice/postman/postbox)
-- Replaced all `@author CheeseIM` → `@author xxxcrel` across 32 files
-- Cleaned redundant `logging.pattern.*` from common.yml
-- Implemented: processReadReceipts, ReadSeqPersistenceWriter, applyBatch,
-  incrementUnreadBy (Redis INCRBY), createIfNew (P0 fix before delivery),
-  notification/regular message split in pipeline
+- `@author xxxcrel` on all source files
+- Chinese comments in core pipeline logic
+- Constructor injection（禁止 `@Autowired` 字段注入）
+- Domain objects must not import `org.springframework.data.*`
+- seq allocation ONLY via `ConversationSeqAllocator`（禁止 INCRBY）
+- Enum with stable `code`/`desc`/`fromCode` for persistence/wire/cross-process
 
 ## User Preferences
-- Communication: concise, Chinese ok for inline comments, English for Javadoc
+- Communication: concise, Chinese ok for inline comments
 - Author tag: `@author xxxcrel`
 - No emojis
+- Commit message: English; Response language: Chinese

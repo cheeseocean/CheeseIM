@@ -18,7 +18,7 @@ server/
 ├── authcenter        鉴权：JWT/refresh/ticket/session/踢下线
 ├── business          用户/好友/黑名单/群/会话/**同步点业务域（CacheStore）
 ├── common-api        跨模块契约：领域模型 + Protobuf + 事件 + 枚举
-├── common-core        共享 port/model + 业务 Mongo Repo + CacheStore + 序列状态 + Idgen
+├── common-core        共享 port/model + CacheStore + 序列状态机 + 推送发送（不依赖 Mongo/Kafka/Redis adapter）
 ├── infra-queue        队列运行时：Kafka/Chronicle adapter + listener 装配 + DLT 实现
 ├── infra-state        状态运行时：Redis/RocksDB adapter + Cache/State/seq 装配
 ├── storage-history    消息历史 Mongo adapter：Document + bulk/query + port 转换
