@@ -10,3 +10,5 @@ It now consumes the reusable Go IM SDK in `sdks/go` for:
 - friend/group/conversation queries
 
 CheeseBox itself only keeps app-specific state and UI rendering. Its default all-in-one endpoint is `http://127.0.0.1:18079` with TCP at `127.0.0.1:5148`; each can be overridden through `CHEESEBOX_API_BASE_URL` and `CHEESEBOX_TCP_ADDR`.
+
+The second login field is a short-lived, one-time identity assertion issued by the trusted account domain; it is not a password. The SDK forwards it as `identityAssertion` to `/api/auth/login`. For local integration, use the development issuer documented in `docs/client-runbook.md`.

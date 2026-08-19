@@ -7,6 +7,7 @@ import com.cheeseocean.im.business.config.ReadSeqPersistenceWriterProperties;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -63,6 +64,7 @@ public class ReadSeqPersistenceWriter {
     private final AtomicLong nextBacklogObservationMillis = new AtomicLong();
     private volatile boolean running = true;
 
+    @Autowired
     public ReadSeqPersistenceWriter(UserConversationSyncPointRepository offsetRepository,
                                     UserConversationRepository stateRepository,
                                     ReadSeqPersistenceWriterProperties properties) {

@@ -10,6 +10,7 @@ import com.cheeseocean.im.business.Business;
 import org.apache.dubbo.config.spring.context.annotation.EnableDubbo;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -36,6 +37,9 @@ import java.util.Map;
                 @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = AuthCenter.class),
                 @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = Business.class),
                 @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = ApiServerApplication.class),
+                // 物理拆分后 adapter 的 AutoConfiguration 与 port 共用 common 包前缀。
+                // 若被普通 ComponentScan 提前注册，ConditionalOnBean 会在 Mongo/Redis 自动装配前误判为 false。
+                @ComponentScan.Filter(type = FilterType.ANNOTATION, classes = AutoConfiguration.class),
         }
 )
 @EnableDubbo(scanBasePackages = {

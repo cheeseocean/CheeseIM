@@ -228,6 +228,21 @@ func TestRootModelSubmitInputAddFriend(t *testing.T) {
 	}
 }
 
+func TestRootModelSubmitInputOpensCanonicalDirectChat(t *testing.T) {
+	model := NewRootModel(config.RuntimeConfig{}, &fakeIMClient{})
+	model.appStore.SetCurrentUserID("user-2")
+	model.appStore.SetConnectionStatus(domain.ConnectionStatusConnected)
+
+	_, cmd := model.Update(SubmitInputMsg{Text: "/chat user-1"})
+	if cmd == nil {
+		t.Fatal("cmd = nil")
+	}
+	msg, ok := cmd().(OpenConversationMsg)
+	if !ok || msg.ConversationID != "s:user-1:user-2" {
+		t.Fatalf("message = %#v", msg)
+	}
+}
+
 func TestRootModelRealtimeMessageAppendsToConversation(t *testing.T) {
 	client := &fakeIMClient{}
 	model := NewRootModel(config.RuntimeConfig{}, client)

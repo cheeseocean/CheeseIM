@@ -21,7 +21,7 @@ func TestAuthServiceLogin(t *testing.T) {
 	if session.AccessToken != "token-1" || session.Ticket.Ticket != "ticket-1" || session.UserID != "user-1" {
 		t.Fatalf("session = %#v", session)
 	}
-	if tokenIssuer.userID != "user-1" || tokenIssuer.password != "secret" {
+	if tokenIssuer.userID != "user-1" || tokenIssuer.identityAssertion != "secret" {
 		t.Fatalf("token issuer = %#v", tokenIssuer)
 	}
 	if connector.ticket != "ticket-1" || connector.address != "127.0.0.1:9000" {
@@ -50,16 +50,16 @@ func TestAuthServiceLoginUsesCliPlatformID(t *testing.T) {
 }
 
 type fakeAccessTokenIssuer struct {
-	userID     string
-	password   string
-	platformID int
-	token      string
-	err        error
+	userID            string
+	identityAssertion string
+	platformID        int
+	token             string
+	err               error
 }
 
-func (f *fakeAccessTokenIssuer) Login(_ context.Context, userID, password string, platformID int, _ string, _ string) (string, error) {
+func (f *fakeAccessTokenIssuer) Login(_ context.Context, userID, identityAssertion string, platformID int, _ string, _ string) (string, error) {
 	f.userID = userID
-	f.password = password
+	f.identityAssertion = identityAssertion
 	f.platformID = platformID
 	return f.token, f.err
 }

@@ -53,7 +53,7 @@ var newUserPersister = func(userID string) (store.Persister, error) {
 }
 
 type IMClient interface {
-	Login(ctx context.Context, userID, password string) (sdktypes.BootstrapData, error)
+	Login(ctx context.Context, userID, identityAssertion string) (sdktypes.BootstrapData, error)
 	Reconnect(ctx context.Context) (sdktypes.BootstrapData, error)
 	OpenConversation(ctx context.Context, conversationID string, limit int) ([]sdktypes.Message, error)
 	PullMessages(ctx context.Context, ranges []sdktypes.SeqRange, limitPerConversation int64) ([]sdktypes.PulledConversationMessages, error)
@@ -353,10 +353,22 @@ func (m RootModel) submitInputCmd(text string) tea.Cmd {
 	if strings.HasPrefix(text, "/addfriend") {
 		return m.addFriendCmd(text)
 	}
+	if strings.HasPrefix(text, "/chat") {
+		return m.openDirectChatCmd(text)
+	}
 	if m.appStore.ActiveConversation == "" {
 		return func() tea.Msg { return appErrorMsg{err: errors.New(T(m.locale, keyToastNoConversation))} }
 	}
 	return m.sendMessageCmd(text)
+}
+
+func (m RootModel) openDirectChatCmd(text string) tea.Cmd {
+	fields := strings.Fields(text)
+	if len(fields) != 2 || fields[1] == "" || fields[1] == m.appStore.CurrentUserID {
+		return func() tea.Msg { return appErrorMsg{err: fmt.Errorf("usage: /chat <otherUserId>")} }
+	}
+	conversationID := buildDirectConversationID(m.appStore.CurrentUserID, fields[1])
+	return func() tea.Msg { return OpenConversationMsg{ConversationID: conversationID} }
 }
 
 func (m RootModel) sendMessageCmd(text string) tea.Cmd {

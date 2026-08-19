@@ -54,6 +54,7 @@ public class UserMaxSeqPersistenceWriter {
     private final AtomicLong nextBacklogObservationMillis = new AtomicLong();
     private volatile boolean running = true;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public UserMaxSeqPersistenceWriter(UserConversationSyncPointRepository syncPointRepository,
                                        UserMaxSeqPersistenceWriterProperties properties) {
         this(syncPointRepository,

@@ -54,6 +54,7 @@ public class IngressEventListener {
     @DubboReference(check = false, retries = 0)
     private              ConversationService    conversationService;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public IngressEventListener(MessageProducer messageProducer,
                                 HistoryEventProducer historyEventProducer,
                                 GroupMembershipFacade groupMembershipFacade,

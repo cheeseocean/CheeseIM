@@ -69,6 +69,7 @@ public class RedisOnlineRouteService implements OnlineRouteService, OnlineRouteH
     private final DefaultRedisScript<Long> unregisterScript;
     private final DefaultRedisScript<Long> unregisterSessionScript;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public RedisOnlineRouteService(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
         this(redisTemplate, objectMapper, DEFAULT_ROUTE_TTL);
     }

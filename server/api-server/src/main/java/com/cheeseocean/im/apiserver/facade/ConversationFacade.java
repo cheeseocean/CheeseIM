@@ -46,6 +46,7 @@ import com.cheeseocean.im.common.api.message.MessageHistoryQueryService;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import com.cheeseocean.im.common.api.user.UserInfoService;
 import org.apache.dubbo.config.annotation.DubboReference;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
@@ -77,6 +78,7 @@ public class ConversationFacade {
     @DubboReference(check = false)
     private MessageMutationService messageMutationService;
 
+    @Autowired
     public ConversationFacade(ConversationService conversationService,
                               ConversationSyncService conversationSyncService,
                               ReadStateService readStateService,

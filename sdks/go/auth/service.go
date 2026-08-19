@@ -12,7 +12,7 @@ type TicketIssuer interface {
 }
 
 type AccessTokenIssuer interface {
-	Login(ctx context.Context, userID, password string, platformID int, deviceID, clientVersion string) (string, error)
+	Login(ctx context.Context, userID, identityAssertion string, platformID int, deviceID, clientVersion string) (string, error)
 }
 
 type AuthConnector interface {
@@ -39,11 +39,11 @@ func NewAuthService(tokens AccessTokenIssuer, tickets TicketIssuer, tcp AuthConn
 	return &AuthService{tokens: tokens, tickets: tickets, tcp: tcp}
 }
 
-func (s *AuthService) Login(ctx context.Context, userID, password, deviceID, platform, tcpAddr string) (AuthSession, error) {
+func (s *AuthService) Login(ctx context.Context, userID, identityAssertion, deviceID, platform, tcpAddr string) (AuthSession, error) {
 	if s.tokens == nil {
 		return AuthSession{}, context.Canceled
 	}
-	accessToken, err := s.tokens.Login(ctx, userID, password, platformID(platform), deviceID, "CheeseBox/dev")
+	accessToken, err := s.tokens.Login(ctx, userID, identityAssertion, platformID(platform), deviceID, "CheeseBox/dev")
 	if err != nil {
 		return AuthSession{}, err
 	}

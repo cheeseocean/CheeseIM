@@ -44,9 +44,23 @@ go test ./...
 go run ./cmd/cheesebox
 ```
 
+### Local identity assertion
+
+CheeseBox 不再把密码伪装成 IM 登录凭据。本地联调时，服务端与开发签发工具使用同一个仅本机可见的 32 字节以上密钥：
+
+```bash
+export CHEESEIM_LOGIN_ASSERTION_ENABLED=true
+export CHEESEIM_LOGIN_ASSERTION_SECRET='local-integration-secret-at-least-32-bytes'
+
+cd apps/CheeseBox
+go run ./cmd/dev-assertion -user user-1
+```
+
+将输出的一次性、60 秒有效 assertion 粘贴到 TUI 第二个登录框。该工具只模拟仓库外的账户域，不属于 SDK，生产客户端禁止持有此密钥。两个客户端登录后可输入 `/chat <otherUserId>` 直接打开规范单聊会话，无需预置好友数据。
+
 ## Manual Smoke Test
 
-1. 启动 MongoDB 与 Redis。
+1. 启动 MongoDB 单节点 replica set 与 Redis，并完成 `rs.initiate(...)`。会话首次创建使用事务，standalone MongoDB 会拒绝该链路。
 2. 启动 `server:bootstrap-all`。
 3. 打开两个终端，分别启动 CheeseBox。
 4. 使用两个不同用户登录。

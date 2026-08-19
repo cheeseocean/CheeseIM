@@ -17,7 +17,7 @@ type LoginModel struct {
 func NewLoginModel() LoginModel {
 	placeholders := []string{
 		"User ID",
-		"Password",
+		"Short-lived identity assertion",
 	}
 	inputs := make([]textinput.Model, len(placeholders))
 	for i, placeholder := range placeholders {
@@ -108,6 +108,6 @@ func (m *LoginModel) applyText() {
 		m.inputs[0].Placeholder = T(m.locale, keyLoginUserID)
 	}
 	if len(m.inputs) > 1 {
-		m.inputs[1].Placeholder = T(m.locale, keyLoginPassword)
+		m.inputs[1].Placeholder = T(m.locale, keyLoginAssertion)
 	}
 }

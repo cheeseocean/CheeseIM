@@ -7,6 +7,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -57,6 +58,7 @@ public class ApiRateLimitFilter extends OncePerRequestFilter {
     private final AtomicLong redisUnavailableUntil = new AtomicLong();
     private final AtomicBoolean recoveryProbeInProgress = new AtomicBoolean();
 
+    @Autowired
     public ApiRateLimitFilter(
             StringRedisTemplate redisTemplate,
             @Value("${cheeseim.api.rate-limit.enabled:true}") boolean enabled,

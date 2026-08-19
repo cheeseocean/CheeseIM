@@ -4,7 +4,7 @@ import com.cheeseocean.im.common.core.business.transaction.MongoPersistenceTrans
 import com.cheeseocean.im.common.core.business.transaction.PersistenceTransactionExecutor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration;
 import org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -20,7 +20,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  * Shared Mongo persistence registration for common-core owned business data.
  */
 @AutoConfiguration(after = {MongoAutoConfiguration.class, MongoDataAutoConfiguration.class})
-@ConditionalOnBean(MongoTemplate.class)
+// storage-business 本身是 Mongo adapter，依赖它的运行时必然携带 MongoTemplate 类。
+// 不用 ConditionalOnBean：all-in-one 的跨模块扫描可能早于 MongoAutoConfiguration 解析本类，
+// 会把永久存在的 Mongo bean 误判为缺失，导致整个持久层未注册。
+@ConditionalOnClass(MongoTemplate.class)
 @ComponentScan(
         basePackages = "com.cheeseocean.im.common.core.business.mongo.impl",
         useDefaultFilters = false,

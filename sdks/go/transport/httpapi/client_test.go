@@ -54,14 +54,14 @@ func TestClientLogin(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Fatalf("Decode() error = %v", err)
 		}
-		if body["userId"] != "user-1" || int(body["platformId"].(float64)) != 1 || body["deviceId"] != "device-1" {
+		if body["userId"] != "user-1" || body["identityAssertion"] != "assertion-1" || int(body["platformId"].(float64)) != 1 || body["deviceId"] != "device-1" {
 			t.Fatalf("unexpected body = %#v", body)
 		}
 		return jsonResponse(map[string]any{
 			"accessToken": "token-1",
 		}), nil
 	})
-	token, err := client.Login(context.Background(), "user-1", "password", 1, "device-1", "CheeseBox/dev")
+	token, err := client.Login(context.Background(), "user-1", "assertion-1", 1, "device-1", "CheeseBox/dev")
 	if err != nil {
 		t.Fatalf("Login() error = %v", err)
 	}

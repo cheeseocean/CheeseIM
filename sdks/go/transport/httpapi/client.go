@@ -51,12 +51,13 @@ func (c *Client) IssueWsTicket(ctx context.Context, accessToken, deviceID, platf
 	}, nil
 }
 
-func (c *Client) Login(ctx context.Context, userID, password string, platformID int, deviceID, clientVersion string) (string, error) {
+func (c *Client) Login(ctx context.Context, userID, identityAssertion string, platformID int, deviceID, clientVersion string) (string, error) {
 	body := map[string]any{
-		"userId":        userID,
-		"platformId":    platformID,
-		"deviceId":      deviceID,
-		"clientVersion": clientVersion,
+		"userId":            userID,
+		"identityAssertion": identityAssertion,
+		"platformId":        platformID,
+		"deviceId":          deviceID,
+		"clientVersion":     clientVersion,
 	}
 	var response struct {
 		AccessToken string `json:"accessToken"`

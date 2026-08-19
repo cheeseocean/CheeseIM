@@ -15,6 +15,7 @@ import com.cheeseocean.im.common.core.business.repository.UserConversationSyncPo
 import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.apache.dubbo.config.annotation.DubboService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -46,6 +47,7 @@ public class ConversationSyncServiceImpl implements ConversationSyncService {
     @DubboReference(check = false)
     private MessageHistoryQueryService messageHistoryQueryService;
 
+    @Autowired
     public ConversationSyncServiceImpl(ConversationService conversationService,
                                        ConversationSequenceRepository conversationSequenceRepository,
                                        UserConversationSyncPointRepository syncPointRepository,

@@ -58,8 +58,8 @@ func (c *Client) CurrentUserID() string {
 	return c.currentUser
 }
 
-func (c *Client) Login(ctx context.Context, userID, password string) (types.BootstrapData, error) {
-	session, err := c.authService.Login(ctx, userID, password, c.cfg.DeviceID, c.cfg.Platform, c.cfg.TCPAddr)
+func (c *Client) Login(ctx context.Context, userID, identityAssertion string) (types.BootstrapData, error) {
+	session, err := c.authService.Login(ctx, userID, identityAssertion, c.cfg.DeviceID, c.cfg.Platform, c.cfg.TCPAddr)
 	if err != nil {
 		return types.BootstrapData{}, err
 	}

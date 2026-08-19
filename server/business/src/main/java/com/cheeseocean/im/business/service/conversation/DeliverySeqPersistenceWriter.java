@@ -5,6 +5,7 @@ import com.cheeseocean.im.common.core.metrics.ImMetrics;
 import com.cheeseocean.im.common.core.logging.CommonLoggers;
 import jakarta.annotation.PreDestroy;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
@@ -36,6 +37,7 @@ public class DeliverySeqPersistenceWriter {
     private final AtomicLong nextBacklogObservationMillis = new AtomicLong();
     private volatile boolean running = true;
 
+    @Autowired
     public DeliverySeqPersistenceWriter(DeviceConversationDeliveryRepository repository) {
         this(repository, true);
     }
