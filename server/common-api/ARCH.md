@@ -22,6 +22,7 @@
 
 - 文件：`src/main/proto/message_protocol.proto`，包 `cheeseim.protocol`。
 - 两个顶层 envelope：`ProtoClientEnvelope`（C→S）、`ProtoServerEnvelope`（S→C），均用 `oneof payload`。
+- Java `ServerEnvelope.of` 是控制通知进入 Dubbo 的统一边界，会把 `Map.of/List.of` 递归归一化为稳定集合实现；禁止绕过该入口把 JDK 内部 `CollSer` 带入严格序列化链路。
 - `CHAT_READ(33)` / `CHAT_REVOKE(34)` / `FORCE_LOGOUT(35)` / `CHAT_TYPING(36)` / `CHAT_DELIVERY(37)` 已有类型化 payload。`CHAT_DELIVERY` 使用 `(userId, deviceId, conversationId) -> deliveredSeq` 高水位批量确认，禁止逐消息回执；网关 channel write 不代表客户端送达。
 - 控制面（conversation sync / friend / group）当前**只走 Java Dubbo POJO**，未在 proto 中表达，多语言客户端需自行映射。
 

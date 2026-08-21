@@ -44,6 +44,16 @@ go test ./...
 go run ./cmd/cheesebox
 ```
 
+### Automated dual-client E2E
+
+安装 Docker、Docker Compose 与 Go 1.24.2 后，可用一条命令启动 Mongo 单节点 replica set、Redis、all-in-one，并执行双用户真实链路测试：
+
+```bash
+./distro/docker/run-cheesebox-e2e.sh
+```
+
+测试覆盖 assertion 登录、ticket、TCP 鉴权、broker accepted ACK、对端实时接收、历史最终可见和 readSeq 推进。脚本默认在结束时关闭中间件；设置 `CHEESEIM_E2E_KEEP_MIDDLEWARE=1` 可保留 Mongo/Redis 供手工 TUI 验证。
+
 ### Local identity assertion
 
 CheeseBox 不再把密码伪装成 IM 登录凭据。本地联调时，服务端与开发签发工具使用同一个仅本机可见的 32 字节以上密钥：
