@@ -77,6 +77,19 @@ func TestDirectMessageLifecycle(t *testing.T) {
 	if string(received.GetContent()) != string(content) || received.GetSeq() <= 0 {
 		t.Fatalf("invalid realtime content or seq: %#v", received)
 	}
+	deliveryOpID := "delivery-" + runID[:7]
+	if err := bob.tcp.AckDelivery(deliveryOpID, &pb.ProtoChatDeliveryAckCommand{
+		ConversationId:  conversationID,
+		MaxDeliveredSeq: received.GetSeq(),
+		DeviceId:        bob.deviceID,
+		OpId:            deliveryOpID,
+	}); err != nil {
+		t.Fatalf("ack delivery: %v", err)
+	}
+	delivery := awaitDelivery(t, ctx, alice.tcp.Events(), conversationID, received.GetSeq())
+	if delivery.GetRecipientId() != bob.userID {
+		t.Fatalf("delivery recipient = %q, want %q", delivery.GetRecipientId(), bob.userID)
+	}
 
 	persisted := awaitHistory(t, ctx, api, bob.accessToken, conversationID, received.GetSeq(), ack.GetServerMsgId())
 	if string(persisted.Content) != string(content) {
@@ -91,6 +104,7 @@ func TestDirectMessageLifecycle(t *testing.T) {
 type connectedClient struct {
 	userID      string
 	accessToken string
+	deviceID    string
 	tcp         *tcpim.Client
 }
 
@@ -114,7 +128,25 @@ func loginClient(t *testing.T, ctx context.Context, api *httpapi.Client, tcpAddr
 	if authenticatedUserID != userID {
 		t.Fatalf("authenticated user = %q, want %q", authenticatedUserID, userID)
 	}
-	return connectedClient{userID: userID, accessToken: accessToken, tcp: tcpClient}
+	return connectedClient{userID: userID, accessToken: accessToken, deviceID: deviceID, tcp: tcpClient}
+}
+
+func awaitDelivery(t *testing.T, ctx context.Context, events <-chan tcpim.Event, conversationID string, seq int64) *pb.ProtoChatDeliveryNotify {
+	t.Helper()
+	for {
+		select {
+		case <-ctx.Done():
+			t.Fatalf("wait delivery %s/%d: %v", conversationID, seq, ctx.Err())
+		case event := <-events:
+			if event.Kind == tcpim.EventError {
+				t.Fatalf("tcp error while waiting for delivery: %v", event.Err)
+			}
+			if event.Kind == tcpim.EventDelivery && event.Delivery.GetConversationId() == conversationID &&
+				event.Delivery.GetDeliveredSeq() >= seq {
+				return event.Delivery
+			}
+		}
+	}
 }
 
 func awaitAck(t *testing.T, ctx context.Context, events <-chan tcpim.Event, requestID string) *pb.ProtoChatSendAck {

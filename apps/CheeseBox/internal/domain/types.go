@@ -40,6 +40,7 @@ type MessageItem struct {
 	Self           bool
 	SendTime       int64
 	CreateTime     int64
+	DeliveryState string
 }
 
 func NewMessageItem(senderID, content string) MessageItem {

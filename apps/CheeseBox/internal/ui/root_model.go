@@ -60,6 +60,7 @@ type IMClient interface {
 	SendText(requestID, conversationID, text string) (sdktypes.Message, error)
 	AddFriend(ctx context.Context, friendUserID, message string) error
 	MarkRead(ctx context.Context, conversationID string, readSeq int64) error
+	AckDelivered(conversationID string, deliveredSeq int64) error
 	Events() <-chan sdktypes.Event
 	CurrentUserID() string
 	GetSyncedMaxSeq(conversationID string) int64
@@ -478,6 +479,19 @@ func (m RootModel) handleRealtimeEvent(event sdktypes.Event) (tea.Model, tea.Cmd
 			summary.UnreadCount++
 			m.appStore.UpsertConversation(summary)
 		}
+		if event.Message.Sequence > 0 {
+			return m, tea.Batch(next, m.ackDeliveredCmd(conversationID, event.Message.Sequence))
+		}
+		return m, next
+	case sdktypes.EventKindAck:
+		if event.SendAck != nil {
+			m.appStore.UpdateSendAck(event.SendAck.ClientMsgID, event.SendAck.ServerMsgID)
+		}
+		return m, next
+	case sdktypes.EventKindDeliveryUpdated:
+		if event.Delivery != nil {
+			m.appStore.UpdateDeliveredThrough(event.Delivery.ConversationID, event.Delivery.DeliveredSeq)
+		}
 		return m, next
 	case sdktypes.EventKindDisconnected:
 		m.appStore.SetConnectionStatus(domain.ConnectionStatusDisconnected)
@@ -494,6 +508,15 @@ func (m RootModel) handleRealtimeEvent(event sdktypes.Event) (tea.Model, tea.Cmd
 		return m, next
 	default:
 		return m, next
+	}
+}
+
+func (m RootModel) ackDeliveredCmd(conversationID string, deliveredSeq int64) tea.Cmd {
+	return func() tea.Msg {
+		if err := m.client.AckDelivered(conversationID, deliveredSeq); err != nil {
+			return appErrorMsg{err: err}
+		}
+		return nil
 	}
 }
 
@@ -602,6 +625,12 @@ func toMessageItem(conversationID string, message sdktypes.Message, currentUserI
 		Self:           message.SenderID == currentUserID,
 		SendTime:       message.SendTime,
 		CreateTime:     message.CreateTime,
+		DeliveryState: func() string {
+			if message.SenderID == currentUserID && message.Sequence == 0 {
+				return string(sdktypes.MessageDeliverySending)
+			}
+			return ""
+		}(),
 	}
 }
 

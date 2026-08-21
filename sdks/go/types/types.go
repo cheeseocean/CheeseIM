@@ -68,6 +68,31 @@ type Message struct {
 	Attributes  map[string]string
 }
 
+// MessageDeliveryState describes client-observable delivery progress for an outgoing message.
+type MessageDeliveryState string
+
+const (
+	MessageDeliverySending        MessageDeliveryState = "sending"
+	MessageDeliveryBrokerAccepted MessageDeliveryState = "broker_accepted"
+	MessageDeliveryDelivered      MessageDeliveryState = "delivered"
+	MessageDeliveryRead           MessageDeliveryState = "read"
+)
+
+type SendAck struct {
+	ClientMsgID   string
+	ServerMsgID   string
+	AcceptedAt    int64
+	AcceptedState int32
+}
+
+type DeliveryUpdate struct {
+	ConversationID string
+	RecipientID    string
+	DeviceID       string
+	DeliveredSeq   int64
+	UpdatedAt      int64
+}
+
 type ReadSnapshot struct {
 	ConversationID string
 	ReadSeq        int64

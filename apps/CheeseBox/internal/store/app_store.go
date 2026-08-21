@@ -32,6 +32,7 @@ type AppStore struct {
 	Conversations      map[string]domain.ConversationSummary
 	ConversationOrder  []string
 	MessagesByConv     map[string][]domain.MessageItem
+	DeliveredSeqByConv map[string]int64
 	Toast              domain.Toast
 	ConversationCursor sdktypes.ConversationSyncCursor
 	persister          Persister
@@ -43,6 +44,7 @@ func New() *AppStore {
 		ActiveNav:        domain.NavKeyChats,
 		Conversations:    make(map[string]domain.ConversationSummary),
 		MessagesByConv:   make(map[string][]domain.MessageItem),
+		DeliveredSeqByConv: make(map[string]int64),
 	}
 }
 
@@ -66,6 +68,7 @@ func (s *AppStore) UsePersister(persister Persister) {
 	s.Conversations = make(map[string]domain.ConversationSummary)
 	s.ConversationOrder = nil
 	s.MessagesByConv = make(map[string][]domain.MessageItem)
+	s.DeliveredSeqByConv = make(map[string]int64)
 	s.ConversationCursor = sdktypes.ConversationSyncCursor{}
 	s.loadFromPersister()
 }
@@ -138,6 +141,15 @@ func (s *AppStore) RemoveConversation(conversationID string) {
 }
 
 func (s *AppStore) SetMessages(conversationID string, items []domain.MessageItem) {
+	existing := s.MessagesByConv[conversationID]
+	for i := range items {
+		if items[i].DeliveryState == "" {
+			items[i].DeliveryState = s.deliveryStateFor(items[i], existing)
+		}
+		if items[i].Self && items[i].Sequence > 0 && items[i].Sequence <= s.DeliveredSeqByConv[conversationID] {
+			items[i].DeliveryState = string(sdktypes.MessageDeliveryDelivered)
+		}
+	}
 	s.MessagesByConv[conversationID] = append([]domain.MessageItem(nil), items...)
 	// 持久化
 	if s.persister != nil {
@@ -155,6 +167,7 @@ func (s *AppStore) SetMessages(conversationID string, items []domain.MessageItem
 				Self:           item.Self,
 				SendTime:       item.SendTime,
 				CreateTime:     item.CreateTime,
+				DeliveryState: item.DeliveryState,
 			}
 		}
 		s.persister.SetMessages(conversationID, records)
@@ -188,8 +201,60 @@ func (s *AppStore) AppendMessage(conversationID string, item domain.MessageItem)
 			Self:           item.Self,
 			SendTime:       item.SendTime,
 			CreateTime:     item.CreateTime,
+			DeliveryState: item.DeliveryState,
 		})
 	}
+}
+
+func (s *AppStore) UpdateSendAck(clientMsgID, serverMsgID string) {
+	for conversationID, items := range s.MessagesByConv {
+		for i := range items {
+			if items[i].ClientMsgID != clientMsgID {
+				continue
+			}
+			items[i].ServerMsgID = serverMsgID
+			items[i].DeliveryState = string(sdktypes.MessageDeliveryBrokerAccepted)
+			for j := range items {
+				if j == i || items[j].ServerMsgID != serverMsgID {
+					continue
+				}
+				items[i].Sequence = items[j].Sequence
+				items[i].CreateTime = items[j].CreateTime
+				items = append(items[:j], items[j+1:]...)
+				break
+			}
+			s.SetMessages(conversationID, items)
+			return
+		}
+	}
+}
+
+func (s *AppStore) UpdateDeliveredThrough(conversationID string, deliveredSeq int64) {
+	if deliveredSeq > s.DeliveredSeqByConv[conversationID] {
+		s.DeliveredSeqByConv[conversationID] = deliveredSeq
+	}
+	items := s.MessagesByConv[conversationID]
+	changed := false
+	for i := range items {
+		if items[i].Self && items[i].Sequence > 0 && items[i].Sequence <= deliveredSeq &&
+			items[i].DeliveryState != string(sdktypes.MessageDeliveryRead) {
+			items[i].DeliveryState = string(sdktypes.MessageDeliveryDelivered)
+			changed = true
+		}
+	}
+	if changed {
+		s.SetMessages(conversationID, items)
+	}
+}
+
+func (s *AppStore) deliveryStateFor(item domain.MessageItem, existing []domain.MessageItem) string {
+	for _, candidate := range existing {
+		if (item.ServerMsgID != "" && candidate.ServerMsgID == item.ServerMsgID) ||
+			(item.ClientMsgID != "" && candidate.ClientMsgID == item.ClientMsgID) {
+			return candidate.DeliveryState
+		}
+	}
+	return ""
 }
 
 func messageIdentity(item domain.MessageItem) string {
@@ -231,6 +296,7 @@ func (s *AppStore) LoadPersistedMessages(conversationID string) bool {
 			Self:           rec.Self,
 			SendTime:       rec.SendTime,
 			CreateTime:     rec.CreateTime,
+			DeliveryState: rec.DeliveryState,
 		}
 	}
 	s.MessagesByConv[conversationID] = items

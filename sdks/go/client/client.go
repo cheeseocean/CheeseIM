@@ -216,6 +216,20 @@ func (c *Client) MarkRead(ctx context.Context, conversationID string, readSeq in
 	return c.sync.MarkRead(ctx, conversationID, readSeq)
 }
 
+// AckDelivered confirms a per-device high watermark after the application has accepted the message locally.
+func (c *Client) AckDelivered(conversationID string, deliveredSeq int64) error {
+	if conversationID == "" || deliveredSeq <= 0 {
+		return fmt.Errorf("conversationID and positive deliveredSeq required")
+	}
+	opID := fmt.Sprintf("d%015x", time.Now().UnixNano()&0x0fffffffffffffff)
+	return c.tcpClient.AckDelivery(opID, &pb.ProtoChatDeliveryAckCommand{
+		ConversationId:  conversationID,
+		MaxDeliveredSeq: deliveredSeq,
+		DeviceId:        c.cfg.DeviceID,
+		OpId:            opID,
+	})
+}
+
 func (c *Client) bootstrap(ctx context.Context, session auth.AuthSession) (types.BootstrapData, error) {
 	data, err := c.social.LoadInitialData(ctx, session.AccessToken)
 	if err != nil {
@@ -264,7 +278,23 @@ func (c *Client) realtimeLoop(stop <-chan struct{}) {
 func (c *Client) handleTransportEvent(event tcpim.Event) {
 	switch event.Kind {
 	case tcpim.EventAck:
-		c.emit(types.Event{Kind: types.EventKindAck, RequestID: event.RequestID})
+		if event.Ack == nil {
+			return
+		}
+		c.emit(types.Event{Kind: types.EventKindAck, RequestID: event.RequestID, SendAck: &types.SendAck{
+			ClientMsgID: event.Ack.GetClientMsgId(), ServerMsgID: event.Ack.GetServerMsgId(),
+			AcceptedAt: event.Ack.GetAcceptedAt(), AcceptedState: int32(event.Ack.GetAcceptedState()),
+		}})
+	case tcpim.EventDelivery:
+		if event.Delivery == nil {
+			return
+		}
+		c.emit(types.Event{Kind: types.EventKindDeliveryUpdated, RequestID: event.RequestID,
+			ConversationID: event.Delivery.GetConversationId(), Delivery: &types.DeliveryUpdate{
+				ConversationID: event.Delivery.GetConversationId(), RecipientID: event.Delivery.GetRecipientId(),
+				DeviceID: event.Delivery.GetDeviceId(), DeliveredSeq: event.Delivery.GetDeliveredSeq(),
+				UpdatedAt: event.Delivery.GetUpdatedAt(),
+			}})
 	case tcpim.EventDisconnect:
 		c.emit(types.Event{Kind: types.EventKindDisconnected})
 	case tcpim.EventError:

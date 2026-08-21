@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/cheeseim/cheesebox/internal/domain"
+	sdktypes "github.com/cheeseim/cheeseim-go-sdk/types"
 )
 
 func TestAppStoreUpsertConversationOrdersByLastMessageTime(t *testing.T) {
@@ -47,5 +48,40 @@ func TestAppStoreAppendMessageDeduplicatesByStableMessageIdentity(t *testing.T) 
 	}
 	if items[0].Content != "hello" {
 		t.Fatalf("first message was overwritten: %#v", items[0])
+	}
+}
+
+func TestAppStoreAdvancesOutgoingDeliveryState(t *testing.T) {
+	store := New()
+	store.AppendMessage("s:u1:u2", domain.MessageItem{
+		ClientMsgID: "client-1", Self: true, DeliveryState: string(sdktypes.MessageDeliverySending),
+	})
+
+	store.UpdateSendAck("client-1", "server-1")
+	item := store.MessagesByConv["s:u1:u2"][0]
+	if item.ServerMsgID != "server-1" || item.DeliveryState != string(sdktypes.MessageDeliveryBrokerAccepted) {
+		t.Fatalf("item = %#v, want broker accepted", item)
+	}
+
+	store.SetMessages("s:u1:u2", []domain.MessageItem{
+		{ClientMsgID: "client-1", ServerMsgID: "server-1", Sequence: 7, Self: true},
+	})
+	store.UpdateDeliveredThrough("s:u1:u2", 7)
+	item = store.MessagesByConv["s:u1:u2"][0]
+	if item.DeliveryState != string(sdktypes.MessageDeliveryDelivered) {
+		t.Fatalf("DeliveryState = %q, want delivered", item.DeliveryState)
+	}
+}
+
+func TestAppStoreAppliesDeliveryHighWatermarkToLateMessage(t *testing.T) {
+	store := New()
+	store.UpdateDeliveredThrough("s:u1:u2", 9)
+	store.SetMessages("s:u1:u2", []domain.MessageItem{
+		{ServerMsgID: "server-1", Sequence: 9, Self: true},
+	})
+
+	item := store.MessagesByConv["s:u1:u2"][0]
+	if item.DeliveryState != string(sdktypes.MessageDeliveryDelivered) {
+		t.Fatalf("DeliveryState = %q, want delivered", item.DeliveryState)
 	}
 }

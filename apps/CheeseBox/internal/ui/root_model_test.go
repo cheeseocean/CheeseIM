@@ -406,6 +406,10 @@ func (f *fakeIMClient) MarkRead(_ context.Context, conversationID string, readSe
 	return f.markReadErr
 }
 
+func (f *fakeIMClient) AckDelivered(string, int64) error {
+	return nil
+}
+
 func (f *fakeIMClient) Events() <-chan sdktypes.Event {
 	return f.events
 }

@@ -29,7 +29,7 @@ CheeseBox TUI
 1. 读取 `CHEESEBOX_*` 环境变量，未配置时使用 all-in-one 默认地址。
 2. 通过 SDK 调用 HTTP 登录并申请 TCP ticket。
 3. SDK 建立 TCP Binary Protobuf 连接，负责认证、心跳、重连与同步游标修复。
-4. UI 订阅 SDK 的消息与控制事件，只维护展示状态。
+4. UI 订阅 SDK 的消息与控制事件；实时消息写入本地 store 后，由 SDK 提交设备级 delivery 高水位，发送方按 broker ACK 和 delivery notify 更新展示状态。
 5. 断线或重启后，SDK 从服务端拉取同步结果；本地状态不是真相来源。
 
 ## 开发与验证

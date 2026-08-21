@@ -591,6 +591,10 @@ func buildChatGroups(messages []domain.MessageItem) []chatMessageGroup {
 	}
 	groups := make([]chatMessageGroup, 0, len(messages))
 	for _, item := range messages {
+		content := item.Content
+		if item.Self && item.DeliveryState != "" {
+			content += "  [" + item.DeliveryState + "]"
+		}
 		label := firstNonEmpty(item.SenderLabel, item.SenderID)
 		if item.Self {
 			label = "me"
@@ -599,19 +603,19 @@ func buildChatGroups(messages []domain.MessageItem) []chatMessageGroup {
 			groups = append(groups, chatMessageGroup{
 				label: label,
 				self:  item.Self,
-				items: []string{item.Content},
+				items: []string{content},
 			})
 			continue
 		}
 		last := &groups[len(groups)-1]
 		if last.self == item.Self && last.label == label {
-			last.items = append(last.items, item.Content)
+			last.items = append(last.items, content)
 			continue
 		}
 		groups = append(groups, chatMessageGroup{
 			label: label,
 			self:  item.Self,
-			items: []string{item.Content},
+			items: []string{content},
 		})
 	}
 	return groups

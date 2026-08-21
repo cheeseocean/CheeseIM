@@ -101,6 +101,48 @@ func TestClientReceivesInboundMessage(t *testing.T) {
 	_ = client.Close()
 }
 
+func TestClientSendsDeliveryAckAndReceivesDeliveryNotify(t *testing.T) {
+	clientConn, serverConn := net.Pipe()
+	defer serverConn.Close()
+
+	client := NewClient(pipeDialer(clientConn), time.Hour)
+	go func() {
+		_ = mustReadFrame(t, serverConn)
+		writeFrame(t, serverConn, TCPAuthSuccess, "auth", mustMarshal(t, &pb.ProtoAuthResponse{UserId: "user-1"}))
+		frame := mustReadFrame(t, serverConn)
+		if frame.CommandType != TCPDeliveryAckReq {
+			t.Errorf("MsgType = %d, want %d", frame.CommandType, TCPDeliveryAckReq)
+		}
+		var ack pb.ProtoChatDeliveryAckCommand
+		if err := gproto.Unmarshal(frame.Payload, &ack); err != nil {
+			t.Errorf("Unmarshal() error = %v", err)
+		}
+		if ack.GetConversationId() != "s:user-1:user-2" || ack.GetMaxDeliveredSeq() != 12 {
+			t.Errorf("ack = %#v, want conversation and seq", &ack)
+		}
+		writeFrame(t, serverConn, TCPDeliveryNotify, "delivery-1", mustMarshal(t, &pb.ProtoChatDeliveryNotify{
+			ConversationId: "s:user-1:user-2",
+			RecipientId:    "user-2",
+			DeliveredSeq:   12,
+		}))
+	}()
+
+	if _, err := client.Connect(context.Background(), "ignored", "ticket-1"); err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	_ = waitEvent(t, client.Events())
+	if err := client.AckDelivery("delivery-1", &pb.ProtoChatDeliveryAckCommand{
+		ConversationId: "s:user-1:user-2", MaxDeliveredSeq: 12, DeviceId: "device-1", OpId: "delivery-1",
+	}); err != nil {
+		t.Fatalf("AckDelivery() error = %v", err)
+	}
+	event := waitEvent(t, client.Events())
+	if event.Kind != EventDelivery || event.Delivery.GetDeliveredSeq() != 12 {
+		t.Fatalf("event = %#v, want delivery notify", event)
+	}
+	_ = client.Close()
+}
+
 func TestClientSurfacesDisconnectAndErrors(t *testing.T) {
 	t.Run("disconnect", func(t *testing.T) {
 		clientConn, serverConn := net.Pipe()

@@ -32,6 +32,7 @@ const (
 	EventAuthSuccess EventKind = "auth_success"
 	EventAck         EventKind = "ack"
 	EventMessage     EventKind = "message"
+	EventDelivery    EventKind = "delivery"
 	EventDisconnect  EventKind = "disconnect"
 	EventError       EventKind = "error"
 )
@@ -42,6 +43,7 @@ type Event struct {
 	UserID    string
 	Ack       *pb.ProtoChatSendAck
 	Message   *pb.ProtoMessage
+	Delivery  *pb.ProtoChatDeliveryNotify
 	Err       error
 }
 
@@ -110,6 +112,32 @@ func (c *Client) SendChatMessage(requestID string, message *pb.ProtoMessage) err
 		return fmt.Errorf("marshal chat message: %w", err)
 	}
 	frame, err := EncodeFrame(TCPSendMsgReq, requestID, time.Now().UnixMilli(), payload)
+	if err != nil {
+		return err
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.conn == nil {
+		return errors.New("tcpim: not connected")
+	}
+	_, err = c.conn.Write(frame)
+	return err
+}
+
+// AckDelivery confirms the highest message sequence accepted by this device.
+func (c *Client) AckDelivery(requestID string, command *pb.ProtoChatDeliveryAckCommand) error {
+	if command == nil {
+		return errors.New("tcpim: delivery ack is nil")
+	}
+	return c.sendProto(CommandChatDelivery, requestID, command)
+}
+
+func (c *Client) sendProto(commandType byte, requestID string, message gproto.Message) error {
+	payload, err := gproto.Marshal(message)
+	if err != nil {
+		return fmt.Errorf("marshal command: %w", err)
+	}
+	frame, err := EncodeFrame(commandType, requestID, time.Now().UnixMilli(), payload)
 	if err != nil {
 		return err
 	}
@@ -225,6 +253,13 @@ func (c *Client) handleFrame(frame Frame) {
 			return
 		}
 		c.emit(Event{Kind: EventMessage, RequestID: frame.RequestID, Message: &message})
+	case CommandChatDeliveryNotify:
+		var notify pb.ProtoChatDeliveryNotify
+		if err := gproto.Unmarshal(frame.Payload, &notify); err != nil {
+			c.emit(Event{Kind: EventError, Err: err})
+			return
+		}
+		c.emit(Event{Kind: EventDelivery, RequestID: frame.RequestID, Delivery: &notify})
 	case CommandError:
 		c.emit(Event{Kind: EventError, RequestID: frame.RequestID, Err: errors.New(string(frame.Payload))})
 	}

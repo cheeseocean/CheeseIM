@@ -36,6 +36,7 @@ type MessageRecord struct {
 	Self           bool   `json:"self"`
 	SendTime       int64  `json:"send_time"`
 	CreateTime     int64  `json:"create_time"`
+	DeliveryState string `json:"delivery_state,omitempty"`
 }
 
 // ConversationRecord 会话记录
