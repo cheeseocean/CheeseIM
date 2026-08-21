@@ -5,7 +5,7 @@ CheeseBox is the Bubble Tea TUI integration client for CheeseIM.
 It now consumes the reusable Go IM SDK in `sdks/go` for:
 - login and ws-ticket auth
 - TCP realtime messaging over the server-owned Protobuf protocol
-- broker acceptance and device delivery high-watermark status
+- broker acceptance, device delivery, and peer read high-watermark status
 - seq-based history sync
 - reconnect sync and gap repair
 - friend/group/conversation queries
@@ -14,4 +14,5 @@ CheeseBox itself only keeps app-specific state and UI rendering. Its default all
 
 The second login field is a short-lived, one-time identity assertion issued by the trusted account domain; it is not a password. The SDK forwards it as `identityAssertion` to `/api/auth/login`. For local integration, use the development issuer documented in `docs/client-runbook.md`.
 
-Outgoing text messages expose `sending → broker_accepted → delivered`; read receipts remain the next client integration step.
+Outgoing direct-chat text messages expose `sending → broker_accepted → delivered → read` from server-confirmed high-watermark events.
+Use `/revoke last [reason]` for the latest outgoing message, or `/revoke <serverMsgId> [reason]` for an explicit target. Revoke notifications replace matching content with a tombstone even when the notification arrives before the message.

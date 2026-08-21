@@ -85,3 +85,32 @@ func TestAppStoreAppliesDeliveryHighWatermarkToLateMessage(t *testing.T) {
 		t.Fatalf("DeliveryState = %q, want delivered", item.DeliveryState)
 	}
 }
+
+func TestAppStoreReadHighWatermarkOverridesDeliveryAndAppliesLate(t *testing.T) {
+	store := New()
+	store.UpdateDeliveredThrough("s:u1:u2", 9)
+	store.UpdateReadThrough("s:u1:u2", 9)
+	store.SetMessages("s:u1:u2", []domain.MessageItem{
+		{ServerMsgID: "server-1", Sequence: 9, Self: true},
+	})
+
+	item := store.MessagesByConv["s:u1:u2"][0]
+	if item.DeliveryState != string(sdktypes.MessageDeliveryRead) {
+		t.Fatalf("DeliveryState = %q, want read", item.DeliveryState)
+	}
+}
+
+func TestAppStoreAppliesOutOfOrderRevokeTombstone(t *testing.T) {
+	store := New()
+	store.ApplyRevoke(sdktypes.RevokeUpdate{
+		ConversationID: "s:u1:u2", ServerMsgID: "server-1", OperatorUserID: "u1", MutationVersion: 2,
+	})
+	store.AppendMessage("s:u1:u2", domain.MessageItem{
+		ServerMsgID: "server-1", Content: "secret", Sequence: 7,
+	})
+
+	item := store.MessagesByConv["s:u1:u2"][0]
+	if !item.Revoked || item.Content != "[message revoked]" || item.MutationVersion != 2 {
+		t.Fatalf("item = %#v, want revoke tombstone", item)
+	}
+}

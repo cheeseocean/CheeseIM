@@ -230,6 +230,20 @@ func (c *Client) AckDelivered(conversationID string, deliveredSeq int64) error {
 	})
 }
 
+// RevokeMessage requests revocation of a server message in the given conversation.
+func (c *Client) RevokeMessage(conversationID, serverMsgID, reason string) error {
+	if conversationID == "" || serverMsgID == "" {
+		return fmt.Errorf("conversationID and serverMsgID required")
+	}
+	opID := fmt.Sprintf("r%015x", time.Now().UnixNano()&0x0fffffffffffffff)
+	return c.tcpClient.RevokeMessage(opID, &pb.ProtoChatRevokeCommand{
+		ConversationId: conversationID,
+		ServerMsgId:    serverMsgID,
+		OpId:           opID,
+		Reason:         reason,
+	})
+}
+
 func (c *Client) bootstrap(ctx context.Context, session auth.AuthSession) (types.BootstrapData, error) {
 	data, err := c.social.LoadInitialData(ctx, session.AccessToken)
 	if err != nil {
@@ -294,6 +308,26 @@ func (c *Client) handleTransportEvent(event tcpim.Event) {
 				ConversationID: event.Delivery.GetConversationId(), RecipientID: event.Delivery.GetRecipientId(),
 				DeviceID: event.Delivery.GetDeviceId(), DeliveredSeq: event.Delivery.GetDeliveredSeq(),
 				UpdatedAt: event.Delivery.GetUpdatedAt(),
+			}})
+	case tcpim.EventRead:
+		if event.Read == nil {
+			return
+		}
+		c.emit(types.Event{Kind: types.EventKindReadUpdated, RequestID: event.RequestID,
+			ConversationID: event.Read.GetConversationId(), Read: &types.ReadUpdate{
+				ConversationID: event.Read.GetConversationId(), ReaderID: event.Read.GetReaderId(),
+				ReadSeq: event.Read.GetReadSeq(), UpdatedAt: event.Read.GetUpdatedAt(),
+			}})
+	case tcpim.EventRevoke:
+		if event.Revoke == nil {
+			return
+		}
+		c.emit(types.Event{Kind: types.EventKindRevokeUpdated, RequestID: event.RequestID,
+			ConversationID: event.Revoke.GetConversationId(), Revoke: &types.RevokeUpdate{
+				ConversationID: event.Revoke.GetConversationId(), ServerMsgID: event.Revoke.GetServerMsgId(),
+				OperatorUserID: event.Revoke.GetOperatorUserId(), OperatorName: event.Revoke.GetOperatorName(),
+				TargetSenderID: event.Revoke.GetTargetSenderId(), TargetSenderName: event.Revoke.GetTargetSenderName(),
+				RevokedAt: event.Revoke.GetRevokedAt(), MutationVersion: event.Revoke.GetMutationVersion(),
 			}})
 	case tcpim.EventDisconnect:
 		c.emit(types.Event{Kind: types.EventKindDisconnected})

@@ -44,6 +44,10 @@ type addFriendSuccessMsg struct {
 	friendUserID string
 }
 
+type revokeRequestedMsg struct {
+	serverMsgID string
+}
+
 type conversationSyncSuccessMsg struct {
 	result sdktypes.ConversationSyncResult
 }
@@ -61,6 +65,7 @@ type IMClient interface {
 	AddFriend(ctx context.Context, friendUserID, message string) error
 	MarkRead(ctx context.Context, conversationID string, readSeq int64) error
 	AckDelivered(conversationID string, deliveredSeq int64) error
+	RevokeMessage(conversationID, serverMsgID, reason string) error
 	Events() <-chan sdktypes.Event
 	CurrentUserID() string
 	GetSyncedMaxSeq(conversationID string) int64
@@ -198,6 +203,9 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleRealtimeEvent(msg.event)
 	case addFriendSuccessMsg:
 		m.appStore.PushToast(domain.ToastKindSuccess, fmt.Sprintf("friend request sent to %s", msg.friendUserID))
+		return m, nil
+	case revokeRequestedMsg:
+		m.appStore.PushToast(domain.ToastKindSuccess, "revoke requested: "+msg.serverMsgID)
 		return m, nil
 	case loginErrorMsg:
 		m.appStore.SetConnectionStatus(domain.ConnectionStatusError)
@@ -357,10 +365,51 @@ func (m RootModel) submitInputCmd(text string) tea.Cmd {
 	if strings.HasPrefix(text, "/chat") {
 		return m.openDirectChatCmd(text)
 	}
+	if strings.HasPrefix(text, "/revoke") {
+		return m.revokeMessageCmd(text)
+	}
 	if m.appStore.ActiveConversation == "" {
 		return func() tea.Msg { return appErrorMsg{err: errors.New(T(m.locale, keyToastNoConversation))} }
 	}
 	return m.sendMessageCmd(text)
+}
+
+func (m RootModel) revokeMessageCmd(text string) tea.Cmd {
+	if m.appStore.ActiveConversation == "" {
+		return func() tea.Msg { return appErrorMsg{err: errors.New(T(m.locale, keyToastNoConversation))} }
+	}
+	fields := strings.Fields(text)
+	if len(fields) < 2 {
+		return func() tea.Msg { return appErrorMsg{err: fmt.Errorf("usage: /revoke <serverMsgId|last> [reason]")} }
+	}
+	serverMsgID := fields[1]
+	if serverMsgID == "last" {
+		serverMsgID = m.lastRevocableServerMsgID(m.appStore.ActiveConversation)
+		if serverMsgID == "" {
+			return func() tea.Msg { return appErrorMsg{err: errors.New("no revocable outgoing message in active conversation")} }
+		}
+	}
+	reason := ""
+	if len(fields) > 2 {
+		reason = strings.Join(fields[2:], " ")
+	}
+	conversationID := m.appStore.ActiveConversation
+	return func() tea.Msg {
+		if err := m.client.RevokeMessage(conversationID, serverMsgID, reason); err != nil {
+			return appErrorMsg{err: err}
+		}
+		return revokeRequestedMsg{serverMsgID: serverMsgID}
+	}
+}
+
+func (m RootModel) lastRevocableServerMsgID(conversationID string) string {
+	items := m.appStore.MessagesByConv[conversationID]
+	for i := len(items) - 1; i >= 0; i-- {
+		if items[i].Self && !items[i].Revoked && items[i].ServerMsgID != "" {
+			return items[i].ServerMsgID
+		}
+	}
+	return ""
 }
 
 func (m RootModel) openDirectChatCmd(text string) tea.Cmd {
@@ -491,6 +540,16 @@ func (m RootModel) handleRealtimeEvent(event sdktypes.Event) (tea.Model, tea.Cmd
 	case sdktypes.EventKindDeliveryUpdated:
 		if event.Delivery != nil {
 			m.appStore.UpdateDeliveredThrough(event.Delivery.ConversationID, event.Delivery.DeliveredSeq)
+		}
+		return m, next
+	case sdktypes.EventKindReadUpdated:
+		if event.Read != nil && event.Read.ReaderID != m.appStore.CurrentUserID {
+			m.appStore.UpdateReadThrough(event.Read.ConversationID, event.Read.ReadSeq)
+		}
+		return m, next
+	case sdktypes.EventKindRevokeUpdated:
+		if event.Revoke != nil {
+			m.appStore.ApplyRevoke(*event.Revoke)
 		}
 		return m, next
 	case sdktypes.EventKindDisconnected:

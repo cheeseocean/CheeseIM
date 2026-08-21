@@ -41,6 +41,18 @@ type MessageItem struct {
 	SendTime       int64
 	CreateTime     int64
 	DeliveryState string
+	Revoked       bool
+	RevokedBy     string
+	RevokedAt     int64
+	MutationVersion int64
+}
+
+type RevokeInfo struct {
+	ServerMsgID     string
+	OperatorUserID  string
+	OperatorName    string
+	RevokedAt       int64
+	MutationVersion int64
 }
 
 func NewMessageItem(senderID, content string) MessageItem {

@@ -143,6 +143,75 @@ func TestClientSendsDeliveryAckAndReceivesDeliveryNotify(t *testing.T) {
 	_ = client.Close()
 }
 
+func TestClientReceivesReadNotify(t *testing.T) {
+	clientConn, serverConn := net.Pipe()
+	defer serverConn.Close()
+
+	client := NewClient(pipeDialer(clientConn), time.Hour)
+	go func() {
+		_ = mustReadFrame(t, serverConn)
+		writeFrame(t, serverConn, TCPAuthSuccess, "auth", mustMarshal(t, &pb.ProtoAuthResponse{UserId: "user-1"}))
+		writeFrame(t, serverConn, TCPReadMsgNotify, "read-1", mustMarshal(t, &pb.ProtoChatReadNotify{
+			ConversationId: "s:user-1:user-2",
+			ReaderId:       "user-2",
+			ReadSeq:        12,
+		}))
+	}()
+
+	if _, err := client.Connect(context.Background(), "ignored", "ticket-1"); err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	_ = waitEvent(t, client.Events())
+	event := waitEvent(t, client.Events())
+	if event.Kind != EventRead || event.Read.GetReaderId() != "user-2" || event.Read.GetReadSeq() != 12 {
+		t.Fatalf("event = %#v, want read notify", event)
+	}
+	_ = client.Close()
+}
+
+func TestClientSendsRevokeAndReceivesNotify(t *testing.T) {
+	clientConn, serverConn := net.Pipe()
+	defer serverConn.Close()
+
+	client := NewClient(pipeDialer(clientConn), time.Hour)
+	go func() {
+		_ = mustReadFrame(t, serverConn)
+		writeFrame(t, serverConn, TCPAuthSuccess, "auth", mustMarshal(t, &pb.ProtoAuthResponse{UserId: "user-1"}))
+		frame := mustReadFrame(t, serverConn)
+		if frame.CommandType != TCPRevokeMsgReq {
+			t.Errorf("MsgType = %d, want %d", frame.CommandType, TCPRevokeMsgReq)
+		}
+		var command pb.ProtoChatRevokeCommand
+		if err := gproto.Unmarshal(frame.Payload, &command); err != nil {
+			t.Errorf("Unmarshal() error = %v", err)
+		}
+		if command.GetServerMsgId() != "server-1" {
+			t.Errorf("serverMsgID = %q, want server-1", command.GetServerMsgId())
+		}
+		writeFrame(t, serverConn, TCPRevokeMsgNotify, "revoke-1", mustMarshal(t, &pb.ProtoChatRevokeNotify{
+			ConversationId:  "s:user-1:user-2",
+			ServerMsgId:     "server-1",
+			OperatorUserId:  "user-1",
+			MutationVersion: 3,
+		}))
+	}()
+
+	if _, err := client.Connect(context.Background(), "ignored", "ticket-1"); err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	_ = waitEvent(t, client.Events())
+	if err := client.RevokeMessage("revoke-1", &pb.ProtoChatRevokeCommand{
+		ConversationId: "s:user-1:user-2", ServerMsgId: "server-1", OpId: "revoke-1",
+	}); err != nil {
+		t.Fatalf("RevokeMessage() error = %v", err)
+	}
+	event := waitEvent(t, client.Events())
+	if event.Kind != EventRevoke || event.Revoke.GetMutationVersion() != 3 {
+		t.Fatalf("event = %#v, want revoke notify", event)
+	}
+	_ = client.Close()
+}
+
 func TestClientSurfacesDisconnectAndErrors(t *testing.T) {
 	t.Run("disconnect", func(t *testing.T) {
 		clientConn, serverConn := net.Pipe()

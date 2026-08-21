@@ -33,6 +33,8 @@ type AppStore struct {
 	ConversationOrder  []string
 	MessagesByConv     map[string][]domain.MessageItem
 	DeliveredSeqByConv map[string]int64
+	ReadSeqByConv      map[string]int64
+	RevokesByServerID  map[string]domain.RevokeInfo
 	Toast              domain.Toast
 	ConversationCursor sdktypes.ConversationSyncCursor
 	persister          Persister
@@ -45,6 +47,8 @@ func New() *AppStore {
 		Conversations:    make(map[string]domain.ConversationSummary),
 		MessagesByConv:   make(map[string][]domain.MessageItem),
 		DeliveredSeqByConv: make(map[string]int64),
+		ReadSeqByConv:      make(map[string]int64),
+		RevokesByServerID:  make(map[string]domain.RevokeInfo),
 	}
 }
 
@@ -69,6 +73,8 @@ func (s *AppStore) UsePersister(persister Persister) {
 	s.ConversationOrder = nil
 	s.MessagesByConv = make(map[string][]domain.MessageItem)
 	s.DeliveredSeqByConv = make(map[string]int64)
+	s.ReadSeqByConv = make(map[string]int64)
+	s.RevokesByServerID = make(map[string]domain.RevokeInfo)
 	s.ConversationCursor = sdktypes.ConversationSyncCursor{}
 	s.loadFromPersister()
 }
@@ -149,6 +155,10 @@ func (s *AppStore) SetMessages(conversationID string, items []domain.MessageItem
 		if items[i].Self && items[i].Sequence > 0 && items[i].Sequence <= s.DeliveredSeqByConv[conversationID] {
 			items[i].DeliveryState = string(sdktypes.MessageDeliveryDelivered)
 		}
+		if items[i].Self && items[i].Sequence > 0 && items[i].Sequence <= s.ReadSeqByConv[conversationID] {
+			items[i].DeliveryState = string(sdktypes.MessageDeliveryRead)
+		}
+		s.applyRevokeToItem(&items[i])
 	}
 	s.MessagesByConv[conversationID] = append([]domain.MessageItem(nil), items...)
 	// 持久化
@@ -168,6 +178,8 @@ func (s *AppStore) SetMessages(conversationID string, items []domain.MessageItem
 				SendTime:       item.SendTime,
 				CreateTime:     item.CreateTime,
 				DeliveryState: item.DeliveryState,
+				Revoked: item.Revoked, RevokedBy: item.RevokedBy, RevokedAt: item.RevokedAt,
+				MutationVersion: item.MutationVersion,
 			}
 		}
 		s.persister.SetMessages(conversationID, records)
@@ -186,6 +198,7 @@ func (s *AppStore) AppendMessage(conversationID string, item domain.MessageItem)
 	if item.ConversationID == "" {
 		item.ConversationID = conversationID
 	}
+	s.applyRevokeToItem(&item)
 	s.MessagesByConv[conversationID] = append(s.MessagesByConv[conversationID], item)
 	// 持久化
 	if s.persister != nil {
@@ -202,6 +215,8 @@ func (s *AppStore) AppendMessage(conversationID string, item domain.MessageItem)
 			SendTime:       item.SendTime,
 			CreateTime:     item.CreateTime,
 			DeliveryState: item.DeliveryState,
+			Revoked: item.Revoked, RevokedBy: item.RevokedBy, RevokedAt: item.RevokedAt,
+			MutationVersion: item.MutationVersion,
 		})
 	}
 }
@@ -245,6 +260,61 @@ func (s *AppStore) UpdateDeliveredThrough(conversationID string, deliveredSeq in
 	if changed {
 		s.SetMessages(conversationID, items)
 	}
+}
+
+func (s *AppStore) UpdateReadThrough(conversationID string, readSeq int64) {
+	if readSeq > s.ReadSeqByConv[conversationID] {
+		s.ReadSeqByConv[conversationID] = readSeq
+	}
+	items := s.MessagesByConv[conversationID]
+	changed := false
+	for i := range items {
+		if items[i].Self && items[i].Sequence > 0 && items[i].Sequence <= readSeq {
+			items[i].DeliveryState = string(sdktypes.MessageDeliveryRead)
+			changed = true
+		}
+	}
+	if changed {
+		s.SetMessages(conversationID, items)
+	}
+}
+
+func (s *AppStore) ApplyRevoke(update sdktypes.RevokeUpdate) {
+	if update.ServerMsgID == "" {
+		return
+	}
+	existing, ok := s.RevokesByServerID[update.ServerMsgID]
+	if ok && existing.MutationVersion > update.MutationVersion {
+		return
+	}
+	s.RevokesByServerID[update.ServerMsgID] = domain.RevokeInfo{
+		ServerMsgID: update.ServerMsgID, OperatorUserID: update.OperatorUserID,
+		OperatorName: update.OperatorName, RevokedAt: update.RevokedAt,
+		MutationVersion: update.MutationVersion,
+	}
+	items := s.MessagesByConv[update.ConversationID]
+	for i := range items {
+		if items[i].ServerMsgID == update.ServerMsgID {
+			s.applyRevokeToItem(&items[i])
+			s.SetMessages(update.ConversationID, items)
+			return
+		}
+	}
+}
+
+func (s *AppStore) applyRevokeToItem(item *domain.MessageItem) {
+	if item == nil || item.ServerMsgID == "" {
+		return
+	}
+	revoke, ok := s.RevokesByServerID[item.ServerMsgID]
+	if !ok || revoke.MutationVersion < item.MutationVersion {
+		return
+	}
+	item.Revoked = true
+	item.RevokedBy = firstNonEmpty(revoke.OperatorName, revoke.OperatorUserID)
+	item.RevokedAt = revoke.RevokedAt
+	item.MutationVersion = revoke.MutationVersion
+	item.Content = "[message revoked]"
 }
 
 func (s *AppStore) deliveryStateFor(item domain.MessageItem, existing []domain.MessageItem) string {
@@ -297,6 +367,8 @@ func (s *AppStore) LoadPersistedMessages(conversationID string) bool {
 			SendTime:       rec.SendTime,
 			CreateTime:     rec.CreateTime,
 			DeliveryState: rec.DeliveryState,
+			Revoked: rec.Revoked, RevokedBy: rec.RevokedBy, RevokedAt: rec.RevokedAt,
+			MutationVersion: rec.MutationVersion,
 		}
 	}
 	s.MessagesByConv[conversationID] = items

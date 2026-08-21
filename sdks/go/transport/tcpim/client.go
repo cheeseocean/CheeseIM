@@ -33,6 +33,8 @@ const (
 	EventAck         EventKind = "ack"
 	EventMessage     EventKind = "message"
 	EventDelivery    EventKind = "delivery"
+	EventRead        EventKind = "read"
+	EventRevoke      EventKind = "revoke"
 	EventDisconnect  EventKind = "disconnect"
 	EventError       EventKind = "error"
 )
@@ -44,6 +46,8 @@ type Event struct {
 	Ack       *pb.ProtoChatSendAck
 	Message   *pb.ProtoMessage
 	Delivery  *pb.ProtoChatDeliveryNotify
+	Read      *pb.ProtoChatReadNotify
+	Revoke    *pb.ProtoChatRevokeNotify
 	Err       error
 }
 
@@ -130,6 +134,14 @@ func (c *Client) AckDelivery(requestID string, command *pb.ProtoChatDeliveryAckC
 		return errors.New("tcpim: delivery ack is nil")
 	}
 	return c.sendProto(CommandChatDelivery, requestID, command)
+}
+
+// RevokeMessage requests a server-authorized message mutation.
+func (c *Client) RevokeMessage(requestID string, command *pb.ProtoChatRevokeCommand) error {
+	if command == nil {
+		return errors.New("tcpim: revoke command is nil")
+	}
+	return c.sendProto(CommandChatRevoke, requestID, command)
 }
 
 func (c *Client) sendProto(commandType byte, requestID string, message gproto.Message) error {
@@ -260,6 +272,20 @@ func (c *Client) handleFrame(frame Frame) {
 			return
 		}
 		c.emit(Event{Kind: EventDelivery, RequestID: frame.RequestID, Delivery: &notify})
+	case CommandChatReadNotify:
+		var notify pb.ProtoChatReadNotify
+		if err := gproto.Unmarshal(frame.Payload, &notify); err != nil {
+			c.emit(Event{Kind: EventError, Err: err})
+			return
+		}
+		c.emit(Event{Kind: EventRead, RequestID: frame.RequestID, Read: &notify})
+	case CommandChatRevokeNotify:
+		var notify pb.ProtoChatRevokeNotify
+		if err := gproto.Unmarshal(frame.Payload, &notify); err != nil {
+			c.emit(Event{Kind: EventError, Err: err})
+			return
+		}
+		c.emit(Event{Kind: EventRevoke, RequestID: frame.RequestID, Revoke: &notify})
 	case CommandError:
 		c.emit(Event{Kind: EventError, RequestID: frame.RequestID, Err: errors.New(string(frame.Payload))})
 	}

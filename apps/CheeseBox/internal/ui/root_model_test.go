@@ -243,6 +243,28 @@ func TestRootModelSubmitInputOpensCanonicalDirectChat(t *testing.T) {
 	}
 }
 
+func TestRootModelSubmitInputRequestsRevoke(t *testing.T) {
+	client := &fakeIMClient{currentUserID: "user-1"}
+	model := NewRootModel(config.RuntimeConfig{}, client)
+	model.appStore.SetCurrentUserID("user-1")
+	model.appStore.SetActiveConversation("s:user-1:user-2")
+
+	model.appStore.SetMessages("s:user-1:user-2", []domain.MessageItem{
+		{ServerMsgID: "server-1", Self: true},
+	})
+	_, cmd := model.Update(SubmitInputMsg{Text: "/revoke last duplicate"})
+	if cmd == nil {
+		t.Fatal("revoke cmd is nil")
+	}
+	msg := cmd()
+	if _, ok := msg.(revokeRequestedMsg); !ok {
+		t.Fatalf("message = %#v, want revokeRequestedMsg", msg)
+	}
+	if client.revokeConversationID != "s:user-1:user-2" || client.revokeServerMsgID != "server-1" || client.revokeReason != "duplicate" {
+		t.Fatalf("revoke = %q %q %q", client.revokeConversationID, client.revokeServerMsgID, client.revokeReason)
+	}
+}
+
 func TestRootModelRealtimeMessageAppendsToConversation(t *testing.T) {
 	client := &fakeIMClient{}
 	model := NewRootModel(config.RuntimeConfig{}, client)
@@ -266,6 +288,24 @@ func TestRootModelRealtimeMessageAppendsToConversation(t *testing.T) {
 	}
 	if model.appStore.Conversations["s:user-1:user-2"].UnreadCount != 1 {
 		t.Fatalf("summary = %#v", model.appStore.Conversations["s:user-1:user-2"])
+	}
+}
+
+func TestRootModelAppliesPeerReadNotify(t *testing.T) {
+	client := &fakeIMClient{currentUserID: "user-1"}
+	model := NewRootModel(config.RuntimeConfig{}, client)
+	model.appStore.SetCurrentUserID("user-1")
+	model.appStore.SetMessages("s:user-1:user-2", []domain.MessageItem{
+		{ServerMsgID: "server-1", Sequence: 7, Self: true, DeliveryState: string(sdktypes.MessageDeliveryDelivered)},
+	})
+
+	updated, _ := model.handleRealtimeEvent(sdktypes.Event{
+		Kind: sdktypes.EventKindReadUpdated,
+		Read: &sdktypes.ReadUpdate{ConversationID: "s:user-1:user-2", ReaderID: "user-2", ReadSeq: 7},
+	})
+	root := updated.(RootModel)
+	if got := root.appStore.MessagesByConv["s:user-1:user-2"][0].DeliveryState; got != string(sdktypes.MessageDeliveryRead) {
+		t.Fatalf("DeliveryState = %q, want read", got)
 	}
 }
 
@@ -360,6 +400,10 @@ type fakeIMClient struct {
 	markReadConversation   string
 	markReadSeq            int64
 	markReadErr            error
+	revokeConversationID   string
+	revokeServerMsgID      string
+	revokeReason           string
+	revokeErr              error
 	events                 chan sdktypes.Event
 	pulled                 []sdktypes.PulledConversationMessages
 	serverMaxSeqs          map[string]int64
@@ -408,6 +452,13 @@ func (f *fakeIMClient) MarkRead(_ context.Context, conversationID string, readSe
 
 func (f *fakeIMClient) AckDelivered(string, int64) error {
 	return nil
+}
+
+func (f *fakeIMClient) RevokeMessage(conversationID, serverMsgID, reason string) error {
+	f.revokeConversationID = conversationID
+	f.revokeServerMsgID = serverMsgID
+	f.revokeReason = reason
+	return f.revokeErr
 }
 
 func (f *fakeIMClient) Events() <-chan sdktypes.Event {

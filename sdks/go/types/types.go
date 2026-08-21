@@ -93,6 +93,24 @@ type DeliveryUpdate struct {
 	UpdatedAt      int64
 }
 
+type ReadUpdate struct {
+	ConversationID string
+	ReaderID       string
+	ReadSeq        int64
+	UpdatedAt      int64
+}
+
+type RevokeUpdate struct {
+	ConversationID   string
+	ServerMsgID      string
+	OperatorUserID   string
+	OperatorName     string
+	TargetSenderID   string
+	TargetSenderName string
+	RevokedAt        int64
+	MutationVersion  int64
+}
+
 type ReadSnapshot struct {
 	ConversationID string
 	ReadSeq        int64

@@ -98,7 +98,24 @@ func TestDirectMessageLifecycle(t *testing.T) {
 	if err := api.AckReadSeq(ctx, bob.accessToken, conversationID, received.GetSeq()); err != nil {
 		t.Fatalf("ack read seq: %v", err)
 	}
+	readNotify := awaitReadNotify(t, ctx, alice.tcp.Events(), conversationID, received.GetSeq())
+	if readNotify.GetReaderId() != bob.userID {
+		t.Fatalf("read reader = %q, want %q", readNotify.GetReaderId(), bob.userID)
+	}
 	awaitReadSeq(t, ctx, api, bob.accessToken, conversationID, received.GetSeq())
+	revokeOpID := "revoke-" + runID[:9]
+	if err := alice.tcp.RevokeMessage(revokeOpID, &pb.ProtoChatRevokeCommand{
+		ConversationId: conversationID,
+		ServerMsgId:    received.GetServerMsgId(),
+		OpId:           revokeOpID,
+		Reason:         "e2e cleanup",
+	}); err != nil {
+		t.Fatalf("revoke message: %v", err)
+	}
+	revoke := awaitRevoke(t, ctx, bob.tcp.Events(), conversationID, received.GetServerMsgId())
+	if revoke.GetOperatorUserId() != alice.userID || revoke.GetMutationVersion() <= 0 {
+		t.Fatalf("invalid revoke notify: %#v", revoke)
+	}
 }
 
 type connectedClient struct {
@@ -144,6 +161,42 @@ func awaitDelivery(t *testing.T, ctx context.Context, events <-chan tcpim.Event,
 			if event.Kind == tcpim.EventDelivery && event.Delivery.GetConversationId() == conversationID &&
 				event.Delivery.GetDeliveredSeq() >= seq {
 				return event.Delivery
+			}
+		}
+	}
+}
+
+func awaitReadNotify(t *testing.T, ctx context.Context, events <-chan tcpim.Event, conversationID string, seq int64) *pb.ProtoChatReadNotify {
+	t.Helper()
+	for {
+		select {
+		case <-ctx.Done():
+			t.Fatalf("wait read notify %s/%d: %v", conversationID, seq, ctx.Err())
+		case event := <-events:
+			if event.Kind == tcpim.EventError {
+				t.Fatalf("tcp error while waiting for read notify: %v", event.Err)
+			}
+			if event.Kind == tcpim.EventRead && event.Read.GetConversationId() == conversationID &&
+				event.Read.GetReadSeq() >= seq {
+				return event.Read
+			}
+		}
+	}
+}
+
+func awaitRevoke(t *testing.T, ctx context.Context, events <-chan tcpim.Event, conversationID, serverMsgID string) *pb.ProtoChatRevokeNotify {
+	t.Helper()
+	for {
+		select {
+		case <-ctx.Done():
+			t.Fatalf("wait revoke %s/%s: %v", conversationID, serverMsgID, ctx.Err())
+		case event := <-events:
+			if event.Kind == tcpim.EventError {
+				t.Fatalf("tcp error while waiting for revoke: %v", event.Err)
+			}
+			if event.Kind == tcpim.EventRevoke && event.Revoke.GetConversationId() == conversationID &&
+				event.Revoke.GetServerMsgId() == serverMsgID {
+				return event.Revoke
 			}
 		}
 	}
