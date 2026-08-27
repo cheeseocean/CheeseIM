@@ -1,234 +1,50 @@
-<svg width="1500" height="920" viewBox="0 0 1500 920" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
-  <title id="title">CheeseIM product architecture</title>
-  <desc id="desc">A layered architecture diagram showing clients, access channels, core capabilities, message loop, and data foundation.</desc>
+<svg width="1600" height="1000" viewBox="0 0 1600 1000" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">CheeseIM system architecture</title>
+  <desc id="desc">Client access, asynchronous message backbone, delivery recovery, and state infrastructure.</desc>
   <defs>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#0F172A" flood-opacity="0.10"/>
-    </filter>
-    <linearGradient id="header" x1="0" y1="0" x2="1500" y2="0">
-      <stop stop-color="#2563EB"/>
-      <stop offset="0.55" stop-color="#0F766E"/>
-      <stop offset="1" stop-color="#7C3AED"/>
-    </linearGradient>
-    <linearGradient id="band1" x1="0" y1="0" x2="1" y2="1">
-      <stop stop-color="#EEF5FF"/>
-      <stop offset="1" stop-color="#F8FBFF"/>
-    </linearGradient>
-    <linearGradient id="band2" x1="0" y1="0" x2="1" y2="1">
-      <stop stop-color="#ECFDF5"/>
-      <stop offset="1" stop-color="#F7FFFC"/>
-    </linearGradient>
-    <linearGradient id="band3" x1="0" y1="0" x2="1" y2="1">
-      <stop stop-color="#FFF7E8"/>
-      <stop offset="1" stop-color="#FFFCF4"/>
-    </linearGradient>
-    <linearGradient id="band4" x1="0" y1="0" x2="1" y2="1">
-      <stop stop-color="#FFF1E8"/>
-      <stop offset="1" stop-color="#FFF9F5"/>
-    </linearGradient>
-    <linearGradient id="band5" x1="0" y1="0" x2="1" y2="1">
-      <stop stop-color="#F3F4F6"/>
-      <stop offset="1" stop-color="#FBFBFC"/>
-    </linearGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="1000"><stop stop-color="#07111F"/><stop offset=".55" stop-color="#0B1728"/><stop offset="1" stop-color="#111827"/></linearGradient>
+    <linearGradient id="accent" x1="90" y1="0" x2="1510" y2="0"><stop stop-color="#38BDF8"/><stop offset=".5" stop-color="#2DD4BF"/><stop offset="1" stop-color="#A78BFA"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#020617" flood-opacity=".5"/></filter>
+    <filter id="glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <marker id="cyan" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#38BDF8"/></marker>
+    <marker id="mint" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#2DD4BF"/></marker>
+    <marker id="violet" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10Z" fill="#A78BFA"/></marker>
     <style>
-      .bg { fill: #F4F7FB; }
-      .title { font: 700 38px Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #0F172A; }
-      .subtitle { font: 400 18px Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #475569; }
-      .layer-title { font: 700 20px Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #0F172A; }
-      .layer-note { font: 400 15px Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #64748B; }
-      .card-title { font: 700 18px Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #111827; }
-      .card-body { font: 400 14px Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #55657A; }
-      .badge-text { font: 700 14px Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #FFFFFF; letter-spacing: 0.3px; }
-      .panel { fill: #FFFFFF; stroke: #E2E8F0; stroke-width: 1.2; filter: url(#shadow); }
-      .band { stroke: rgba(148,163,184,0.22); stroke-width: 1; }
-      .card { stroke-width: 1.2; rx: 10; }
-      .card-outline { fill: #FFFFFF; stroke: #D8E0EA; }
-      .icon-stroke { stroke-linecap: round; stroke-linejoin: round; }
+      .title{font:700 42px Inter,Arial,"Noto Sans SC",sans-serif;fill:#F8FAFC}.sub{font:400 16px Inter,Arial,"Noto Sans SC",sans-serif;fill:#94A3B8}.eye{font:700 12px Inter,Arial,sans-serif;fill:#67E8F9;letter-spacing:2.2px}.section{font:700 13px Inter,Arial,"Noto Sans SC",sans-serif;fill:#CBD5E1;letter-spacing:1.6px}.ct{font:700 18px Inter,Arial,"Noto Sans SC",sans-serif;fill:#F8FAFC}.cb{font:400 13px Inter,Arial,"Noto Sans SC",sans-serif;fill:#94A3B8}.small{font:600 12px Inter,Arial,"Noto Sans SC",sans-serif;fill:#CBD5E1}.mono{font:600 11px ui-monospace,SFMono-Regular,Menlo,monospace;fill:#BAE6FD}.panel{fill:#0E1B2C;stroke:#25364C;stroke-width:1.2}.card{fill:#111F32;stroke:#2B3C53;stroke-width:1.2}.cc{fill:#0C2535;stroke:#155E75}.cm{fill:#0C2928;stroke:#0F766E}.cv{fill:#211A39;stroke:#6D4FC2}.ca{fill:#2B2113;stroke:#92400E}.flow{fill:none;stroke-width:2.4}.dash{fill:none;stroke:#52637A;stroke-width:1.5;stroke-dasharray:6 7}.num{font:800 13px Inter,Arial,sans-serif;fill:#06111F}
     </style>
   </defs>
+  <rect width="1600" height="1000" rx="28" fill="url(#bg)"/><circle cx="1430" cy="80" r="270" fill="#7C3AED" opacity=".05"/><circle cx="130" cy="920" r="280" fill="#0891B2" opacity=".05"/>
+  <text class="eye" x="90" y="64">SELF-HOSTED · REALTIME · PROTOBUF</text><text class="title" x="90" y="112">CheeseIM 系统架构</text><text class="sub" x="90" y="143">客户端接入、异步消息主干、可靠控制事件与多节点投递闭环</text><path d="M90 164H1510" stroke="url(#accent)" stroke-width="2" opacity=".65"/>
+  <g transform="translate(1272 74)"><rect width="238" height="48" rx="24" fill="#102A38" stroke="#155E75"/><circle cx="26" cy="24" r="6" fill="#2DD4BF" filter="url(#glow)"/><text class="small" x="45" y="29">All-in-one / Cluster Ready</text></g>
 
-  <rect class="bg" width="1500" height="920"/>
-  <rect x="0" y="0" width="1500" height="10" fill="url(#header)"/>
+  <text class="section" x="90" y="207">01 · CLIENT &amp; ACCESS PLANE</text><rect class="panel" x="90" y="224" width="1420" height="174" rx="20" filter="url(#shadow)"/>
+  <g transform="translate(120 258)"><rect class="cc" width="230" height="106" rx="15"/><circle cx="35" cy="32" r="17" fill="#38BDF8"/><path d="M27 27h16v11H27zm4 15h8" stroke="#062334" stroke-width="2"/><text class="ct" x="62" y="37">CheeseBox</text><text class="cb" x="24" y="72">Go TUI · 真实联调客户端</text><text class="cb" x="24" y="92">Cursor / Gap Repair</text></g>
+  <path class="flow" d="M350 311H407" stroke="#38BDF8" marker-end="url(#cyan)"/><g transform="translate(420 258)"><rect class="card" width="210" height="106" rx="15"/><text class="ct" x="24" y="37">Go Client SDK</text><text class="cb" x="24" y="70">Auth · Sync · TCP</text><text class="cb" x="24" y="91">Typed client events</text></g>
+  <path class="flow" d="M630 286H692" stroke="#38BDF8" marker-end="url(#cyan)"/><path class="flow" d="M630 340H692" stroke="#2DD4BF" marker-end="url(#mint)"/>
+  <g transform="translate(705 240)"><rect class="cc" width="310" height="68" rx="14"/><rect x="20" y="17" width="58" height="23" rx="12" fill="#38BDF8"/><text class="num" x="49" y="33" text-anchor="middle">HTTP</text><text class="ct" x="94" y="30">api-server</text><text class="cb" x="94" y="51">登录 · 好友 · 会话 · 增量同步</text></g>
+  <g transform="translate(705 324)"><rect class="cm" width="310" height="68" rx="14"/><rect x="20" y="17" width="68" height="23" rx="12" fill="#2DD4BF"/><text class="num" x="54" y="33" text-anchor="middle">TCP/WS</text><text class="ct" x="102" y="30">postoffice</text><text class="cb" x="102" y="51">连接 · 心跳 · 路由 · Protobuf</text></g>
+  <path class="dash" d="M1015 275H1076"/><path class="dash" d="M1015 358H1076"/>
+  <g transform="translate(1088 240)"><rect class="cv" width="190" height="152" rx="14"/><text class="ct" x="22" y="35">authcenter</text><text class="cb" x="22" y="65">Token / Ticket</text><text class="cb" x="22" y="87">Session / Kickoff</text><path d="M22 106h146" stroke="#6D4FC2"/><text class="mono" x="22" y="132">IDENTITY BOUNDARY</text></g>
+  <g transform="translate(1298 240)"><rect class="card" width="182" height="152" rx="14"/><text class="ct" x="22" y="35">business</text><text class="cb" x="22" y="65">用户 · 好友 · 群组</text><text class="cb" x="22" y="87">会话 · 权限策略</text><path d="M22 106h138" stroke="#334155"/><text class="mono" x="22" y="132">DOMAIN SERVICES</text></g>
 
-  <text class="title" x="80" y="78">CheeseIM 产品架构</text>
-  <text class="subtitle" x="80" y="114">从用户入口到数据底座，按层组织展示，不强调箭头关系，只强调产品分工和承载关系</text>
+  <text class="section" x="90" y="446">02 · ASYNC MESSAGE BACKBONE</text><rect class="panel" x="90" y="463" width="1420" height="250" rx="20" filter="url(#shadow)"/><path d="M150 586H1440" stroke="url(#accent)" stroke-width="5" opacity=".16"/>
+  <g transform="translate(120 516)"><circle cx="32" cy="70" r="29" fill="#38BDF8"/><text class="num" x="32" y="75" text-anchor="middle">1</text><text class="ct" x="0" y="124">postoffice</text><text class="cb" x="0" y="146">接收 CHAT_MESSAGE</text></g><path class="flow" d="M187 586H291" stroke="#38BDF8" marker-end="url(#cyan)"/>
+  <g transform="translate(304 516)"><rect class="cc" width="190" height="140" rx="16"/><circle cx="30" cy="30" r="18" fill="#38BDF8"/><text class="num" x="30" y="35" text-anchor="middle">2</text><text class="ct" x="58" y="36">postbox</text><text class="cb" x="22" y="76">发送权限聚合</text><text class="cb" x="22" y="99">客户端幂等校验</text><text class="mono" x="22" y="125">INGRESS PRODUCER</text></g><path class="flow" d="M494 586H551" stroke="#38BDF8" marker-end="url(#cyan)"/>
+  <g transform="translate(564 539)"><rect width="154" height="94" rx="47" fill="#12293A" stroke="#155E75"/><text class="small" x="77" y="39" text-anchor="middle">Ingress Topic</text><text class="mono" x="77" y="64" text-anchor="middle">PROTOBUF BYTES</text></g><path class="flow" d="M718 586H777" stroke="#2DD4BF" marker-end="url(#mint)"/>
+  <g transform="translate(790 501)"><rect class="cm" width="230" height="170" rx="16"/><circle cx="30" cy="30" r="18" fill="#2DD4BF"/><text class="num" x="30" y="35" text-anchor="middle">3</text><text class="ct" x="58" y="36">postmaster</text><text class="cb" x="22" y="76">分配 conversation seq</text><text class="cb" x="22" y="99">批量写历史与 mapping</text><text class="cb" x="22" y="122">群成员 Fanout Planning</text><text class="mono" x="22" y="148">ORDERED CORE</text></g><path class="flow" d="M1020 586H1079" stroke="#2DD4BF" marker-end="url(#mint)"/>
+  <g transform="translate(1092 539)"><rect width="154" height="94" rx="47" fill="#19243A" stroke="#6D4FC2"/><text class="small" x="77" y="39" text-anchor="middle">Delivery Topic</text><text class="mono" x="77" y="64" text-anchor="middle">KEYED BATCHES</text></g><path class="flow" d="M1246 586H1311" stroke="#A78BFA" marker-end="url(#violet)"/>
+  <g transform="translate(1324 516)"><circle cx="32" cy="70" r="29" fill="#A78BFA"/><text class="num" x="32" y="75" text-anchor="middle">4</text><text class="ct" x="0" y="124">postman</text><text class="cb" x="0" y="146">路由投递 / Push</text></g>
 
-  <g transform="translate(80 148)">
-    <rect class="panel" width="1340" height="672" rx="12"/>
-
-    <g>
-      <rect class="band" x="0" y="0" width="1340" height="112" rx="12" fill="url(#band1)"/>
-      <text class="layer-title" x="28" y="36">1. 使用端</text>
-      <text class="layer-note" x="28" y="62">用户直接接触的入口和客户端形态</text>
-
-      <g transform="translate(320 22)">
-        <rect class="card card-outline" width="230" height="68"/>
-        <rect x="20" y="16" width="20" height="30" rx="4" fill="#2563EB"/>
-        <rect x="24" y="20" width="12" height="16" rx="2" fill="#DBEAFE"/>
-        <text class="card-title" x="58" y="32">CheeseBox TUI</text>
-        <text class="card-body" x="58" y="56">终端聊天与联调客户端</text>
-      </g>
-      <g transform="translate(700 22)">
-        <rect class="card card-outline" width="230" height="68"/>
-        <rect x="18" y="15" width="32" height="36" rx="5" fill="#0F766E"/>
-        <rect x="22" y="20" width="24" height="20" rx="3" fill="#CCFBF1"/>
-        <circle cx="34" cy="45" r="2.5" fill="#CCFBF1"/>
-        <text class="card-title" x="66" y="32">Go SDK</text>
-        <text class="card-body" x="66" y="56">可复用客户端能力层</text>
-      </g>
-    </g>
-
-    <g transform="translate(0 120)">
-      <rect class="band" x="0" y="0" width="1340" height="112" rx="12" fill="url(#band2)"/>
-      <text class="layer-title" x="28" y="36">2. 接入体验</text>
-      <text class="layer-note" x="28" y="62">账号会话和实时连接分离，前者偏网关，后者偏长连接</text>
-
-      <g transform="translate(190 22)">
-        <rect class="card card-outline" width="400" height="68"/>
-        <circle cx="33" cy="34" r="16" fill="#10B981"/>
-        <path d="M25 34H41" stroke="#ECFDF5" stroke-width="2.5" class="icon-stroke"/>
-        <path d="M33 26V42" stroke="#ECFDF5" stroke-width="2.5" class="icon-stroke"/>
-        <text class="card-title" x="64" y="32">HTTP API</text>
-        <text class="card-body" x="64" y="56">登录、ticket、好友、群组、会话同步</text>
-      </g>
-      <g transform="translate(626 22)">
-        <rect class="card card-outline" width="400" height="68"/>
-        <circle cx="33" cy="34" r="16" fill="#06B6D4"/>
-        <rect x="23" y="24" width="20" height="20" rx="3" fill="none" stroke="#ECFEFF" stroke-width="2.5" class="icon-stroke"/>
-        <path d="M27 29H39" stroke="#ECFEFF" stroke-width="2" class="icon-stroke"/>
-        <path d="M27 34H39" stroke="#ECFEFF" stroke-width="2" class="icon-stroke"/>
-        <text class="card-title" x="64" y="32">TCP / WebSocket</text>
-        <text class="card-body" x="64" y="56">Protobuf 长连接、心跳、实时收发</text>
-      </g>
-    </g>
-
-    <g transform="translate(0 240)">
-      <rect class="band" x="0" y="0" width="1340" height="112" rx="12" fill="url(#band3)"/>
-      <text class="layer-title" x="28" y="36">3. 核心能力</text>
-      <text class="layer-note" x="28" y="62">支撑 IM 产品体验的业务能力和状态管理</text>
-
-      <g transform="translate(190 22)">
-        <rect class="card card-outline" width="225" height="68"/>
-        <rect x="18" y="15" width="30" height="36" rx="5" fill="#16A34A"/>
-        <path d="M25 34H41" stroke="#ECFDF5" stroke-width="2.5" class="icon-stroke"/>
-        <circle cx="33" cy="27" r="3.5" fill="#ECFDF5"/>
-        <text class="card-title" x="62" y="32">身份与会话</text>
-        <text class="card-body" x="62" y="56">token、ticket、多端状态</text>
-      </g>
-      <g transform="translate(445 22)">
-        <rect class="card card-outline" width="225" height="68"/>
-        <circle cx="33" cy="33" r="16" fill="#F59E0B"/>
-        <path d="M25 33H41" stroke="#FFFBEB" stroke-width="2" class="icon-stroke"/>
-        <path d="M33 24C29 28 29 38 33 42C37 38 37 28 33 24Z" fill="#FFFBEB"/>
-        <text class="card-title" x="62" y="32">社交关系</text>
-        <text class="card-body" x="62" y="56">好友、黑名单、群成员</text>
-      </g>
-      <g transform="translate(700 22)">
-        <rect class="card card-outline" width="225" height="68"/>
-        <rect x="18" y="15" width="32" height="36" rx="5" fill="#DC2626"/>
-        <path d="M27 29H43" stroke="#FEF2F2" stroke-width="2.5" class="icon-stroke"/>
-        <path d="M27 36H43" stroke="#FEF2F2" stroke-width="2.5" class="icon-stroke"/>
-        <text class="card-title" x="62" y="32">消息发送</text>
-        <text class="card-body" x="62" y="56">单聊、群聊、系统通知</text>
-      </g>
-      <g transform="translate(955 22)">
-        <rect class="card card-outline" width="225" height="68"/>
-        <circle cx="33" cy="33" r="16" fill="#6366F1"/>
-        <path d="M25 33H41" stroke="#EEF2FF" stroke-width="2" class="icon-stroke"/>
-        <path d="M29 25H37V41H29Z" fill="none" stroke="#EEF2FF" stroke-width="2.5" class="icon-stroke"/>
-        <text class="card-title" x="62" y="32">会话同步</text>
-        <text class="card-body" x="62" y="56">cursor、seq、read ack</text>
-      </g>
-    </g>
-
-    <g transform="translate(0 360)">
-      <rect class="band" x="0" y="0" width="1340" height="112" rx="12" fill="url(#band4)"/>
-      <text class="layer-title" x="28" y="36">4. 消息闭环</text>
-      <text class="layer-note" x="28" y="62">实时到达、排序、存档和投递构成最终一致的主路径</text>
-
-      <g transform="translate(190 22)">
-        <rect class="card card-outline" width="190" height="68"/>
-        <circle cx="33" cy="33" r="16" fill="#FB923C"/>
-        <path d="M25 33H41" stroke="#FFF7ED" stroke-width="2.5" class="icon-stroke"/>
-        <path d="M33 25V41" stroke="#FFF7ED" stroke-width="2.5" class="icon-stroke"/>
-        <text class="card-title" x="62" y="32">接入</text>
-        <text class="card-body" x="62" y="56">接收客户端消息</text>
-      </g>
-      <g transform="translate(404 22)">
-        <rect class="card card-outline" width="190" height="68"/>
-        <circle cx="33" cy="33" r="16" fill="#EA580C"/>
-        <path d="M25 28H41" stroke="#FFF7ED" stroke-width="2.5" class="icon-stroke"/>
-        <path d="M28 38H38" stroke="#FFF7ED" stroke-width="2.5" class="icon-stroke"/>
-        <text class="card-title" x="62" y="32">排序</text>
-        <text class="card-body" x="62" y="56">分配会话 seq</text>
-      </g>
-      <g transform="translate(618 22)">
-        <rect class="card card-outline" width="190" height="68"/>
-        <rect x="18" y="15" width="32" height="36" rx="5" fill="#D97706"/>
-        <path d="M26 33H42" stroke="#FFFBEB" stroke-width="2.5" class="icon-stroke"/>
-        <path d="M30 27H38" stroke="#FFFBEB" stroke-width="2.5" class="icon-stroke"/>
-        <text class="card-title" x="62" y="32">历史</text>
-        <text class="card-body" x="62" y="56">写入消息块</text>
-      </g>
-      <g transform="translate(832 22)">
-        <rect class="card card-outline" width="190" height="68"/>
-        <circle cx="33" cy="33" r="16" fill="#C2410C"/>
-        <path d="M25 33H41" stroke="#FFF7ED" stroke-width="2.5" class="icon-stroke"/>
-        <path d="M30 26L41 33L30 40Z" fill="#FFF7ED"/>
-        <text class="card-title" x="62" y="32">在线投递</text>
-        <text class="card-body" x="62" y="56">推送到在线端</text>
-      </g>
-      <g transform="translate(1046 22)">
-        <rect class="card card-outline" width="190" height="68"/>
-        <circle cx="33" cy="33" r="16" fill="#8B5CF6"/>
-        <path d="M25 33H41" stroke="#F5F3FF" stroke-width="2.5" class="icon-stroke"/>
-        <path d="M29 26H37" stroke="#F5F3FF" stroke-width="2.5" class="icon-stroke"/>
-        <path d="M33 38V41" stroke="#F5F3FF" stroke-width="2.5" class="icon-stroke"/>
-        <text class="card-title" x="62" y="32">离线通知</text>
-        <text class="card-body" x="62" y="56">厂商 push 事件</text>
-      </g>
-    </g>
-
-    <g transform="translate(0 480)">
-      <rect class="band" x="0" y="0" width="1340" height="180" rx="12" fill="url(#band5)"/>
-      <text class="layer-title" x="28" y="36">5. 数据与基础设施</text>
-      <text class="layer-note" x="28" y="62">存储、缓存和队列解耦，支撑可靠同步和投递</text>
-
-      <g transform="translate(190 28)">
-        <rect class="card card-outline" width="290" height="108"/>
-        <ellipse cx="42" cy="30" rx="22" ry="9" fill="#2563EB"/>
-        <path d="M20 30V72C20 77 30 83 42 83C54 83 64 77 64 72V30" fill="#DBEAFE"/>
-        <ellipse cx="42" cy="72" rx="22" ry="9" fill="#BFDBFE"/>
-        <path d="M20 50C20 55 30 61 42 61C54 61 64 55 64 50" fill="none" stroke="#93C5FD" stroke-width="1.4"/>
-        <text class="card-title" x="88" y="34">MongoDB</text>
-        <text class="card-body" x="88" y="58">用户、关系、会话、历史块</text>
-        <text class="card-body" x="88" y="82">主存储与消息历史</text>
-      </g>
-      <g transform="translate(512 28)">
-        <rect class="card card-outline" width="290" height="108"/>
-        <rect x="22" y="22" width="40" height="40" rx="10" fill="#0F766E"/>
-        <path d="M30 40H54" stroke="#CCFBF1" stroke-width="2.5" class="icon-stroke"/>
-        <path d="M38 32L47 40L38 48" fill="none" stroke="#CCFBF1" stroke-width="2.5" class="icon-stroke"/>
-        <text class="card-title" x="88" y="34">Redis / RocksDB</text>
-        <text class="card-body" x="88" y="58">缓存、在线路由、seq 状态</text>
-        <text class="card-body" x="88" y="82">热点数据与本地状态</text>
-      </g>
-      <g transform="translate(834 28)">
-        <rect class="card card-outline" width="290" height="108"/>
-        <rect x="24" y="22" width="36" height="14" rx="4" fill="#7C3AED"/>
-        <rect x="24" y="40" width="36" height="14" rx="4" fill="#A78BFA"/>
-        <rect x="24" y="58" width="36" height="14" rx="4" fill="#C4B5FD"/>
-        <path d="M78 40H100" stroke="#7C3AED" stroke-width="2.5" class="icon-stroke"/>
-        <path d="M90 32L100 40L90 48" fill="#7C3AED"/>
-        <text class="card-title" x="110" y="34">Chronicle / Kafka</text>
-        <text class="card-body" x="110" y="58">消息接入、历史、投递队列</text>
-        <text class="card-body" x="110" y="82">异步缓冲与解耦</text>
-      </g>
-    </g>
-
-    <g transform="translate(1110 618)">
-      <rect x="0" y="0" width="200" height="44" rx="22" fill="#0F766E"/>
-      <text class="badge-text" x="100" y="28" text-anchor="middle">Self-hosted IM</text>
-    </g>
-  </g>
+  <text class="section" x="90" y="761">03 · DELIVERY, RECOVERY &amp; STATE</text><rect class="panel" x="90" y="778" width="1420" height="174" rx="20" filter="url(#shadow)"/>
+  <g transform="translate(120 808)"><rect class="cm" width="248" height="114" rx="15"/><text class="ct" x="22" y="35">Online Delivery</text><text class="cb" x="22" y="65">Node queue → postoffice</text><text class="cb" x="22" y="87">ACK · Delivery · Read</text><circle cx="219" cy="28" r="6" fill="#2DD4BF" filter="url(#glow)"/></g>
+  <g transform="translate(390 808)"><rect class="cv" width="244" height="114" rx="15"/><text class="ct" x="22" y="35">Offline Push</text><text class="cb" x="22" y="65">APNs · FCM · Huawei</text><text class="cb" x="22" y="87">Xiaomi · JPush</text></g>
+  <g transform="translate(656 808)"><rect class="ca" width="286" height="114" rx="15"/><text class="ct" x="22" y="35">Reliable Control Events</text><text class="cb" x="22" y="65">Read · Revoke · Delivery outbox</text><text class="cb" x="22" y="87">Realtime notify + cursor recovery</text></g>
+  <g transform="translate(964 808)"><rect class="card" width="160" height="114" rx="15"/><text class="ct" x="20" y="35">MongoDB</text><text class="cb" x="20" y="65">History blocks</text><text class="cb" x="20" y="87">Business state</text></g>
+  <g transform="translate(1146 808)"><rect class="card" width="160" height="114" rx="15"/><text class="ct" x="20" y="35">Redis</text><text class="cb" x="20" y="65">Route · Seq</text><text class="cb" x="20" y="87">Idempotency</text></g>
+  <g transform="translate(1328 808)"><rect class="card" width="152" height="114" rx="15"/><text class="ct" x="20" y="35">Queue</text><text class="cb" x="20" y="65">Kafka</text><text class="cb" x="20" y="87">Chronicle</text></g>
+  <path class="dash" d="M1356 656V735Q1356 753 1338 753H244Q226 753 226 778V797" marker-end="url(#mint)"/><text class="small" x="1165" y="746">ONLINE ROUTE</text>
+  <path class="dash" d="M1390 656V785H512V797" marker-end="url(#violet)"/><text class="small" x="1218" y="780">OFFLINE FALLBACK</text>
+  <path class="dash" d="M905 671V797" marker-end="url(#violet)"/><text class="small" x="920" y="744">CONTROL OUTBOX</text>
+  <path class="dash" d="M800 808V744H835V713" marker-end="url(#cyan)"/><text class="small" x="650" y="759">HTTP CURSOR CATCH-UP</text>
+  <text class="sub" x="90" y="980">Solid arrows = realtime message flow · Dashed arrows = delivery fallback and recovery paths</text><text class="mono" x="1510" y="980" text-anchor="end">message_protocol.proto · SINGLE WIRE CONTRACT</text>
 </svg>

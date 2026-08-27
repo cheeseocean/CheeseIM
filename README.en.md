@@ -6,7 +6,7 @@ CheeseIM is a self-hosted open-source IM system. The repository contains the Jav
 
 ## Architecture
 
-The diagram below is organized around the product experience: user-facing clients, access channels, IM capabilities, the message loop, and the data foundation.
+The diagram follows the real data flow from clients and access services through the asynchronous message backbone, then into online delivery, offline push, and reliable control-event recovery. Solid arrows represent realtime message flow; dashed arrows represent fallback and recovery paths.
 
 ![CheeseIM product architecture](docs/assets/cheeseim-architecture.svg)
 
