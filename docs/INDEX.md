@@ -22,6 +22,7 @@
 | --- | --- | --- |
 | `README.md` | 权威 | 项目入口、架构、模块边界、启动与测试 |
 | `README.en.md` | 次级 | 英文版，与 `README.md` 同步维护 |
+| `docs/assets/cheeseim-architecture.html` | 权威 | README 架构图的 Diagram Design 源文件；SVG 从该文件导出 |
 | `AGENTS.md` | 权威 | **Agent 跨端开发约束**，所有 AI 代理（Claude/Codex/Cursor/Cline）入门必读 |
 | `docs/INDEX.md` | 权威 | 本文件，全仓文档地图 |
 | `server/docs/architecture/ASSESSMENT.md` | 权威 | 服务端架构评估、百万级演进路线、阻断性问题清单 |
