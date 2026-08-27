@@ -1,5 +1,7 @@
 package types
 
+import "encoding/json"
+
 type ConversationKind int
 
 const (
@@ -151,6 +153,36 @@ type ForceLogout struct {
 	SessionID  string
 	DeviceID   string
 	OccurredAt int64
+}
+
+type ControlEventType int
+
+const (
+	ControlEventReadAdvanced     ControlEventType = 1
+	ControlEventMessageRevoked   ControlEventType = 2
+	ControlEventTypingStarted    ControlEventType = 3
+	ControlEventTypingStopped    ControlEventType = 4
+	ControlEventDeliveryAdvanced ControlEventType = 5
+)
+
+// ControlEvent is a reliable, cursor-addressed server control event.
+type ControlEvent struct {
+	EventID        string
+	Cursor         int64
+	ConversationID string
+	Type           ControlEventType
+	Payload        json.RawMessage
+	CreatedAt      int64
+	ExpiresAt      int64
+	Read           *ReadUpdate
+	Revoke         *RevokeUpdate
+	Delivery       *DeliveryUpdate
+}
+
+type ControlEventSyncResult struct {
+	Events     []ControlEvent
+	NextCursor int64
+	HasMore    bool
 }
 
 type ReadSnapshot struct {

@@ -35,6 +35,10 @@ CheeseBox TUI
 5. 断线或重启后，SDK 从服务端拉取同步结果；本地状态不是真相来源。
 6. 服务端发出 `FORCE_LOGOUT` 后，SDK 先清除 token、用户身份与同步游标，再向 UI 发布类型化事件；UI 清理当前账号内存态并回到登录页。按用户隔离的磁盘历史不删除，且强制下线后不自动重连。
 
+会话生命周期显式区分 `logged_out → connecting → syncing → connected`，普通断线进入 `disconnected` 并允许手工重连，强制下线回到 `logged_out`。登录与重连后只有会话增量和可靠控制事件都同步完成，才进入 `connected`。
+
+离线控制事件按用户维度 cursor 分页拉取：每页先幂等应用已读、送达和撤回，再持久化 `nextCursor`；持久化失败时停止后续分页。typing 仍是短 TTL 尽力通知，不从离线事件恢复。
+
 好友申请列表与处理走 SDK HTTP API；TCP 70–72 仅作为 roster 失效信号触发刷新，不作为聊天消息写入本地历史。
 会话删除走 SDK HTTP API；只有服务端确认成功后，UI 才删除本地会话摘要、缓存消息与派生高水位。该操作不删除服务端历史消息。
 

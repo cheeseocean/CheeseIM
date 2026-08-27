@@ -18,6 +18,8 @@ type Persister interface {
 	UpsertConversation(conv ConversationRecord)
 	GetConversationCursor() sdktypes.ConversationSyncCursor
 	SetConversationCursor(cursor sdktypes.ConversationSyncCursor)
+	GetControlEventCursor() int64
+	SetControlEventCursor(cursor int64) error
 	ClearMessages(conversationID string)
 	DeleteConversation(conversationID string)
 	Clear()
@@ -41,6 +43,7 @@ type AppStore struct {
 	TypingByConv           map[string]domain.TypingIndicator
 	Toast                  domain.Toast
 	ConversationCursor     sdktypes.ConversationSyncCursor
+	ControlEventCursor     int64
 	persister              Persister
 }
 
@@ -86,12 +89,13 @@ func (s *AppStore) UsePersister(persister Persister) {
 	s.RevokesByServerID = make(map[string]domain.RevokeInfo)
 	s.TypingByConv = make(map[string]domain.TypingIndicator)
 	s.ConversationCursor = sdktypes.ConversationSyncCursor{}
+	s.ControlEventCursor = 0
 	s.loadFromPersister()
 }
 
 // ResetSession 清理当前账号的内存态，但保留磁盘上的用户隔离历史，供该账号下次登录恢复。
 func (s *AppStore) ResetSession() {
-	s.ConnectionStatus = domain.ConnectionStatusDisconnected
+	s.ConnectionStatus = domain.ConnectionStatusLoggedOut
 	s.CurrentUserID = ""
 	s.ActiveNav = domain.NavKeyChats
 	s.ActiveConversation = ""
@@ -108,6 +112,7 @@ func (s *AppStore) ResetSession() {
 	s.TypingByConv = make(map[string]domain.TypingIndicator)
 	s.Toast = domain.Toast{}
 	s.ConversationCursor = sdktypes.ConversationSyncCursor{}
+	s.ControlEventCursor = 0
 	s.persister = nil
 }
 
@@ -118,6 +123,7 @@ func (s *AppStore) loadFromPersister() {
 	}
 	convs := s.persister.GetConversations()
 	s.ConversationCursor = s.persister.GetConversationCursor()
+	s.ControlEventCursor = s.persister.GetControlEventCursor()
 	for id, conv := range convs {
 		s.Conversations[id] = domain.ConversationSummary{
 			ConversationID:     conv.ConversationID,
@@ -461,6 +467,19 @@ func (s *AppStore) SetConversationCursor(cursor sdktypes.ConversationSyncCursor)
 	if s.persister != nil {
 		s.persister.SetConversationCursor(cursor)
 	}
+}
+
+func (s *AppStore) SetControlEventCursor(cursor int64) error {
+	if cursor <= s.ControlEventCursor {
+		return nil
+	}
+	if s.persister != nil {
+		if err := s.persister.SetControlEventCursor(cursor); err != nil {
+			return err
+		}
+	}
+	s.ControlEventCursor = cursor
+	return nil
 }
 
 func (s *AppStore) PushToast(kind domain.ToastKind, message string) {

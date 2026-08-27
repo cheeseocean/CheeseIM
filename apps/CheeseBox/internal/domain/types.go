@@ -85,8 +85,10 @@ const (
 type ConnectionStatus string
 
 const (
+	ConnectionStatusLoggedOut    ConnectionStatus = "logged_out"
 	ConnectionStatusDisconnected ConnectionStatus = "disconnected"
 	ConnectionStatusConnecting   ConnectionStatus = "connecting"
+	ConnectionStatusSyncing      ConnectionStatus = "syncing"
 	ConnectionStatusConnected    ConnectionStatus = "connected"
 	ConnectionStatusError        ConnectionStatus = "error"
 )

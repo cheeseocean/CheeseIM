@@ -149,6 +149,30 @@ func TestClientListConversations(t *testing.T) {
 	}
 }
 
+func TestClientSyncControlEventsDecodesTypedPayloads(t *testing.T) {
+	client := New("https://example.invalid", time.Second)
+	client.httpClient.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Path != "/api/im/conversations/control-events" || r.URL.Query().Get("cursor") != "41" || r.URL.Query().Get("limit") != "100" {
+			t.Fatalf("url = %q", r.URL.String())
+		}
+		return jsonResponse(map[string]any{
+			"events": []map[string]any{{
+				"eventId": "read-1", "cursor": int64(42), "conversationId": "s:u1:u2", "type": 1,
+				"payload": `{"conversationId":"s:u1:u2","readerId":"u2","readSeq":7,"updatedAt":123}`,
+			}},
+			"nextCursor": int64(42), "hasMore": false,
+		}), nil
+	})
+
+	result, err := client.SyncControlEvents(context.Background(), "token-1", 41, 100)
+	if err != nil {
+		t.Fatalf("SyncControlEvents() error = %v", err)
+	}
+	if result.NextCursor != 42 || len(result.Events) != 1 || result.Events[0].Read == nil || result.Events[0].Read.ReadSeq != 7 {
+		t.Fatalf("result = %#v", result)
+	}
+}
+
 func TestClientGetConversationMaxSeqs(t *testing.T) {
 	client := New("https://example.invalid", time.Second)
 	client.httpClient.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {

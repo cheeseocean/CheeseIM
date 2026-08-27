@@ -147,6 +147,15 @@ func (c *Client) SyncConversations(ctx context.Context) (types.ConversationSyncR
 	return result, nil
 }
 
+// SyncControlEvents pulls one reliable control-event page after the supplied user-scoped cursor.
+func (c *Client) SyncControlEvents(ctx context.Context, cursor int64, limit int) (types.ControlEventSyncResult, error) {
+	token := c.accessTokenSnapshot()
+	if token == "" {
+		return types.ControlEventSyncResult{}, fmt.Errorf("sdk client not initialized")
+	}
+	return c.httpClient.SyncControlEvents(ctx, token, cursor, limit)
+}
+
 // DeleteConversation 删除当前用户维度的会话元数据；历史消息仍保留在服务端。
 func (c *Client) DeleteConversation(ctx context.Context, conversationID string) error {
 	token := c.accessTokenSnapshot()

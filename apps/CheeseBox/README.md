@@ -8,6 +8,7 @@ It now consumes the reusable Go IM SDK in `sdks/go` for:
 - broker acceptance, device delivery, and peer read high-watermark status
 - seq-based history sync
 - reconnect sync and gap repair
+- cursor-based offline read, delivery, and revoke control-event recovery
 - server-initiated force logout with in-memory session cleanup
 - friend/group/conversation queries
 
@@ -25,3 +26,5 @@ Friend requests refresh on login and realtime roster notifications. Use `/reques
 Use `/delete` in the active chat to remove that conversation from the current user's server-side conversation list. CheeseBox only clears its local summary and cached messages after the server confirms success.
 
 When the server revokes the active session, the SDK clears its token and sync state before emitting a typed force-logout event. CheeseBox then removes the account data held in memory and returns to login; user-scoped history on disk remains available for a later valid login.
+
+Login and reconnect remain in `syncing` until both conversation metadata and reliable control events have caught up. CheeseBox persists the user-scoped control-event cursor only after applying each page, so a crash can cause safe replay but cannot silently skip offline read, delivery, or revoke updates.

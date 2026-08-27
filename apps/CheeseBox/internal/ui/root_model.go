@@ -30,6 +30,11 @@ type appErrorMsg struct {
 	err error
 }
 
+type sessionSyncErrorMsg struct {
+	generation uint64
+	err        error
+}
+
 type historyLoadedMsg struct {
 	conversationID string
 	items          []sdktypes.Message
@@ -53,7 +58,13 @@ type conversationDeletedMsg struct {
 }
 
 type conversationSyncSuccessMsg struct {
-	result sdktypes.ConversationSyncResult
+	generation uint64
+	result     sdktypes.ConversationSyncResult
+}
+
+type controlEventSyncSuccessMsg struct {
+	generation uint64
+	result     sdktypes.ControlEventSyncResult
 }
 
 type friendStateLoadedMsg struct {
@@ -97,24 +108,28 @@ type IMClient interface {
 	GetConversationCursor() sdktypes.ConversationSyncCursor
 	UpdateConversationCursor(cursor sdktypes.ConversationSyncCursor)
 	SyncConversations(ctx context.Context) (sdktypes.ConversationSyncResult, error)
+	SyncControlEvents(ctx context.Context, cursor int64, limit int) (sdktypes.ControlEventSyncResult, error)
 }
 
 type RootModel struct {
-	cfg                config.RuntimeConfig
-	login              LoginModel
-	app                AppModel
-	client             IMClient
-	syncer             *sync.Syncer
-	appStore           *store.AppStore
-	theme              ThemeName
-	locale             LocaleName
-	expanded           bool
-	debugLog           *DebugLogModel
-	width              int
-	height             int
-	typingActive       bool
-	typingConversation string
-	lastTypingSentAt   time.Time
+	cfg                 config.RuntimeConfig
+	login               LoginModel
+	app                 AppModel
+	client              IMClient
+	syncer              *sync.Syncer
+	appStore            *store.AppStore
+	theme               ThemeName
+	locale              LocaleName
+	expanded            bool
+	debugLog            *DebugLogModel
+	width               int
+	height              int
+	typingActive        bool
+	typingConversation  string
+	lastTypingSentAt    time.Time
+	conversationSynced  bool
+	controlEventsSynced bool
+	syncGeneration      uint64
 }
 
 func NewRootModel(cfg config.RuntimeConfig, client IMClient) RootModel {
@@ -131,6 +146,7 @@ func NewRootModel(cfg config.RuntimeConfig, client IMClient) RootModel {
 		debugLog: NewDebugLogModel(),
 	}
 	root.login.SetTheme(root.theme)
+	root.appStore.SetConnectionStatus(domain.ConnectionStatusLoggedOut)
 	root.login.SetLocale(root.locale)
 	root.app.SetTheme(root.theme)
 	root.app.SetLocale(root.locale)
@@ -184,15 +200,39 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.appStore.SetConnectionStatus(domain.ConnectionStatusConnecting)
 		return m, m.loginCmd(m.login.Values())
 	case loginSuccessMsg:
-		m.appStore.SetConnectionStatus(domain.ConnectionStatusConnected)
 		m.appStore.SetCurrentUserID(m.client.CurrentUserID())
 		m.useUserPersister(m.client.CurrentUserID())
 		m.client.UpdateConversationCursor(m.appStore.ConversationCursor)
 		m.applyBootstrapData(msg.data)
-		return m, tea.Batch(m.syncConversationsCmd(), m.refreshFriendStateCmd(), m.waitRealtimeEventCmd())
+		m.conversationSynced = false
+		m.controlEventsSynced = false
+		m.syncGeneration++
+		m.appStore.SetConnectionStatus(domain.ConnectionStatusSyncing)
+		return m, tea.Batch(m.syncConversationsCmd(), m.syncControlEventsCmd(m.appStore.ControlEventCursor), m.refreshFriendStateCmd(), m.waitRealtimeEventCmd())
 	case conversationSyncSuccessMsg:
+		if msg.generation != m.syncGeneration || m.appStore.ConnectionStatus != domain.ConnectionStatusSyncing {
+			return m, nil
+		}
 		m.applyConversationSyncResult(msg.result)
 		m.appStore.SetConversationCursor(msg.result.ConversationSyncCursor)
+		m.conversationSynced = true
+		m.markSessionReady()
+		return m, nil
+	case controlEventSyncSuccessMsg:
+		if msg.generation != m.syncGeneration || m.appStore.ConnectionStatus != domain.ConnectionStatusSyncing {
+			return m, nil
+		}
+		m.applyControlEvents(msg.result.Events)
+		if err := m.appStore.SetControlEventCursor(msg.result.NextCursor); err != nil {
+			m.appStore.SetConnectionStatus(domain.ConnectionStatusDisconnected)
+			m.appStore.PushToast(domain.ToastKindError, "persist control event cursor: "+err.Error())
+			return m, nil
+		}
+		if msg.result.HasMore {
+			return m, m.syncControlEventsCmd(msg.result.NextCursor)
+		}
+		m.controlEventsSynced = true
+		m.markSessionReady()
 		return m, nil
 	case OpenConversationMsg:
 		stop := m.stopTypingCmd()
@@ -255,10 +295,21 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.appStore.PushToast(domain.ToastKindSuccess, "conversation deleted: "+msg.conversationID)
 		return m, nil
 	case loginErrorMsg:
-		m.appStore.SetConnectionStatus(domain.ConnectionStatusError)
+		if m.client.CurrentUserID() == "" {
+			m.appStore.SetConnectionStatus(domain.ConnectionStatusLoggedOut)
+		} else {
+			m.appStore.SetConnectionStatus(domain.ConnectionStatusDisconnected)
+		}
 		m.appStore.PushToast(domain.ToastKindError, msg.err.Error())
 		return m, nil
 	case appErrorMsg:
+		m.appStore.PushToast(domain.ToastKindError, msg.err.Error())
+		return m, nil
+	case sessionSyncErrorMsg:
+		if msg.generation != m.syncGeneration {
+			return m, nil
+		}
+		m.appStore.SetConnectionStatus(domain.ConnectionStatusDisconnected)
 		m.appStore.PushToast(domain.ToastKindError, msg.err.Error())
 		return m, nil
 	case ReconnectMsg:
@@ -340,9 +391,24 @@ func (m RootModel) syncConversationsCmd() tea.Cmd {
 		defer cancel()
 		result, err := m.client.SyncConversations(ctx)
 		if err != nil {
-			return appErrorMsg{err: err}
+			return sessionSyncErrorMsg{generation: m.syncGeneration, err: err}
 		}
-		return conversationSyncSuccessMsg{result: result}
+		return conversationSyncSuccessMsg{generation: m.syncGeneration, result: result}
+	}
+}
+
+func (m RootModel) syncControlEventsCmd(cursor int64) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		result, err := m.client.SyncControlEvents(ctx, cursor, 100)
+		if err != nil {
+			return sessionSyncErrorMsg{generation: m.syncGeneration, err: err}
+		}
+		if result.HasMore && result.NextCursor <= cursor {
+			return sessionSyncErrorMsg{generation: m.syncGeneration, err: errors.New("control event cursor did not advance")}
+		}
+		return controlEventSyncSuccessMsg{generation: m.syncGeneration, result: result}
 	}
 }
 
@@ -743,6 +809,8 @@ func (m *RootModel) resetSessionView() {
 	m.typingActive = false
 	m.typingConversation = ""
 	m.lastTypingSentAt = time.Time{}
+	m.conversationSynced = false
+	m.controlEventsSynced = false
 	m.syncer = sync.NewSyncer(
 		sync.NewMemoryStore(),
 		sync.NewSDKPuller(m.client),
@@ -889,6 +957,31 @@ func (m *RootModel) applyConversationSyncResult(result sdktypes.ConversationSync
 	m.appStore.SetActiveConversation("")
 	m.appStore.SetActiveNav(domain.NavKeyChats)
 	m.appStore.SetConversationCursor(result.ConversationSyncCursor)
+}
+
+func (m *RootModel) applyControlEvents(events []sdktypes.ControlEvent) {
+	for _, event := range events {
+		switch event.Type {
+		case sdktypes.ControlEventReadAdvanced:
+			if event.Read != nil && event.Read.ReaderID != m.appStore.CurrentUserID {
+				m.appStore.UpdateReadThrough(event.Read.ConversationID, event.Read.ReadSeq)
+			}
+		case sdktypes.ControlEventMessageRevoked:
+			if event.Revoke != nil {
+				m.appStore.ApplyRevoke(*event.Revoke)
+			}
+		case sdktypes.ControlEventDeliveryAdvanced:
+			if event.Delivery != nil {
+				m.appStore.UpdateDeliveredThrough(event.Delivery.ConversationID, event.Delivery.DeliveredSeq)
+			}
+		}
+	}
+}
+
+func (m *RootModel) markSessionReady() {
+	if m.appStore.ConnectionStatus == domain.ConnectionStatusSyncing && m.conversationSynced && m.controlEventsSynced {
+		m.appStore.SetConnectionStatus(domain.ConnectionStatusConnected)
+	}
 }
 
 func toMessageItem(conversationID string, message sdktypes.Message, currentUserID string) domain.MessageItem {

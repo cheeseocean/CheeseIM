@@ -21,6 +21,7 @@ type PersistedStore struct {
 	messages      map[string][]MessageRecord
 	conversations map[string]ConversationRecord
 	cursor        sdktypes.ConversationSyncCursor
+	controlCursor int64
 }
 
 // MessageRecord 消息记录
@@ -117,6 +118,7 @@ func (s *PersistedStore) load() error {
 	s.messages = stored.Messages
 	s.conversations = stored.Conversations
 	s.cursor = stored.ConversationCursor
+	s.controlCursor = stored.ControlEventCursor
 	return nil
 }
 
@@ -126,6 +128,7 @@ func (s *PersistedStore) save() error {
 		Messages:           s.messages,
 		Conversations:      s.conversations,
 		ConversationCursor: s.cursor,
+		ControlEventCursor: s.controlCursor,
 	}
 	encoded, err := json.Marshal(data)
 	if err != nil {
@@ -139,6 +142,7 @@ type storedData struct {
 	Messages           map[string][]MessageRecord      `json:"messages"`
 	Conversations      map[string]ConversationRecord   `json:"conversations"`
 	ConversationCursor sdktypes.ConversationSyncCursor `json:"conversation_cursor"`
+	ControlEventCursor int64                           `json:"control_event_cursor"`
 }
 
 // GetMessages 获取会话消息
@@ -199,6 +203,27 @@ func (s *PersistedStore) SetConversationCursor(cursor sdktypes.ConversationSyncC
 	go s.save()
 }
 
+func (s *PersistedStore) GetControlEventCursor() int64 {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.controlCursor
+}
+
+func (s *PersistedStore) SetControlEventCursor(cursor int64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if cursor <= s.controlCursor {
+		return nil
+	}
+	previous := s.controlCursor
+	s.controlCursor = cursor
+	if err := s.save(); err != nil {
+		s.controlCursor = previous
+		return err
+	}
+	return nil
+}
+
 // ClearMessages 清除会话消息
 func (s *PersistedStore) ClearMessages(conversationID string) {
 	s.mu.Lock()
@@ -223,5 +248,6 @@ func (s *PersistedStore) Clear() {
 	s.messages = make(map[string][]MessageRecord)
 	s.conversations = make(map[string]ConversationRecord)
 	s.cursor = sdktypes.ConversationSyncCursor{}
+	s.controlCursor = 0
 	go s.save()
 }

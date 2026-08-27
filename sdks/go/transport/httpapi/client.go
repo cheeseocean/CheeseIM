@@ -269,6 +269,52 @@ func (c *Client) SyncConversations(ctx context.Context, accessToken string, curs
 	return result, nil
 }
 
+func (c *Client) SyncControlEvents(ctx context.Context, accessToken string, cursor int64, limit int) (types.ControlEventSyncResult, error) {
+	values := url.Values{}
+	values.Set("cursor", fmt.Sprintf("%d", cursor))
+	values.Set("limit", fmt.Sprintf("%d", limit))
+	path := "/api/im/conversations/control-events?" + values.Encode()
+	var response struct {
+		Events []struct {
+			EventID        string `json:"eventId"`
+			Cursor         int64  `json:"cursor"`
+			ConversationID string `json:"conversationId"`
+			Type           int    `json:"type"`
+			Payload        string `json:"payload"`
+			CreatedAt      int64  `json:"createdAt"`
+			ExpiresAt      int64  `json:"expiresAt"`
+		} `json:"events"`
+		NextCursor int64 `json:"nextCursor"`
+		HasMore    bool  `json:"hasMore"`
+	}
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &response); err != nil {
+		return types.ControlEventSyncResult{}, err
+	}
+	result := types.ControlEventSyncResult{NextCursor: response.NextCursor, HasMore: response.HasMore}
+	for _, item := range response.Events {
+		event := types.ControlEvent{EventID: item.EventID, Cursor: item.Cursor, ConversationID: item.ConversationID,
+			Type: types.ControlEventType(item.Type), Payload: json.RawMessage(item.Payload), CreatedAt: item.CreatedAt, ExpiresAt: item.ExpiresAt}
+		if err := decodeControlEventPayload(&event); err != nil {
+			return types.ControlEventSyncResult{}, fmt.Errorf("decode control event %s: %w", item.EventID, err)
+		}
+		result.Events = append(result.Events, event)
+	}
+	return result, nil
+}
+
+func decodeControlEventPayload(event *types.ControlEvent) error {
+	switch event.Type {
+	case types.ControlEventReadAdvanced:
+		return json.Unmarshal(event.Payload, &event.Read)
+	case types.ControlEventMessageRevoked:
+		return json.Unmarshal(event.Payload, &event.Revoke)
+	case types.ControlEventDeliveryAdvanced:
+		return json.Unmarshal(event.Payload, &event.Delivery)
+	default:
+		return nil
+	}
+}
+
 func (c *Client) DeleteConversation(ctx context.Context, accessToken, conversationID string) error {
 	path := "/api/im/conversations/" + url.PathEscape(conversationID)
 	return c.doJSON(ctx, http.MethodDelete, path, accessToken, nil, nil)

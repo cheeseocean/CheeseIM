@@ -42,14 +42,86 @@ func TestRootModelLoginSuccessTransitionsToApp(t *testing.T) {
 	updated, _ = model.Update(msg)
 	model = updated.(RootModel)
 
-	if model.appStore.ConnectionStatus != domain.ConnectionStatusConnected {
-		t.Fatalf("status = %q, want connected", model.appStore.ConnectionStatus)
+	if model.appStore.ConnectionStatus != domain.ConnectionStatusSyncing {
+		t.Fatalf("status = %q, want syncing", model.appStore.ConnectionStatus)
 	}
 	if len(model.appStore.Friends) != 1 || len(model.appStore.Groups) != 1 || len(model.appStore.ConversationOrder) != 1 {
 		t.Fatalf("store = %#v", model.appStore)
 	}
 	if model.appStore.CurrentUserID != "user-1" {
 		t.Fatalf("current user = %q", model.appStore.CurrentUserID)
+	}
+}
+
+func TestRootModelBecomesConnectedOnlyAfterBothReliableSyncs(t *testing.T) {
+	client := &fakeIMClient{currentUserID: "user-1"}
+	model := NewRootModel(config.RuntimeConfig{}, client)
+	model.appStore.SetCurrentUserID("user-1")
+	model.appStore.SetConnectionStatus(domain.ConnectionStatusSyncing)
+
+	updated, _ := model.Update(conversationSyncSuccessMsg{result: sdktypes.ConversationSyncResult{}})
+	model = updated.(RootModel)
+	if model.appStore.ConnectionStatus != domain.ConnectionStatusSyncing {
+		t.Fatalf("status = %q before control sync", model.appStore.ConnectionStatus)
+	}
+	updated, _ = model.Update(controlEventSyncSuccessMsg{result: sdktypes.ControlEventSyncResult{NextCursor: 9}})
+	model = updated.(RootModel)
+	if model.appStore.ConnectionStatus != domain.ConnectionStatusConnected {
+		t.Fatalf("status = %q, want connected", model.appStore.ConnectionStatus)
+	}
+}
+
+func TestRootModelIgnoresStaleSyncGeneration(t *testing.T) {
+	model := NewRootModel(config.RuntimeConfig{}, &fakeIMClient{currentUserID: "user-1"})
+	model.syncGeneration = 2
+	model.appStore.SetCurrentUserID("user-1")
+	model.appStore.SetConnectionStatus(domain.ConnectionStatusSyncing)
+
+	updated, _ := model.Update(controlEventSyncSuccessMsg{
+		generation: 1,
+		result: sdktypes.ControlEventSyncResult{NextCursor: 99, Events: []sdktypes.ControlEvent{{
+			Type:   sdktypes.ControlEventMessageRevoked,
+			Revoke: &sdktypes.RevokeUpdate{ConversationID: "s:user-1:user-2", ServerMsgID: "server-1", MutationVersion: 1},
+		}}},
+	})
+	model = updated.(RootModel)
+	if model.appStore.ControlEventCursor != 0 || model.controlEventsSynced {
+		t.Fatalf("stale sync was applied: cursor=%d synced=%v", model.appStore.ControlEventCursor, model.controlEventsSynced)
+	}
+}
+
+func TestRootModelPaginatesAndPersistsControlEventsAfterApplying(t *testing.T) {
+	persister := &fakePersister{controlCursor: 4}
+	client := &fakeIMClient{
+		currentUserID: "user-1",
+		controlEventPages: map[int64]sdktypes.ControlEventSyncResult{
+			4: {
+				Events: []sdktypes.ControlEvent{{Type: sdktypes.ControlEventMessageRevoked, Revoke: &sdktypes.RevokeUpdate{
+					ConversationID: "s:user-1:user-2", ServerMsgID: "server-1", MutationVersion: 2,
+				}}},
+				NextCursor: 5, HasMore: true,
+			},
+			5: {NextCursor: 6, HasMore: false},
+		},
+	}
+	model := NewRootModel(config.RuntimeConfig{}, client)
+	model.appStore.UsePersister(persister)
+	model.appStore.SetCurrentUserID("user-1")
+	model.appStore.SetConnectionStatus(domain.ConnectionStatusSyncing)
+	model.appStore.SetMessages("s:user-1:user-2", []domain.MessageItem{{ServerMsgID: "server-1", Content: "secret"}})
+
+	updated, cmd := model.Update(controlEventSyncSuccessMsg{result: client.controlEventPages[4]})
+	model = updated.(RootModel)
+	if cmd == nil || model.appStore.ControlEventCursor != 5 || persister.controlCursor != 5 {
+		t.Fatalf("first page cursor = %d persisted = %d cmd nil = %v", model.appStore.ControlEventCursor, persister.controlCursor, cmd == nil)
+	}
+	if !model.appStore.MessagesByConv["s:user-1:user-2"][0].Revoked {
+		t.Fatal("revoke event was not applied before cursor persistence")
+	}
+	updated, _ = model.Update(cmd())
+	model = updated.(RootModel)
+	if model.appStore.ControlEventCursor != 6 || !model.controlEventsSynced {
+		t.Fatalf("final control sync state: cursor=%d synced=%v", model.appStore.ControlEventCursor, model.controlEventsSynced)
 	}
 }
 
@@ -409,7 +481,7 @@ func TestRootModelForceLogoutReturnsToCleanLoginState(t *testing.T) {
 	if cmd != nil {
 		t.Fatal("forced logout must not continue the realtime listener")
 	}
-	if root.appStore.CurrentUserID != "" || root.appStore.ConnectionStatus != domain.ConnectionStatusDisconnected {
+	if root.appStore.CurrentUserID != "" || root.appStore.ConnectionStatus != domain.ConnectionStatusLoggedOut {
 		t.Fatalf("session state = user %q status %q", root.appStore.CurrentUserID, root.appStore.ConnectionStatus)
 	}
 	if len(root.appStore.Friends) != 0 || len(root.appStore.MessagesByConv) != 0 {
@@ -561,6 +633,8 @@ type fakeIMClient struct {
 	conversationCursor     sdktypes.ConversationSyncCursor
 	conversationSyncResult sdktypes.ConversationSyncResult
 	conversationSyncErr    error
+	controlEventPages      map[int64]sdktypes.ControlEventSyncResult
+	controlEventErr        error
 }
 
 func (f *fakeIMClient) Login(context.Context, string, string) (sdktypes.BootstrapData, error) {
@@ -695,6 +769,13 @@ func (f *fakeIMClient) SyncConversations(context.Context) (sdktypes.Conversation
 	return f.conversationSyncResult, nil
 }
 
+func (f *fakeIMClient) SyncControlEvents(_ context.Context, cursor int64, _ int) (sdktypes.ControlEventSyncResult, error) {
+	if f.controlEventErr != nil {
+		return sdktypes.ControlEventSyncResult{}, f.controlEventErr
+	}
+	return f.controlEventPages[cursor], nil
+}
+
 var _ IMClient = (*fakeIMClient)(nil)
 
 func withPersistedStoreFactory(t *testing.T, factory func(userID string) store.Persister) {
@@ -712,6 +793,7 @@ type fakePersister struct {
 	messages      map[string][]store.MessageRecord
 	conversations map[string]store.ConversationRecord
 	cursor        sdktypes.ConversationSyncCursor
+	controlCursor int64
 }
 
 func (f *fakePersister) GetMessages(conversationID string) []store.MessageRecord {
@@ -755,6 +837,17 @@ func (f *fakePersister) SetConversationCursor(cursor sdktypes.ConversationSyncCu
 	f.cursor = cursor
 }
 
+func (f *fakePersister) GetControlEventCursor() int64 {
+	return f.controlCursor
+}
+
+func (f *fakePersister) SetControlEventCursor(cursor int64) error {
+	if cursor > f.controlCursor {
+		f.controlCursor = cursor
+	}
+	return nil
+}
+
 func (f *fakePersister) ClearMessages(conversationID string) {
 	delete(f.messages, conversationID)
 }
@@ -768,6 +861,7 @@ func (f *fakePersister) Clear() {
 	f.messages = make(map[string][]store.MessageRecord)
 	f.conversations = make(map[string]store.ConversationRecord)
 	f.cursor = sdktypes.ConversationSyncCursor{}
+	f.controlCursor = 0
 }
 
 func TestRootModelHandlesRealtimeError(t *testing.T) {
