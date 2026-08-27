@@ -105,6 +105,20 @@ func TestAppModelExpandedModeChangesLayout(t *testing.T) {
 	}
 }
 
+func TestAppModelFriendsViewShowsPendingRequests(t *testing.T) {
+	appStore := store.New()
+	appStore.SetActiveNav(domain.NavKeyFriends)
+	appStore.SetFriendRequests(
+		[]domain.FriendRequestSummary{{UserID: "user-2", RequestMessage: "hello"}},
+		[]domain.FriendRequestSummary{{UserID: "user-3", RequestMessage: "hi"}},
+	)
+	model := NewAppModel(appStore, config.RuntimeConfig{})
+	view := model.View()
+	if !strings.Contains(view, "/accept user-2") || !strings.Contains(view, "/cancel user-3") {
+		t.Fatalf("view = %q, want incoming and outgoing friend requests", view)
+	}
+}
+
 func TestAppModelInputSubmit(t *testing.T) {
 	model := NewAppModel(store.New(), config.RuntimeConfig{})
 
@@ -161,9 +175,9 @@ func TestAppModelFriendsViewShowsSelection(t *testing.T) {
 func TestAppModelConversationListShowsUnreadBadge(t *testing.T) {
 	appStore := store.New()
 	appStore.UpsertConversation(domain.ConversationSummary{
-		ConversationID: "s:u100:u200",
-		Title:          "Alice",
-		UnreadCount:    3,
+		ConversationID:  "s:u100:u200",
+		Title:           "Alice",
+		UnreadCount:     3,
 		LastMessageTime: 1,
 	})
 	model := NewAppModel(appStore, config.RuntimeConfig{})

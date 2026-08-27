@@ -25,22 +25,22 @@ type PersistedStore struct {
 
 // MessageRecord 消息记录
 type MessageRecord struct {
-	ID             string `json:"id"`
-	ConversationID string `json:"conversation_id"`
-	Sequence       int64  `json:"seq"`
-	ClientMsgID    string `json:"client_msg_id"`
-	ServerMsgID    string `json:"server_msg_id"`
-	SenderID       string `json:"sender_id"`
-	SenderLabel    string `json:"sender_label"`
-	Content        string `json:"content"`
-	Self           bool   `json:"self"`
-	SendTime       int64  `json:"send_time"`
-	CreateTime     int64  `json:"create_time"`
-	DeliveryState string `json:"delivery_state,omitempty"`
-	Revoked       bool   `json:"revoked,omitempty"`
-	RevokedBy     string `json:"revoked_by,omitempty"`
-	RevokedAt     int64  `json:"revoked_at,omitempty"`
-	MutationVersion int64 `json:"mutation_version,omitempty"`
+	ID              string `json:"id"`
+	ConversationID  string `json:"conversation_id"`
+	Sequence        int64  `json:"seq"`
+	ClientMsgID     string `json:"client_msg_id"`
+	ServerMsgID     string `json:"server_msg_id"`
+	SenderID        string `json:"sender_id"`
+	SenderLabel     string `json:"sender_label"`
+	Content         string `json:"content"`
+	Self            bool   `json:"self"`
+	SendTime        int64  `json:"send_time"`
+	CreateTime      int64  `json:"create_time"`
+	DeliveryState   string `json:"delivery_state,omitempty"`
+	Revoked         bool   `json:"revoked,omitempty"`
+	RevokedBy       string `json:"revoked_by,omitempty"`
+	RevokedAt       int64  `json:"revoked_at,omitempty"`
+	MutationVersion int64  `json:"mutation_version,omitempty"`
 }
 
 // ConversationRecord 会话记录

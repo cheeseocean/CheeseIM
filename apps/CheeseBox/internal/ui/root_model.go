@@ -52,6 +52,17 @@ type conversationSyncSuccessMsg struct {
 	result sdktypes.ConversationSyncResult
 }
 
+type friendStateLoadedMsg struct {
+	friends  []sdktypes.Friend
+	incoming []sdktypes.FriendRequest
+	outgoing []sdktypes.FriendRequest
+}
+
+type friendActionSuccessMsg struct {
+	action string
+	userID string
+}
+
 var newUserPersister = func(userID string) (store.Persister, error) {
 	return store.NewPersistedStoreForUser("", userID)
 }
@@ -63,6 +74,12 @@ type IMClient interface {
 	PullMessages(ctx context.Context, ranges []sdktypes.SeqRange, limitPerConversation int64) ([]sdktypes.PulledConversationMessages, error)
 	SendText(requestID, conversationID, text string) (sdktypes.Message, error)
 	AddFriend(ctx context.Context, friendUserID, message string) error
+	ListFriends(ctx context.Context) ([]sdktypes.Friend, error)
+	ListIncomingFriendRequests(ctx context.Context) ([]sdktypes.FriendRequest, error)
+	ListOutgoingFriendRequests(ctx context.Context) ([]sdktypes.FriendRequest, error)
+	AcceptFriendRequest(ctx context.Context, friendUserID string) error
+	RejectFriendRequest(ctx context.Context, friendUserID string) error
+	CancelFriendRequest(ctx context.Context, friendUserID string) error
 	MarkRead(ctx context.Context, conversationID string, readSeq int64) error
 	AckDelivered(conversationID string, deliveredSeq int64) error
 	RevokeMessage(conversationID, serverMsgID, reason string) error
@@ -78,18 +95,18 @@ type IMClient interface {
 }
 
 type RootModel struct {
-	cfg      config.RuntimeConfig
-	login    LoginModel
-	app      AppModel
-	client   IMClient
-	syncer   *sync.Syncer
-	appStore *store.AppStore
-	theme    ThemeName
-	locale   LocaleName
-	expanded bool
-	debugLog *DebugLogModel
-	width    int
-	height   int
+	cfg                config.RuntimeConfig
+	login              LoginModel
+	app                AppModel
+	client             IMClient
+	syncer             *sync.Syncer
+	appStore           *store.AppStore
+	theme              ThemeName
+	locale             LocaleName
+	expanded           bool
+	debugLog           *DebugLogModel
+	width              int
+	height             int
 	typingActive       bool
 	typingConversation string
 	lastTypingSentAt   time.Time
@@ -167,7 +184,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.useUserPersister(m.client.CurrentUserID())
 		m.client.UpdateConversationCursor(m.appStore.ConversationCursor)
 		m.applyBootstrapData(msg.data)
-		return m, tea.Batch(m.syncConversationsCmd(), m.waitRealtimeEventCmd())
+		return m, tea.Batch(m.syncConversationsCmd(), m.refreshFriendStateCmd(), m.waitRealtimeEventCmd())
 	case conversationSyncSuccessMsg:
 		m.applyConversationSyncResult(msg.result)
 		m.appStore.SetConversationCursor(msg.result.ConversationSyncCursor)
@@ -218,7 +235,13 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleRealtimeEvent(msg.event)
 	case addFriendSuccessMsg:
 		m.appStore.PushToast(domain.ToastKindSuccess, fmt.Sprintf("friend request sent to %s", msg.friendUserID))
+		return m, m.refreshFriendStateCmd()
+	case friendStateLoadedMsg:
+		m.applyFriendState(msg)
 		return m, nil
+	case friendActionSuccessMsg:
+		m.appStore.PushToast(domain.ToastKindSuccess, fmt.Sprintf("friend request %s: %s", msg.action, msg.userID))
+		return m, m.refreshFriendStateCmd()
 	case revokeRequestedMsg:
 		m.appStore.PushToast(domain.ToastKindSuccess, "revoke requested: "+msg.serverMsgID)
 		return m, nil
@@ -383,10 +406,81 @@ func (m RootModel) submitInputCmd(text string) tea.Cmd {
 	if strings.HasPrefix(text, "/revoke") {
 		return m.revokeMessageCmd(text)
 	}
+	if text == "/requests" {
+		return m.refreshFriendStateCmd()
+	}
+	if strings.HasPrefix(text, "/accept") || strings.HasPrefix(text, "/reject") || strings.HasPrefix(text, "/cancel") {
+		return m.handleFriendRequestCmd(text)
+	}
 	if m.appStore.ActiveConversation == "" {
 		return func() tea.Msg { return appErrorMsg{err: errors.New(T(m.locale, keyToastNoConversation))} }
 	}
 	return m.sendMessageCmd(text)
+}
+
+func (m RootModel) handleFriendRequestCmd(text string) tea.Cmd {
+	fields := strings.Fields(text)
+	if len(fields) != 2 {
+		return func() tea.Msg { return appErrorMsg{err: fmt.Errorf("usage: /accept|reject|cancel <userId>")} }
+	}
+	action := strings.TrimPrefix(fields[0], "/")
+	userID := fields[1]
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		var err error
+		switch action {
+		case "accept":
+			err = m.client.AcceptFriendRequest(ctx, userID)
+		case "reject":
+			err = m.client.RejectFriendRequest(ctx, userID)
+		case "cancel":
+			err = m.client.CancelFriendRequest(ctx, userID)
+		default:
+			err = fmt.Errorf("unsupported friend request action: %s", action)
+		}
+		if err != nil {
+			return appErrorMsg{err: err}
+		}
+		return friendActionSuccessMsg{action: action, userID: userID}
+	}
+}
+
+func (m RootModel) refreshFriendStateCmd() tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		friends, err := m.client.ListFriends(ctx)
+		if err != nil {
+			return appErrorMsg{err: err}
+		}
+		incoming, err := m.client.ListIncomingFriendRequests(ctx)
+		if err != nil {
+			return appErrorMsg{err: err}
+		}
+		outgoing, err := m.client.ListOutgoingFriendRequests(ctx)
+		if err != nil {
+			return appErrorMsg{err: err}
+		}
+		return friendStateLoadedMsg{friends: friends, incoming: incoming, outgoing: outgoing}
+	}
+}
+
+func (m *RootModel) applyFriendState(state friendStateLoadedMsg) {
+	friends := make([]domain.FriendSummary, 0, len(state.friends))
+	for _, item := range state.friends {
+		friends = append(friends, domain.FriendSummary{UserID: item.UserID, DisplayName: firstNonEmpty(item.DisplayName, item.UserID), AvatarSeed: item.AvatarURL})
+	}
+	incoming := make([]domain.FriendRequestSummary, 0, len(state.incoming))
+	for _, item := range state.incoming {
+		incoming = append(incoming, domain.FriendRequestSummary{UserID: item.FromUserID, RequestMessage: item.RequestMessage, Status: int(item.Status), CreateTime: item.CreateTime})
+	}
+	outgoing := make([]domain.FriendRequestSummary, 0, len(state.outgoing))
+	for _, item := range state.outgoing {
+		outgoing = append(outgoing, domain.FriendRequestSummary{UserID: item.ToUserID, RequestMessage: item.RequestMessage, Status: int(item.Status), CreateTime: item.CreateTime})
+	}
+	m.appStore.SetFriends(friends)
+	m.appStore.SetFriendRequests(incoming, outgoing)
 }
 
 func (m RootModel) revokeMessageCmd(text string) tea.Cmd {
@@ -401,7 +495,9 @@ func (m RootModel) revokeMessageCmd(text string) tea.Cmd {
 	if serverMsgID == "last" {
 		serverMsgID = m.lastRevocableServerMsgID(m.appStore.ActiveConversation)
 		if serverMsgID == "" {
-			return func() tea.Msg { return appErrorMsg{err: errors.New("no revocable outgoing message in active conversation")} }
+			return func() tea.Msg {
+				return appErrorMsg{err: errors.New("no revocable outgoing message in active conversation")}
+			}
 		}
 	}
 	reason := ""
@@ -576,6 +672,8 @@ func (m RootModel) handleRealtimeEvent(event sdktypes.Event) (tea.Model, tea.Cmd
 			return m, tea.Batch(next, typingExpiryCmd(*event.Typing))
 		}
 		return m, next
+	case sdktypes.EventKindRosterUpdated:
+		return m, tea.Batch(next, m.refreshFriendStateCmd())
 	case sdktypes.EventKindDisconnected:
 		m.appStore.SetConnectionStatus(domain.ConnectionStatusDisconnected)
 		m.appStore.PushToast(domain.ToastKindWarning, T(m.locale, keyToastDisconnected))

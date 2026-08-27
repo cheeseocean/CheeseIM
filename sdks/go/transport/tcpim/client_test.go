@@ -253,6 +253,30 @@ func TestClientSendsTypingAndReceivesNotify(t *testing.T) {
 	_ = client.Close()
 }
 
+func TestClientReceivesRosterNotificationWithoutTreatingItAsChat(t *testing.T) {
+	clientConn, serverConn := net.Pipe()
+	defer serverConn.Close()
+
+	client := NewClient(pipeDialer(clientConn), time.Hour)
+	go func() {
+		_ = mustReadFrame(t, serverConn)
+		writeFrame(t, serverConn, TCPAuthSuccess, "auth", mustMarshal(t, &pb.ProtoAuthResponse{UserId: "user-1"}))
+		writeFrame(t, serverConn, TCPFriendApplicationNotify, "friend-1", mustMarshal(t, &pb.ProtoMessage{
+			SenderId: "user-2", Attributes: map[string]string{"notificationType": "friend_request_created"},
+		}))
+	}()
+
+	if _, err := client.Connect(context.Background(), "ignored", "ticket-1"); err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	_ = waitEvent(t, client.Events())
+	event := waitEvent(t, client.Events())
+	if event.Kind != EventRoster || event.Message.GetAttributes()["notificationType"] != "friend_request_created" {
+		t.Fatalf("event = %#v, want roster notification", event)
+	}
+	_ = client.Close()
+}
+
 func TestClientSurfacesDisconnectAndErrors(t *testing.T) {
 	t.Run("disconnect", func(t *testing.T) {
 		clientConn, serverConn := net.Pipe()

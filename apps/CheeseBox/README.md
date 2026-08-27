@@ -18,3 +18,5 @@ Outgoing direct-chat text messages expose `sending → broker_accepted → deliv
 Use `/revoke last [reason]` for the latest outgoing message, or `/revoke <serverMsgId> [reason]` for an explicit target. Revoke notifications replace matching content with a tombstone even when the notification arrives before the message.
 
 Typing is emitted automatically while editing a normal message. START is client-throttled and server-clamped to a short TTL; submit, clear, or leaving the input sends best-effort STOP. Remote indicators always self-expire from the server timestamp.
+
+Friend requests refresh on login and realtime roster notifications. Use `/requests`, `/accept <userId>`, `/reject <userId>`, and `/cancel <userId>`; the Friends tab shows pending incoming and outgoing requests.

@@ -365,6 +365,63 @@ func (c *Client) AddFriend(ctx context.Context, accessToken, friendUserID, messa
 	return c.doJSON(ctx, http.MethodPost, "/api/im/friends/requests", accessToken, body, nil)
 }
 
+func (c *Client) ListIncomingFriendRequests(ctx context.Context, accessToken string) ([]types.FriendRequest, error) {
+	return c.listFriendRequests(ctx, accessToken, "/api/im/friends/requests/incoming")
+}
+
+func (c *Client) ListOutgoingFriendRequests(ctx context.Context, accessToken string) ([]types.FriendRequest, error) {
+	return c.listFriendRequests(ctx, accessToken, "/api/im/friends/requests/outgoing")
+}
+
+func (c *Client) AcceptFriendRequest(ctx context.Context, accessToken, friendUserID string) error {
+	return c.handleFriendRequest(ctx, accessToken, "/api/im/friends/requests/accept", friendUserID)
+}
+
+func (c *Client) RejectFriendRequest(ctx context.Context, accessToken, friendUserID string) error {
+	return c.handleFriendRequest(ctx, accessToken, "/api/im/friends/requests/reject", friendUserID)
+}
+
+func (c *Client) CancelFriendRequest(ctx context.Context, accessToken, friendUserID string) error {
+	return c.handleFriendRequest(ctx, accessToken, "/api/im/friends/requests/cancel", friendUserID)
+}
+
+func (c *Client) listFriendRequests(ctx context.Context, accessToken, path string) ([]types.FriendRequest, error) {
+	var response []struct {
+		FromUserID     string `json:"fromUserId"`
+		ToUserID       string `json:"toUserId"`
+		RequestMessage string `json:"reqMsg"`
+		HandleResult   int    `json:"handleResult"`
+		HandleMessage  string `json:"handleMsg"`
+		HandlerUserID  string `json:"handlerUserId"`
+		HandleTime     int64  `json:"handleTime"`
+		Extra          string `json:"ex"`
+		CreateTime     int64  `json:"createTime"`
+		UpdatedAt      int64  `json:"updatedAt"`
+	}
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &response); err != nil {
+		return nil, err
+	}
+	items := make([]types.FriendRequest, 0, len(response))
+	for _, item := range response {
+		items = append(items, types.FriendRequest{
+			FromUserID: item.FromUserID, ToUserID: item.ToUserID, RequestMessage: item.RequestMessage,
+			Status: types.FriendRequestStatus(item.HandleResult), HandleMessage: item.HandleMessage,
+			HandlerUserID: item.HandlerUserID, HandleTime: item.HandleTime, Extra: item.Extra,
+			CreateTime: item.CreateTime, UpdatedAt: item.UpdatedAt,
+		})
+	}
+	return items, nil
+}
+
+func (c *Client) handleFriendRequest(ctx context.Context, accessToken, path, friendUserID string) error {
+	if strings.TrimSpace(friendUserID) == "" {
+		return fmt.Errorf("friendUserID required")
+	}
+	return c.doJSON(ctx, http.MethodPost, path, accessToken, map[string]string{
+		"friendUserId": friendUserID,
+	}, nil)
+}
+
 func (c *Client) doJSON(ctx context.Context, method, path, accessToken string, requestBody any, responseBody any) error {
 	var bodyReader *bytes.Reader
 	if requestBody == nil {

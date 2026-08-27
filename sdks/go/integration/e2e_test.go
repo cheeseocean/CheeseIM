@@ -48,6 +48,16 @@ func TestDirectMessageLifecycle(t *testing.T) {
 		_ = bob.tcp.Close()
 	})
 
+	if err := api.AddFriend(ctx, alice.accessToken, bob.userID, "cheeseim e2e"); err != nil {
+		t.Fatalf("send friend request: %v", err)
+	}
+	awaitIncomingFriendRequest(t, ctx, api, bob.accessToken, alice.userID)
+	if err := api.AcceptFriendRequest(ctx, bob.accessToken, alice.userID); err != nil {
+		t.Fatalf("accept friend request: %v", err)
+	}
+	awaitFriendship(t, ctx, api, alice.accessToken, bob.userID)
+	awaitFriendship(t, ctx, api, bob.accessToken, alice.userID)
+
 	conversationID := directConversationID(alice.userID, bob.userID)
 	requestID := "e2e-" + runID[:12]
 	content := []byte("cheeseim-e2e-" + runID)
@@ -233,6 +243,48 @@ func awaitTyping(t *testing.T, ctx context.Context, events <-chan tcpim.Event, c
 				event.Typing.GetSenderId() == senderID && event.Typing.GetAction() == int32(action) {
 				return event.Typing
 			}
+		}
+	}
+}
+
+func awaitIncomingFriendRequest(t *testing.T, ctx context.Context, api *httpapi.Client, token, fromUserID string) {
+	t.Helper()
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		requests, err := api.ListIncomingFriendRequests(ctx, token)
+		if err == nil {
+			for _, request := range requests {
+				if request.FromUserID == fromUserID && request.Status == types.FriendRequestPending {
+					return
+				}
+			}
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("wait incoming friend request from %s: last error: %v", fromUserID, err)
+		case <-ticker.C:
+		}
+	}
+}
+
+func awaitFriendship(t *testing.T, ctx context.Context, api *httpapi.Client, token, friendUserID string) {
+	t.Helper()
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		friends, err := api.ListFriends(ctx, token)
+		if err == nil {
+			for _, friend := range friends {
+				if friend.UserID == friendUserID {
+					return
+				}
+			}
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("wait friendship with %s: last error: %v", friendUserID, err)
+		case <-ticker.C:
 		}
 	}
 }

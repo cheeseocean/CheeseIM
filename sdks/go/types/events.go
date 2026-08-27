@@ -12,6 +12,7 @@ const (
 	EventKindReadUpdated     EventKind = "read_updated"
 	EventKindRevokeUpdated   EventKind = "revoke_updated"
 	EventKindTypingUpdated   EventKind = "typing_updated"
+	EventKindRosterUpdated   EventKind = "roster_updated"
 	EventKindDeliveryUpdated EventKind = "delivery_updated"
 	EventKindDisconnected    EventKind = "disconnected"
 	EventKindError           EventKind = "error"

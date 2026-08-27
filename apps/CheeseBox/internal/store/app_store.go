@@ -23,30 +23,32 @@ type Persister interface {
 }
 
 type AppStore struct {
-	ConnectionStatus   domain.ConnectionStatus
-	CurrentUserID      string
-	ActiveNav          domain.NavKey
-	ActiveConversation string
-	Friends            []domain.FriendSummary
-	Groups             []domain.GroupSummary
-	Conversations      map[string]domain.ConversationSummary
-	ConversationOrder  []string
-	MessagesByConv     map[string][]domain.MessageItem
-	DeliveredSeqByConv map[string]int64
-	ReadSeqByConv      map[string]int64
-	RevokesByServerID  map[string]domain.RevokeInfo
-	TypingByConv       map[string]domain.TypingIndicator
-	Toast              domain.Toast
-	ConversationCursor sdktypes.ConversationSyncCursor
-	persister          Persister
+	ConnectionStatus       domain.ConnectionStatus
+	CurrentUserID          string
+	ActiveNav              domain.NavKey
+	ActiveConversation     string
+	Friends                []domain.FriendSummary
+	IncomingFriendRequests []domain.FriendRequestSummary
+	OutgoingFriendRequests []domain.FriendRequestSummary
+	Groups                 []domain.GroupSummary
+	Conversations          map[string]domain.ConversationSummary
+	ConversationOrder      []string
+	MessagesByConv         map[string][]domain.MessageItem
+	DeliveredSeqByConv     map[string]int64
+	ReadSeqByConv          map[string]int64
+	RevokesByServerID      map[string]domain.RevokeInfo
+	TypingByConv           map[string]domain.TypingIndicator
+	Toast                  domain.Toast
+	ConversationCursor     sdktypes.ConversationSyncCursor
+	persister              Persister
 }
 
 func New() *AppStore {
 	return &AppStore{
-		ConnectionStatus: domain.ConnectionStatusDisconnected,
-		ActiveNav:        domain.NavKeyChats,
-		Conversations:    make(map[string]domain.ConversationSummary),
-		MessagesByConv:   make(map[string][]domain.MessageItem),
+		ConnectionStatus:   domain.ConnectionStatusDisconnected,
+		ActiveNav:          domain.NavKeyChats,
+		Conversations:      make(map[string]domain.ConversationSummary),
+		MessagesByConv:     make(map[string][]domain.MessageItem),
 		DeliveredSeqByConv: make(map[string]int64),
 		ReadSeqByConv:      make(map[string]int64),
 		RevokesByServerID:  make(map[string]domain.RevokeInfo),
@@ -71,6 +73,10 @@ func NewWithLoadedPersister(persister Persister) *AppStore {
 // UsePersister 切换本地持久化命名空间，并恢复该命名空间下的会话快照。
 func (s *AppStore) UsePersister(persister Persister) {
 	s.persister = persister
+	s.Friends = nil
+	s.Groups = nil
+	s.IncomingFriendRequests = nil
+	s.OutgoingFriendRequests = nil
 	s.Conversations = make(map[string]domain.ConversationSummary)
 	s.ConversationOrder = nil
 	s.MessagesByConv = make(map[string][]domain.MessageItem)
@@ -119,6 +125,11 @@ func (s *AppStore) SetActiveConversation(conversationID string) {
 
 func (s *AppStore) SetFriends(items []domain.FriendSummary) {
 	s.Friends = append([]domain.FriendSummary(nil), items...)
+}
+
+func (s *AppStore) SetFriendRequests(incoming, outgoing []domain.FriendRequestSummary) {
+	s.IncomingFriendRequests = append([]domain.FriendRequestSummary(nil), incoming...)
+	s.OutgoingFriendRequests = append([]domain.FriendRequestSummary(nil), outgoing...)
 }
 
 func (s *AppStore) SetGroups(items []domain.GroupSummary) {
@@ -180,8 +191,8 @@ func (s *AppStore) SetMessages(conversationID string, items []domain.MessageItem
 				Self:           item.Self,
 				SendTime:       item.SendTime,
 				CreateTime:     item.CreateTime,
-				DeliveryState: item.DeliveryState,
-				Revoked: item.Revoked, RevokedBy: item.RevokedBy, RevokedAt: item.RevokedAt,
+				DeliveryState:  item.DeliveryState,
+				Revoked:        item.Revoked, RevokedBy: item.RevokedBy, RevokedAt: item.RevokedAt,
 				MutationVersion: item.MutationVersion,
 			}
 		}
@@ -217,8 +228,8 @@ func (s *AppStore) AppendMessage(conversationID string, item domain.MessageItem)
 			Self:           item.Self,
 			SendTime:       item.SendTime,
 			CreateTime:     item.CreateTime,
-			DeliveryState: item.DeliveryState,
-			Revoked: item.Revoked, RevokedBy: item.RevokedBy, RevokedAt: item.RevokedAt,
+			DeliveryState:  item.DeliveryState,
+			Revoked:        item.Revoked, RevokedBy: item.RevokedBy, RevokedAt: item.RevokedAt,
 			MutationVersion: item.MutationVersion,
 		})
 	}
@@ -399,8 +410,8 @@ func (s *AppStore) LoadPersistedMessages(conversationID string) bool {
 			Self:           rec.Self,
 			SendTime:       rec.SendTime,
 			CreateTime:     rec.CreateTime,
-			DeliveryState: rec.DeliveryState,
-			Revoked: rec.Revoked, RevokedBy: rec.RevokedBy, RevokedAt: rec.RevokedAt,
+			DeliveryState:  rec.DeliveryState,
+			Revoked:        rec.Revoked, RevokedBy: rec.RevokedBy, RevokedAt: rec.RevokedAt,
 			MutationVersion: rec.MutationVersion,
 		}
 	}

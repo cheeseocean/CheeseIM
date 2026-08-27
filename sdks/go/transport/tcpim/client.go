@@ -36,6 +36,7 @@ const (
 	EventRead        EventKind = "read"
 	EventRevoke      EventKind = "revoke"
 	EventTyping      EventKind = "typing"
+	EventRoster      EventKind = "roster"
 	EventDisconnect  EventKind = "disconnect"
 	EventError       EventKind = "error"
 )
@@ -275,6 +276,13 @@ func (c *Client) handleFrame(frame Frame) {
 			return
 		}
 		c.emit(Event{Kind: EventMessage, RequestID: frame.RequestID, Message: &message})
+	case TCPFriendApplicationNotify, TCPFriendApplicationProcessed, TCPFriendInfoChangeNotify:
+		var message pb.ProtoMessage
+		if err := gproto.Unmarshal(frame.Payload, &message); err != nil {
+			c.emit(Event{Kind: EventError, Err: err})
+			return
+		}
+		c.emit(Event{Kind: EventRoster, RequestID: frame.RequestID, Message: &message})
 	case CommandChatDeliveryNotify:
 		var notify pb.ProtoChatDeliveryNotify
 		if err := gproto.Unmarshal(frame.Payload, &notify); err != nil {

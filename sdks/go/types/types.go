@@ -19,6 +19,27 @@ type Friend struct {
 	AvatarURL   string
 }
 
+type FriendRequestStatus int
+
+const (
+	FriendRequestRejected FriendRequestStatus = -1
+	FriendRequestPending  FriendRequestStatus = 0
+	FriendRequestAccepted FriendRequestStatus = 1
+)
+
+type FriendRequest struct {
+	FromUserID     string
+	ToUserID       string
+	RequestMessage string
+	Status         FriendRequestStatus
+	HandleMessage  string
+	HandlerUserID  string
+	HandleTime     int64
+	Extra          string
+	CreateTime     int64
+	UpdatedAt      int64
+}
+
 type Group struct {
 	GroupID   string
 	GroupName string

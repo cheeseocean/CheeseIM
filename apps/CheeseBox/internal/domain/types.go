@@ -29,21 +29,21 @@ func NewConversationRefGroup(groupID string) ConversationRef {
 }
 
 type MessageItem struct {
-	ID             string
-	ConversationID string
-	Sequence       int64
-	ClientMsgID    string
-	ServerMsgID    string
-	SenderID       string
-	SenderLabel    string
-	Content        string
-	Self           bool
-	SendTime       int64
-	CreateTime     int64
-	DeliveryState string
-	Revoked       bool
-	RevokedBy     string
-	RevokedAt     int64
+	ID              string
+	ConversationID  string
+	Sequence        int64
+	ClientMsgID     string
+	ServerMsgID     string
+	SenderID        string
+	SenderLabel     string
+	Content         string
+	Self            bool
+	SendTime        int64
+	CreateTime      int64
+	DeliveryState   string
+	Revoked         bool
+	RevokedBy       string
+	RevokedAt       int64
 	MutationVersion int64
 }
 
@@ -110,6 +110,13 @@ type FriendSummary struct {
 	UserID      string
 	DisplayName string
 	AvatarSeed  string
+}
+
+type FriendRequestSummary struct {
+	UserID         string
+	RequestMessage string
+	Status         int
+	CreateTime     int64
 }
 
 type GroupSummary struct {

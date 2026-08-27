@@ -339,6 +339,51 @@ func TestClientAddFriend(t *testing.T) {
 	}
 }
 
+func TestClientListsAndHandlesFriendRequests(t *testing.T) {
+	client := New("https://example.invalid", time.Second)
+	client.httpClient.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		switch r.URL.Path {
+		case "/api/im/friends/requests/incoming":
+			if r.Method != http.MethodGet {
+				t.Fatalf("method = %q, want GET", r.Method)
+			}
+			return jsonResponse([]map[string]any{{
+				"fromUserId": "user-2", "toUserId": "user-1", "reqMsg": "hello",
+				"handleResult": 0, "createTime": int64(123),
+			}}), nil
+		case "/api/im/friends/requests/accept", "/api/im/friends/requests/reject", "/api/im/friends/requests/cancel":
+			if r.Method != http.MethodPost {
+				t.Fatalf("method = %q, want POST", r.Method)
+			}
+			var body map[string]string
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("Decode() error = %v", err)
+			}
+			if body["friendUserId"] != "user-2" {
+				t.Fatalf("body = %#v", body)
+			}
+			return jsonResponse(map[string]any{}), nil
+		default:
+			t.Fatalf("unexpected path = %q", r.URL.Path)
+			return nil, nil
+		}
+	})
+
+	requests, err := client.ListIncomingFriendRequests(context.Background(), "token-1")
+	if err != nil || len(requests) != 1 || requests[0].FromUserID != "user-2" || requests[0].Status != types.FriendRequestPending {
+		t.Fatalf("requests = %#v, err = %v", requests, err)
+	}
+	for name, call := range map[string]func() error{
+		"accept": func() error { return client.AcceptFriendRequest(context.Background(), "token-1", "user-2") },
+		"reject": func() error { return client.RejectFriendRequest(context.Background(), "token-1", "user-2") },
+		"cancel": func() error { return client.CancelFriendRequest(context.Background(), "token-1", "user-2") },
+	} {
+		if err := call(); err != nil {
+			t.Fatalf("%s error = %v", name, err)
+		}
+	}
+}
+
 func TestClientPullMessagesOrdersBodyRanges(t *testing.T) {
 	client := New("https://example.invalid", time.Second)
 	client.httpClient.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {

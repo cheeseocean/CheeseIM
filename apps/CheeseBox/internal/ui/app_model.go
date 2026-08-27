@@ -24,7 +24,7 @@ const (
 
 const (
 	// panelBodyHeight 面板内容区默认高度，也用作测试 fallback
-	panelBodyHeight  = 16
+	panelBodyHeight   = 16
 	chatMessageGroups = 5
 	// debugPanelWidth 调试面板固定宽度
 	debugPanelWidth = 55
@@ -467,12 +467,19 @@ func (m AppModel) tabView(theme Theme) string {
 func (m AppModel) listView(theme Theme, height int) string {
 	switch m.store.ActiveNav {
 	case domain.NavKeyFriends:
-		if len(m.store.Friends) == 0 {
+		if len(m.store.Friends) == 0 && len(m.store.IncomingFriendRequests) == 0 && len(m.store.OutgoingFriendRequests) == 0 {
 			return padLines([]string{theme.sectionTitleStyle().Render(T(m.locale, keyTabFriends)), T(m.locale, keyListEmpty)}, height)
 		}
 		lines := []string{theme.sectionTitleStyle().Render(T(m.locale, keyTabFriends))}
-		start := visibleOffset(m.selected, len(m.store.Friends), height-1)
-		end := minInt(len(m.store.Friends), start+height-1)
+		for _, request := range m.store.IncomingFriendRequests {
+			lines = append(lines, fmt.Sprintf("← %s: %s  (/accept %s | /reject %s)", request.UserID, request.RequestMessage, request.UserID, request.UserID))
+		}
+		for _, request := range m.store.OutgoingFriendRequests {
+			lines = append(lines, fmt.Sprintf("→ %s: %s  (/cancel %s)", request.UserID, request.RequestMessage, request.UserID))
+		}
+		friendSpace := maxInt(0, height-len(lines))
+		start := visibleOffset(m.selected, len(m.store.Friends), friendSpace)
+		end := minInt(len(m.store.Friends), start+friendSpace)
 		for actualIndex := start; actualIndex < end; actualIndex++ {
 			lines = append(lines, m.renderListItem(actualIndex, m.store.Friends[actualIndex].DisplayName, theme))
 		}
@@ -569,22 +576,22 @@ func (m AppModel) renderChatArea(header string, msgLines []string, msgSpace int,
 	if len(msgLines) > msgSpace {
 		msgLines = msgLines[len(msgLines)-msgSpace:]
 	}
-	
+
 	// 构建行列表：header + msgLines + sep + input
 	rows := make([]string, 0, 1+msgSpace+2)
 	rows = append(rows, header)
-	
+
 	// 顶部补空行使消息靠底
 	for i := 0; i < msgSpace-len(msgLines); i++ {
 		rows = append(rows, "")
 	}
-	
+
 	rows = append(rows, msgLines...)
 	// 分隔线横跨整个聊天区域，输入框使用 contentW 与消息气泡保持一致
 	rows = append(rows, sep)
 	rows = append(rows, lipgloss.PlaceHorizontal(innerW, lipgloss.Left,
 		lipgloss.NewStyle().Width(contentW).Render(inputView)))
-	
+
 	return strings.Join(rows, "\n")
 }
 

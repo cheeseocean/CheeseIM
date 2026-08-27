@@ -228,6 +228,37 @@ func TestRootModelSubmitInputAddFriend(t *testing.T) {
 	}
 }
 
+func TestRootModelLoadsAndHandlesFriendRequests(t *testing.T) {
+	client := &fakeIMClient{
+		currentUserID:    "user-1",
+		friends:          []sdktypes.Friend{{UserID: "user-3", DisplayName: "Three"}},
+		incomingRequests: []sdktypes.FriendRequest{{FromUserID: "user-2", RequestMessage: "hello", Status: sdktypes.FriendRequestPending}},
+		outgoingRequests: []sdktypes.FriendRequest{{ToUserID: "user-4", RequestMessage: "hi", Status: sdktypes.FriendRequestPending}},
+	}
+	model := NewRootModel(config.RuntimeConfig{}, client)
+
+	msg := model.refreshFriendStateCmd()()
+	loaded, ok := msg.(friendStateLoadedMsg)
+	if !ok {
+		t.Fatalf("message = %#v, want friendStateLoadedMsg", msg)
+	}
+	model.applyFriendState(loaded)
+	if len(model.appStore.Friends) != 1 || len(model.appStore.IncomingFriendRequests) != 1 || len(model.appStore.OutgoingFriendRequests) != 1 {
+		t.Fatalf("friend state = %#v %#v %#v", model.appStore.Friends, model.appStore.IncomingFriendRequests, model.appStore.OutgoingFriendRequests)
+	}
+
+	_, cmd := model.Update(SubmitInputMsg{Text: "/accept user-2"})
+	if cmd == nil {
+		t.Fatal("accept cmd is nil")
+	}
+	if _, ok := cmd().(friendActionSuccessMsg); !ok {
+		t.Fatalf("accept result has unexpected type")
+	}
+	if client.friendAction != "accept" || client.friendActionUserID != "user-2" {
+		t.Fatalf("friend action = %q %q", client.friendAction, client.friendActionUserID)
+	}
+}
+
 func TestRootModelSubmitInputOpensCanonicalDirectChat(t *testing.T) {
 	model := NewRootModel(config.RuntimeConfig{}, &fakeIMClient{})
 	model.appStore.SetCurrentUserID("user-2")
@@ -403,8 +434,8 @@ func TestRootModelLoginSuccessStartsRealtimeListener(t *testing.T) {
 
 	events <- sdktypes.Event{Kind: sdktypes.EventKindDisconnected}
 	msg := cmd()
-	if batch, ok := msg.(tea.BatchMsg); ok && len(batch) == 2 {
-		msg = batch[1]()
+	if batch, ok := msg.(tea.BatchMsg); ok && len(batch) > 0 {
+		msg = batch[len(batch)-1]()
 	}
 	realtime, ok := msg.(realtimeEventMsg)
 	if !ok || realtime.event.Kind != sdktypes.EventKindDisconnected {
@@ -436,6 +467,11 @@ type fakeIMClient struct {
 	revokeErr              error
 	typingConversationID   string
 	typingAction           sdktypes.TypingAction
+	friends                []sdktypes.Friend
+	incomingRequests       []sdktypes.FriendRequest
+	outgoingRequests       []sdktypes.FriendRequest
+	friendAction           string
+	friendActionUserID     string
 	events                 chan sdktypes.Event
 	pulled                 []sdktypes.PulledConversationMessages
 	serverMaxSeqs          map[string]int64
@@ -474,6 +510,33 @@ func (f *fakeIMClient) AddFriend(_ context.Context, friendUserID, message string
 	f.addFriendUserID = friendUserID
 	f.addFriendMessage = message
 	return f.addFriendErr
+}
+
+func (f *fakeIMClient) ListFriends(context.Context) ([]sdktypes.Friend, error) {
+	return f.friends, nil
+}
+
+func (f *fakeIMClient) ListIncomingFriendRequests(context.Context) ([]sdktypes.FriendRequest, error) {
+	return f.incomingRequests, nil
+}
+
+func (f *fakeIMClient) ListOutgoingFriendRequests(context.Context) ([]sdktypes.FriendRequest, error) {
+	return f.outgoingRequests, nil
+}
+
+func (f *fakeIMClient) AcceptFriendRequest(_ context.Context, userID string) error {
+	f.friendAction, f.friendActionUserID = "accept", userID
+	return nil
+}
+
+func (f *fakeIMClient) RejectFriendRequest(_ context.Context, userID string) error {
+	f.friendAction, f.friendActionUserID = "reject", userID
+	return nil
+}
+
+func (f *fakeIMClient) CancelFriendRequest(_ context.Context, userID string) error {
+	f.friendAction, f.friendActionUserID = "cancel", userID
+	return nil
 }
 
 func (f *fakeIMClient) MarkRead(_ context.Context, conversationID string, readSeq int64) error {

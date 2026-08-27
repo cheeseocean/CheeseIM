@@ -209,6 +209,30 @@ func (c *Client) AddFriend(ctx context.Context, friendUserID, message string) er
 	return c.httpClient.AddFriend(ctx, c.accessToken, friendUserID, message)
 }
 
+func (c *Client) ListIncomingFriendRequests(ctx context.Context) ([]types.FriendRequest, error) {
+	return c.httpClient.ListIncomingFriendRequests(ctx, c.accessToken)
+}
+
+func (c *Client) ListFriends(ctx context.Context) ([]types.Friend, error) {
+	return c.httpClient.ListFriends(ctx, c.accessToken)
+}
+
+func (c *Client) ListOutgoingFriendRequests(ctx context.Context) ([]types.FriendRequest, error) {
+	return c.httpClient.ListOutgoingFriendRequests(ctx, c.accessToken)
+}
+
+func (c *Client) AcceptFriendRequest(ctx context.Context, friendUserID string) error {
+	return c.httpClient.AcceptFriendRequest(ctx, c.accessToken, friendUserID)
+}
+
+func (c *Client) RejectFriendRequest(ctx context.Context, friendUserID string) error {
+	return c.httpClient.RejectFriendRequest(ctx, c.accessToken, friendUserID)
+}
+
+func (c *Client) CancelFriendRequest(ctx context.Context, friendUserID string) error {
+	return c.httpClient.CancelFriendRequest(ctx, c.accessToken, friendUserID)
+}
+
 func (c *Client) MarkRead(ctx context.Context, conversationID string, readSeq int64) error {
 	if c.sync == nil {
 		return fmt.Errorf("sdk client not initialized")
@@ -351,6 +375,8 @@ func (c *Client) handleTransportEvent(event tcpim.Event) {
 				ConversationID: event.Typing.GetConversationId(), SenderID: event.Typing.GetSenderId(),
 				Action: types.TypingAction(event.Typing.GetAction()), ExpiresAt: event.Typing.GetExpiresAt(),
 			}})
+	case tcpim.EventRoster:
+		c.emit(types.Event{Kind: types.EventKindRosterUpdated, RequestID: event.RequestID})
 	case tcpim.EventDisconnect:
 		c.emit(types.Event{Kind: types.EventKindDisconnected})
 	case tcpim.EventError:
