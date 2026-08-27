@@ -8,6 +8,7 @@ It now consumes the reusable Go IM SDK in `sdks/go` for:
 - broker acceptance, device delivery, and peer read high-watermark status
 - seq-based history sync
 - reconnect sync and gap repair
+- server-initiated force logout with in-memory session cleanup
 - friend/group/conversation queries
 
 CheeseBox itself only keeps app-specific state and UI rendering. Its default all-in-one endpoint is `http://127.0.0.1:18079` with TCP at `127.0.0.1:5148`; each can be overridden through `CHEESEBOX_API_BASE_URL` and `CHEESEBOX_TCP_ADDR`.
@@ -20,3 +21,7 @@ Use `/revoke last [reason]` for the latest outgoing message, or `/revoke <server
 Typing is emitted automatically while editing a normal message. START is client-throttled and server-clamped to a short TTL; submit, clear, or leaving the input sends best-effort STOP. Remote indicators always self-expire from the server timestamp.
 
 Friend requests refresh on login and realtime roster notifications. Use `/requests`, `/accept <userId>`, `/reject <userId>`, and `/cancel <userId>`; the Friends tab shows pending incoming and outgoing requests.
+
+Use `/delete` in the active chat to remove that conversation from the current user's server-side conversation list. CheeseBox only clears its local summary and cached messages after the server confirms success.
+
+When the server revokes the active session, the SDK clears its token and sync state before emitting a typed force-logout event. CheeseBox then removes the account data held in memory and returns to login; user-scoped history on disk remains available for a later valid login.

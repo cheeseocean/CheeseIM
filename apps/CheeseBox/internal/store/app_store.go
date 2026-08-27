@@ -19,6 +19,7 @@ type Persister interface {
 	GetConversationCursor() sdktypes.ConversationSyncCursor
 	SetConversationCursor(cursor sdktypes.ConversationSyncCursor)
 	ClearMessages(conversationID string)
+	DeleteConversation(conversationID string)
 	Clear()
 }
 
@@ -88,6 +89,28 @@ func (s *AppStore) UsePersister(persister Persister) {
 	s.loadFromPersister()
 }
 
+// ResetSession 清理当前账号的内存态，但保留磁盘上的用户隔离历史，供该账号下次登录恢复。
+func (s *AppStore) ResetSession() {
+	s.ConnectionStatus = domain.ConnectionStatusDisconnected
+	s.CurrentUserID = ""
+	s.ActiveNav = domain.NavKeyChats
+	s.ActiveConversation = ""
+	s.Friends = nil
+	s.IncomingFriendRequests = nil
+	s.OutgoingFriendRequests = nil
+	s.Groups = nil
+	s.Conversations = make(map[string]domain.ConversationSummary)
+	s.ConversationOrder = nil
+	s.MessagesByConv = make(map[string][]domain.MessageItem)
+	s.DeliveredSeqByConv = make(map[string]int64)
+	s.ReadSeqByConv = make(map[string]int64)
+	s.RevokesByServerID = make(map[string]domain.RevokeInfo)
+	s.TypingByConv = make(map[string]domain.TypingIndicator)
+	s.Toast = domain.Toast{}
+	s.ConversationCursor = sdktypes.ConversationSyncCursor{}
+	s.persister = nil
+}
+
 // loadFromPersister 从持久化存储加载数据
 func (s *AppStore) loadFromPersister() {
 	if s.persister == nil {
@@ -154,9 +177,15 @@ func (s *AppStore) UpsertConversation(item domain.ConversationSummary) {
 func (s *AppStore) RemoveConversation(conversationID string) {
 	delete(s.Conversations, conversationID)
 	delete(s.MessagesByConv, conversationID)
+	delete(s.DeliveredSeqByConv, conversationID)
+	delete(s.ReadSeqByConv, conversationID)
+	delete(s.TypingByConv, conversationID)
+	if s.ActiveConversation == conversationID {
+		s.ActiveConversation = ""
+	}
 	s.rebuildOrder()
 	if s.persister != nil {
-		s.persister.ClearMessages(conversationID)
+		s.persister.DeleteConversation(conversationID)
 	}
 }
 

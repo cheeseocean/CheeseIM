@@ -13,6 +13,7 @@ const (
 	EventKindRevokeUpdated   EventKind = "revoke_updated"
 	EventKindTypingUpdated   EventKind = "typing_updated"
 	EventKindRosterUpdated   EventKind = "roster_updated"
+	EventKindForcedLogout    EventKind = "forced_logout"
 	EventKindDeliveryUpdated EventKind = "delivery_updated"
 	EventKindDisconnected    EventKind = "disconnected"
 	EventKindError           EventKind = "error"
@@ -30,5 +31,6 @@ type Event struct {
 	Read           *ReadUpdate
 	Revoke         *RevokeUpdate
 	Typing         *TypingUpdate
+	ForceLogout    *ForceLogout
 	Err            error
 }

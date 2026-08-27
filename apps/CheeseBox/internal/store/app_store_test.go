@@ -36,6 +36,25 @@ func TestAppStoreAppendMessageAndToast(t *testing.T) {
 	}
 }
 
+func TestAppStoreRemoveConversationClearsAssociatedState(t *testing.T) {
+	store := New()
+	store.UpsertConversation(domain.ConversationSummary{ConversationID: "c1"})
+	store.SetActiveConversation("c1")
+	store.SetMessages("c1", []domain.MessageItem{{ID: "m1"}})
+	store.DeliveredSeqByConv["c1"] = 2
+	store.ReadSeqByConv["c1"] = 1
+	store.TypingByConv["c1"] = domain.TypingIndicator{SenderID: "u2"}
+
+	store.RemoveConversation("c1")
+
+	if store.ActiveConversation != "" || len(store.Conversations) != 0 || len(store.MessagesByConv) != 0 {
+		t.Fatalf("conversation state retained: active=%q conversations=%#v messages=%#v", store.ActiveConversation, store.Conversations, store.MessagesByConv)
+	}
+	if len(store.DeliveredSeqByConv) != 0 || len(store.ReadSeqByConv) != 0 || len(store.TypingByConv) != 0 {
+		t.Fatalf("derived state retained: delivered=%#v read=%#v typing=%#v", store.DeliveredSeqByConv, store.ReadSeqByConv, store.TypingByConv)
+	}
+}
+
 func TestAppStoreAppendMessageDeduplicatesByStableMessageIdentity(t *testing.T) {
 	store := New()
 

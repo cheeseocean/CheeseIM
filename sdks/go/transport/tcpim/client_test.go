@@ -277,6 +277,30 @@ func TestClientReceivesRosterNotificationWithoutTreatingItAsChat(t *testing.T) {
 	_ = client.Close()
 }
 
+func TestClientReceivesForceLogoutNotification(t *testing.T) {
+	clientConn, serverConn := net.Pipe()
+	defer serverConn.Close()
+
+	client := NewClient(pipeDialer(clientConn), time.Hour)
+	go func() {
+		_ = mustReadFrame(t, serverConn)
+		writeFrame(t, serverConn, TCPAuthSuccess, "auth", mustMarshal(t, &pb.ProtoAuthResponse{UserId: "user-1"}))
+		writeFrame(t, serverConn, TCPForceLogoutNotify, "force-1", mustMarshal(t, &pb.ProtoForceLogoutNotify{
+			Reason: "session replaced", SessionId: "session-1", DeviceId: "device-1", OccurredAt: 123,
+		}))
+	}()
+
+	if _, err := client.Connect(context.Background(), "ignored", "ticket-1"); err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	_ = waitEvent(t, client.Events())
+	event := waitEvent(t, client.Events())
+	if event.Kind != EventForceLogout || event.ForceLogout.GetSessionId() != "session-1" || event.ForceLogout.GetReason() != "session replaced" {
+		t.Fatalf("event = %#v, want force logout notify", event)
+	}
+	_ = client.Close()
+}
+
 func TestClientSurfacesDisconnectAndErrors(t *testing.T) {
 	t.Run("disconnect", func(t *testing.T) {
 		clientConn, serverConn := net.Pipe()

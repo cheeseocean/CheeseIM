@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cheeseim/cheeseim-go-sdk/auth"
@@ -31,6 +32,7 @@ type Client struct {
 	social      *social.RosterService
 	sync        *imsync.Service
 	events      chan types.Event
+	sessionMu   sync.RWMutex
 	accessToken string
 	currentUser string
 	stopChan    chan struct{}
@@ -55,6 +57,8 @@ func (c *Client) Events() <-chan types.Event {
 }
 
 func (c *Client) CurrentUserID() string {
+	c.sessionMu.RLock()
+	defer c.sessionMu.RUnlock()
 	return c.currentUser
 }
 
@@ -75,7 +79,7 @@ func (c *Client) LoginWithToken(ctx context.Context, accessToken string) (types.
 }
 
 func (c *Client) Reconnect(ctx context.Context) (types.BootstrapData, error) {
-	session, err := c.authService.Reconnect(ctx, c.accessToken, c.cfg.DeviceID, c.cfg.Platform, c.cfg.TCPAddr)
+	session, err := c.authService.Reconnect(ctx, c.accessTokenSnapshot(), c.cfg.DeviceID, c.cfg.Platform, c.cfg.TCPAddr)
 	if err != nil {
 		return types.BootstrapData{}, err
 	}
@@ -135,7 +139,7 @@ func (c *Client) SyncConversations(ctx context.Context) (types.ConversationSyncR
 	if c.sync == nil {
 		return types.ConversationSyncResult{}, fmt.Errorf("sdk client not initialized")
 	}
-	result, err := c.social.SyncConversations(ctx, c.accessToken, c.sync.GetConversationCursor())
+	result, err := c.social.SyncConversations(ctx, c.accessTokenSnapshot(), c.sync.GetConversationCursor())
 	if err != nil {
 		return types.ConversationSyncResult{}, err
 	}
@@ -145,10 +149,11 @@ func (c *Client) SyncConversations(ctx context.Context) (types.ConversationSyncR
 
 // DeleteConversation 删除当前用户维度的会话元数据；历史消息仍保留在服务端。
 func (c *Client) DeleteConversation(ctx context.Context, conversationID string) error {
-	if c.accessToken == "" {
+	token := c.accessTokenSnapshot()
+	if token == "" {
 		return fmt.Errorf("sdk client not initialized")
 	}
-	return c.social.DeleteConversation(ctx, c.accessToken, conversationID)
+	return c.social.DeleteConversation(ctx, token, conversationID)
 }
 
 // OpenConversation 打开会话，拉取历史消息（降级实现，供参考）
@@ -177,7 +182,8 @@ func (c *Client) OpenConversation(ctx context.Context, conversationID string, li
 }
 
 func (c *Client) SendText(requestID, conversationID, text string) (types.Message, error) {
-	receiverID, groupID, chatType, err := resolveChatTarget(conversationID, c.currentUser)
+	currentUser := c.CurrentUserID()
+	receiverID, groupID, chatType, err := resolveChatTarget(conversationID, currentUser)
 	if err != nil {
 		return types.Message{}, err
 	}
@@ -195,7 +201,7 @@ func (c *Client) SendText(requestID, conversationID, text string) (types.Message
 	}
 	return types.Message{
 		ClientMsgID: requestID,
-		SenderID:    c.currentUser,
+		SenderID:    currentUser,
 		ReceiverID:  receiverID,
 		GroupID:     groupID,
 		ChatType:    chatType,
@@ -206,31 +212,31 @@ func (c *Client) SendText(requestID, conversationID, text string) (types.Message
 }
 
 func (c *Client) AddFriend(ctx context.Context, friendUserID, message string) error {
-	return c.httpClient.AddFriend(ctx, c.accessToken, friendUserID, message)
+	return c.httpClient.AddFriend(ctx, c.accessTokenSnapshot(), friendUserID, message)
 }
 
 func (c *Client) ListIncomingFriendRequests(ctx context.Context) ([]types.FriendRequest, error) {
-	return c.httpClient.ListIncomingFriendRequests(ctx, c.accessToken)
+	return c.httpClient.ListIncomingFriendRequests(ctx, c.accessTokenSnapshot())
 }
 
 func (c *Client) ListFriends(ctx context.Context) ([]types.Friend, error) {
-	return c.httpClient.ListFriends(ctx, c.accessToken)
+	return c.httpClient.ListFriends(ctx, c.accessTokenSnapshot())
 }
 
 func (c *Client) ListOutgoingFriendRequests(ctx context.Context) ([]types.FriendRequest, error) {
-	return c.httpClient.ListOutgoingFriendRequests(ctx, c.accessToken)
+	return c.httpClient.ListOutgoingFriendRequests(ctx, c.accessTokenSnapshot())
 }
 
 func (c *Client) AcceptFriendRequest(ctx context.Context, friendUserID string) error {
-	return c.httpClient.AcceptFriendRequest(ctx, c.accessToken, friendUserID)
+	return c.httpClient.AcceptFriendRequest(ctx, c.accessTokenSnapshot(), friendUserID)
 }
 
 func (c *Client) RejectFriendRequest(ctx context.Context, friendUserID string) error {
-	return c.httpClient.RejectFriendRequest(ctx, c.accessToken, friendUserID)
+	return c.httpClient.RejectFriendRequest(ctx, c.accessTokenSnapshot(), friendUserID)
 }
 
 func (c *Client) CancelFriendRequest(ctx context.Context, friendUserID string) error {
-	return c.httpClient.CancelFriendRequest(ctx, c.accessToken, friendUserID)
+	return c.httpClient.CancelFriendRequest(ctx, c.accessTokenSnapshot(), friendUserID)
 }
 
 func (c *Client) MarkRead(ctx context.Context, conversationID string, readSeq int64) error {
@@ -286,8 +292,10 @@ func (c *Client) bootstrap(ctx context.Context, session auth.AuthSession) (types
 	if err != nil {
 		return types.BootstrapData{}, err
 	}
+	c.sessionMu.Lock()
 	c.accessToken = session.AccessToken
 	c.currentUser = session.UserID
+	c.sessionMu.Unlock()
 	if c.sync == nil {
 		c.sync = imsync.NewService(c.social)
 	} else {
@@ -377,6 +385,18 @@ func (c *Client) handleTransportEvent(event tcpim.Event) {
 			}})
 	case tcpim.EventRoster:
 		c.emit(types.Event{Kind: types.EventKindRosterUpdated, RequestID: event.RequestID})
+	case tcpim.EventForceLogout:
+		if event.ForceLogout == nil {
+			return
+		}
+		c.clearSession()
+		if c.tcpClient != nil {
+			_ = c.tcpClient.Close()
+		}
+		c.emit(types.Event{Kind: types.EventKindForcedLogout, RequestID: event.RequestID, ForceLogout: &types.ForceLogout{
+			Reason: event.ForceLogout.GetReason(), SessionID: event.ForceLogout.GetSessionId(),
+			DeviceID: event.ForceLogout.GetDeviceId(), OccurredAt: event.ForceLogout.GetOccurredAt(),
+		}})
 	case tcpim.EventDisconnect:
 		c.emit(types.Event{Kind: types.EventKindDisconnected})
 	case tcpim.EventError:
@@ -394,6 +414,23 @@ func (c *Client) handleTransportEvent(event tcpim.Event) {
 			ConversationID: conversationID,
 			Message:        &message,
 		})
+	}
+}
+
+func (c *Client) accessTokenSnapshot() string {
+	c.sessionMu.RLock()
+	defer c.sessionMu.RUnlock()
+	return c.accessToken
+}
+
+func (c *Client) clearSession() {
+	c.sessionMu.Lock()
+	c.accessToken = ""
+	c.currentUser = ""
+	c.sessionMu.Unlock()
+	if c.sync != nil {
+		c.sync.SetAccessToken("")
+		c.sync.Reset()
 	}
 }
 

@@ -296,6 +296,57 @@ func TestRootModelSubmitInputRequestsRevoke(t *testing.T) {
 	}
 }
 
+func TestRootModelDeletesActiveConversationAfterServerSuccess(t *testing.T) {
+	persister := &fakePersister{
+		messages: map[string][]store.MessageRecord{"s:user-1:user-2": {{Content: "hello"}}},
+		conversations: map[string]store.ConversationRecord{
+			"s:user-1:user-2": {ConversationID: "s:user-1:user-2"},
+		},
+	}
+	client := &fakeIMClient{currentUserID: "user-1"}
+	model := NewRootModel(config.RuntimeConfig{}, client)
+	model.appStore.UsePersister(persister)
+	model.appStore.SetCurrentUserID("user-1")
+	model.appStore.SetActiveConversation("s:user-1:user-2")
+
+	updated, cmd := model.Update(SubmitInputMsg{Text: "/delete"})
+	model = updated.(RootModel)
+	if cmd == nil {
+		t.Fatal("delete cmd is nil")
+	}
+	updated, _ = model.Update(cmd())
+	model = updated.(RootModel)
+
+	if client.deletedConversationID != "s:user-1:user-2" {
+		t.Fatalf("deleted conversation = %q", client.deletedConversationID)
+	}
+	if model.appStore.ActiveConversation != "" || len(model.appStore.Conversations) != 0 {
+		t.Fatalf("store retained deleted conversation: active=%q conversations=%#v", model.appStore.ActiveConversation, model.appStore.Conversations)
+	}
+	if len(persister.messages) != 0 || len(persister.conversations) != 0 {
+		t.Fatalf("persisted conversation was retained: %#v %#v", persister.messages, persister.conversations)
+	}
+}
+
+func TestRootModelKeepsConversationWhenServerDeleteFails(t *testing.T) {
+	client := &fakeIMClient{currentUserID: "user-1", deleteConversationErr: errors.New("delete failed")}
+	model := NewRootModel(config.RuntimeConfig{}, client)
+	model.appStore.SetCurrentUserID("user-1")
+	model.appStore.UpsertConversation(domain.ConversationSummary{ConversationID: "s:user-1:user-2"})
+	model.appStore.SetActiveConversation("s:user-1:user-2")
+
+	_, cmd := model.Update(SubmitInputMsg{Text: "/delete"})
+	updated, _ := model.Update(cmd())
+	model = updated.(RootModel)
+
+	if _, ok := model.appStore.Conversations["s:user-1:user-2"]; !ok {
+		t.Fatal("conversation was removed after server failure")
+	}
+	if model.appStore.Toast.Message != "delete failed" {
+		t.Fatalf("toast = %q", model.appStore.Toast.Message)
+	}
+}
+
 func TestRootModelRealtimeMessageAppendsToConversation(t *testing.T) {
 	client := &fakeIMClient{}
 	model := NewRootModel(config.RuntimeConfig{}, client)
@@ -337,6 +388,35 @@ func TestRootModelAppliesPeerReadNotify(t *testing.T) {
 	root := updated.(RootModel)
 	if got := root.appStore.MessagesByConv["s:user-1:user-2"][0].DeliveryState; got != string(sdktypes.MessageDeliveryRead) {
 		t.Fatalf("DeliveryState = %q, want read", got)
+	}
+}
+
+func TestRootModelForceLogoutReturnsToCleanLoginState(t *testing.T) {
+	client := &fakeIMClient{}
+	model := NewRootModel(config.RuntimeConfig{}, client)
+	model.appStore.SetCurrentUserID("user-1")
+	model.appStore.SetConnectionStatus(domain.ConnectionStatusConnected)
+	model.appStore.SetFriends([]domain.FriendSummary{{UserID: "user-2"}})
+	model.appStore.SetMessages("s:user-1:user-2", []domain.MessageItem{{Content: "secret"}})
+
+	updated, cmd := model.handleRealtimeEvent(sdktypes.Event{
+		Kind: sdktypes.EventKindForcedLogout,
+		ForceLogout: &sdktypes.ForceLogout{
+			Reason: "session replaced", SessionID: "session-1",
+		},
+	})
+	root := updated.(RootModel)
+	if cmd != nil {
+		t.Fatal("forced logout must not continue the realtime listener")
+	}
+	if root.appStore.CurrentUserID != "" || root.appStore.ConnectionStatus != domain.ConnectionStatusDisconnected {
+		t.Fatalf("session state = user %q status %q", root.appStore.CurrentUserID, root.appStore.ConnectionStatus)
+	}
+	if len(root.appStore.Friends) != 0 || len(root.appStore.MessagesByConv) != 0 {
+		t.Fatalf("account data was retained in memory: friends=%#v messages=%#v", root.appStore.Friends, root.appStore.MessagesByConv)
+	}
+	if !strings.Contains(root.appStore.Toast.Message, "session replaced") {
+		t.Fatalf("toast = %q, want server reason", root.appStore.Toast.Message)
 	}
 }
 
@@ -465,6 +545,8 @@ type fakeIMClient struct {
 	revokeServerMsgID      string
 	revokeReason           string
 	revokeErr              error
+	deletedConversationID  string
+	deleteConversationErr  error
 	typingConversationID   string
 	typingAction           sdktypes.TypingAction
 	friends                []sdktypes.Friend
@@ -537,6 +619,11 @@ func (f *fakeIMClient) RejectFriendRequest(_ context.Context, userID string) err
 func (f *fakeIMClient) CancelFriendRequest(_ context.Context, userID string) error {
 	f.friendAction, f.friendActionUserID = "cancel", userID
 	return nil
+}
+
+func (f *fakeIMClient) DeleteConversation(_ context.Context, conversationID string) error {
+	f.deletedConversationID = conversationID
+	return f.deleteConversationErr
 }
 
 func (f *fakeIMClient) MarkRead(_ context.Context, conversationID string, readSeq int64) error {
@@ -670,6 +757,11 @@ func (f *fakePersister) SetConversationCursor(cursor sdktypes.ConversationSyncCu
 
 func (f *fakePersister) ClearMessages(conversationID string) {
 	delete(f.messages, conversationID)
+}
+
+func (f *fakePersister) DeleteConversation(conversationID string) {
+	delete(f.messages, conversationID)
+	delete(f.conversations, conversationID)
 }
 
 func (f *fakePersister) Clear() {

@@ -80,8 +80,8 @@ go run ./cmd/dev-assertion -user user-1
 
 ## Current Coverage
 
-- Go SDK：HTTP 登录、ticket 获取、长连接认证、消息发送、typing/revoke/read/delivery 控制事件、broker ACK、同步接口封装。
-- CheeseBox：TUI 登录、会话/好友导航、好友申请接受/拒绝/取消、左右消息布局、主题/语言设置、真实服务端连接，以及单聊 `sending → broker_accepted → delivered → read` 状态展示。
+- Go SDK：HTTP 登录、ticket 获取、长连接认证、消息发送、typing/revoke/read/delivery/force-logout 控制事件、broker ACK、同步接口封装。
+- CheeseBox：TUI 登录、会话/好友导航与会话删除、好友申请接受/拒绝/取消、左右消息布局、主题/语言设置、强制下线回登录页、真实服务端连接，以及单聊 `sending → broker_accepted → delivered → read` 状态展示。
 - Server：all-in-one 本地联调、Protobuf 长连接协议、会话同步 HTTP API。
 
 ## Current Limitations

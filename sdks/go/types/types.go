@@ -146,6 +146,13 @@ type TypingUpdate struct {
 	ExpiresAt      int64
 }
 
+type ForceLogout struct {
+	Reason     string
+	SessionID  string
+	DeviceID   string
+	OccurredAt int64
+}
+
 type ReadSnapshot struct {
 	ConversationID string
 	ReadSeq        int64

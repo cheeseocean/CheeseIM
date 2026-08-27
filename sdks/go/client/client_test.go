@@ -5,6 +5,9 @@ import (
 	"testing"
 	"time"
 
+	pb "github.com/cheeseim/cheeseim-go-sdk/proto"
+	imsync "github.com/cheeseim/cheeseim-go-sdk/sync"
+	"github.com/cheeseim/cheeseim-go-sdk/transport/tcpim"
 	"github.com/cheeseim/cheeseim-go-sdk/types"
 )
 
@@ -26,6 +29,30 @@ func TestClientDeleteConversationRequiresInitializedSession(t *testing.T) {
 
 	if err := client.DeleteConversation(context.Background(), "s:user-1:user-2"); err == nil {
 		t.Fatal("DeleteConversation() error = nil, want initialized session error")
+	}
+}
+
+func TestClientForceLogoutClearsSessionAndEmitsTypedEvent(t *testing.T) {
+	client := New(Config{})
+	client.accessToken = "access-token"
+	client.currentUser = "user-1"
+	client.sync = imsync.NewService(client.social)
+	client.sync.SetAccessToken("access-token")
+
+	client.handleTransportEvent(tcpim.Event{
+		Kind:      tcpim.EventForceLogout,
+		RequestID: "force-1",
+		ForceLogout: &pb.ProtoForceLogoutNotify{
+			Reason: "session replaced", SessionId: "session-1", DeviceId: "device-1", OccurredAt: 123,
+		},
+	})
+
+	if client.CurrentUserID() != "" || client.accessTokenSnapshot() != "" {
+		t.Fatalf("session was not cleared: user=%q token=%q", client.CurrentUserID(), client.accessTokenSnapshot())
+	}
+	event := <-client.Events()
+	if event.Kind != types.EventKindForcedLogout || event.ForceLogout == nil || event.ForceLogout.SessionID != "session-1" {
+		t.Fatalf("event = %#v, want typed forced logout", event)
 	}
 }
 

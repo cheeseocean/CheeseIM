@@ -207,6 +207,15 @@ func (s *PersistedStore) ClearMessages(conversationID string) {
 	go s.save()
 }
 
+// DeleteConversation 同时删除本地会话摘要与消息，避免重启后会话再次出现。
+func (s *PersistedStore) DeleteConversation(conversationID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.conversations, conversationID)
+	delete(s.messages, conversationID)
+	go s.save()
+}
+
 // Clear 清除所有数据
 func (s *PersistedStore) Clear() {
 	s.mu.Lock()

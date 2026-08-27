@@ -37,21 +37,23 @@ const (
 	EventRevoke      EventKind = "revoke"
 	EventTyping      EventKind = "typing"
 	EventRoster      EventKind = "roster"
+	EventForceLogout EventKind = "force_logout"
 	EventDisconnect  EventKind = "disconnect"
 	EventError       EventKind = "error"
 )
 
 type Event struct {
-	Kind      EventKind
-	RequestID string
-	UserID    string
-	Ack       *pb.ProtoChatSendAck
-	Message   *pb.ProtoMessage
-	Delivery  *pb.ProtoChatDeliveryNotify
-	Read      *pb.ProtoChatReadNotify
-	Revoke    *pb.ProtoChatRevokeNotify
-	Typing    *pb.ProtoChatTypingNotify
-	Err       error
+	Kind        EventKind
+	RequestID   string
+	UserID      string
+	Ack         *pb.ProtoChatSendAck
+	Message     *pb.ProtoMessage
+	Delivery    *pb.ProtoChatDeliveryNotify
+	Read        *pb.ProtoChatReadNotify
+	Revoke      *pb.ProtoChatRevokeNotify
+	Typing      *pb.ProtoChatTypingNotify
+	ForceLogout *pb.ProtoForceLogoutNotify
+	Err         error
 }
 
 func NewClient(dial DialFunc, heartbeat time.Duration) *Client {
@@ -311,6 +313,13 @@ func (c *Client) handleFrame(frame Frame) {
 			return
 		}
 		c.emit(Event{Kind: EventTyping, RequestID: frame.RequestID, Typing: &notify})
+	case CommandForceLogout:
+		var notify pb.ProtoForceLogoutNotify
+		if err := gproto.Unmarshal(frame.Payload, &notify); err != nil {
+			c.emit(Event{Kind: EventError, Err: err})
+			return
+		}
+		c.emit(Event{Kind: EventForceLogout, RequestID: frame.RequestID, ForceLogout: &notify})
 	case CommandError:
 		c.emit(Event{Kind: EventError, RequestID: frame.RequestID, Err: errors.New(string(frame.Payload))})
 	}

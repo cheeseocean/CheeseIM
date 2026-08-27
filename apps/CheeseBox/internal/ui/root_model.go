@@ -48,6 +48,10 @@ type revokeRequestedMsg struct {
 	serverMsgID string
 }
 
+type conversationDeletedMsg struct {
+	conversationID string
+}
+
 type conversationSyncSuccessMsg struct {
 	result sdktypes.ConversationSyncResult
 }
@@ -80,6 +84,7 @@ type IMClient interface {
 	AcceptFriendRequest(ctx context.Context, friendUserID string) error
 	RejectFriendRequest(ctx context.Context, friendUserID string) error
 	CancelFriendRequest(ctx context.Context, friendUserID string) error
+	DeleteConversation(ctx context.Context, conversationID string) error
 	MarkRead(ctx context.Context, conversationID string, readSeq int64) error
 	AckDelivered(conversationID string, deliveredSeq int64) error
 	RevokeMessage(conversationID, serverMsgID, reason string) error
@@ -245,6 +250,10 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case revokeRequestedMsg:
 		m.appStore.PushToast(domain.ToastKindSuccess, "revoke requested: "+msg.serverMsgID)
 		return m, nil
+	case conversationDeletedMsg:
+		m.appStore.RemoveConversation(msg.conversationID)
+		m.appStore.PushToast(domain.ToastKindSuccess, "conversation deleted: "+msg.conversationID)
+		return m, nil
 	case loginErrorMsg:
 		m.appStore.SetConnectionStatus(domain.ConnectionStatusError)
 		m.appStore.PushToast(domain.ToastKindError, msg.err.Error())
@@ -406,6 +415,9 @@ func (m RootModel) submitInputCmd(text string) tea.Cmd {
 	if strings.HasPrefix(text, "/revoke") {
 		return m.revokeMessageCmd(text)
 	}
+	if text == "/delete" {
+		return m.deleteConversationCmd()
+	}
 	if text == "/requests" {
 		return m.refreshFriendStateCmd()
 	}
@@ -416,6 +428,21 @@ func (m RootModel) submitInputCmd(text string) tea.Cmd {
 		return func() tea.Msg { return appErrorMsg{err: errors.New(T(m.locale, keyToastNoConversation))} }
 	}
 	return m.sendMessageCmd(text)
+}
+
+func (m RootModel) deleteConversationCmd() tea.Cmd {
+	conversationID := m.appStore.ActiveConversation
+	if conversationID == "" {
+		return func() tea.Msg { return appErrorMsg{err: errors.New(T(m.locale, keyToastNoConversation))} }
+	}
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := m.client.DeleteConversation(ctx, conversationID); err != nil {
+			return appErrorMsg{err: err}
+		}
+		return conversationDeletedMsg{conversationID: conversationID}
+	}
 }
 
 func (m RootModel) handleFriendRequestCmd(text string) tea.Cmd {
@@ -674,7 +701,18 @@ func (m RootModel) handleRealtimeEvent(event sdktypes.Event) (tea.Model, tea.Cmd
 		return m, next
 	case sdktypes.EventKindRosterUpdated:
 		return m, tea.Batch(next, m.refreshFriendStateCmd())
+	case sdktypes.EventKindForcedLogout:
+		reason := T(m.locale, keyToastForcedLogout)
+		if event.ForceLogout != nil && strings.TrimSpace(event.ForceLogout.Reason) != "" {
+			reason += ": " + event.ForceLogout.Reason
+		}
+		m.resetSessionView()
+		m.appStore.PushToast(domain.ToastKindError, reason)
+		return m, nil
 	case sdktypes.EventKindDisconnected:
+		if !m.isAuthenticated() {
+			return m, nil
+		}
 		m.appStore.SetConnectionStatus(domain.ConnectionStatusDisconnected)
 		m.appStore.PushToast(domain.ToastKindWarning, T(m.locale, keyToastDisconnected))
 		return m, nil
@@ -690,6 +728,27 @@ func (m RootModel) handleRealtimeEvent(event sdktypes.Event) (tea.Model, tea.Cmd
 	default:
 		return m, next
 	}
+}
+
+func (m *RootModel) resetSessionView() {
+	m.appStore.ResetSession()
+	m.login = NewLoginModel()
+	m.login.SetTheme(m.theme)
+	m.login.SetLocale(m.locale)
+	m.app = NewAppModel(m.appStore, m.cfg)
+	m.app.SetTheme(m.theme)
+	m.app.SetLocale(m.locale)
+	m.app.SetExpanded(m.expanded)
+	m.app.SetDebugLog(m.debugLog)
+	m.typingActive = false
+	m.typingConversation = ""
+	m.lastTypingSentAt = time.Time{}
+	m.syncer = sync.NewSyncer(
+		sync.NewMemoryStore(),
+		sync.NewSDKPuller(m.client),
+		m.client.GetServerMaxSeq,
+		m.client.UpdateSyncedMaxSeq,
+	)
 }
 
 func (m RootModel) handleInputChanged(text string) (tea.Model, tea.Cmd) {
