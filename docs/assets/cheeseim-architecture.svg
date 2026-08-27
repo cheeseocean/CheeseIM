@@ -1,7 +1,8 @@
-<?xml version="1.0" encoding="UTF-8"?>\n<svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="cheeseim-architecture-title cheeseim-architecture-desc">
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="cheeseim-architecture-title cheeseim-architecture-desc">
       <title id="cheeseim-architecture-title">CheeseIM 系统架构</title>
       <desc id="cheeseim-architecture-desc">展示客户端经 HTTP 与 Protobuf 长连接进入 CheeseIM，消息通过 postbox、异步队列、postmaster 和 postman 完成排序、持久化、在线投递、离线推送与控制事件恢复。</desc>
-      <defs>\n        <style>@import url(&quot;https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap&quot;);</style>
+      <defs>
         <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#475569"/></marker>
         <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#2563eb"/></marker>
         <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#0f766e"/></marker>
@@ -53,4 +54,4 @@
       <text class="aside" x="48" y="620">One ordered core, two delivery outcomes, one recoverable truth.</text>
       <line x1="40" y1="652" x2="1240" y2="652" stroke="rgba(15,23,42,.12)" stroke-width=".8"/>
       <text class="legend" x="40" y="676">LEGEND</text><line x1="120" y1="672" x2="156" y2="672" stroke="#2563eb" stroke-width="1.2"/><text class="legend" x="168" y="676">PRIMARY MESSAGE FLOW</text><line x1="344" y1="672" x2="380" y2="672" stroke="#0f766e" stroke-width="1.2"/><text class="legend" x="392" y="676">HTTP / SYNC</text><line x1="520" y1="672" x2="556" y2="672" stroke="#475569" stroke-width="1" stroke-dasharray="5 4"/><text class="legend" x="568" y="676">ASYNC RETURN</text><rect x="736" y="664" width="20" height="12" rx="2" fill="rgba(37,99,235,.08)" stroke="#2563eb"/><text class="legend" x="768" y="676">FOCAL CORE</text><text class="legend" x="1240" y="676" text-anchor="end">message_protocol.proto · SINGLE WIRE CONTRACT</text>
-    </svg>\n
+    </svg>
