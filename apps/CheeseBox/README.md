@@ -16,3 +16,5 @@ The second login field is a short-lived, one-time identity assertion issued by t
 
 Outgoing direct-chat text messages expose `sending → broker_accepted → delivered → read` from server-confirmed high-watermark events.
 Use `/revoke last [reason]` for the latest outgoing message, or `/revoke <serverMsgId> [reason]` for an explicit target. Revoke notifications replace matching content with a tombstone even when the notification arrives before the message.
+
+Typing is emitted automatically while editing a normal message. START is client-throttled and server-clamped to a short TTL; submit, clear, or leaving the input sends best-effort STOP. Remote indicators always self-expire from the server timestamp.

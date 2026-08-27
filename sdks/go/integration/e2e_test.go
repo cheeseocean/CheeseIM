@@ -51,6 +51,16 @@ func TestDirectMessageLifecycle(t *testing.T) {
 	conversationID := directConversationID(alice.userID, bob.userID)
 	requestID := "e2e-" + runID[:12]
 	content := []byte("cheeseim-e2e-" + runID)
+	typingOpID := "typing-" + runID[:9]
+	if err := alice.tcp.SendTyping(typingOpID, &pb.ProtoChatTypingCommand{
+		ConversationId: conversationID, Action: int32(types.TypingActionStart), TtlSeconds: 4,
+	}); err != nil {
+		t.Fatalf("send typing START: %v", err)
+	}
+	typing := awaitTyping(t, ctx, bob.tcp.Events(), conversationID, alice.userID, types.TypingActionStart)
+	if typing.GetExpiresAt() <= time.Now().UnixMilli() {
+		t.Fatalf("typing expiry = %d, want future timestamp", typing.GetExpiresAt())
+	}
 	if err := alice.tcp.SendChatMessage(requestID, &pb.ProtoMessage{
 		ClientMsgId: requestID,
 		ReceiverId:  bob.userID,
@@ -77,6 +87,13 @@ func TestDirectMessageLifecycle(t *testing.T) {
 	if string(received.GetContent()) != string(content) || received.GetSeq() <= 0 {
 		t.Fatalf("invalid realtime content or seq: %#v", received)
 	}
+	stopOpID := "stop-" + runID[:11]
+	if err := alice.tcp.SendTyping(stopOpID, &pb.ProtoChatTypingCommand{
+		ConversationId: conversationID, Action: int32(types.TypingActionStop), TtlSeconds: 4,
+	}); err != nil {
+		t.Fatalf("send typing STOP: %v", err)
+	}
+	awaitTyping(t, ctx, bob.tcp.Events(), conversationID, alice.userID, types.TypingActionStop)
 	deliveryOpID := "delivery-" + runID[:7]
 	if err := bob.tcp.AckDelivery(deliveryOpID, &pb.ProtoChatDeliveryAckCommand{
 		ConversationId:  conversationID,
@@ -197,6 +214,24 @@ func awaitRevoke(t *testing.T, ctx context.Context, events <-chan tcpim.Event, c
 			if event.Kind == tcpim.EventRevoke && event.Revoke.GetConversationId() == conversationID &&
 				event.Revoke.GetServerMsgId() == serverMsgID {
 				return event.Revoke
+			}
+		}
+	}
+}
+
+func awaitTyping(t *testing.T, ctx context.Context, events <-chan tcpim.Event, conversationID, senderID string, action types.TypingAction) *pb.ProtoChatTypingNotify {
+	t.Helper()
+	for {
+		select {
+		case <-ctx.Done():
+			t.Fatalf("wait typing %s/%s/%d: %v", conversationID, senderID, action, ctx.Err())
+		case event := <-events:
+			if event.Kind == tcpim.EventError {
+				t.Fatalf("tcp error while waiting for typing: %v", event.Err)
+			}
+			if event.Kind == tcpim.EventTyping && event.Typing.GetConversationId() == conversationID &&
+				event.Typing.GetSenderId() == senderID && event.Typing.GetAction() == int32(action) {
+				return event.Typing
 			}
 		}
 	}

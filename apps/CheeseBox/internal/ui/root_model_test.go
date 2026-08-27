@@ -309,6 +309,36 @@ func TestRootModelAppliesPeerReadNotify(t *testing.T) {
 	}
 }
 
+func TestRootModelThrottlesTypingAndStopsWhenInputClears(t *testing.T) {
+	client := &fakeIMClient{currentUserID: "user-1"}
+	model := NewRootModel(config.RuntimeConfig{}, client)
+	model.appStore.SetCurrentUserID("user-1")
+	model.appStore.SetActiveConversation("s:user-1:user-2")
+
+	updated, cmd := model.handleInputChanged("h")
+	model = updated.(RootModel)
+	if cmd == nil {
+		t.Fatal("typing START cmd is nil")
+	}
+	_ = cmd()
+	if client.typingConversationID != "s:user-1:user-2" || client.typingAction != sdktypes.TypingActionStart {
+		t.Fatalf("typing = %q %d, want START", client.typingConversationID, client.typingAction)
+	}
+	updated, cmd = model.handleInputChanged("he")
+	model = updated.(RootModel)
+	if cmd != nil {
+		t.Fatal("typing START was not throttled")
+	}
+	updated, cmd = model.handleInputChanged("")
+	if cmd == nil {
+		t.Fatal("typing STOP cmd is nil")
+	}
+	_ = cmd()
+	if client.typingAction != sdktypes.TypingActionStop {
+		t.Fatalf("typing action = %d, want STOP", client.typingAction)
+	}
+}
+
 func TestRootModelRealtimeAppliesSyncerMergedMessages(t *testing.T) {
 	client := &fakeIMClient{
 		pulled: []sdktypes.PulledConversationMessages{
@@ -404,6 +434,8 @@ type fakeIMClient struct {
 	revokeServerMsgID      string
 	revokeReason           string
 	revokeErr              error
+	typingConversationID   string
+	typingAction           sdktypes.TypingAction
 	events                 chan sdktypes.Event
 	pulled                 []sdktypes.PulledConversationMessages
 	serverMaxSeqs          map[string]int64
@@ -459,6 +491,12 @@ func (f *fakeIMClient) RevokeMessage(conversationID, serverMsgID, reason string)
 	f.revokeServerMsgID = serverMsgID
 	f.revokeReason = reason
 	return f.revokeErr
+}
+
+func (f *fakeIMClient) SendTyping(conversationID string, action sdktypes.TypingAction) error {
+	f.typingConversationID = conversationID
+	f.typingAction = action
+	return nil
 }
 
 func (f *fakeIMClient) Events() <-chan sdktypes.Event {

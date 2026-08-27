@@ -244,6 +244,19 @@ func (c *Client) RevokeMessage(conversationID, serverMsgID, reason string) error
 	})
 }
 
+// SendTyping publishes a best-effort typing state. START uses a short server-clamped TTL.
+func (c *Client) SendTyping(conversationID string, action types.TypingAction) error {
+	if conversationID == "" || (action != types.TypingActionStart && action != types.TypingActionStop) {
+		return fmt.Errorf("conversationID and valid typing action required")
+	}
+	opID := fmt.Sprintf("t%015x", time.Now().UnixNano()&0x0fffffffffffffff)
+	return c.tcpClient.SendTyping(opID, &pb.ProtoChatTypingCommand{
+		ConversationId: conversationID,
+		Action:         int32(action),
+		TtlSeconds:     4,
+	})
+}
+
 func (c *Client) bootstrap(ctx context.Context, session auth.AuthSession) (types.BootstrapData, error) {
 	data, err := c.social.LoadInitialData(ctx, session.AccessToken)
 	if err != nil {
@@ -328,6 +341,15 @@ func (c *Client) handleTransportEvent(event tcpim.Event) {
 				OperatorUserID: event.Revoke.GetOperatorUserId(), OperatorName: event.Revoke.GetOperatorName(),
 				TargetSenderID: event.Revoke.GetTargetSenderId(), TargetSenderName: event.Revoke.GetTargetSenderName(),
 				RevokedAt: event.Revoke.GetRevokedAt(), MutationVersion: event.Revoke.GetMutationVersion(),
+			}})
+	case tcpim.EventTyping:
+		if event.Typing == nil {
+			return
+		}
+		c.emit(types.Event{Kind: types.EventKindTypingUpdated, RequestID: event.RequestID,
+			ConversationID: event.Typing.GetConversationId(), Typing: &types.TypingUpdate{
+				ConversationID: event.Typing.GetConversationId(), SenderID: event.Typing.GetSenderId(),
+				Action: types.TypingAction(event.Typing.GetAction()), ExpiresAt: event.Typing.GetExpiresAt(),
 			}})
 	case tcpim.EventDisconnect:
 		c.emit(types.Event{Kind: types.EventKindDisconnected})

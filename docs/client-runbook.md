@@ -52,7 +52,7 @@ go run ./cmd/cheesebox
 ./distro/docker/run-cheesebox-e2e.sh
 ```
 
-测试覆盖 assertion 登录、ticket、TCP 鉴权、broker accepted ACK、对端实时接收、设备 delivery ACK/notify、peer read notify、撤回 notify、历史最终可见和 readSeq 推进。脚本默认在结束时关闭中间件；设置 `CHEESEIM_E2E_KEEP_MIDDLEWARE=1` 可保留 Mongo/Redis 供手工 TUI 验证。
+测试覆盖 assertion 登录、ticket、TCP 鉴权、typing START/STOP、broker accepted ACK、对端实时接收、设备 delivery ACK/notify、peer read notify、撤回 notify、历史最终可见和 readSeq 推进。脚本默认在结束时关闭中间件；设置 `CHEESEIM_E2E_KEEP_MIDDLEWARE=1` 可保留 Mongo/Redis 供手工 TUI 验证。
 
 ### Local identity assertion
 
@@ -80,7 +80,7 @@ go run ./cmd/dev-assertion -user user-1
 
 ## Current Coverage
 
-- Go SDK：HTTP 登录、ticket 获取、长连接认证、消息发送、下行消息监听、broker ACK、设备送达高水位 ACK/notify、同步接口封装。
+- Go SDK：HTTP 登录、ticket 获取、长连接认证、消息发送、typing/revoke/read/delivery 控制事件、broker ACK、同步接口封装。
 - CheeseBox：TUI 登录、会话/好友导航、左右消息布局、主题/语言设置、真实服务端连接，以及单聊 `sending → broker_accepted → delivered → read` 状态展示。
 - Server：all-in-one 本地联调、Protobuf 长连接协议、会话同步 HTTP API。
 

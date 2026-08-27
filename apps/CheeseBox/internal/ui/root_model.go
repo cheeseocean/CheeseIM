@@ -66,6 +66,7 @@ type IMClient interface {
 	MarkRead(ctx context.Context, conversationID string, readSeq int64) error
 	AckDelivered(conversationID string, deliveredSeq int64) error
 	RevokeMessage(conversationID, serverMsgID, reason string) error
+	SendTyping(conversationID string, action sdktypes.TypingAction) error
 	Events() <-chan sdktypes.Event
 	CurrentUserID() string
 	GetSyncedMaxSeq(conversationID string) int64
@@ -89,6 +90,9 @@ type RootModel struct {
 	debugLog *DebugLogModel
 	width    int
 	height   int
+	typingActive       bool
+	typingConversation string
+	lastTypingSentAt   time.Time
 }
 
 func NewRootModel(cfg config.RuntimeConfig, client IMClient) RootModel {
@@ -169,9 +173,20 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.appStore.SetConversationCursor(msg.result.ConversationSyncCursor)
 		return m, nil
 	case OpenConversationMsg:
-		return m, m.openConversationCmd(msg.ConversationID)
+		stop := m.stopTypingCmd()
+		m.typingActive = false
+		m.typingConversation = ""
+		return m, tea.Batch(stop, m.openConversationCmd(msg.ConversationID))
 	case SubmitInputMsg:
-		return m, m.submitInputCmd(strings.TrimSpace(msg.Text))
+		stop := m.stopTypingCmd()
+		m.typingActive = false
+		m.typingConversation = ""
+		return m, tea.Batch(stop, m.submitInputCmd(strings.TrimSpace(msg.Text)))
+	case InputChangedMsg:
+		return m.handleInputChanged(msg.Text)
+	case typingExpiredMsg:
+		m.appStore.ExpireTyping(msg.conversationID, msg.senderID, msg.expiresAt)
+		return m, nil
 	case historyLoadedMsg:
 		// 调试日志：加载历史消息
 		var lastSenderID string
@@ -552,6 +567,15 @@ func (m RootModel) handleRealtimeEvent(event sdktypes.Event) (tea.Model, tea.Cmd
 			m.appStore.ApplyRevoke(*event.Revoke)
 		}
 		return m, next
+	case sdktypes.EventKindTypingUpdated:
+		if event.Typing == nil || event.Typing.SenderID == m.appStore.CurrentUserID {
+			return m, next
+		}
+		m.appStore.ApplyTyping(*event.Typing)
+		if event.Typing.Action == sdktypes.TypingActionStart {
+			return m, tea.Batch(next, typingExpiryCmd(*event.Typing))
+		}
+		return m, next
 	case sdktypes.EventKindDisconnected:
 		m.appStore.SetConnectionStatus(domain.ConnectionStatusDisconnected)
 		m.appStore.PushToast(domain.ToastKindWarning, T(m.locale, keyToastDisconnected))
@@ -568,6 +592,49 @@ func (m RootModel) handleRealtimeEvent(event sdktypes.Event) (tea.Model, tea.Cmd
 	default:
 		return m, next
 	}
+}
+
+func (m RootModel) handleInputChanged(text string) (tea.Model, tea.Cmd) {
+	conversationID := m.appStore.ActiveConversation
+	trimmed := strings.TrimSpace(text)
+	if conversationID == "" || trimmed == "" || strings.HasPrefix(trimmed, "/") {
+		stop := m.stopTypingCmd()
+		m.typingActive = false
+		m.typingConversation = ""
+		return m, stop
+	}
+	now := time.Now()
+	if m.typingActive && m.typingConversation == conversationID && now.Sub(m.lastTypingSentAt) < 2*time.Second {
+		return m, nil
+	}
+	m.typingActive = true
+	m.typingConversation = conversationID
+	m.lastTypingSentAt = now
+	return m, m.typingSignalCmd(conversationID, sdktypes.TypingActionStart)
+}
+
+func (m RootModel) stopTypingCmd() tea.Cmd {
+	if !m.typingActive || m.typingConversation == "" {
+		return nil
+	}
+	return m.typingSignalCmd(m.typingConversation, sdktypes.TypingActionStop)
+}
+
+func (m RootModel) typingSignalCmd(conversationID string, action sdktypes.TypingAction) tea.Cmd {
+	return func() tea.Msg {
+		_ = m.client.SendTyping(conversationID, action)
+		return nil
+	}
+}
+
+func typingExpiryCmd(update sdktypes.TypingUpdate) tea.Cmd {
+	delay := time.Until(time.UnixMilli(update.ExpiresAt))
+	if delay < 0 {
+		delay = 0
+	}
+	return tea.Tick(delay, func(time.Time) tea.Msg {
+		return typingExpiredMsg{conversationID: update.ConversationID, senderID: update.SenderID, expiresAt: update.ExpiresAt}
+	})
 }
 
 func (m RootModel) ackDeliveredCmd(conversationID string, deliveredSeq int64) tea.Cmd {

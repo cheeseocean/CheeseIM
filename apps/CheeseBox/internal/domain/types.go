@@ -55,6 +55,12 @@ type RevokeInfo struct {
 	MutationVersion int64
 }
 
+type TypingIndicator struct {
+	SenderID    string
+	SenderLabel string
+	ExpiresAt   int64
+}
+
 func NewMessageItem(senderID, content string) MessageItem {
 	return MessageItem{
 		SenderID: senderID,

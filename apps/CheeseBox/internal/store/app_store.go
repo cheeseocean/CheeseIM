@@ -35,6 +35,7 @@ type AppStore struct {
 	DeliveredSeqByConv map[string]int64
 	ReadSeqByConv      map[string]int64
 	RevokesByServerID  map[string]domain.RevokeInfo
+	TypingByConv       map[string]domain.TypingIndicator
 	Toast              domain.Toast
 	ConversationCursor sdktypes.ConversationSyncCursor
 	persister          Persister
@@ -49,6 +50,7 @@ func New() *AppStore {
 		DeliveredSeqByConv: make(map[string]int64),
 		ReadSeqByConv:      make(map[string]int64),
 		RevokesByServerID:  make(map[string]domain.RevokeInfo),
+		TypingByConv:       make(map[string]domain.TypingIndicator),
 	}
 }
 
@@ -75,6 +77,7 @@ func (s *AppStore) UsePersister(persister Persister) {
 	s.DeliveredSeqByConv = make(map[string]int64)
 	s.ReadSeqByConv = make(map[string]int64)
 	s.RevokesByServerID = make(map[string]domain.RevokeInfo)
+	s.TypingByConv = make(map[string]domain.TypingIndicator)
 	s.ConversationCursor = sdktypes.ConversationSyncCursor{}
 	s.loadFromPersister()
 }
@@ -300,6 +303,36 @@ func (s *AppStore) ApplyRevoke(update sdktypes.RevokeUpdate) {
 			return
 		}
 	}
+}
+
+func (s *AppStore) ApplyTyping(update sdktypes.TypingUpdate) {
+	if update.ConversationID == "" || update.SenderID == "" {
+		return
+	}
+	if update.Action == sdktypes.TypingActionStop || update.ExpiresAt <= time.Now().UnixMilli() {
+		if current, ok := s.TypingByConv[update.ConversationID]; ok && current.SenderID == update.SenderID {
+			delete(s.TypingByConv, update.ConversationID)
+		}
+		return
+	}
+	s.TypingByConv[update.ConversationID] = domain.TypingIndicator{
+		SenderID: update.SenderID, SenderLabel: update.SenderID, ExpiresAt: update.ExpiresAt,
+	}
+}
+
+func (s *AppStore) ExpireTyping(conversationID, senderID string, expiresAt int64) {
+	current, ok := s.TypingByConv[conversationID]
+	if ok && current.SenderID == senderID && current.ExpiresAt == expiresAt {
+		delete(s.TypingByConv, conversationID)
+	}
+}
+
+func (s *AppStore) ActiveTyping(conversationID string, now int64) (domain.TypingIndicator, bool) {
+	indicator, ok := s.TypingByConv[conversationID]
+	if !ok || indicator.ExpiresAt <= now {
+		return domain.TypingIndicator{}, false
+	}
+	return indicator, true
 }
 
 func (s *AppStore) applyRevokeToItem(item *domain.MessageItem) {

@@ -212,6 +212,47 @@ func TestClientSendsRevokeAndReceivesNotify(t *testing.T) {
 	_ = client.Close()
 }
 
+func TestClientSendsTypingAndReceivesNotify(t *testing.T) {
+	clientConn, serverConn := net.Pipe()
+	defer serverConn.Close()
+
+	client := NewClient(pipeDialer(clientConn), time.Hour)
+	go func() {
+		_ = mustReadFrame(t, serverConn)
+		writeFrame(t, serverConn, TCPAuthSuccess, "auth", mustMarshal(t, &pb.ProtoAuthResponse{UserId: "user-1"}))
+		frame := mustReadFrame(t, serverConn)
+		if frame.CommandType != TCPTypingReq {
+			t.Errorf("MsgType = %d, want %d", frame.CommandType, TCPTypingReq)
+		}
+		var command pb.ProtoChatTypingCommand
+		if err := gproto.Unmarshal(frame.Payload, &command); err != nil {
+			t.Errorf("Unmarshal() error = %v", err)
+		}
+		if command.GetAction() != 1 || command.GetTtlSeconds() != 4 {
+			t.Errorf("command = %#v, want START ttl=4", &command)
+		}
+		writeFrame(t, serverConn, TCPTypingNotify, "typing-1", mustMarshal(t, &pb.ProtoChatTypingNotify{
+			ConversationId: "s:user-1:user-2", SenderId: "user-2", Action: 1,
+			ExpiresAt: time.Now().Add(4 * time.Second).UnixMilli(),
+		}))
+	}()
+
+	if _, err := client.Connect(context.Background(), "ignored", "ticket-1"); err != nil {
+		t.Fatalf("Connect() error = %v", err)
+	}
+	_ = waitEvent(t, client.Events())
+	if err := client.SendTyping("typing-1", &pb.ProtoChatTypingCommand{
+		ConversationId: "s:user-1:user-2", Action: 1, TtlSeconds: 4,
+	}); err != nil {
+		t.Fatalf("SendTyping() error = %v", err)
+	}
+	event := waitEvent(t, client.Events())
+	if event.Kind != EventTyping || event.Typing.GetSenderId() != "user-2" {
+		t.Fatalf("event = %#v, want typing notify", event)
+	}
+	_ = client.Close()
+}
+
 func TestClientSurfacesDisconnectAndErrors(t *testing.T) {
 	t.Run("disconnect", func(t *testing.T) {
 		clientConn, serverConn := net.Pipe()

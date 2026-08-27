@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -118,13 +119,18 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, func() tea.Msg { return SubmitInputMsg{Text: text} }
 			case "esc":
 				m.focus = focusNav
-				return m, nil
+				return m, func() tea.Msg { return InputChangedMsg{} }
 			case "tab":
 				m.focus = focusNav
-				return m, nil
+				return m, func() tea.Msg { return InputChangedMsg{} }
 			}
+			before := m.input.Value()
 			var cmd tea.Cmd
 			m.input, cmd = m.input.Update(msg)
+			if m.input.Value() != before {
+				value := m.input.Value()
+				return m, tea.Batch(cmd, func() tea.Msg { return InputChangedMsg{Text: value} })
+			}
 			return m, cmd
 		}
 
@@ -522,6 +528,9 @@ func (m AppModel) chatView(theme Theme, innerW, height int) string {
 		msgSpace = 0
 	}
 	header := theme.sectionTitleStyle().Render(T(m.locale, keyChatTitle))
+	if indicator, ok := m.store.ActiveTyping(m.store.ActiveConversation, time.Now().UnixMilli()); ok {
+		header += "  " + theme.chatMetaStyle().Render(firstNonEmpty(indicator.SenderLabel, indicator.SenderID)+" is typing…")
+	}
 
 	if m.store.ActiveConversation == "" {
 		return m.renderChatArea(header,

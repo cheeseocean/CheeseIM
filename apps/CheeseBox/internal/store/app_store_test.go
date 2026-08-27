@@ -2,6 +2,7 @@ package store
 
 import (
 	"testing"
+	"time"
 
 	"github.com/cheeseim/cheesebox/internal/domain"
 	sdktypes "github.com/cheeseim/cheeseim-go-sdk/types"
@@ -112,5 +113,28 @@ func TestAppStoreAppliesOutOfOrderRevokeTombstone(t *testing.T) {
 	item := store.MessagesByConv["s:u1:u2"][0]
 	if !item.Revoked || item.Content != "[message revoked]" || item.MutationVersion != 2 {
 		t.Fatalf("item = %#v, want revoke tombstone", item)
+	}
+}
+
+func TestAppStoreTypingExpiresWithoutClearingNewerSignal(t *testing.T) {
+	store := New()
+	now := time.Now().UnixMilli()
+	store.ApplyTyping(sdktypes.TypingUpdate{
+		ConversationID: "s:u1:u2", SenderID: "u2", Action: sdktypes.TypingActionStart, ExpiresAt: now + 4000,
+	})
+	store.ApplyTyping(sdktypes.TypingUpdate{
+		ConversationID: "s:u1:u2", SenderID: "u2", Action: sdktypes.TypingActionStart, ExpiresAt: now + 6000,
+	})
+	store.ExpireTyping("s:u1:u2", "u2", now+4000)
+
+	indicator, ok := store.ActiveTyping("s:u1:u2", now)
+	if !ok || indicator.ExpiresAt != now+6000 {
+		t.Fatalf("indicator = %#v, want newer signal", indicator)
+	}
+	store.ApplyTyping(sdktypes.TypingUpdate{
+		ConversationID: "s:u1:u2", SenderID: "u2", Action: sdktypes.TypingActionStop, ExpiresAt: now,
+	})
+	if _, ok := store.ActiveTyping("s:u1:u2", now); ok {
+		t.Fatal("typing indicator still active after STOP")
 	}
 }

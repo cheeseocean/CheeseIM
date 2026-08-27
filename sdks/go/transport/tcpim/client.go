@@ -35,6 +35,7 @@ const (
 	EventDelivery    EventKind = "delivery"
 	EventRead        EventKind = "read"
 	EventRevoke      EventKind = "revoke"
+	EventTyping      EventKind = "typing"
 	EventDisconnect  EventKind = "disconnect"
 	EventError       EventKind = "error"
 )
@@ -48,6 +49,7 @@ type Event struct {
 	Delivery  *pb.ProtoChatDeliveryNotify
 	Read      *pb.ProtoChatReadNotify
 	Revoke    *pb.ProtoChatRevokeNotify
+	Typing    *pb.ProtoChatTypingNotify
 	Err       error
 }
 
@@ -142,6 +144,14 @@ func (c *Client) RevokeMessage(requestID string, command *pb.ProtoChatRevokeComm
 		return errors.New("tcpim: revoke command is nil")
 	}
 	return c.sendProto(CommandChatRevoke, requestID, command)
+}
+
+// SendTyping publishes a short-lived, best-effort typing signal.
+func (c *Client) SendTyping(requestID string, command *pb.ProtoChatTypingCommand) error {
+	if command == nil {
+		return errors.New("tcpim: typing command is nil")
+	}
+	return c.sendProto(CommandChatTyping, requestID, command)
 }
 
 func (c *Client) sendProto(commandType byte, requestID string, message gproto.Message) error {
@@ -286,6 +296,13 @@ func (c *Client) handleFrame(frame Frame) {
 			return
 		}
 		c.emit(Event{Kind: EventRevoke, RequestID: frame.RequestID, Revoke: &notify})
+	case CommandChatTypingNotify:
+		var notify pb.ProtoChatTypingNotify
+		if err := gproto.Unmarshal(frame.Payload, &notify); err != nil {
+			c.emit(Event{Kind: EventError, Err: err})
+			return
+		}
+		c.emit(Event{Kind: EventTyping, RequestID: frame.RequestID, Typing: &notify})
 	case CommandError:
 		c.emit(Event{Kind: EventError, RequestID: frame.RequestID, Err: errors.New(string(frame.Payload))})
 	}

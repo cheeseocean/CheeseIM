@@ -111,6 +111,20 @@ type RevokeUpdate struct {
 	MutationVersion  int64
 }
 
+type TypingAction int32
+
+const (
+	TypingActionStart TypingAction = 1
+	TypingActionStop  TypingAction = 2
+)
+
+type TypingUpdate struct {
+	ConversationID string
+	SenderID       string
+	Action         TypingAction
+	ExpiresAt      int64
+}
+
 type ReadSnapshot struct {
 	ConversationID string
 	ReadSeq        int64

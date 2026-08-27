@@ -14,6 +14,16 @@ type SubmitInputMsg struct {
 	Text string
 }
 
+type InputChangedMsg struct {
+	Text string
+}
+
+type typingExpiredMsg struct {
+	conversationID string
+	senderID       string
+	expiresAt      int64
+}
+
 type realtimeEventMsg struct {
 	event types.Event
 }
