@@ -60,8 +60,8 @@ sequenceDiagram
 | 范围 | 状态 | 说明 |
 | --- | --- | --- |
 | Java 服务端 | 核心链路已实现 | all-in-one 本地联调是当前主线；分模块部署配置仍需按目标环境校准并验证。 |
-| Go SDK | 可用于真实联调 | 封装 HTTP 鉴权、ticket、TCP 长连接、消息发送、会话同步和好友/群组查询。 |
-| CheeseBox TUI | 联调客户端可用 | 支持登录、会话/好友/群组导航、文本消息、实时事件、历史同步和 gap repair；好友请求处理、会话删除入口、富媒体等仍需补齐。 |
+| Go SDK | 可用于真实联调 | 封装 HTTP 鉴权、ticket、TCP 长连接、消息发送、会话同步、控制事件 cursor 补拉和好友/群组查询。 |
+| CheeseBox TUI | 联调客户端可用 | 支持登录、会话/好友/群组导航、好友请求处理、会话删除、文本消息、实时事件、强制下线、历史同步和 gap repair；文件、图片、语音等富媒体仍需补齐。 |
 | 文档 | 正在收敛 | 根 README、模块 README、协议文档和 client runbook 是优先维护入口；历史 plans/specs 只作过程参考。 |
 
 ## 已实现能力
@@ -70,6 +70,7 @@ sequenceDiagram
 - TCP/WS 长连接：统一使用 Protobuf envelope，支持鉴权、心跳、消息发送 ACK、服务端下行消息、错误响应。
 - 单聊/群聊消息链路：消息接入、选项判断、会话序列分配、历史块持久化、在线投递、离线推送事件。
 - 会话同步：可见会话列表、会话 ID hash、会话 max seq、read snapshot、按 seq range 拉取历史消息、read seq ACK。
+- 可靠控制事件：已读、设备送达、撤回通过用户维度 cursor 支持离线补拉。
 - 社交关系：用户设置、好友申请、好友关系、黑名单、群成员查询。
 - 通知体系：`NotificationSender` 基于 `MessageSender` 发送系统通知，通知规则集中在 common-core。
 - 客户端侧：`sdks/go` 提供通用 IM Client 能力，CheeseBox 作为 TUI 应用集成该 SDK。

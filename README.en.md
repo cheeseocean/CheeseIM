@@ -36,8 +36,8 @@ The diagram follows the real data flow from clients and access services through 
 | Area | Status | Notes |
 | --- | --- | --- |
 | Java server | Core pipeline implemented | all-in-one local integration is the main path; split-module deployment still needs environment-specific config and verification. |
-| Go SDK | Usable for real integration | Wraps HTTP auth, ticket issuing, TCP long connection, message sending, conversation sync, and social queries. |
-| CheeseBox TUI | Usable integration client | Supports login, conversation/friend/group navigation, text messages, realtime events, history sync, and gap repair. Friend request handling UI, conversation deletion UI, and rich media remain future work. |
+| Go SDK | Usable for real integration | Wraps HTTP auth, ticket issuing, TCP long connection, message sending, conversation sync, reliable control-event cursor recovery, and social queries. |
+| CheeseBox TUI | Usable integration client | Supports login, conversation/friend/group navigation, friend request handling, conversation deletion, text messages, realtime events, force logout, history sync, and gap repair. Rich media remains future work. |
 | Documentation | Being consolidated | Root READMEs, module READMEs, protocol docs, and the client runbook are the maintained entry points. Historical plans/specs are process references only. |
 
 ## Implemented Features
@@ -46,6 +46,7 @@ The diagram follows the real data flow from clients and access services through 
 - TCP/WS long connection protocol based on Protobuf envelopes.
 - Message pipeline: ingress, option policy, seq allocation, history persistence, online delivery, and offline push events.
 - Conversation sync: visible conversations, conversation ID hash, max seq, read snapshots, pull by seq ranges, and read seq ACK.
+- Reliable control events: offline read, delivery, and revoke recovery through a user-scoped cursor.
 - Social APIs: user settings, friend requests, friendships, blacklist, and group member query.
 - Notification sending through `NotificationSender` and `MessageSender`.
 - Go SDK and CheeseBox TUI client for real end-to-end testing.
