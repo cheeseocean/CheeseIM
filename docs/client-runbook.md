@@ -87,5 +87,6 @@ go run ./cmd/dev-assertion -user user-1
 ## Current Limitations
 
 - 文件、图片、语音等富媒体消息仍需继续补齐。
+- CheeseBox 的设备送达高水位在消息落盘后才发送；未收到服务端响应的 pending ACK 会跨重启保留，并以稳定 opId 重试。
 - 分模块部署需要先校准独立启动配置和 Dubbo 注册中心。
 - CheeseBox 是唯一主线联调客户端；实验 Web 客户端已删除，未来 Web 客户端必须直接消费同一份 Protobuf 协议。

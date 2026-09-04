@@ -98,6 +98,7 @@ type IMClient interface {
 	DeleteConversation(ctx context.Context, conversationID string) error
 	MarkRead(ctx context.Context, conversationID string, readSeq int64) error
 	AckDelivered(conversationID string, deliveredSeq int64) error
+	AckDeliveredWithOperationID(operationID, conversationID string, deliveredSeq int64) error
 	RevokeMessage(conversationID, serverMsgID, reason string) error
 	SendTyping(conversationID string, action sdktypes.TypingAction) error
 	Events() <-chan sdktypes.Event
@@ -208,7 +209,11 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.controlEventsSynced = false
 		m.syncGeneration++
 		m.appStore.SetConnectionStatus(domain.ConnectionStatusSyncing)
-		return m, tea.Batch(m.syncConversationsCmd(), m.syncControlEventsCmd(m.appStore.ControlEventCursor), m.refreshFriendStateCmd(), m.waitRealtimeEventCmd())
+		commands := []tea.Cmd{m.syncConversationsCmd(), m.syncControlEventsCmd(m.appStore.ControlEventCursor), m.refreshFriendStateCmd(), m.waitRealtimeEventCmd()}
+		for _, ack := range m.appStore.PendingDeliveryAcks() {
+			commands = append(commands, m.retryDeliveryAckCmd(ack))
+		}
+		return m, tea.Batch(commands...)
 	case conversationSyncSuccessMsg:
 		if msg.generation != m.syncGeneration || m.appStore.ConnectionStatus != domain.ConnectionStatusSyncing {
 			return m, nil
@@ -744,6 +749,9 @@ func (m RootModel) handleRealtimeEvent(event sdktypes.Event) (tea.Model, tea.Cmd
 	case sdktypes.EventKindDeliveryUpdated:
 		if event.Delivery != nil {
 			m.appStore.UpdateDeliveredThrough(event.Delivery.ConversationID, event.Delivery.DeliveredSeq)
+			if err := m.appStore.CompleteDeliveryAck(event.RequestID); err != nil {
+				m.debugLog.AppendError("[STORE] complete delivery ack: " + err.Error())
+			}
 		}
 		return m, next
 	case sdktypes.EventKindReadUpdated:
@@ -863,8 +871,23 @@ func typingExpiryCmd(update sdktypes.TypingUpdate) tea.Cmd {
 }
 
 func (m RootModel) ackDeliveredCmd(conversationID string, deliveredSeq int64) tea.Cmd {
+	operationID := fmt.Sprintf("d%015x", time.Now().UnixNano()&0x0fffffffffffffff)
+	ack := store.PendingDeliveryAck{OperationID: operationID, ConversationID: conversationID, DeliveredSeq: deliveredSeq}
 	return func() tea.Msg {
-		if err := m.client.AckDelivered(conversationID, deliveredSeq); err != nil {
+		// 待确认位点与消息快照同步写入同一个文件；落盘失败时不得向服务端确认。
+		if err := m.appStore.StageDeliveryAck(ack); err != nil {
+			return appErrorMsg{err: fmt.Errorf("persist delivery ack: %w", err)}
+		}
+		if err := m.client.AckDeliveredWithOperationID(operationID, conversationID, deliveredSeq); err != nil {
+			return appErrorMsg{err: err}
+		}
+		return nil
+	}
+}
+
+func (m RootModel) retryDeliveryAckCmd(ack store.PendingDeliveryAck) tea.Cmd {
+	return func() tea.Msg {
+		if err := m.client.AckDeliveredWithOperationID(ack.OperationID, ack.ConversationID, ack.DeliveredSeq); err != nil {
 			return appErrorMsg{err: err}
 		}
 		return nil

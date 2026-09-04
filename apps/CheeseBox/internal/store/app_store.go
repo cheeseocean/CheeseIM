@@ -20,9 +20,33 @@ type Persister interface {
 	SetConversationCursor(cursor sdktypes.ConversationSyncCursor)
 	GetControlEventCursor() int64
 	SetControlEventCursor(cursor int64) error
+	StageDeliveryAck(ack PendingDeliveryAck) error
+	PendingDeliveryAcks() []PendingDeliveryAck
+	CompleteDeliveryAck(operationID string) error
 	ClearMessages(conversationID string)
 	DeleteConversation(conversationID string)
 	Clear()
+}
+
+func (s *AppStore) StageDeliveryAck(ack PendingDeliveryAck) error {
+	if s.persister == nil {
+		return fmt.Errorf("delivery ack requires local persistence")
+	}
+	return s.persister.StageDeliveryAck(ack)
+}
+
+func (s *AppStore) PendingDeliveryAcks() []PendingDeliveryAck {
+	if s.persister == nil {
+		return nil
+	}
+	return s.persister.PendingDeliveryAcks()
+}
+
+func (s *AppStore) CompleteDeliveryAck(operationID string) error {
+	if s.persister == nil {
+		return nil
+	}
+	return s.persister.CompleteDeliveryAck(operationID)
 }
 
 type AppStore struct {

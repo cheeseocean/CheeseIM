@@ -29,7 +29,7 @@ CheeseBox TUI
 1. 读取 `CHEESEBOX_*` 环境变量，未配置时使用 all-in-one 默认地址。
 2. 通过 SDK 调用 HTTP 登录并申请 TCP ticket。
 3. SDK 建立 TCP Binary Protobuf 连接，负责认证、心跳、重连与同步游标修复。
-4. UI 订阅 SDK 的消息与控制事件；实时消息写入本地 store 后，由 SDK 提交设备级 delivery 高水位，发送方按 broker ACK、delivery notify 和单聊 peer read notify 更新展示状态。
+4. UI 订阅 SDK 的消息与控制事件；实时消息与 pending delivery 高水位同步落入用户隔离 store 后，SDK 才提交设备级 delivery 高水位；服务端响应后删除 pending，登录/重连会使用同一 opId 重放未完成确认。发送方按 broker ACK、delivery notify 和单聊 peer read notify 更新展示状态。
    撤回 notify 以 `serverMsgId + mutationVersion` 幂等覆盖消息；通知先到时暂存 tombstone，消息后到仍必须隐藏原内容。
    输入中信号仅保存在内存：客户端对 START 节流，按服务端 `expiresAt` 自动清理，并在提交、清空或离开输入框时尽力发送 STOP；不得写入本地消息历史。
 5. 断线或重启后，SDK 从服务端拉取同步结果；本地状态不是真相来源。

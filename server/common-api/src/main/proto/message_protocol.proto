@@ -70,6 +70,98 @@ message ProtoOfflinePushEvent {
   map<string, string> attributes = 11;
 }
 
+// HTTP 控制面的跨语言稳定模型。HTTP 仍可使用 JSON 编码，但字段语义只在本 proto 定义。
+message ProtoFriend {
+  string id = 1;
+  string user_id = 2;
+  string friend_id = 3;
+  string remark = 4;
+  int32 add_source = 5;
+  string operator_id = 6;
+  bool pinned = 7;
+  string ex = 8;
+  int64 created_at = 9;
+}
+
+message ProtoFriendRequest {
+  string from_user_id = 1;
+  string to_user_id = 2;
+  string req_msg = 3;
+  int32 handle_result = 4;
+  string handle_msg = 5;
+  string handler_user_id = 6;
+  int64 handle_time = 7;
+  string ex = 8;
+  int64 create_time = 9;
+  int64 updated_at = 10;
+}
+
+message ProtoSendFriendRequestCommand {
+  string friend_user_id = 1;
+  string request_message = 2;
+}
+
+message ProtoHandleFriendRequestCommand {
+  string friend_user_id = 1;
+}
+
+message ProtoGroupSummary {
+  string group_id = 1;
+  string group_name = 2;
+  string avatar_url = 3;
+}
+
+message ProtoConversation {
+  string owner_user_id = 1;
+  string conversation_id = 2;
+  int32 conversation_type = 3;
+  string target_id = 4;
+  int32 receive_opt = 5;
+  int64 unread_count = 6;
+  bool pinned = 7;
+  string attached_info = 8;
+  int32 group_at_type = 9;
+  bool auto_cleanup = 10;
+  int64 cleanup_cycle = 11;
+  int64 latest_cleanup_time = 12;
+  int64 created_at = 13;
+  int64 updated_at = 14;
+  string kind = 15;
+  string title = 16;
+  string subtitle = 17;
+  string last_message_preview = 18;
+  string last_message_preview_type = 19;
+  int64 last_message_time = 20;
+  bool notification = 21;
+}
+
+message ProtoConversationSyncCursor {
+  string version_id = 1;
+  int64 version = 2;
+  int64 id_hash = 3;
+}
+
+message ProtoConversationSyncResult {
+  string version_id = 1;
+  int64 version = 2;
+  int64 id_hash = 3;
+  bool full = 4;
+  repeated ProtoConversation insert = 5;
+  repeated ProtoConversation update = 6;
+  repeated string delete = 7;
+  repeated string read_state_changed_conversation_ids = 8;
+}
+
+message ProtoConversationCommand {
+  string conversation_id = 1;
+  int32 conversation_type = 2;
+  string target_id = 3;
+  optional int32 recv_msg_opt = 4;
+  optional bool pinned = 5;
+  optional string draft_text = 6;
+  optional string attached_info = 7;
+}
+
 message ProtoAuthRequest {
   string ticket = 1;
 }

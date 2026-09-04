@@ -710,6 +710,10 @@ func (f *fakeIMClient) AckDelivered(string, int64) error {
 	return nil
 }
 
+func (f *fakeIMClient) AckDeliveredWithOperationID(string, string, int64) error {
+	return nil
+}
+
 func (f *fakeIMClient) RevokeMessage(conversationID, serverMsgID, reason string) error {
 	f.revokeConversationID = conversationID
 	f.revokeServerMsgID = serverMsgID
@@ -794,6 +798,28 @@ type fakePersister struct {
 	conversations map[string]store.ConversationRecord
 	cursor        sdktypes.ConversationSyncCursor
 	controlCursor int64
+	pendingAcks   map[string]store.PendingDeliveryAck
+}
+
+func (f *fakePersister) StageDeliveryAck(ack store.PendingDeliveryAck) error {
+	if f.pendingAcks == nil {
+		f.pendingAcks = make(map[string]store.PendingDeliveryAck)
+	}
+	f.pendingAcks[ack.OperationID] = ack
+	return nil
+}
+
+func (f *fakePersister) PendingDeliveryAcks() []store.PendingDeliveryAck {
+	result := make([]store.PendingDeliveryAck, 0, len(f.pendingAcks))
+	for _, ack := range f.pendingAcks {
+		result = append(result, ack)
+	}
+	return result
+}
+
+func (f *fakePersister) CompleteDeliveryAck(operationID string) error {
+	delete(f.pendingAcks, operationID)
+	return nil
 }
 
 func (f *fakePersister) GetMessages(conversationID string) []store.MessageRecord {
@@ -862,6 +888,7 @@ func (f *fakePersister) Clear() {
 	f.conversations = make(map[string]store.ConversationRecord)
 	f.cursor = sdktypes.ConversationSyncCursor{}
 	f.controlCursor = 0
+	f.pendingAcks = make(map[string]store.PendingDeliveryAck)
 }
 
 func TestRootModelHandlesRealtimeError(t *testing.T) {

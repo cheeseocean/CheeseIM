@@ -154,7 +154,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 
 ### P3 — 功能补齐
 
-18. **协议补全**：~~在 `message_protocol.proto` 为 `CHAT_READ/CHAT_REVOKE/FORCE_LOGOUT` 增加类型化 payload；~~ **已完成 2026-07-11**：新增 typed command/notify payload 并写入 client/server envelope oneof，Java/Go 生成产物同步。conversation sync / friend / group 控制面仍待 Protobuf 表达。已读/撤回的产品与架构决策见 `server/docs/architecture/read-revoke-design.md`。
+18. **协议补全**：~~在 `message_protocol.proto` 为 `CHAT_READ/CHAT_REVOKE/FORCE_LOGOUT` 增加类型化 payload；~~ **已完成并于 2026-09-04 补齐控制面模型**：typed command/notify payload 已写入 client/server envelope oneof；conversation sync、friend、group 的跨语言字段语义也由同一 proto 表达。HTTP 保持 JSON 编码与 Controller DTO 边界，字段名遵循 Protobuf lowerCamelCase 映射；Java/Go 生成产物同步。已读/撤回的产品与架构决策见 `server/docs/architecture/read-revoke-design.md`。
 19. ~~**WS 协议统一为 Protobuf**。~~ **已完成 2026-07-13**：入站、同步响应、异步聊天/控制通知全部使用 Binary WebSocket Frame + typed protobuf envelope，与 TCP 一致。
 20. ~~**已读回执链路**。~~ **已完成 2026-07-16**：TCP/二进制 WS/HTTP 统一调用 `ReadStateService`，完成可见性校验、maxSeq 截断、Redis Lua 原子单调推进 readSeq/未读数与 Mongo write-behind；同步写入 `ConversationVersionLog.READ_STATE_UPDATED`，增量同步返回变化会话 ID，离线设备据此刷新 read snapshot。结果先追加至 `conversation_control_event` 分片 outbox，再经 postman `ControlNotificationDispatcher` 按 gatewayNode 推送 typed notify：单聊通知 peer 与阅读者在线端，群聊仅阅读者在线端。
 21. **消息撤回/编辑与富媒体**：**撤回闭环已完成 2026-07-14**：`MessageMutationService` 按 serverMsgId 点查服务端 mapping，校验 conversation/发送者/服务端持久化时间两分钟窗口，以 `{serverMsgId}:REVOKED` 原子 upsert mutation；TCP/WS/HTTP 统一返回结果；历史页和 gap repair 批量 merge tombstone。新增按 `createdAt + mutationId` 稳定复合游标的 mutation 增量同步、群成员权限校验和 HTTP 拉取入口；撤回控制通知同样追加至 `conversation_control_event` outbox 后再直推，单聊双方、普通群在线成员按 gatewayNode 推送，超级群仍以 mutation 增量同步收敛。消息编辑与上传 token 服务仍待完成。

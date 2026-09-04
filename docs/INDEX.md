@@ -65,6 +65,7 @@
 | 路径 | 状态 | 说明 |
 | --- | --- | --- |
 | `server/common-api/src/main/proto/message_protocol.proto` | 权威 | TCP/WS Protobuf 协议源 |
+| `docs/PROTOCOL.md` | 权威 | TCP/WS 与 HTTP 控制面的单页协议边界、共享模型和送达 ACK 契约 |
 | `docs/CheeseIM-数据同步设计文档.md` | 权威 | 会话/消息同步设计 |
 
 ## 五、部署与运维
@@ -92,7 +93,6 @@
 
 ## 六、缺失文档（建议补）
 
-- `docs/PROTOCOL.md` — TCP/WS + HTTP 控制面一页纸总览。
 - `docs/ROADMAP.md` — 演进路线独立成文（当前在 `ASSESSMENT.md` 第五节）。
 
 ---

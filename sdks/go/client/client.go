@@ -261,6 +261,14 @@ func (c *Client) AckDelivered(conversationID string, deliveredSeq int64) error {
 		return fmt.Errorf("conversationID and positive deliveredSeq required")
 	}
 	opID := fmt.Sprintf("d%015x", time.Now().UnixNano()&0x0fffffffffffffff)
+	return c.AckDeliveredWithOperationID(opID, conversationID, deliveredSeq)
+}
+
+// AckDeliveredWithOperationID 使用稳定操作 ID 重试送达高水位，服务端按 opId 幂等处理。
+func (c *Client) AckDeliveredWithOperationID(opID, conversationID string, deliveredSeq int64) error {
+	if opID == "" || conversationID == "" || deliveredSeq <= 0 {
+		return fmt.Errorf("operationID, conversationID and positive deliveredSeq required")
+	}
 	return c.tcpClient.AckDelivery(opID, &pb.ProtoChatDeliveryAckCommand{
 		ConversationId:  conversationID,
 		MaxDeliveredSeq: deliveredSeq,

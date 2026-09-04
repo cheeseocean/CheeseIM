@@ -16,12 +16,20 @@ const storeFileName = "cheesebox_store.json"
 
 // PersistedStore 持久化存储
 type PersistedStore struct {
-	mu            sync.RWMutex
-	dir           string
-	messages      map[string][]MessageRecord
-	conversations map[string]ConversationRecord
-	cursor        sdktypes.ConversationSyncCursor
-	controlCursor int64
+	mu                  sync.RWMutex
+	dir                 string
+	messages            map[string][]MessageRecord
+	conversations       map[string]ConversationRecord
+	cursor              sdktypes.ConversationSyncCursor
+	controlCursor       int64
+	pendingDeliveryAcks map[string]PendingDeliveryAck
+}
+
+// PendingDeliveryAck 是消息已落盘、但尚未收到服务端确认的设备送达高水位。
+type PendingDeliveryAck struct {
+	OperationID    string `json:"operation_id"`
+	ConversationID string `json:"conversation_id"`
+	DeliveredSeq   int64  `json:"delivered_seq"`
 }
 
 // MessageRecord 消息记录
@@ -66,9 +74,10 @@ func NewPersistedStore(dir string) (*PersistedStore, error) {
 		return nil, fmt.Errorf("create store dir failed: %w", err)
 	}
 	store := &PersistedStore{
-		dir:           dir,
-		messages:      make(map[string][]MessageRecord),
-		conversations: make(map[string]ConversationRecord),
+		dir:                 dir,
+		messages:            make(map[string][]MessageRecord),
+		conversations:       make(map[string]ConversationRecord),
+		pendingDeliveryAcks: make(map[string]PendingDeliveryAck),
 	}
 	if err := store.load(); err != nil {
 		// 文件不存在或解析失败，使用空存储
@@ -119,30 +128,94 @@ func (s *PersistedStore) load() error {
 	s.conversations = stored.Conversations
 	s.cursor = stored.ConversationCursor
 	s.controlCursor = stored.ControlEventCursor
+	s.pendingDeliveryAcks = stored.PendingDeliveryAcks
+	if s.pendingDeliveryAcks == nil {
+		s.pendingDeliveryAcks = make(map[string]PendingDeliveryAck)
+	}
 	return nil
 }
 
 // save 持久化数据到磁盘
 func (s *PersistedStore) save() error {
 	data := storedData{
-		Messages:           s.messages,
-		Conversations:      s.conversations,
-		ConversationCursor: s.cursor,
-		ControlEventCursor: s.controlCursor,
+		Messages:            s.messages,
+		Conversations:       s.conversations,
+		ConversationCursor:  s.cursor,
+		ControlEventCursor:  s.controlCursor,
+		PendingDeliveryAcks: s.pendingDeliveryAcks,
 	}
 	encoded, err := json.Marshal(data)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(s.path(), encoded, 0644)
+	temporaryPath := s.path() + ".tmp"
+	if err := os.WriteFile(temporaryPath, encoded, 0644); err != nil {
+		return err
+	}
+	return os.Rename(temporaryPath, s.path())
 }
 
 // storedData 存储数据结构
 type storedData struct {
-	Messages           map[string][]MessageRecord      `json:"messages"`
-	Conversations      map[string]ConversationRecord   `json:"conversations"`
-	ConversationCursor sdktypes.ConversationSyncCursor `json:"conversation_cursor"`
-	ControlEventCursor int64                           `json:"control_event_cursor"`
+	Messages            map[string][]MessageRecord      `json:"messages"`
+	Conversations       map[string]ConversationRecord   `json:"conversations"`
+	ConversationCursor  sdktypes.ConversationSyncCursor `json:"conversation_cursor"`
+	ControlEventCursor  int64                           `json:"control_event_cursor"`
+	PendingDeliveryAcks map[string]PendingDeliveryAck   `json:"pending_delivery_acks,omitempty"`
+}
+
+// StageDeliveryAck 与消息快照写入同一个本地文件，确保只有已持久化消息才会被确认。
+func (s *PersistedStore) StageDeliveryAck(ack PendingDeliveryAck) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if ack.OperationID == "" || ack.ConversationID == "" || ack.DeliveredSeq <= 0 {
+		return fmt.Errorf("invalid pending delivery ack")
+	}
+	replaced := make(map[string]PendingDeliveryAck)
+	for operationID, current := range s.pendingDeliveryAcks {
+		if current.ConversationID != ack.ConversationID {
+			continue
+		}
+		if current.DeliveredSeq >= ack.DeliveredSeq {
+			return nil
+		}
+		replaced[operationID] = current
+		delete(s.pendingDeliveryAcks, operationID)
+	}
+	s.pendingDeliveryAcks[ack.OperationID] = ack
+	if err := s.save(); err != nil {
+		delete(s.pendingDeliveryAcks, ack.OperationID)
+		for operationID, current := range replaced {
+			s.pendingDeliveryAcks[operationID] = current
+		}
+		return err
+	}
+	return nil
+}
+
+func (s *PersistedStore) PendingDeliveryAcks() []PendingDeliveryAck {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	result := make([]PendingDeliveryAck, 0, len(s.pendingDeliveryAcks))
+	for _, ack := range s.pendingDeliveryAcks {
+		result = append(result, ack)
+	}
+	return result
+}
+
+func (s *PersistedStore) CompleteDeliveryAck(operationID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	ack, ok := s.pendingDeliveryAcks[operationID]
+	if !ok {
+		return nil
+	}
+	delete(s.pendingDeliveryAcks, operationID)
+	if err := s.save(); err != nil {
+		s.pendingDeliveryAcks[operationID] = ack
+		return err
+	}
+	return nil
 }
 
 // GetMessages 获取会话消息
@@ -157,8 +230,7 @@ func (s *PersistedStore) AppendMessage(conversationID string, msg MessageRecord)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.messages[conversationID] = append(s.messages[conversationID], msg)
-	// 异步保存，避免阻塞
-	go s.save()
+	_ = s.save()
 }
 
 // SetMessages 设置会话消息（覆盖）
@@ -166,7 +238,7 @@ func (s *PersistedStore) SetMessages(conversationID string, msgs []MessageRecord
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.messages[conversationID] = append([]MessageRecord(nil), msgs...)
-	go s.save()
+	_ = s.save()
 }
 
 // GetConversations 获取所有会话
@@ -185,7 +257,7 @@ func (s *PersistedStore) UpsertConversation(conv ConversationRecord) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.conversations[conv.ConversationID] = conv
-	go s.save()
+	_ = s.save()
 }
 
 // GetConversationCursor 获取本地会话元数据同步游标。
@@ -200,7 +272,7 @@ func (s *PersistedStore) SetConversationCursor(cursor sdktypes.ConversationSyncC
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.cursor = cursor
-	go s.save()
+	_ = s.save()
 }
 
 func (s *PersistedStore) GetControlEventCursor() int64 {
@@ -229,7 +301,7 @@ func (s *PersistedStore) ClearMessages(conversationID string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.messages, conversationID)
-	go s.save()
+	_ = s.save()
 }
 
 // DeleteConversation 同时删除本地会话摘要与消息，避免重启后会话再次出现。
@@ -238,7 +310,7 @@ func (s *PersistedStore) DeleteConversation(conversationID string) {
 	defer s.mu.Unlock()
 	delete(s.conversations, conversationID)
 	delete(s.messages, conversationID)
-	go s.save()
+	_ = s.save()
 }
 
 // Clear 清除所有数据
@@ -249,5 +321,6 @@ func (s *PersistedStore) Clear() {
 	s.conversations = make(map[string]ConversationRecord)
 	s.cursor = sdktypes.ConversationSyncCursor{}
 	s.controlCursor = 0
-	go s.save()
+	s.pendingDeliveryAcks = make(map[string]PendingDeliveryAck)
+	_ = s.save()
 }

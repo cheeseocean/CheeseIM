@@ -19,7 +19,7 @@
 ## 2. 与 Java 服务端的契约对齐
 
 - **协议源只一个**：`server/common-api/src/main/proto/message_protocol.proto`。执行 `go generate ./proto` 将其直接生成到 `proto/`，SDK 内不得维护 Proto 副本。
-- HTTP API 路径与 `server/api-server` 的 Controller 路径一致（见 `api-server/ARCH.md` §1）。
+- HTTP API 路径与 `server/api-server` 的 Controller 路径一致（见 `api-server/ARCH.md` §1）；conversation、friend、group JSON 字段必须与 proto 控制面模型的 lowerCamelCase 映射一致。
 - 会话 id / seq 语义与 server `ConversationIdUtil` 完全一致：`s:/g:/n:/ng:`，**不要**在 Go 侧引入新的 id 形态。
 
 ## 3. 命名与风格

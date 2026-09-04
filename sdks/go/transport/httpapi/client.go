@@ -10,7 +10,9 @@ import (
 	"strings"
 	"time"
 
+	pb "github.com/cheeseim/cheeseim-go-sdk/proto"
 	"github.com/cheeseim/cheeseim-go-sdk/types"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type Client struct {
@@ -69,89 +71,52 @@ func (c *Client) Login(ctx context.Context, userID, identityAssertion string, pl
 }
 
 func (c *Client) ListFriends(ctx context.Context, accessToken string) ([]types.Friend, error) {
-	var response []struct {
-		UserID      string `json:"friendId"`
-		DisplayName string `json:"remark"`
-	}
+	var response []json.RawMessage
 	if err := c.doJSON(ctx, http.MethodGet, "/api/im/friends", accessToken, nil, &response); err != nil {
 		return nil, err
 	}
 	items := make([]types.Friend, 0, len(response))
-	for _, item := range response {
+	for _, raw := range response {
+		item := &pb.ProtoFriend{}
+		if err := protojson.Unmarshal(raw, item); err != nil {
+			return nil, fmt.Errorf("decode friend: %w", err)
+		}
 		items = append(items, types.Friend{
-			UserID:      item.UserID,
-			DisplayName: item.DisplayName,
+			UserID:      item.GetFriendId(),
+			DisplayName: item.GetRemark(),
 		})
 	}
 	return items, nil
 }
 
 func (c *Client) ListConversations(ctx context.Context, accessToken string) ([]types.Conversation, error) {
-	var response []struct {
-		OwnerUserID        string `json:"ownerUserId"`
-		ConversationID     string `json:"conversationId"`
-		ConversationType   int    `json:"conversationType"`
-		TargetID           string `json:"targetId"`
-		ReceiveOpt         int    `json:"receiveOpt"`
-		UnreadCount        int    `json:"unreadCount"`
-		Pinned             bool   `json:"pinned"`
-		AttachedInfo       string `json:"attachedInfo"`
-		GroupAtType        int    `json:"groupAtType"`
-		AutoCleanup        bool   `json:"autoCleanup"`
-		CleanupCycle       int64  `json:"cleanupCycle"`
-		LatestCleanupTime  int64  `json:"latestCleanupTime"`
-		CreatedAt          int64  `json:"createdAt"`
-		UpdatedAt          int64  `json:"updatedAt"`
-		Kind               string `json:"kind"`
-		Title              string `json:"title"`
-		Subtitle           string `json:"subtitle"`
-		LastMessagePreview string `json:"lastMessagePreview"`
-		LastMessageTime    int64  `json:"lastMessageTime"`
-		Notification       bool   `json:"notification"`
-	}
+	var response []json.RawMessage
 	if err := c.doJSON(ctx, http.MethodGet, "/api/im/conversations", accessToken, nil, &response); err != nil {
 		return nil, err
 	}
 	items := make([]types.Conversation, 0, len(response))
-	for _, item := range response {
-		items = append(items, types.Conversation{
-			OwnerUserID:        item.OwnerUserID,
-			ConversationID:     item.ConversationID,
-			ConversationType:   item.ConversationType,
-			TargetID:           item.TargetID,
-			ReceiveOpt:         item.ReceiveOpt,
-			UnreadCount:        item.UnreadCount,
-			Pinned:             item.Pinned,
-			AttachedInfo:       item.AttachedInfo,
-			GroupAtType:        item.GroupAtType,
-			AutoCleanup:        item.AutoCleanup,
-			CleanupCycle:       item.CleanupCycle,
-			LatestCleanupTime:  item.LatestCleanupTime,
-			CreatedAt:          item.CreatedAt,
-			UpdatedAt:          item.UpdatedAt,
-			Title:              item.Title,
-			Subtitle:           item.Subtitle,
-			Kind:               parseConversationKind(item.Kind),
-			LastMessagePreview: item.LastMessagePreview,
-			LastMessageTime:    item.LastMessageTime,
-			Notification:       item.Notification,
-		})
+	for _, raw := range response {
+		item := &pb.ProtoConversation{}
+		if err := protojson.Unmarshal(raw, item); err != nil {
+			return nil, fmt.Errorf("decode conversation: %w", err)
+		}
+		items = append(items, toConversation(item))
 	}
 	return items, nil
 }
 
 func (c *Client) ListGroups(ctx context.Context, accessToken string) ([]types.Group, error) {
-	var response []struct {
-		GroupID   string `json:"groupId"`
-		GroupName string `json:"groupName"`
-		AvatarURL string `json:"avatarUrl"`
-	}
+	var response []json.RawMessage
 	if err := c.doJSON(ctx, http.MethodGet, "/api/im/groups", accessToken, nil, &response); err != nil {
 		return nil, err
 	}
 	items := make([]types.Group, 0, len(response))
-	for _, item := range response {
-		items = append(items, types.Group(item))
+	for _, raw := range response {
+		item := &pb.ProtoGroupSummary{}
+		if err := protojson.Unmarshal(raw, item); err != nil {
+			return nil, fmt.Errorf("decode group: %w", err)
+		}
+		items = append(items, types.Group{GroupID: item.GetGroupId(), GroupName: item.GetGroupName(), AvatarURL: item.GetAvatarUrl()})
 	}
 	return items, nil
 }
@@ -197,73 +162,27 @@ func (c *Client) SyncConversations(ctx context.Context, accessToken string, curs
 	values.Set("version", fmt.Sprintf("%d", cursor.Version))
 	values.Set("idHash", fmt.Sprintf("%d", cursor.IDHash))
 	path := "/api/im/conversations/sync/incremental?" + values.Encode()
-	var response struct {
-		VersionID string `json:"versionId"`
-		Version   int64  `json:"version"`
-		IDHash    int64  `json:"idHash"`
-		Full      bool   `json:"full"`
-		Insert    []struct {
-			OwnerUserID        string `json:"ownerUserId"`
-			ConversationID     string `json:"conversationId"`
-			ConversationType   int    `json:"conversationType"`
-			TargetID           string `json:"targetId"`
-			ReceiveOpt         int    `json:"receiveOpt"`
-			UnreadCount        int    `json:"unreadCount"`
-			Pinned             bool   `json:"pinned"`
-			AttachedInfo       string `json:"attachedInfo"`
-			GroupAtType        int    `json:"groupAtType"`
-			AutoCleanup        bool   `json:"autoCleanup"`
-			CleanupCycle       int64  `json:"cleanupCycle"`
-			LatestCleanupTime  int64  `json:"latestCleanupTime"`
-			CreatedAt          int64  `json:"createdAt"`
-			UpdatedAt          int64  `json:"updatedAt"`
-			Kind               string `json:"kind"`
-			Title              string `json:"title"`
-			Subtitle           string `json:"subtitle"`
-			LastMessagePreview string `json:"lastMessagePreview"`
-			LastMessageTime    int64  `json:"lastMessageTime"`
-			Notification       bool   `json:"notification"`
-		} `json:"insert"`
-		Update []struct {
-			OwnerUserID        string `json:"ownerUserId"`
-			ConversationID     string `json:"conversationId"`
-			ConversationType   int    `json:"conversationType"`
-			TargetID           string `json:"targetId"`
-			ReceiveOpt         int    `json:"receiveOpt"`
-			UnreadCount        int    `json:"unreadCount"`
-			Pinned             bool   `json:"pinned"`
-			AttachedInfo       string `json:"attachedInfo"`
-			GroupAtType        int    `json:"groupAtType"`
-			AutoCleanup        bool   `json:"autoCleanup"`
-			CleanupCycle       int64  `json:"cleanupCycle"`
-			LatestCleanupTime  int64  `json:"latestCleanupTime"`
-			CreatedAt          int64  `json:"createdAt"`
-			UpdatedAt          int64  `json:"updatedAt"`
-			Kind               string `json:"kind"`
-			Title              string `json:"title"`
-			Subtitle           string `json:"subtitle"`
-			LastMessagePreview string `json:"lastMessagePreview"`
-			LastMessageTime    int64  `json:"lastMessageTime"`
-			Notification       bool   `json:"notification"`
-		} `json:"update"`
-		Delete []string `json:"delete"`
-	}
-	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &response); err != nil {
+	var raw json.RawMessage
+	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &raw); err != nil {
 		return types.ConversationSyncResult{}, err
+	}
+	response := &pb.ProtoConversationSyncResult{}
+	if err := protojson.Unmarshal(raw, response); err != nil {
+		return types.ConversationSyncResult{}, fmt.Errorf("decode conversation sync: %w", err)
 	}
 	result := types.ConversationSyncResult{
 		ConversationSyncCursor: types.ConversationSyncCursor{
-			VersionID: response.VersionID,
-			Version:   response.Version,
-			IDHash:    response.IDHash,
+			VersionID: response.GetVersionId(),
+			Version:   response.GetVersion(),
+			IDHash:    response.GetIdHash(),
 		},
-		Full:   response.Full,
-		Delete: response.Delete,
+		Full:   response.GetFull(),
+		Delete: response.GetDelete(),
 	}
-	for _, item := range response.Insert {
+	for _, item := range response.GetInsert() {
 		result.Insert = append(result.Insert, toConversation(item))
 	}
-	for _, item := range response.Update {
+	for _, item := range response.GetUpdate() {
 		result.Update = append(result.Update, toConversation(item))
 	}
 	return result, nil
@@ -404,11 +323,11 @@ func (c *Client) AckReadSeq(ctx context.Context, accessToken, conversationID str
 }
 
 func (c *Client) AddFriend(ctx context.Context, accessToken, friendUserID, message string) error {
-	body := map[string]string{
-		"friendUserId":   friendUserID,
-		"requestMessage": message,
+	body, err := protojson.Marshal(&pb.ProtoSendFriendRequestCommand{FriendUserId: friendUserID, RequestMessage: message})
+	if err != nil {
+		return fmt.Errorf("encode friend request: %w", err)
 	}
-	return c.doJSON(ctx, http.MethodPost, "/api/im/friends/requests", accessToken, body, nil)
+	return c.doJSON(ctx, http.MethodPost, "/api/im/friends/requests", accessToken, json.RawMessage(body), nil)
 }
 
 func (c *Client) ListIncomingFriendRequests(ctx context.Context, accessToken string) ([]types.FriendRequest, error) {
@@ -432,28 +351,21 @@ func (c *Client) CancelFriendRequest(ctx context.Context, accessToken, friendUse
 }
 
 func (c *Client) listFriendRequests(ctx context.Context, accessToken, path string) ([]types.FriendRequest, error) {
-	var response []struct {
-		FromUserID     string `json:"fromUserId"`
-		ToUserID       string `json:"toUserId"`
-		RequestMessage string `json:"reqMsg"`
-		HandleResult   int    `json:"handleResult"`
-		HandleMessage  string `json:"handleMsg"`
-		HandlerUserID  string `json:"handlerUserId"`
-		HandleTime     int64  `json:"handleTime"`
-		Extra          string `json:"ex"`
-		CreateTime     int64  `json:"createTime"`
-		UpdatedAt      int64  `json:"updatedAt"`
-	}
+	var response []json.RawMessage
 	if err := c.doJSON(ctx, http.MethodGet, path, accessToken, nil, &response); err != nil {
 		return nil, err
 	}
 	items := make([]types.FriendRequest, 0, len(response))
-	for _, item := range response {
+	for _, raw := range response {
+		item := &pb.ProtoFriendRequest{}
+		if err := protojson.Unmarshal(raw, item); err != nil {
+			return nil, fmt.Errorf("decode friend request: %w", err)
+		}
 		items = append(items, types.FriendRequest{
-			FromUserID: item.FromUserID, ToUserID: item.ToUserID, RequestMessage: item.RequestMessage,
-			Status: types.FriendRequestStatus(item.HandleResult), HandleMessage: item.HandleMessage,
-			HandlerUserID: item.HandlerUserID, HandleTime: item.HandleTime, Extra: item.Extra,
-			CreateTime: item.CreateTime, UpdatedAt: item.UpdatedAt,
+			FromUserID: item.GetFromUserId(), ToUserID: item.GetToUserId(), RequestMessage: item.GetReqMsg(),
+			Status: types.FriendRequestStatus(item.GetHandleResult()), HandleMessage: item.GetHandleMsg(),
+			HandlerUserID: item.GetHandlerUserId(), HandleTime: item.GetHandleTime(), Extra: item.GetEx(),
+			CreateTime: item.GetCreateTime(), UpdatedAt: item.GetUpdatedAt(),
 		})
 	}
 	return items, nil
@@ -463,9 +375,11 @@ func (c *Client) handleFriendRequest(ctx context.Context, accessToken, path, fri
 	if strings.TrimSpace(friendUserID) == "" {
 		return fmt.Errorf("friendUserID required")
 	}
-	return c.doJSON(ctx, http.MethodPost, path, accessToken, map[string]string{
-		"friendUserId": friendUserID,
-	}, nil)
+	body, err := protojson.Marshal(&pb.ProtoHandleFriendRequestCommand{FriendUserId: friendUserID})
+	if err != nil {
+		return fmt.Errorf("encode friend request action: %w", err)
+	}
+	return c.doJSON(ctx, http.MethodPost, path, accessToken, json.RawMessage(body), nil)
 }
 
 func (c *Client) doJSON(ctx context.Context, method, path, accessToken string, requestBody any, responseBody any) error {
@@ -513,48 +427,27 @@ func parseConversationKind(kind string) types.ConversationKind {
 	}
 }
 
-func toConversation(item struct {
-	OwnerUserID        string `json:"ownerUserId"`
-	ConversationID     string `json:"conversationId"`
-	ConversationType   int    `json:"conversationType"`
-	TargetID           string `json:"targetId"`
-	ReceiveOpt         int    `json:"receiveOpt"`
-	UnreadCount        int    `json:"unreadCount"`
-	Pinned             bool   `json:"pinned"`
-	AttachedInfo       string `json:"attachedInfo"`
-	GroupAtType        int    `json:"groupAtType"`
-	AutoCleanup        bool   `json:"autoCleanup"`
-	CleanupCycle       int64  `json:"cleanupCycle"`
-	LatestCleanupTime  int64  `json:"latestCleanupTime"`
-	CreatedAt          int64  `json:"createdAt"`
-	UpdatedAt          int64  `json:"updatedAt"`
-	Kind               string `json:"kind"`
-	Title              string `json:"title"`
-	Subtitle           string `json:"subtitle"`
-	LastMessagePreview string `json:"lastMessagePreview"`
-	LastMessageTime    int64  `json:"lastMessageTime"`
-	Notification       bool   `json:"notification"`
-}) types.Conversation {
+func toConversation(item *pb.ProtoConversation) types.Conversation {
 	return types.Conversation{
-		OwnerUserID:        item.OwnerUserID,
-		ConversationID:     item.ConversationID,
-		ConversationType:   item.ConversationType,
-		TargetID:           item.TargetID,
-		ReceiveOpt:         item.ReceiveOpt,
-		UnreadCount:        item.UnreadCount,
-		Pinned:             item.Pinned,
-		AttachedInfo:       item.AttachedInfo,
-		GroupAtType:        item.GroupAtType,
-		AutoCleanup:        item.AutoCleanup,
-		CleanupCycle:       item.CleanupCycle,
-		LatestCleanupTime:  item.LatestCleanupTime,
-		CreatedAt:          item.CreatedAt,
-		UpdatedAt:          item.UpdatedAt,
-		Kind:               parseConversationKind(item.Kind),
-		Title:              item.Title,
-		Subtitle:           item.Subtitle,
-		LastMessagePreview: item.LastMessagePreview,
-		LastMessageTime:    item.LastMessageTime,
-		Notification:       item.Notification,
+		OwnerUserID:        item.GetOwnerUserId(),
+		ConversationID:     item.GetConversationId(),
+		ConversationType:   int(item.GetConversationType()),
+		TargetID:           item.GetTargetId(),
+		ReceiveOpt:         int(item.GetReceiveOpt()),
+		UnreadCount:        int(item.GetUnreadCount()),
+		Pinned:             item.GetPinned(),
+		AttachedInfo:       item.GetAttachedInfo(),
+		GroupAtType:        int(item.GetGroupAtType()),
+		AutoCleanup:        item.GetAutoCleanup(),
+		CleanupCycle:       item.GetCleanupCycle(),
+		LatestCleanupTime:  item.GetLatestCleanupTime(),
+		CreatedAt:          item.GetCreatedAt(),
+		UpdatedAt:          item.GetUpdatedAt(),
+		Kind:               parseConversationKind(item.GetKind()),
+		Title:              item.GetTitle(),
+		Subtitle:           item.GetSubtitle(),
+		LastMessagePreview: item.GetLastMessagePreview(),
+		LastMessageTime:    item.GetLastMessageTime(),
+		Notification:       item.GetNotification(),
 	}
 }

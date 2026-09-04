@@ -16,6 +16,9 @@ dependencies {
     runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
     implementation 'org.apache.dubbo:dubbo-spring-boot-starter'
     implementation 'org.apache.dubbo:dubbo-registry-nacos'
+
+    // 仅用于校验 Controller JSON 字段与公共 proto descriptor 一致，不进入生产 runtime。
+    testImplementation 'com.google.protobuf:protobuf-java:3.25.3'
 }
 
 springBoot {

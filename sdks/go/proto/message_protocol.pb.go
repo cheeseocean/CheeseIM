@@ -639,6 +639,843 @@ func (x *ProtoOfflinePushEvent) GetAttributes() map[string]string {
 	return nil
 }
 
+// HTTP 控制面的跨语言稳定模型。HTTP 仍可使用 JSON 编码，但字段语义只在本 proto 定义。
+type ProtoFriend struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	FriendId      string                 `protobuf:"bytes,3,opt,name=friend_id,json=friendId,proto3" json:"friend_id,omitempty"`
+	Remark        string                 `protobuf:"bytes,4,opt,name=remark,proto3" json:"remark,omitempty"`
+	AddSource     int32                  `protobuf:"varint,5,opt,name=add_source,json=addSource,proto3" json:"add_source,omitempty"`
+	OperatorId    string                 `protobuf:"bytes,6,opt,name=operator_id,json=operatorId,proto3" json:"operator_id,omitempty"`
+	Pinned        bool                   `protobuf:"varint,7,opt,name=pinned,proto3" json:"pinned,omitempty"`
+	Ex            string                 `protobuf:"bytes,8,opt,name=ex,proto3" json:"ex,omitempty"`
+	CreatedAt     int64                  `protobuf:"varint,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProtoFriend) Reset() {
+	*x = ProtoFriend{}
+	mi := &file_message_protocol_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProtoFriend) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProtoFriend) ProtoMessage() {}
+
+func (x *ProtoFriend) ProtoReflect() protoreflect.Message {
+	mi := &file_message_protocol_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProtoFriend.ProtoReflect.Descriptor instead.
+func (*ProtoFriend) Descriptor() ([]byte, []int) {
+	return file_message_protocol_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ProtoFriend) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ProtoFriend) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *ProtoFriend) GetFriendId() string {
+	if x != nil {
+		return x.FriendId
+	}
+	return ""
+}
+
+func (x *ProtoFriend) GetRemark() string {
+	if x != nil {
+		return x.Remark
+	}
+	return ""
+}
+
+func (x *ProtoFriend) GetAddSource() int32 {
+	if x != nil {
+		return x.AddSource
+	}
+	return 0
+}
+
+func (x *ProtoFriend) GetOperatorId() string {
+	if x != nil {
+		return x.OperatorId
+	}
+	return ""
+}
+
+func (x *ProtoFriend) GetPinned() bool {
+	if x != nil {
+		return x.Pinned
+	}
+	return false
+}
+
+func (x *ProtoFriend) GetEx() string {
+	if x != nil {
+		return x.Ex
+	}
+	return ""
+}
+
+func (x *ProtoFriend) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+type ProtoFriendRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FromUserId    string                 `protobuf:"bytes,1,opt,name=from_user_id,json=fromUserId,proto3" json:"from_user_id,omitempty"`
+	ToUserId      string                 `protobuf:"bytes,2,opt,name=to_user_id,json=toUserId,proto3" json:"to_user_id,omitempty"`
+	ReqMsg        string                 `protobuf:"bytes,3,opt,name=req_msg,json=reqMsg,proto3" json:"req_msg,omitempty"`
+	HandleResult  int32                  `protobuf:"varint,4,opt,name=handle_result,json=handleResult,proto3" json:"handle_result,omitempty"`
+	HandleMsg     string                 `protobuf:"bytes,5,opt,name=handle_msg,json=handleMsg,proto3" json:"handle_msg,omitempty"`
+	HandlerUserId string                 `protobuf:"bytes,6,opt,name=handler_user_id,json=handlerUserId,proto3" json:"handler_user_id,omitempty"`
+	HandleTime    int64                  `protobuf:"varint,7,opt,name=handle_time,json=handleTime,proto3" json:"handle_time,omitempty"`
+	Ex            string                 `protobuf:"bytes,8,opt,name=ex,proto3" json:"ex,omitempty"`
+	CreateTime    int64                  `protobuf:"varint,9,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"`
+	UpdatedAt     int64                  `protobuf:"varint,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProtoFriendRequest) Reset() {
+	*x = ProtoFriendRequest{}
+	mi := &file_message_protocol_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProtoFriendRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProtoFriendRequest) ProtoMessage() {}
+
+func (x *ProtoFriendRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_message_protocol_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProtoFriendRequest.ProtoReflect.Descriptor instead.
+func (*ProtoFriendRequest) Descriptor() ([]byte, []int) {
+	return file_message_protocol_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ProtoFriendRequest) GetFromUserId() string {
+	if x != nil {
+		return x.FromUserId
+	}
+	return ""
+}
+
+func (x *ProtoFriendRequest) GetToUserId() string {
+	if x != nil {
+		return x.ToUserId
+	}
+	return ""
+}
+
+func (x *ProtoFriendRequest) GetReqMsg() string {
+	if x != nil {
+		return x.ReqMsg
+	}
+	return ""
+}
+
+func (x *ProtoFriendRequest) GetHandleResult() int32 {
+	if x != nil {
+		return x.HandleResult
+	}
+	return 0
+}
+
+func (x *ProtoFriendRequest) GetHandleMsg() string {
+	if x != nil {
+		return x.HandleMsg
+	}
+	return ""
+}
+
+func (x *ProtoFriendRequest) GetHandlerUserId() string {
+	if x != nil {
+		return x.HandlerUserId
+	}
+	return ""
+}
+
+func (x *ProtoFriendRequest) GetHandleTime() int64 {
+	if x != nil {
+		return x.HandleTime
+	}
+	return 0
+}
+
+func (x *ProtoFriendRequest) GetEx() string {
+	if x != nil {
+		return x.Ex
+	}
+	return ""
+}
+
+func (x *ProtoFriendRequest) GetCreateTime() int64 {
+	if x != nil {
+		return x.CreateTime
+	}
+	return 0
+}
+
+func (x *ProtoFriendRequest) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+type ProtoSendFriendRequestCommand struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	FriendUserId   string                 `protobuf:"bytes,1,opt,name=friend_user_id,json=friendUserId,proto3" json:"friend_user_id,omitempty"`
+	RequestMessage string                 `protobuf:"bytes,2,opt,name=request_message,json=requestMessage,proto3" json:"request_message,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ProtoSendFriendRequestCommand) Reset() {
+	*x = ProtoSendFriendRequestCommand{}
+	mi := &file_message_protocol_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProtoSendFriendRequestCommand) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProtoSendFriendRequestCommand) ProtoMessage() {}
+
+func (x *ProtoSendFriendRequestCommand) ProtoReflect() protoreflect.Message {
+	mi := &file_message_protocol_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProtoSendFriendRequestCommand.ProtoReflect.Descriptor instead.
+func (*ProtoSendFriendRequestCommand) Descriptor() ([]byte, []int) {
+	return file_message_protocol_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ProtoSendFriendRequestCommand) GetFriendUserId() string {
+	if x != nil {
+		return x.FriendUserId
+	}
+	return ""
+}
+
+func (x *ProtoSendFriendRequestCommand) GetRequestMessage() string {
+	if x != nil {
+		return x.RequestMessage
+	}
+	return ""
+}
+
+type ProtoHandleFriendRequestCommand struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FriendUserId  string                 `protobuf:"bytes,1,opt,name=friend_user_id,json=friendUserId,proto3" json:"friend_user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProtoHandleFriendRequestCommand) Reset() {
+	*x = ProtoHandleFriendRequestCommand{}
+	mi := &file_message_protocol_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProtoHandleFriendRequestCommand) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProtoHandleFriendRequestCommand) ProtoMessage() {}
+
+func (x *ProtoHandleFriendRequestCommand) ProtoReflect() protoreflect.Message {
+	mi := &file_message_protocol_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProtoHandleFriendRequestCommand.ProtoReflect.Descriptor instead.
+func (*ProtoHandleFriendRequestCommand) Descriptor() ([]byte, []int) {
+	return file_message_protocol_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ProtoHandleFriendRequestCommand) GetFriendUserId() string {
+	if x != nil {
+		return x.FriendUserId
+	}
+	return ""
+}
+
+type ProtoGroupSummary struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupId       string                 `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	GroupName     string                 `protobuf:"bytes,2,opt,name=group_name,json=groupName,proto3" json:"group_name,omitempty"`
+	AvatarUrl     string                 `protobuf:"bytes,3,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProtoGroupSummary) Reset() {
+	*x = ProtoGroupSummary{}
+	mi := &file_message_protocol_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProtoGroupSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProtoGroupSummary) ProtoMessage() {}
+
+func (x *ProtoGroupSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_message_protocol_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProtoGroupSummary.ProtoReflect.Descriptor instead.
+func (*ProtoGroupSummary) Descriptor() ([]byte, []int) {
+	return file_message_protocol_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ProtoGroupSummary) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+func (x *ProtoGroupSummary) GetGroupName() string {
+	if x != nil {
+		return x.GroupName
+	}
+	return ""
+}
+
+func (x *ProtoGroupSummary) GetAvatarUrl() string {
+	if x != nil {
+		return x.AvatarUrl
+	}
+	return ""
+}
+
+type ProtoConversation struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	OwnerUserId            string                 `protobuf:"bytes,1,opt,name=owner_user_id,json=ownerUserId,proto3" json:"owner_user_id,omitempty"`
+	ConversationId         string                 `protobuf:"bytes,2,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	ConversationType       int32                  `protobuf:"varint,3,opt,name=conversation_type,json=conversationType,proto3" json:"conversation_type,omitempty"`
+	TargetId               string                 `protobuf:"bytes,4,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	ReceiveOpt             int32                  `protobuf:"varint,5,opt,name=receive_opt,json=receiveOpt,proto3" json:"receive_opt,omitempty"`
+	UnreadCount            int64                  `protobuf:"varint,6,opt,name=unread_count,json=unreadCount,proto3" json:"unread_count,omitempty"`
+	Pinned                 bool                   `protobuf:"varint,7,opt,name=pinned,proto3" json:"pinned,omitempty"`
+	AttachedInfo           string                 `protobuf:"bytes,8,opt,name=attached_info,json=attachedInfo,proto3" json:"attached_info,omitempty"`
+	GroupAtType            int32                  `protobuf:"varint,9,opt,name=group_at_type,json=groupAtType,proto3" json:"group_at_type,omitempty"`
+	AutoCleanup            bool                   `protobuf:"varint,10,opt,name=auto_cleanup,json=autoCleanup,proto3" json:"auto_cleanup,omitempty"`
+	CleanupCycle           int64                  `protobuf:"varint,11,opt,name=cleanup_cycle,json=cleanupCycle,proto3" json:"cleanup_cycle,omitempty"`
+	LatestCleanupTime      int64                  `protobuf:"varint,12,opt,name=latest_cleanup_time,json=latestCleanupTime,proto3" json:"latest_cleanup_time,omitempty"`
+	CreatedAt              int64                  `protobuf:"varint,13,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt              int64                  `protobuf:"varint,14,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Kind                   string                 `protobuf:"bytes,15,opt,name=kind,proto3" json:"kind,omitempty"`
+	Title                  string                 `protobuf:"bytes,16,opt,name=title,proto3" json:"title,omitempty"`
+	Subtitle               string                 `protobuf:"bytes,17,opt,name=subtitle,proto3" json:"subtitle,omitempty"`
+	LastMessagePreview     string                 `protobuf:"bytes,18,opt,name=last_message_preview,json=lastMessagePreview,proto3" json:"last_message_preview,omitempty"`
+	LastMessagePreviewType string                 `protobuf:"bytes,19,opt,name=last_message_preview_type,json=lastMessagePreviewType,proto3" json:"last_message_preview_type,omitempty"`
+	LastMessageTime        int64                  `protobuf:"varint,20,opt,name=last_message_time,json=lastMessageTime,proto3" json:"last_message_time,omitempty"`
+	Notification           bool                   `protobuf:"varint,21,opt,name=notification,proto3" json:"notification,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *ProtoConversation) Reset() {
+	*x = ProtoConversation{}
+	mi := &file_message_protocol_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProtoConversation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProtoConversation) ProtoMessage() {}
+
+func (x *ProtoConversation) ProtoReflect() protoreflect.Message {
+	mi := &file_message_protocol_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProtoConversation.ProtoReflect.Descriptor instead.
+func (*ProtoConversation) Descriptor() ([]byte, []int) {
+	return file_message_protocol_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ProtoConversation) GetOwnerUserId() string {
+	if x != nil {
+		return x.OwnerUserId
+	}
+	return ""
+}
+
+func (x *ProtoConversation) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+func (x *ProtoConversation) GetConversationType() int32 {
+	if x != nil {
+		return x.ConversationType
+	}
+	return 0
+}
+
+func (x *ProtoConversation) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
+func (x *ProtoConversation) GetReceiveOpt() int32 {
+	if x != nil {
+		return x.ReceiveOpt
+	}
+	return 0
+}
+
+func (x *ProtoConversation) GetUnreadCount() int64 {
+	if x != nil {
+		return x.UnreadCount
+	}
+	return 0
+}
+
+func (x *ProtoConversation) GetPinned() bool {
+	if x != nil {
+		return x.Pinned
+	}
+	return false
+}
+
+func (x *ProtoConversation) GetAttachedInfo() string {
+	if x != nil {
+		return x.AttachedInfo
+	}
+	return ""
+}
+
+func (x *ProtoConversation) GetGroupAtType() int32 {
+	if x != nil {
+		return x.GroupAtType
+	}
+	return 0
+}
+
+func (x *ProtoConversation) GetAutoCleanup() bool {
+	if x != nil {
+		return x.AutoCleanup
+	}
+	return false
+}
+
+func (x *ProtoConversation) GetCleanupCycle() int64 {
+	if x != nil {
+		return x.CleanupCycle
+	}
+	return 0
+}
+
+func (x *ProtoConversation) GetLatestCleanupTime() int64 {
+	if x != nil {
+		return x.LatestCleanupTime
+	}
+	return 0
+}
+
+func (x *ProtoConversation) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+func (x *ProtoConversation) GetUpdatedAt() int64 {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return 0
+}
+
+func (x *ProtoConversation) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *ProtoConversation) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *ProtoConversation) GetSubtitle() string {
+	if x != nil {
+		return x.Subtitle
+	}
+	return ""
+}
+
+func (x *ProtoConversation) GetLastMessagePreview() string {
+	if x != nil {
+		return x.LastMessagePreview
+	}
+	return ""
+}
+
+func (x *ProtoConversation) GetLastMessagePreviewType() string {
+	if x != nil {
+		return x.LastMessagePreviewType
+	}
+	return ""
+}
+
+func (x *ProtoConversation) GetLastMessageTime() int64 {
+	if x != nil {
+		return x.LastMessageTime
+	}
+	return 0
+}
+
+func (x *ProtoConversation) GetNotification() bool {
+	if x != nil {
+		return x.Notification
+	}
+	return false
+}
+
+type ProtoConversationSyncCursor struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	VersionId     string                 `protobuf:"bytes,1,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
+	Version       int64                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	IdHash        int64                  `protobuf:"varint,3,opt,name=id_hash,json=idHash,proto3" json:"id_hash,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProtoConversationSyncCursor) Reset() {
+	*x = ProtoConversationSyncCursor{}
+	mi := &file_message_protocol_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProtoConversationSyncCursor) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProtoConversationSyncCursor) ProtoMessage() {}
+
+func (x *ProtoConversationSyncCursor) ProtoReflect() protoreflect.Message {
+	mi := &file_message_protocol_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProtoConversationSyncCursor.ProtoReflect.Descriptor instead.
+func (*ProtoConversationSyncCursor) Descriptor() ([]byte, []int) {
+	return file_message_protocol_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ProtoConversationSyncCursor) GetVersionId() string {
+	if x != nil {
+		return x.VersionId
+	}
+	return ""
+}
+
+func (x *ProtoConversationSyncCursor) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *ProtoConversationSyncCursor) GetIdHash() int64 {
+	if x != nil {
+		return x.IdHash
+	}
+	return 0
+}
+
+type ProtoConversationSyncResult struct {
+	state                           protoimpl.MessageState `protogen:"open.v1"`
+	VersionId                       string                 `protobuf:"bytes,1,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
+	Version                         int64                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	IdHash                          int64                  `protobuf:"varint,3,opt,name=id_hash,json=idHash,proto3" json:"id_hash,omitempty"`
+	Full                            bool                   `protobuf:"varint,4,opt,name=full,proto3" json:"full,omitempty"`
+	Insert                          []*ProtoConversation   `protobuf:"bytes,5,rep,name=insert,proto3" json:"insert,omitempty"`
+	Update                          []*ProtoConversation   `protobuf:"bytes,6,rep,name=update,proto3" json:"update,omitempty"`
+	Delete                          []string               `protobuf:"bytes,7,rep,name=delete,proto3" json:"delete,omitempty"`
+	ReadStateChangedConversationIds []string               `protobuf:"bytes,8,rep,name=read_state_changed_conversation_ids,json=readStateChangedConversationIds,proto3" json:"read_state_changed_conversation_ids,omitempty"`
+	unknownFields                   protoimpl.UnknownFields
+	sizeCache                       protoimpl.SizeCache
+}
+
+func (x *ProtoConversationSyncResult) Reset() {
+	*x = ProtoConversationSyncResult{}
+	mi := &file_message_protocol_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProtoConversationSyncResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProtoConversationSyncResult) ProtoMessage() {}
+
+func (x *ProtoConversationSyncResult) ProtoReflect() protoreflect.Message {
+	mi := &file_message_protocol_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProtoConversationSyncResult.ProtoReflect.Descriptor instead.
+func (*ProtoConversationSyncResult) Descriptor() ([]byte, []int) {
+	return file_message_protocol_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ProtoConversationSyncResult) GetVersionId() string {
+	if x != nil {
+		return x.VersionId
+	}
+	return ""
+}
+
+func (x *ProtoConversationSyncResult) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *ProtoConversationSyncResult) GetIdHash() int64 {
+	if x != nil {
+		return x.IdHash
+	}
+	return 0
+}
+
+func (x *ProtoConversationSyncResult) GetFull() bool {
+	if x != nil {
+		return x.Full
+	}
+	return false
+}
+
+func (x *ProtoConversationSyncResult) GetInsert() []*ProtoConversation {
+	if x != nil {
+		return x.Insert
+	}
+	return nil
+}
+
+func (x *ProtoConversationSyncResult) GetUpdate() []*ProtoConversation {
+	if x != nil {
+		return x.Update
+	}
+	return nil
+}
+
+func (x *ProtoConversationSyncResult) GetDelete() []string {
+	if x != nil {
+		return x.Delete
+	}
+	return nil
+}
+
+func (x *ProtoConversationSyncResult) GetReadStateChangedConversationIds() []string {
+	if x != nil {
+		return x.ReadStateChangedConversationIds
+	}
+	return nil
+}
+
+type ProtoConversationCommand struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ConversationId   string                 `protobuf:"bytes,1,opt,name=conversation_id,json=conversationId,proto3" json:"conversation_id,omitempty"`
+	ConversationType int32                  `protobuf:"varint,2,opt,name=conversation_type,json=conversationType,proto3" json:"conversation_type,omitempty"`
+	TargetId         string                 `protobuf:"bytes,3,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	RecvMsgOpt       *int32                 `protobuf:"varint,4,opt,name=recv_msg_opt,json=recvMsgOpt,proto3,oneof" json:"recv_msg_opt,omitempty"`
+	Pinned           *bool                  `protobuf:"varint,5,opt,name=pinned,proto3,oneof" json:"pinned,omitempty"`
+	DraftText        *string                `protobuf:"bytes,6,opt,name=draft_text,json=draftText,proto3,oneof" json:"draft_text,omitempty"`
+	AttachedInfo     *string                `protobuf:"bytes,7,opt,name=attached_info,json=attachedInfo,proto3,oneof" json:"attached_info,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ProtoConversationCommand) Reset() {
+	*x = ProtoConversationCommand{}
+	mi := &file_message_protocol_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProtoConversationCommand) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProtoConversationCommand) ProtoMessage() {}
+
+func (x *ProtoConversationCommand) ProtoReflect() protoreflect.Message {
+	mi := &file_message_protocol_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProtoConversationCommand.ProtoReflect.Descriptor instead.
+func (*ProtoConversationCommand) Descriptor() ([]byte, []int) {
+	return file_message_protocol_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ProtoConversationCommand) GetConversationId() string {
+	if x != nil {
+		return x.ConversationId
+	}
+	return ""
+}
+
+func (x *ProtoConversationCommand) GetConversationType() int32 {
+	if x != nil {
+		return x.ConversationType
+	}
+	return 0
+}
+
+func (x *ProtoConversationCommand) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
+func (x *ProtoConversationCommand) GetRecvMsgOpt() int32 {
+	if x != nil && x.RecvMsgOpt != nil {
+		return *x.RecvMsgOpt
+	}
+	return 0
+}
+
+func (x *ProtoConversationCommand) GetPinned() bool {
+	if x != nil && x.Pinned != nil {
+		return *x.Pinned
+	}
+	return false
+}
+
+func (x *ProtoConversationCommand) GetDraftText() string {
+	if x != nil && x.DraftText != nil {
+		return *x.DraftText
+	}
+	return ""
+}
+
+func (x *ProtoConversationCommand) GetAttachedInfo() string {
+	if x != nil && x.AttachedInfo != nil {
+		return *x.AttachedInfo
+	}
+	return ""
+}
+
 type ProtoAuthRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Ticket        string                 `protobuf:"bytes,1,opt,name=ticket,proto3" json:"ticket,omitempty"`
@@ -648,7 +1485,7 @@ type ProtoAuthRequest struct {
 
 func (x *ProtoAuthRequest) Reset() {
 	*x = ProtoAuthRequest{}
-	mi := &file_message_protocol_proto_msgTypes[5]
+	mi := &file_message_protocol_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -660,7 +1497,7 @@ func (x *ProtoAuthRequest) String() string {
 func (*ProtoAuthRequest) ProtoMessage() {}
 
 func (x *ProtoAuthRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[5]
+	mi := &file_message_protocol_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -673,7 +1510,7 @@ func (x *ProtoAuthRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoAuthRequest.ProtoReflect.Descriptor instead.
 func (*ProtoAuthRequest) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{5}
+	return file_message_protocol_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ProtoAuthRequest) GetTicket() string {
@@ -693,7 +1530,7 @@ type ProtoAuthResponse struct {
 
 func (x *ProtoAuthResponse) Reset() {
 	*x = ProtoAuthResponse{}
-	mi := &file_message_protocol_proto_msgTypes[6]
+	mi := &file_message_protocol_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -705,7 +1542,7 @@ func (x *ProtoAuthResponse) String() string {
 func (*ProtoAuthResponse) ProtoMessage() {}
 
 func (x *ProtoAuthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[6]
+	mi := &file_message_protocol_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -718,7 +1555,7 @@ func (x *ProtoAuthResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoAuthResponse.ProtoReflect.Descriptor instead.
 func (*ProtoAuthResponse) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{6}
+	return file_message_protocol_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ProtoAuthResponse) GetUserId() string {
@@ -745,7 +1582,7 @@ type ProtoConnectResponse struct {
 
 func (x *ProtoConnectResponse) Reset() {
 	*x = ProtoConnectResponse{}
-	mi := &file_message_protocol_proto_msgTypes[7]
+	mi := &file_message_protocol_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -757,7 +1594,7 @@ func (x *ProtoConnectResponse) String() string {
 func (*ProtoConnectResponse) ProtoMessage() {}
 
 func (x *ProtoConnectResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[7]
+	mi := &file_message_protocol_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -770,7 +1607,7 @@ func (x *ProtoConnectResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoConnectResponse.ProtoReflect.Descriptor instead.
 func (*ProtoConnectResponse) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{7}
+	return file_message_protocol_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ProtoConnectResponse) GetConnId() string {
@@ -796,7 +1633,7 @@ type ProtoHeartbeatResponse struct {
 
 func (x *ProtoHeartbeatResponse) Reset() {
 	*x = ProtoHeartbeatResponse{}
-	mi := &file_message_protocol_proto_msgTypes[8]
+	mi := &file_message_protocol_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -808,7 +1645,7 @@ func (x *ProtoHeartbeatResponse) String() string {
 func (*ProtoHeartbeatResponse) ProtoMessage() {}
 
 func (x *ProtoHeartbeatResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[8]
+	mi := &file_message_protocol_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -821,7 +1658,7 @@ func (x *ProtoHeartbeatResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoHeartbeatResponse.ProtoReflect.Descriptor instead.
 func (*ProtoHeartbeatResponse) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{8}
+	return file_message_protocol_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ProtoHeartbeatResponse) GetMessage() string {
@@ -841,7 +1678,7 @@ type ProtoErrorResponse struct {
 
 func (x *ProtoErrorResponse) Reset() {
 	*x = ProtoErrorResponse{}
-	mi := &file_message_protocol_proto_msgTypes[9]
+	mi := &file_message_protocol_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -853,7 +1690,7 @@ func (x *ProtoErrorResponse) String() string {
 func (*ProtoErrorResponse) ProtoMessage() {}
 
 func (x *ProtoErrorResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[9]
+	mi := &file_message_protocol_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -866,7 +1703,7 @@ func (x *ProtoErrorResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoErrorResponse.ProtoReflect.Descriptor instead.
 func (*ProtoErrorResponse) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{9}
+	return file_message_protocol_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ProtoErrorResponse) GetCode() int32 {
@@ -896,7 +1733,7 @@ type ProtoChatSendAck struct {
 
 func (x *ProtoChatSendAck) Reset() {
 	*x = ProtoChatSendAck{}
-	mi := &file_message_protocol_proto_msgTypes[10]
+	mi := &file_message_protocol_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -908,7 +1745,7 @@ func (x *ProtoChatSendAck) String() string {
 func (*ProtoChatSendAck) ProtoMessage() {}
 
 func (x *ProtoChatSendAck) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[10]
+	mi := &file_message_protocol_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -921,7 +1758,7 @@ func (x *ProtoChatSendAck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoChatSendAck.ProtoReflect.Descriptor instead.
 func (*ProtoChatSendAck) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{10}
+	return file_message_protocol_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ProtoChatSendAck) GetServerMsgId() string {
@@ -972,7 +1809,7 @@ type ProtoChatDeliveryAckCommand struct {
 
 func (x *ProtoChatDeliveryAckCommand) Reset() {
 	*x = ProtoChatDeliveryAckCommand{}
-	mi := &file_message_protocol_proto_msgTypes[11]
+	mi := &file_message_protocol_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -984,7 +1821,7 @@ func (x *ProtoChatDeliveryAckCommand) String() string {
 func (*ProtoChatDeliveryAckCommand) ProtoMessage() {}
 
 func (x *ProtoChatDeliveryAckCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[11]
+	mi := &file_message_protocol_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -997,7 +1834,7 @@ func (x *ProtoChatDeliveryAckCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoChatDeliveryAckCommand.ProtoReflect.Descriptor instead.
 func (*ProtoChatDeliveryAckCommand) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{11}
+	return file_message_protocol_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ProtoChatDeliveryAckCommand) GetConversationId() string {
@@ -1042,7 +1879,7 @@ type ProtoChatDeliveryNotify struct {
 
 func (x *ProtoChatDeliveryNotify) Reset() {
 	*x = ProtoChatDeliveryNotify{}
-	mi := &file_message_protocol_proto_msgTypes[12]
+	mi := &file_message_protocol_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1054,7 +1891,7 @@ func (x *ProtoChatDeliveryNotify) String() string {
 func (*ProtoChatDeliveryNotify) ProtoMessage() {}
 
 func (x *ProtoChatDeliveryNotify) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[12]
+	mi := &file_message_protocol_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1067,7 +1904,7 @@ func (x *ProtoChatDeliveryNotify) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoChatDeliveryNotify.ProtoReflect.Descriptor instead.
 func (*ProtoChatDeliveryNotify) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{12}
+	return file_message_protocol_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ProtoChatDeliveryNotify) GetConversationId() string {
@@ -1118,7 +1955,7 @@ type ProtoChatReadCommand struct {
 
 func (x *ProtoChatReadCommand) Reset() {
 	*x = ProtoChatReadCommand{}
-	mi := &file_message_protocol_proto_msgTypes[13]
+	mi := &file_message_protocol_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1130,7 +1967,7 @@ func (x *ProtoChatReadCommand) String() string {
 func (*ProtoChatReadCommand) ProtoMessage() {}
 
 func (x *ProtoChatReadCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[13]
+	mi := &file_message_protocol_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1143,7 +1980,7 @@ func (x *ProtoChatReadCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoChatReadCommand.ProtoReflect.Descriptor instead.
 func (*ProtoChatReadCommand) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{13}
+	return file_message_protocol_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ProtoChatReadCommand) GetConversationId() string {
@@ -1187,7 +2024,7 @@ type ProtoChatReadNotify struct {
 
 func (x *ProtoChatReadNotify) Reset() {
 	*x = ProtoChatReadNotify{}
-	mi := &file_message_protocol_proto_msgTypes[14]
+	mi := &file_message_protocol_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1199,7 +2036,7 @@ func (x *ProtoChatReadNotify) String() string {
 func (*ProtoChatReadNotify) ProtoMessage() {}
 
 func (x *ProtoChatReadNotify) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[14]
+	mi := &file_message_protocol_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1212,7 +2049,7 @@ func (x *ProtoChatReadNotify) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoChatReadNotify.ProtoReflect.Descriptor instead.
 func (*ProtoChatReadNotify) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{14}
+	return file_message_protocol_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ProtoChatReadNotify) GetConversationId() string {
@@ -1256,7 +2093,7 @@ type ProtoChatRevokeCommand struct {
 
 func (x *ProtoChatRevokeCommand) Reset() {
 	*x = ProtoChatRevokeCommand{}
-	mi := &file_message_protocol_proto_msgTypes[15]
+	mi := &file_message_protocol_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1268,7 +2105,7 @@ func (x *ProtoChatRevokeCommand) String() string {
 func (*ProtoChatRevokeCommand) ProtoMessage() {}
 
 func (x *ProtoChatRevokeCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[15]
+	mi := &file_message_protocol_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1281,7 +2118,7 @@ func (x *ProtoChatRevokeCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoChatRevokeCommand.ProtoReflect.Descriptor instead.
 func (*ProtoChatRevokeCommand) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{15}
+	return file_message_protocol_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ProtoChatRevokeCommand) GetConversationId() string {
@@ -1329,7 +2166,7 @@ type ProtoChatRevokeNotify struct {
 
 func (x *ProtoChatRevokeNotify) Reset() {
 	*x = ProtoChatRevokeNotify{}
-	mi := &file_message_protocol_proto_msgTypes[16]
+	mi := &file_message_protocol_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1341,7 +2178,7 @@ func (x *ProtoChatRevokeNotify) String() string {
 func (*ProtoChatRevokeNotify) ProtoMessage() {}
 
 func (x *ProtoChatRevokeNotify) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[16]
+	mi := &file_message_protocol_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1354,7 +2191,7 @@ func (x *ProtoChatRevokeNotify) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoChatRevokeNotify.ProtoReflect.Descriptor instead.
 func (*ProtoChatRevokeNotify) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{16}
+	return file_message_protocol_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ProtoChatRevokeNotify) GetConversationId() string {
@@ -1425,7 +2262,7 @@ type ProtoChatTypingCommand struct {
 
 func (x *ProtoChatTypingCommand) Reset() {
 	*x = ProtoChatTypingCommand{}
-	mi := &file_message_protocol_proto_msgTypes[17]
+	mi := &file_message_protocol_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1437,7 +2274,7 @@ func (x *ProtoChatTypingCommand) String() string {
 func (*ProtoChatTypingCommand) ProtoMessage() {}
 
 func (x *ProtoChatTypingCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[17]
+	mi := &file_message_protocol_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1450,7 +2287,7 @@ func (x *ProtoChatTypingCommand) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoChatTypingCommand.ProtoReflect.Descriptor instead.
 func (*ProtoChatTypingCommand) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{17}
+	return file_message_protocol_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ProtoChatTypingCommand) GetConversationId() string {
@@ -1487,7 +2324,7 @@ type ProtoChatTypingNotify struct {
 
 func (x *ProtoChatTypingNotify) Reset() {
 	*x = ProtoChatTypingNotify{}
-	mi := &file_message_protocol_proto_msgTypes[18]
+	mi := &file_message_protocol_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1499,7 +2336,7 @@ func (x *ProtoChatTypingNotify) String() string {
 func (*ProtoChatTypingNotify) ProtoMessage() {}
 
 func (x *ProtoChatTypingNotify) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[18]
+	mi := &file_message_protocol_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1512,7 +2349,7 @@ func (x *ProtoChatTypingNotify) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoChatTypingNotify.ProtoReflect.Descriptor instead.
 func (*ProtoChatTypingNotify) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{18}
+	return file_message_protocol_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ProtoChatTypingNotify) GetConversationId() string {
@@ -1556,7 +2393,7 @@ type ProtoForceLogoutNotify struct {
 
 func (x *ProtoForceLogoutNotify) Reset() {
 	*x = ProtoForceLogoutNotify{}
-	mi := &file_message_protocol_proto_msgTypes[19]
+	mi := &file_message_protocol_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1568,7 +2405,7 @@ func (x *ProtoForceLogoutNotify) String() string {
 func (*ProtoForceLogoutNotify) ProtoMessage() {}
 
 func (x *ProtoForceLogoutNotify) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[19]
+	mi := &file_message_protocol_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1581,7 +2418,7 @@ func (x *ProtoForceLogoutNotify) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoForceLogoutNotify.ProtoReflect.Descriptor instead.
 func (*ProtoForceLogoutNotify) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{19}
+	return file_message_protocol_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ProtoForceLogoutNotify) GetReason() string {
@@ -1631,7 +2468,7 @@ type ProtoClientEnvelope struct {
 
 func (x *ProtoClientEnvelope) Reset() {
 	*x = ProtoClientEnvelope{}
-	mi := &file_message_protocol_proto_msgTypes[20]
+	mi := &file_message_protocol_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1643,7 +2480,7 @@ func (x *ProtoClientEnvelope) String() string {
 func (*ProtoClientEnvelope) ProtoMessage() {}
 
 func (x *ProtoClientEnvelope) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[20]
+	mi := &file_message_protocol_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1656,7 +2493,7 @@ func (x *ProtoClientEnvelope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoClientEnvelope.ProtoReflect.Descriptor instead.
 func (*ProtoClientEnvelope) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{20}
+	return file_message_protocol_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *ProtoClientEnvelope) GetCommand() int32 {
@@ -1798,7 +2635,7 @@ type ProtoServerEnvelope struct {
 
 func (x *ProtoServerEnvelope) Reset() {
 	*x = ProtoServerEnvelope{}
-	mi := &file_message_protocol_proto_msgTypes[21]
+	mi := &file_message_protocol_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1810,7 +2647,7 @@ func (x *ProtoServerEnvelope) String() string {
 func (*ProtoServerEnvelope) ProtoMessage() {}
 
 func (x *ProtoServerEnvelope) ProtoReflect() protoreflect.Message {
-	mi := &file_message_protocol_proto_msgTypes[21]
+	mi := &file_message_protocol_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1823,7 +2660,7 @@ func (x *ProtoServerEnvelope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoServerEnvelope.ProtoReflect.Descriptor instead.
 func (*ProtoServerEnvelope) Descriptor() ([]byte, []int) {
-	return file_message_protocol_proto_rawDescGZIP(), []int{21}
+	return file_message_protocol_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *ProtoServerEnvelope) GetCommand() int32 {
@@ -2104,7 +2941,104 @@ const file_message_protocol_proto_rawDesc = "" +
 	"attributes\x1a=\n" +
 	"\x0fAttributesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"*\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xf2\x01\n" +
+	"\vProtoFriend\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x1b\n" +
+	"\tfriend_id\x18\x03 \x01(\tR\bfriendId\x12\x16\n" +
+	"\x06remark\x18\x04 \x01(\tR\x06remark\x12\x1d\n" +
+	"\n" +
+	"add_source\x18\x05 \x01(\x05R\taddSource\x12\x1f\n" +
+	"\voperator_id\x18\x06 \x01(\tR\n" +
+	"operatorId\x12\x16\n" +
+	"\x06pinned\x18\a \x01(\bR\x06pinned\x12\x0e\n" +
+	"\x02ex\x18\b \x01(\tR\x02ex\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\t \x01(\x03R\tcreatedAt\"\xca\x02\n" +
+	"\x12ProtoFriendRequest\x12 \n" +
+	"\ffrom_user_id\x18\x01 \x01(\tR\n" +
+	"fromUserId\x12\x1c\n" +
+	"\n" +
+	"to_user_id\x18\x02 \x01(\tR\btoUserId\x12\x17\n" +
+	"\areq_msg\x18\x03 \x01(\tR\x06reqMsg\x12#\n" +
+	"\rhandle_result\x18\x04 \x01(\x05R\fhandleResult\x12\x1d\n" +
+	"\n" +
+	"handle_msg\x18\x05 \x01(\tR\thandleMsg\x12&\n" +
+	"\x0fhandler_user_id\x18\x06 \x01(\tR\rhandlerUserId\x12\x1f\n" +
+	"\vhandle_time\x18\a \x01(\x03R\n" +
+	"handleTime\x12\x0e\n" +
+	"\x02ex\x18\b \x01(\tR\x02ex\x12\x1f\n" +
+	"\vcreate_time\x18\t \x01(\x03R\n" +
+	"createTime\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\n" +
+	" \x01(\x03R\tupdatedAt\"n\n" +
+	"\x1dProtoSendFriendRequestCommand\x12$\n" +
+	"\x0efriend_user_id\x18\x01 \x01(\tR\ffriendUserId\x12'\n" +
+	"\x0frequest_message\x18\x02 \x01(\tR\x0erequestMessage\"G\n" +
+	"\x1fProtoHandleFriendRequestCommand\x12$\n" +
+	"\x0efriend_user_id\x18\x01 \x01(\tR\ffriendUserId\"l\n" +
+	"\x11ProtoGroupSummary\x12\x19\n" +
+	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12\x1d\n" +
+	"\n" +
+	"group_name\x18\x02 \x01(\tR\tgroupName\x12\x1d\n" +
+	"\n" +
+	"avatar_url\x18\x03 \x01(\tR\tavatarUrl\"\x88\x06\n" +
+	"\x11ProtoConversation\x12\"\n" +
+	"\rowner_user_id\x18\x01 \x01(\tR\vownerUserId\x12'\n" +
+	"\x0fconversation_id\x18\x02 \x01(\tR\x0econversationId\x12+\n" +
+	"\x11conversation_type\x18\x03 \x01(\x05R\x10conversationType\x12\x1b\n" +
+	"\ttarget_id\x18\x04 \x01(\tR\btargetId\x12\x1f\n" +
+	"\vreceive_opt\x18\x05 \x01(\x05R\n" +
+	"receiveOpt\x12!\n" +
+	"\funread_count\x18\x06 \x01(\x03R\vunreadCount\x12\x16\n" +
+	"\x06pinned\x18\a \x01(\bR\x06pinned\x12#\n" +
+	"\rattached_info\x18\b \x01(\tR\fattachedInfo\x12\"\n" +
+	"\rgroup_at_type\x18\t \x01(\x05R\vgroupAtType\x12!\n" +
+	"\fauto_cleanup\x18\n" +
+	" \x01(\bR\vautoCleanup\x12#\n" +
+	"\rcleanup_cycle\x18\v \x01(\x03R\fcleanupCycle\x12.\n" +
+	"\x13latest_cleanup_time\x18\f \x01(\x03R\x11latestCleanupTime\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\r \x01(\x03R\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x0e \x01(\x03R\tupdatedAt\x12\x12\n" +
+	"\x04kind\x18\x0f \x01(\tR\x04kind\x12\x14\n" +
+	"\x05title\x18\x10 \x01(\tR\x05title\x12\x1a\n" +
+	"\bsubtitle\x18\x11 \x01(\tR\bsubtitle\x120\n" +
+	"\x14last_message_preview\x18\x12 \x01(\tR\x12lastMessagePreview\x129\n" +
+	"\x19last_message_preview_type\x18\x13 \x01(\tR\x16lastMessagePreviewType\x12*\n" +
+	"\x11last_message_time\x18\x14 \x01(\x03R\x0flastMessageTime\x12\"\n" +
+	"\fnotification\x18\x15 \x01(\bR\fnotification\"o\n" +
+	"\x1bProtoConversationSyncCursor\x12\x1d\n" +
+	"\n" +
+	"version_id\x18\x01 \x01(\tR\tversionId\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x17\n" +
+	"\aid_hash\x18\x03 \x01(\x03R\x06idHash\"\xe5\x02\n" +
+	"\x1bProtoConversationSyncResult\x12\x1d\n" +
+	"\n" +
+	"version_id\x18\x01 \x01(\tR\tversionId\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x17\n" +
+	"\aid_hash\x18\x03 \x01(\x03R\x06idHash\x12\x12\n" +
+	"\x04full\x18\x04 \x01(\bR\x04full\x12<\n" +
+	"\x06insert\x18\x05 \x03(\v2$.cheeseim.protocol.ProtoConversationR\x06insert\x12<\n" +
+	"\x06update\x18\x06 \x03(\v2$.cheeseim.protocol.ProtoConversationR\x06update\x12\x16\n" +
+	"\x06delete\x18\a \x03(\tR\x06delete\x12L\n" +
+	"#read_state_changed_conversation_ids\x18\b \x03(\tR\x1freadStateChangedConversationIds\"\xdc\x02\n" +
+	"\x18ProtoConversationCommand\x12'\n" +
+	"\x0fconversation_id\x18\x01 \x01(\tR\x0econversationId\x12+\n" +
+	"\x11conversation_type\x18\x02 \x01(\x05R\x10conversationType\x12\x1b\n" +
+	"\ttarget_id\x18\x03 \x01(\tR\btargetId\x12%\n" +
+	"\frecv_msg_opt\x18\x04 \x01(\x05H\x00R\n" +
+	"recvMsgOpt\x88\x01\x01\x12\x1b\n" +
+	"\x06pinned\x18\x05 \x01(\bH\x01R\x06pinned\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"draft_text\x18\x06 \x01(\tH\x02R\tdraftText\x88\x01\x01\x12(\n" +
+	"\rattached_info\x18\a \x01(\tH\x03R\fattachedInfo\x88\x01\x01B\x0f\n" +
+	"\r_recv_msg_optB\t\n" +
+	"\a_pinnedB\r\n" +
+	"\v_draft_textB\x10\n" +
+	"\x0e_attached_info\"*\n" +
 	"\x10ProtoAuthRequest\x12\x16\n" +
 	"\x06ticket\x18\x01 \x01(\tR\x06ticket\"F\n" +
 	"\x11ProtoAuthResponse\x12\x17\n" +
@@ -2230,65 +3164,76 @@ func file_message_protocol_proto_rawDescGZIP() []byte {
 }
 
 var file_message_protocol_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_message_protocol_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_message_protocol_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
 var file_message_protocol_proto_goTypes = []any{
-	(ProtoChatSendAcceptedState)(0),     // 0: cheeseim.protocol.ProtoChatSendAcceptedState
-	(*ProtoMessageOptions)(nil),         // 1: cheeseim.protocol.ProtoMessageOptions
-	(*ProtoOfflinePushInfo)(nil),        // 2: cheeseim.protocol.ProtoOfflinePushInfo
-	(*ProtoMessage)(nil),                // 3: cheeseim.protocol.ProtoMessage
-	(*ProtoHistoryEvent)(nil),           // 4: cheeseim.protocol.ProtoHistoryEvent
-	(*ProtoOfflinePushEvent)(nil),       // 5: cheeseim.protocol.ProtoOfflinePushEvent
-	(*ProtoAuthRequest)(nil),            // 6: cheeseim.protocol.ProtoAuthRequest
-	(*ProtoAuthResponse)(nil),           // 7: cheeseim.protocol.ProtoAuthResponse
-	(*ProtoConnectResponse)(nil),        // 8: cheeseim.protocol.ProtoConnectResponse
-	(*ProtoHeartbeatResponse)(nil),      // 9: cheeseim.protocol.ProtoHeartbeatResponse
-	(*ProtoErrorResponse)(nil),          // 10: cheeseim.protocol.ProtoErrorResponse
-	(*ProtoChatSendAck)(nil),            // 11: cheeseim.protocol.ProtoChatSendAck
-	(*ProtoChatDeliveryAckCommand)(nil), // 12: cheeseim.protocol.ProtoChatDeliveryAckCommand
-	(*ProtoChatDeliveryNotify)(nil),     // 13: cheeseim.protocol.ProtoChatDeliveryNotify
-	(*ProtoChatReadCommand)(nil),        // 14: cheeseim.protocol.ProtoChatReadCommand
-	(*ProtoChatReadNotify)(nil),         // 15: cheeseim.protocol.ProtoChatReadNotify
-	(*ProtoChatRevokeCommand)(nil),      // 16: cheeseim.protocol.ProtoChatRevokeCommand
-	(*ProtoChatRevokeNotify)(nil),       // 17: cheeseim.protocol.ProtoChatRevokeNotify
-	(*ProtoChatTypingCommand)(nil),      // 18: cheeseim.protocol.ProtoChatTypingCommand
-	(*ProtoChatTypingNotify)(nil),       // 19: cheeseim.protocol.ProtoChatTypingNotify
-	(*ProtoForceLogoutNotify)(nil),      // 20: cheeseim.protocol.ProtoForceLogoutNotify
-	(*ProtoClientEnvelope)(nil),         // 21: cheeseim.protocol.ProtoClientEnvelope
-	(*ProtoServerEnvelope)(nil),         // 22: cheeseim.protocol.ProtoServerEnvelope
-	nil,                                 // 23: cheeseim.protocol.ProtoOfflinePushInfo.PushExtrasEntry
-	nil,                                 // 24: cheeseim.protocol.ProtoMessage.AttributesEntry
-	nil,                                 // 25: cheeseim.protocol.ProtoOfflinePushEvent.AttributesEntry
+	(ProtoChatSendAcceptedState)(0),         // 0: cheeseim.protocol.ProtoChatSendAcceptedState
+	(*ProtoMessageOptions)(nil),             // 1: cheeseim.protocol.ProtoMessageOptions
+	(*ProtoOfflinePushInfo)(nil),            // 2: cheeseim.protocol.ProtoOfflinePushInfo
+	(*ProtoMessage)(nil),                    // 3: cheeseim.protocol.ProtoMessage
+	(*ProtoHistoryEvent)(nil),               // 4: cheeseim.protocol.ProtoHistoryEvent
+	(*ProtoOfflinePushEvent)(nil),           // 5: cheeseim.protocol.ProtoOfflinePushEvent
+	(*ProtoFriend)(nil),                     // 6: cheeseim.protocol.ProtoFriend
+	(*ProtoFriendRequest)(nil),              // 7: cheeseim.protocol.ProtoFriendRequest
+	(*ProtoSendFriendRequestCommand)(nil),   // 8: cheeseim.protocol.ProtoSendFriendRequestCommand
+	(*ProtoHandleFriendRequestCommand)(nil), // 9: cheeseim.protocol.ProtoHandleFriendRequestCommand
+	(*ProtoGroupSummary)(nil),               // 10: cheeseim.protocol.ProtoGroupSummary
+	(*ProtoConversation)(nil),               // 11: cheeseim.protocol.ProtoConversation
+	(*ProtoConversationSyncCursor)(nil),     // 12: cheeseim.protocol.ProtoConversationSyncCursor
+	(*ProtoConversationSyncResult)(nil),     // 13: cheeseim.protocol.ProtoConversationSyncResult
+	(*ProtoConversationCommand)(nil),        // 14: cheeseim.protocol.ProtoConversationCommand
+	(*ProtoAuthRequest)(nil),                // 15: cheeseim.protocol.ProtoAuthRequest
+	(*ProtoAuthResponse)(nil),               // 16: cheeseim.protocol.ProtoAuthResponse
+	(*ProtoConnectResponse)(nil),            // 17: cheeseim.protocol.ProtoConnectResponse
+	(*ProtoHeartbeatResponse)(nil),          // 18: cheeseim.protocol.ProtoHeartbeatResponse
+	(*ProtoErrorResponse)(nil),              // 19: cheeseim.protocol.ProtoErrorResponse
+	(*ProtoChatSendAck)(nil),                // 20: cheeseim.protocol.ProtoChatSendAck
+	(*ProtoChatDeliveryAckCommand)(nil),     // 21: cheeseim.protocol.ProtoChatDeliveryAckCommand
+	(*ProtoChatDeliveryNotify)(nil),         // 22: cheeseim.protocol.ProtoChatDeliveryNotify
+	(*ProtoChatReadCommand)(nil),            // 23: cheeseim.protocol.ProtoChatReadCommand
+	(*ProtoChatReadNotify)(nil),             // 24: cheeseim.protocol.ProtoChatReadNotify
+	(*ProtoChatRevokeCommand)(nil),          // 25: cheeseim.protocol.ProtoChatRevokeCommand
+	(*ProtoChatRevokeNotify)(nil),           // 26: cheeseim.protocol.ProtoChatRevokeNotify
+	(*ProtoChatTypingCommand)(nil),          // 27: cheeseim.protocol.ProtoChatTypingCommand
+	(*ProtoChatTypingNotify)(nil),           // 28: cheeseim.protocol.ProtoChatTypingNotify
+	(*ProtoForceLogoutNotify)(nil),          // 29: cheeseim.protocol.ProtoForceLogoutNotify
+	(*ProtoClientEnvelope)(nil),             // 30: cheeseim.protocol.ProtoClientEnvelope
+	(*ProtoServerEnvelope)(nil),             // 31: cheeseim.protocol.ProtoServerEnvelope
+	nil,                                     // 32: cheeseim.protocol.ProtoOfflinePushInfo.PushExtrasEntry
+	nil,                                     // 33: cheeseim.protocol.ProtoMessage.AttributesEntry
+	nil,                                     // 34: cheeseim.protocol.ProtoOfflinePushEvent.AttributesEntry
 }
 var file_message_protocol_proto_depIdxs = []int32{
-	23, // 0: cheeseim.protocol.ProtoOfflinePushInfo.push_extras:type_name -> cheeseim.protocol.ProtoOfflinePushInfo.PushExtrasEntry
-	24, // 1: cheeseim.protocol.ProtoMessage.attributes:type_name -> cheeseim.protocol.ProtoMessage.AttributesEntry
+	32, // 0: cheeseim.protocol.ProtoOfflinePushInfo.push_extras:type_name -> cheeseim.protocol.ProtoOfflinePushInfo.PushExtrasEntry
+	33, // 1: cheeseim.protocol.ProtoMessage.attributes:type_name -> cheeseim.protocol.ProtoMessage.AttributesEntry
 	1,  // 2: cheeseim.protocol.ProtoMessage.options:type_name -> cheeseim.protocol.ProtoMessageOptions
 	2,  // 3: cheeseim.protocol.ProtoMessage.offline_push_info:type_name -> cheeseim.protocol.ProtoOfflinePushInfo
 	3,  // 4: cheeseim.protocol.ProtoHistoryEvent.messages:type_name -> cheeseim.protocol.ProtoMessage
-	25, // 5: cheeseim.protocol.ProtoOfflinePushEvent.attributes:type_name -> cheeseim.protocol.ProtoOfflinePushEvent.AttributesEntry
-	0,  // 6: cheeseim.protocol.ProtoChatSendAck.accepted_state:type_name -> cheeseim.protocol.ProtoChatSendAcceptedState
-	6,  // 7: cheeseim.protocol.ProtoClientEnvelope.auth:type_name -> cheeseim.protocol.ProtoAuthRequest
-	3,  // 8: cheeseim.protocol.ProtoClientEnvelope.chat_message:type_name -> cheeseim.protocol.ProtoMessage
-	14, // 9: cheeseim.protocol.ProtoClientEnvelope.chat_read:type_name -> cheeseim.protocol.ProtoChatReadCommand
-	16, // 10: cheeseim.protocol.ProtoClientEnvelope.chat_revoke:type_name -> cheeseim.protocol.ProtoChatRevokeCommand
-	18, // 11: cheeseim.protocol.ProtoClientEnvelope.chat_typing:type_name -> cheeseim.protocol.ProtoChatTypingCommand
-	12, // 12: cheeseim.protocol.ProtoClientEnvelope.chat_delivery_ack:type_name -> cheeseim.protocol.ProtoChatDeliveryAckCommand
-	8,  // 13: cheeseim.protocol.ProtoServerEnvelope.connect:type_name -> cheeseim.protocol.ProtoConnectResponse
-	7,  // 14: cheeseim.protocol.ProtoServerEnvelope.auth:type_name -> cheeseim.protocol.ProtoAuthResponse
-	9,  // 15: cheeseim.protocol.ProtoServerEnvelope.heartbeat:type_name -> cheeseim.protocol.ProtoHeartbeatResponse
-	11, // 16: cheeseim.protocol.ProtoServerEnvelope.chat_send_ack:type_name -> cheeseim.protocol.ProtoChatSendAck
-	3,  // 17: cheeseim.protocol.ProtoServerEnvelope.chat_message:type_name -> cheeseim.protocol.ProtoMessage
-	10, // 18: cheeseim.protocol.ProtoServerEnvelope.error:type_name -> cheeseim.protocol.ProtoErrorResponse
-	15, // 19: cheeseim.protocol.ProtoServerEnvelope.chat_read_notify:type_name -> cheeseim.protocol.ProtoChatReadNotify
-	17, // 20: cheeseim.protocol.ProtoServerEnvelope.chat_revoke_notify:type_name -> cheeseim.protocol.ProtoChatRevokeNotify
-	20, // 21: cheeseim.protocol.ProtoServerEnvelope.force_logout:type_name -> cheeseim.protocol.ProtoForceLogoutNotify
-	19, // 22: cheeseim.protocol.ProtoServerEnvelope.chat_typing_notify:type_name -> cheeseim.protocol.ProtoChatTypingNotify
-	13, // 23: cheeseim.protocol.ProtoServerEnvelope.chat_delivery_notify:type_name -> cheeseim.protocol.ProtoChatDeliveryNotify
-	24, // [24:24] is the sub-list for method output_type
-	24, // [24:24] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	34, // 5: cheeseim.protocol.ProtoOfflinePushEvent.attributes:type_name -> cheeseim.protocol.ProtoOfflinePushEvent.AttributesEntry
+	11, // 6: cheeseim.protocol.ProtoConversationSyncResult.insert:type_name -> cheeseim.protocol.ProtoConversation
+	11, // 7: cheeseim.protocol.ProtoConversationSyncResult.update:type_name -> cheeseim.protocol.ProtoConversation
+	0,  // 8: cheeseim.protocol.ProtoChatSendAck.accepted_state:type_name -> cheeseim.protocol.ProtoChatSendAcceptedState
+	15, // 9: cheeseim.protocol.ProtoClientEnvelope.auth:type_name -> cheeseim.protocol.ProtoAuthRequest
+	3,  // 10: cheeseim.protocol.ProtoClientEnvelope.chat_message:type_name -> cheeseim.protocol.ProtoMessage
+	23, // 11: cheeseim.protocol.ProtoClientEnvelope.chat_read:type_name -> cheeseim.protocol.ProtoChatReadCommand
+	25, // 12: cheeseim.protocol.ProtoClientEnvelope.chat_revoke:type_name -> cheeseim.protocol.ProtoChatRevokeCommand
+	27, // 13: cheeseim.protocol.ProtoClientEnvelope.chat_typing:type_name -> cheeseim.protocol.ProtoChatTypingCommand
+	21, // 14: cheeseim.protocol.ProtoClientEnvelope.chat_delivery_ack:type_name -> cheeseim.protocol.ProtoChatDeliveryAckCommand
+	17, // 15: cheeseim.protocol.ProtoServerEnvelope.connect:type_name -> cheeseim.protocol.ProtoConnectResponse
+	16, // 16: cheeseim.protocol.ProtoServerEnvelope.auth:type_name -> cheeseim.protocol.ProtoAuthResponse
+	18, // 17: cheeseim.protocol.ProtoServerEnvelope.heartbeat:type_name -> cheeseim.protocol.ProtoHeartbeatResponse
+	20, // 18: cheeseim.protocol.ProtoServerEnvelope.chat_send_ack:type_name -> cheeseim.protocol.ProtoChatSendAck
+	3,  // 19: cheeseim.protocol.ProtoServerEnvelope.chat_message:type_name -> cheeseim.protocol.ProtoMessage
+	19, // 20: cheeseim.protocol.ProtoServerEnvelope.error:type_name -> cheeseim.protocol.ProtoErrorResponse
+	24, // 21: cheeseim.protocol.ProtoServerEnvelope.chat_read_notify:type_name -> cheeseim.protocol.ProtoChatReadNotify
+	26, // 22: cheeseim.protocol.ProtoServerEnvelope.chat_revoke_notify:type_name -> cheeseim.protocol.ProtoChatRevokeNotify
+	29, // 23: cheeseim.protocol.ProtoServerEnvelope.force_logout:type_name -> cheeseim.protocol.ProtoForceLogoutNotify
+	28, // 24: cheeseim.protocol.ProtoServerEnvelope.chat_typing_notify:type_name -> cheeseim.protocol.ProtoChatTypingNotify
+	22, // 25: cheeseim.protocol.ProtoServerEnvelope.chat_delivery_notify:type_name -> cheeseim.protocol.ProtoChatDeliveryNotify
+	26, // [26:26] is the sub-list for method output_type
+	26, // [26:26] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_message_protocol_proto_init() }
@@ -2298,7 +3243,8 @@ func file_message_protocol_proto_init() {
 	}
 	file_message_protocol_proto_msgTypes[0].OneofWrappers = []any{}
 	file_message_protocol_proto_msgTypes[1].OneofWrappers = []any{}
-	file_message_protocol_proto_msgTypes[20].OneofWrappers = []any{
+	file_message_protocol_proto_msgTypes[13].OneofWrappers = []any{}
+	file_message_protocol_proto_msgTypes[29].OneofWrappers = []any{
 		(*ProtoClientEnvelope_Auth)(nil),
 		(*ProtoClientEnvelope_ChatMessage)(nil),
 		(*ProtoClientEnvelope_ChatRead)(nil),
@@ -2306,7 +3252,7 @@ func file_message_protocol_proto_init() {
 		(*ProtoClientEnvelope_ChatTyping)(nil),
 		(*ProtoClientEnvelope_ChatDeliveryAck)(nil),
 	}
-	file_message_protocol_proto_msgTypes[21].OneofWrappers = []any{
+	file_message_protocol_proto_msgTypes[30].OneofWrappers = []any{
 		(*ProtoServerEnvelope_Connect)(nil),
 		(*ProtoServerEnvelope_Auth)(nil),
 		(*ProtoServerEnvelope_Heartbeat)(nil),
@@ -2325,7 +3271,7 @@ func file_message_protocol_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_message_protocol_proto_rawDesc), len(file_message_protocol_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   25,
+			NumMessages:   34,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
