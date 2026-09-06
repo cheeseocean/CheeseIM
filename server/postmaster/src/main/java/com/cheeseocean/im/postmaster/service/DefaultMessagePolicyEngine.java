@@ -4,6 +4,7 @@ import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.dto.message.MessageOptions;
 import org.springframework.stereotype.Component;
 
+/** 根据消息选项决定 ingress 的持久化、投递及通知分流。 */
 @Component
 public class DefaultMessagePolicyEngine implements MessagePolicyEngine {
 
@@ -12,12 +13,7 @@ public class DefaultMessagePolicyEngine implements MessagePolicyEngine {
         MessageOptions options = event == null || event.getOptions() == null ? new MessageOptions() : event.getOptions();
         return new MessageRouteDecision(
                 !Boolean.FALSE.equals(options.getNeedHistory()),
-                !Boolean.FALSE.equals(options.getNeedConversation()),
-                !Boolean.FALSE.equals(options.getNeedUnreadCount()),
                 !Boolean.FALSE.equals(options.getNeedOnlinePush()),
-                !Boolean.FALSE.equals(options.getNeedOfflinePush()),
-                Boolean.TRUE.equals(options.getSenderSync()),
-                Boolean.TRUE.equals(options.getNotification()),
-                !Boolean.FALSE.equals(options.getNeedLastMessage()));
+                Boolean.TRUE.equals(options.getNotification()));
     }
 }
