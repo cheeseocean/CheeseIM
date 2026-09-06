@@ -74,8 +74,8 @@ postmaster 的历史持久化与 mutation 服务只依赖 `MessageHistoryReposit
   不再用 joinTime/消息时间近似快照
 - SUPER_GROUP 不发布 fanout job，仅持久化
 - `GroupFanoutPlanner.fanoutKey(groupId)` 保证同群任务有序；worker concurrency 可独立配置
-- `MessageProducer.publishForMember` 通过 protobuf builder 替换 `receiverId`，避免 Java 侧深拷贝 `Message`
-- postman `DeliveryEventListener.resolveTargets` 不再对 `ChatType.GROUP` 跳过——写扩散后每条 DeliveryEvent 已带 `receiverId`，直接按 receiverId 投递即可
+- `MessageProducer.publishForTargets` 通过 protobuf builder 替换 `receiverId`，按成员切片批量发送，避免 Java 侧深拷贝 `Message`
+- postman `DeliveryEventListener` 消费 ProtoMessage 载荷；写扩散后的消息已带成员 `receiverId`，直接按 receiverId 投递
 - ingress 同步链路不再调用 `loadGroupMembers`；成员枚举故障只阻塞 fanout topic，不阻塞单聊 ingress
 - 超过一页的群使用 `group_fanout_job` lease + generation fencing 保存三元页游标，broker ACK 后 checkpoint；
   小群不落 job 状态，重试最多重放默认 200 人的一页
@@ -102,4 +102,4 @@ postmaster 的历史持久化与 mutation 服务只依赖 `MessageHistoryReposit
 - [ ] 新增策略决策必须同时具备实际消费分支与行为验证；不要仅复制协议字段
 - [ ] 改 seq 分配段大小需考虑单聊/群聊的热度差异（默认 50/100）
 - [ ] 改 history block 切分 blockSize 必须同步客户端 gap repair 与历史查询
-- [ ] 接通 `GroupFanoutPlanner` 必须同步更新 `DeliveryEventListener` 跳过群投递的 if 分支
+- [ ] 群扩散改动必须保证成员 receiverId、稳定 delivery key 与下游 ProtoMessage 载荷一致

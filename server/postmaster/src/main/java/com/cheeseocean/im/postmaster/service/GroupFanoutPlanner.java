@@ -16,7 +16,7 @@ import java.util.List;
  * <ol>
  *   <li>按 {@code batchSize} 将成员列表切片，避免过长群单次 publish 阻塞队列</li>
  *   <li>每片对应一次批量 publish 调用，由 {@link com.cheeseocean.im.postmaster.sender.MessageProducer}
- *       在内部对每个具体成员再生成一个 keyed DeliveryEvent</li>
+ *       在内部对每个具体成员生成以 ProtoMessage 为载荷的 keyed delivery 事件</li>
  * </ol>
  *
  * <p>超级群（{@link com.cheeseocean.im.common.api.enums.GroupTypeEnum#SUPER_GROUP}）走读扩散，
@@ -43,7 +43,7 @@ public class GroupFanoutPlanner {
      *
      * <p>切片只切片成员，不复制消息模板——消息复制由 {@code MessageProducer} 在序列化时通过
      * protobuf builder 替换 {@code receiverId} 完成，避免 Java 侧深拷贝，参见
-     * {@link com.cheeseocean.im.postmaster.sender.MessageProducer#publishForMember}。
+     * {@link com.cheeseocean.im.postmaster.sender.MessageProducer#publishForTargets(List, List)}。
      */
     public List<List<String>> partition(List<String> memberIds) {
         List<List<String>> batches = new ArrayList<>();
