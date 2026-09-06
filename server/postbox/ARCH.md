@@ -37,7 +37,8 @@
 ## 4. 历史查询链路
 
 - `getConversationMessages`：已改为先查 latest `blockNo`，再按 `conversationId + blockNo range` 窗口读取并按 seq 倒序裁剪 limit；`limit` 最大 200，最近页最多扫描 16 个窗口，避免长会话全扫和恶意大分页。
-- `pullMessagesBySeqRange`（line 89）：block-range-bounded，gap repair 用，健康。
+- `pullMessagesBySeqRange`：用于 gap repair；当前先读取整个 seq 区间的块，再在 Java 截断 limit，
+  数据库读取量尚无窗口上限。此方法不校验用户权限，调用方必须独立授权；当前 sync/pull 路径存在授权缺口。
 - `BlockMessageQueryService.findAttachmentCandidate`：按 `attachment_metadata._id = attachmentId` 点查后 `findSlot` 还原内容（2026-07-08 P1-10 修复，替代原 `message_id_mapping` 上的 `content.regex` 全扫——该 regex 查的 `content` 字段在 mapping 文档上并不存在，属死查询）。元数据由 postmaster `BlockHistoryPersistenceService` 对 `ContentType.hasAttachment()` 消息随历史持久化批量写入。
 - `BlockMessageQueryService.findSlot`：按 `BlockIndexUtil.docId` 点查 `_id`（修复原 `((seq-1)/100)+1` 与 `BlockIndexUtil.blockNo` 差一导致永远查错块的 bug）。
 - 历史页与 seq-range gap repair 会按本批 serverMsgId 一次查询 `message_mutation`，将 `REVOKED` overlay 合并为 tombstone；原 `message_block` 不物理改写。
@@ -54,7 +55,8 @@
 
 ## 6. 配置
 
-`module-postbox.yml`：Mongo + Redis database 0 + Kafka `postbox-group`（concurrency 3, max-poll-records 100, ack-mode `manual_immediate`）+ actuator。
+`module-postbox.yml` 提供模块存储等配置。postbox 发布 ingress；队列消费身份和并发以
+`@QueueListener` 与 `cheeseim.queue.listeners` 为准，`spring.kafka.listener.*` 不控制自建 QueueAdapter。
 
 - `cheeseim.message-send-inbox.ttl-seconds`：首次 ACK 保留期，默认 7 天；
 - `cheeseim.message-send-inbox.lease-seconds`：发送执行租约，默认 30 秒；

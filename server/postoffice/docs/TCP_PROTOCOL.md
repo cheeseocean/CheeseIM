@@ -53,6 +53,9 @@ CheeseIM 的 TCP 与 WebSocket 长连接协议统一使用 Protobuf envelope。�
 
 ## Message
 
+消息 options 的支持范围见 `docs/PROTOCOL.md`：senderSync、needConversation、needUnreadCount、
+needLastMessage 仅为兼容保留，不能作为已执行策略的保证；本次未改动 proto 字段或编号。
+
 `ProtoMessage` 是长连接与历史同步共享的消息结构，核心字段包括：
 
 | 字段 | 说明 |

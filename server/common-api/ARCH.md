@@ -24,7 +24,8 @@
 - 两个顶层 envelope：`ProtoClientEnvelope`（C→S）、`ProtoServerEnvelope`（S→C），均用 `oneof payload`。
 - Java `ServerEnvelope.of` 是控制通知进入 Dubbo 的统一边界，会把 `Map.of/List.of` 递归归一化为稳定集合实现；禁止绕过该入口把 JDK 内部 `CollSer` 带入严格序列化链路。
 - `CHAT_READ(33)` / `CHAT_REVOKE(34)` / `FORCE_LOGOUT(35)` / `CHAT_TYPING(36)` / `CHAT_DELIVERY(37)` 已有类型化 payload。`CHAT_DELIVERY` 使用 `(userId, deviceId, conversationId) -> deliveredSeq` 高水位批量确认，禁止逐消息回执；网关 channel write 不代表客户端送达。
-- 控制面（conversation sync / friend / group）当前**只走 Java Dubbo POJO**，未在 proto 中表达，多语言客户端需自行映射。
+- 控制面对外使用 HTTP JSON，内部使用 Dubbo POJO；同一 proto 中的 `ProtoConversation*`、
+  `ProtoFriend*`、`ProtoGroupSummary` 定义跨语言字段语义，详见 `docs/PROTOCOL.md`。
 
 ## 3. ConversationId 规范（强约束）
 
@@ -44,6 +45,8 @@
 - 领域类全部 `Serializable` + Lombok `@Data`，**禁止 import `org.springframework.data.*`**（根 AGENTS 第 3 条）。
 - `Message.seq` 是 server-filled，客户端发送时留空。
 - `MessageOptions` 八位 `Boolean` 与 `ProtoMessageOptions` 1:1。
+- 其中 `needConversation/needUnreadCount/senderSync/needLastMessage` 仅兼容保留，不提供独立策略控制；
+  `needHistory/needOnlinePush/notification` 由 ingress 消费，`needOfflinePush` 由 postman 消费。
 - 枚举新值一律加在末尾，受 Protobuf 兼容性约束。
 - `KickoffCommand.connectionId` 存在时必须精确踢指定连接，消费方不得在目标缺失时降级扩大到 device/session/user。
 - `RouteSnapshot.platformId` 使用 `PlatformType.code`，用于跨节点 admission；禁止用展示名作为稳定策略字段。
@@ -52,7 +55,8 @@
 
 ## 5. 事件载荷不变量
 
-- `DeliveryEvent.targetUserIds` 空表示"群读扩散拉取"（待 `GroupFanoutPlanner` 接通）。
+- 生产 delivery 队列携带 `ProtoMessage`；普通群 fanout 已按成员重写 receiverId。
+  `DeliveryEvent` 旧 POJO 不代表当前队列载荷，空 targetUserIds 不构成运行时读扩散信号。
 - `OfflinePushEvent.sessionType` / `contentType` 暂用 `Integer`，是历史遗留，新增请保持一致。
 - `HistoryEvent.lastMaxSeq` 用于 sync 增量；`beginSeq`/`endSeq` 标识块范围。
 - `ReadStateService` 是所有已读入口的唯一共享契约；`ConversationSyncService.ackReadSeq` 暂保留兼容，新增入口禁止绕过前者复制推进逻辑。

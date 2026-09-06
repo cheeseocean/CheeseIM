@@ -1,17 +1,37 @@
 # CheeseIM 服务端架构评估与演进路线
 
-> 评估时间：2026-07-05
+> 初评时间：2026-07-05；当前事实复核：2026-09-06
 > 评估对象：`server/` 全模块（Java 17 + Spring Boot 3 + Dubbo 3 + Gradle + MongoDB + Redis）
-> 评估方法：基于源码逐行扫描，结论可追溯到具体文件:行号
+> 评估方法：按模块与跨模块调用链审查源码，结合离线编译、测试和针对性依赖复现；不等同于真实集群验收
 > 维护原则：本文档为权威评估，与代码事实冲突时以代码为准；下次评估需更新本文。
 
 ## 一、综合结论
 
 CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已补齐多节点能力**的早期开源 IM 服务端。其模块边界（postoffice / postbox / postmaster / postman / authcenter / business / common-api / common-core）和"邮政"隐喻清晰，业内少见。
 
-- 单节点 `postoffice` + Redis + Mongo 的实测上限大致在 **10-30 万并发长连接**。
+- 历史容量表中的 **10-30 万并发长连接** 等数字仅为未验证估算；当前未附可复核压测报告，不能作为实测上限或生产承诺。
 - P0 主链路（节点身份、群扩散、路由原子化、投递去重、Kafka 端到端）已修复；P1 中的 ConnectionManager 分片锁、跨节点踢下线、HistoryQuery fail-closed/分页、MessageIdMapping 批量写已完成，authcenter `tokenVersion`/ban 持久化与 WS ticket 原子 consume 已完成，当前瓶颈转为 **存储分片、多副本推送状态与长压验证**。
-- 架构骨架本身可演进到百万级，**不需要推倒重写**；后续以容量压测和 P1/P2 瓶颈治理为主。
+- 模块主干可保留，但需要先修复下述安全与正确性缺口，再进行容量压测；不能宣称百万级能力已经通过验收。
+
+### 2026-09-06 当前复核（优先于下文历史完成记录）
+
+下文“已修复”说明历史任务的局部完成，不代表当前端到端生产验收通过。
+
+| 当前问题 | 代码锚点 | 状态 |
+| --- | --- | --- |
+| 会话设置可创建任意会话视图，sync/pull 仅以视图存在授权 | `ConversationServiceImpl.setConversations`、`ConversationSyncServiceImpl` | 安全发布阻断，未修复 |
+| 事务 KafkaTemplate 在无事务上下文执行单条 send | `KafkaQueueConfiguration`、`KafkaQueueAdapter.send` | 已用本机依赖复现异常，未修复 |
+| 发送 inbox 含 senderId，历史 mapping ID 不含，存在碰撞 | `MessageSenderImpl`、`MongoMessageHistoryRepository.persist` | 未修复 |
+| 未读把批末 seq 差当消息条数；seq 本身允许空洞 | `IngressEventListener.updateDirectUserState`、`RedisConversationStateStore` | 未修复 |
+| 会话同步版本非原子、TTL 后未检测游标过期 | `ConversationVersionLogRepositoryImpl`、`ConversationServiceImpl.syncConversations` | 未修复 |
+| 设备撤销只覆盖最新 session | `SessionRevocationServiceImpl.revokeDeviceSession` | 未修复 |
+| gap repair 查询 limit 未下推 Mongo | `HistoryQueryService.pullMessagesBySeqRange` | 未修复 |
+| 连接关闭同步访问 Redis，命令响应未统一背压 | TCP/WS handler、`ConnectionManager` | 未修复 |
+
+本轮清理只收缩无执行方的内部策略、删除已确认无引用代码并修正文档，未修复上表运行时问题。
+`MessageRouteDecision` 仅保留 persistHistory/sendDelivery/notification；离线推送继续由 postman
+读取 needOfflinePush。needConversation/needUnreadCount/senderSync/needLastMessage 保留协议字段和
+历史默认值，尚无独立执行语义。历史评审账本已降为“过程”，保留执行记录而不作为当前事实。
 
 ---
 
@@ -49,7 +69,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 | ~~好友 accept 非事务~~ | **已修复 2026-07-13**：cluster 模式下申请状态与双向好友关系通过 MongoDB 事务原子提交，通知及缓存失效延后至提交完成；all-in-one 单机 Mongo 默认关闭事务 |
 | ~~History 查询全扫~~ | **已修复 2026-07-07**：`getConversationMessages` 按 latest blockNo + range 窗口读取，不再拉全量 block |
 | ~~权限校验失败放行~~ | **已修复 2026-07-07**：`HistoryQueryService.allow` 改为 fail-closed，RPC 异常仅使用短 TTL 本地缓存兜底 |
-| MessageIdMappingDoc 逐条 save | 非 `bulkOps`，50k msg/s 写不动 |
+| MessageIdMappingDoc 批量写 | 已使用 unordered bulk；当前剩余问题是 mapping 身份与发送 inbox 不一致 |
 | ~~UserMaxSeq / ReadSeq 写 behind~~ | **已修复 2026-07-09**：按 userId 分桶多线程 drain，同桶内聚合最大水位，跨用户并行写 Mongo |
 | ~~ConversationVersionLog 无 TTL~~ | **已修复 2026-07-08**：`ConversationVersionLogDoc.createdAt` 增 180 天 TTL 索引 |
 
@@ -108,12 +128,12 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 | --- | --- | --- | --- | --- |
 | 在线路由 | Redis HASH + 真实 gatewayNode + Redis LIST 按节点直投 | Redis + 一致性哈希到 gateway | 内置 broker | gateway 节点 id + 服务组路由，或 per-node topic 直投 |
 | 群扩散 | 普通群写扩散，超级群读扩散 | 写扩散+读扩散+fanout worker | N/A | 小群写扩散、大群读扩散（inbox timeline） |
-| 消息存储 | 单 collection + 逐条 mapping | MySQL/分片 | 内存/Redis | Mongo sharded + 时间分区 + 冷热分离 |
+| 消息存储 | 历史块 + mapping 双 bulk；已有分片 migration，待真实验收 | MySQL/分片 | 内存/Redis | Mongo sharded + 时间分区 + 冷热分离 |
 | 消息队列 | Chronicle 默认；Kafka protobuf bytes 路径已打通 | Kafka | 内置 | Kafka + 分区 + consumer group 并行 |
-| 缓存失效 | L1 本地无广播 | Redis-only | 内置 | Redis pub/sub 或 MQTT 广播 L1 失效 |
-| 协议 | 控制面无 Protobuf | gRPC 全栈 | WebSocket | gRPC + Protobuf 全栈 |
-| 多端策略 | 每节点 10 连接，无全局计数 | 全局在线表 | N/A | 在线表 Lua 维护 `connectionCount` |
-| 踢下线 | Dubbo 随机节点 | Redis pub/sub 到 gateway | N/A | per-node topic + 节点订阅 |
+| 缓存失效 | Redis-only + 提交后失效，仍有旧查询回填窗口 | Redis-only | 内置 | 版本化缓存或明确一致性窗口 |
+| 协议 | TCP/WS typed Protobuf；HTTP JSON 与共享 proto 字段模型 | gRPC 全栈 | WebSocket | 按传输职责划分协议 |
+| 多端策略 | Redis 全局 login lease 已实现，启用受滚动升级门禁控制 | 全局在线表 | N/A | 在线表 Lua 维护连接租约 |
+| 踢下线 | 按 gatewayNode 定向节点队列；设备旧 session 撤销仍有缺口 | Redis pub/sub 到 gateway | N/A | per-node topic + 节点订阅 |
 | 集群部署 | cluster overlay 已真实装配；七服务 Helm/OCI 仓库基线已落地，真实集群验收待办 | 完整 k8s/helm | 完整 | Sentinel/Cluster + namespace 隔离 |
 
 ---
@@ -284,7 +304,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 
 1. **邮政隐喻模块边界**：postoffice/postbox/postmaster/postman 职责切分清晰，可继续演进为 DDD bounded context + 各自独立容器部署。
 2. **会话 seq 分配器**：Lua + Mongo `$inc` + 段预分配 + LOCK 状态机 + 启动强校验，**整个项目最接近生产级的代码**，可作为其它分布式计数器（消息 id、通知 id、批次 id）的模板推广。
-3. **消息策略引擎 `DefaultMessagePolicyEngine`**：`needHistory/needOnline/needOffline/senderSync/notification` 集中决策，可升级为 DB 配置 + 热更新 + DSL 规则表。
+3. **消息策略引擎 `DefaultMessagePolicyEngine`**：仅集中 ingress 已执行的持久化、投递与通知分流；新增策略先接通执行与验证，不扩展无消费方的决策字段。
 4. **`MessageOptions` 八位 bool 逐消息控制**：类似 OpenIM `Options`，可升级为 protobuf bitmask 节省字段。
 5. **`ConversationIdUtil` 规范化 id 体系**：`s:/g:/n:/ng:` + 队列 key 一致，便于分片与幂等；可升级为 Snowflake 全数字 id。
 6. **5 厂商真实 push 集成**：APNs/FCM/Huawei/Xiaomi/JPush 全 lifecycle，gated 开关——业内少有一开始就做这么齐的开源项目。可升级为通道降级矩阵 + 模板 + 回执上报。

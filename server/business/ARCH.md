@@ -13,7 +13,6 @@
 | `service/user/` | 用户信息 + 全局 receiveOpt |
 | `service/permission/` | 发送权限聚合：黑名单 + 用户 receiveOpt + 会话 receiveOpt 一次性返回给 postbox |
 | `service/blacklist/` | 黑名单 |
-| `domain/` | 与 common-api `business/domain` 镜像的业务方法 |
 
 ## 2. 数据模型事实
 
@@ -23,9 +22,10 @@
 | --- | --- | --- |
 | `UserConversation` | `{ownerUserId}:{conversationId}` | 用户私有会话视图（置顶/免打扰/未读）|
 | `ConversationSequence` | `{conversationId}` | 全局会话 seq 锚点 |
-| `ConversationVersionLog` | 自增 | 用户会话列表变更日志，用于增量同步 |
+| `ConversationVersionLog` | `{owner}:{version}:{UUID}` | 用户会话列表变更日志，用于增量同步 |
 
-`ConversationVersionLog` 当前**无 TTL**，长期增长。ASSESSMENT P1-12 修复项。
+`ConversationVersionLog.createdAt` 已声明 180 天 TTL。当前版本仍由读取最新值后加一产生，
+存在并发重复版本风险；同步尚未检测保留窗口过期，不能将 TTL 存在等同于增量同步完整性。
 
 ### 2.2 好友/黑名单
 
@@ -71,16 +71,17 @@
 - `UserConversationSyncPointDoc`：`{userId:1, conversationId:1} unique`
 - `FriendshipDoc`：`{ownerUserId:1, friendUserId:1} unique` + 单字段索引
 
-shard-friendly 但**未声明 sharding**，ASSESSMENT P1-7 修复项。
+仓库已有 `distro/mongo/enable-im-sharding.js`，包含 conversation 与反向投递偏好等集合的迁移。
+脚本存在不表示生产集群已经执行，真实 mongos 验收仍待完成。
 
 ## 6. 已知缺陷
 
 | 缺陷 | 位置 | 修复项 |
 | --- | --- | --- |
 | ~~`acceptFriendRequest` 非事务~~ | `FriendRelationServiceImpl.java:179` | **已修复 2026-07-13**：cluster 模式使用 MongoDB 事务，提交后再通知和失效缓存 |
-| `ConversationVersionLog` 无 TTL | `ConversationVersionLogDoc.java:16` | P1-12 |
+| version 分配非原子、TTL 后游标未失效 | `ConversationVersionLogRepositoryImpl` / `syncConversations` | 待修复 |
 | ~~`ReadSeqPersistenceWriter` 单线程~~ | ~~`ReadSeqPersistenceWriter.java:31`~~ | **已修复 2026-07-09**：按 userId hash 分桶多线程 drain |
-| `getOfflinePushUserIds` Mongo 全扫 | | 索引补全 |
+| 反向投递偏好已独立存储 | `conversation_delivery_preference` | 不再扫描 owner 会话集合；需执行迁移 |
 
 ## 7. 边界
 

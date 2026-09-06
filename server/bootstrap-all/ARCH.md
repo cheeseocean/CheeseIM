@@ -6,7 +6,7 @@
 ## 1. 装配事实
 
 - Spring Boot 应用，启动类在同包
-- 装配：全部 11 个 server 子模块
+- 装配：当前 server 为 16 个子模块，bootstrap-all 通过构建依赖装配业务服务及基础设施；ops-cli 是独立运维入口
 - Dubbo：injvm 协议，`register:false` / `subscribe:false`，不连 Nacos
 - 队列：`cheeseim.queue.type=chronicle`，本地 `data/queue`
 - 缓存：`cache.data-dir=data/cache`
@@ -35,7 +35,9 @@ cd server
 ./gradlew :bootstrap-all:bootRun
 ```
 
-前置中间件：MongoDB 6+ / Redis 6+（Redis 是 seq 分配的强依赖，不启动会 `ConversationSeqAllocatorConfigurer` 抛错）。
+前置中间件：MongoDB / Redis；在线路由和节点投递依赖 Redis，JWT 密钥必须由
+`CHEESEIM_AUTH_JWT_SECRET` 提供。会话服务仍有直接 `@Transactional` 路径，
+自定义事务执行器的关闭开关不能覆盖这些方法；standalone Mongo 兼容性尚待修复和启动验证。
 
 ## 5. 改动评估 checklist
 

@@ -24,6 +24,11 @@
 
 ## 控制面模型
 
+`ProtoMessageOptions` 保留全部八个字段以兼容已有载荷。当前 `needHistory`、`needOnlinePush`、
+`notification` 在 ingress 执行，`needOfflinePush` 在 postman 执行；`needConversation`、
+`needUnreadCount`、`senderSync`、`needLastMessage` 尚无独立执行语义。尤其 senderSync=true
+不保证发送者其他设备实时收到消息。字段默认值与编码保留，不应将保留字段作为已支持能力。
+
 - 好友：`ProtoFriend`、`ProtoFriendRequest`、`ProtoSendFriendRequestCommand`、`ProtoHandleFriendRequestCommand`
 - 群摘要：`ProtoGroupSummary`
 - 会话：`ProtoConversation`、`ProtoConversationSyncCursor`、`ProtoConversationSyncResult`、`ProtoConversationCommand`

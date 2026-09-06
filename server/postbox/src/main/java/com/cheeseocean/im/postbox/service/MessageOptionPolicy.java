@@ -15,6 +15,7 @@ public final class MessageOptionPolicy {
 
     /**
      * 基于消息内容和会话类型补齐默认选项。
+     * 保留未执行字段的历史默认值，避免改变重试指纹；支持范围见 MessageOptions。
      */
     public static MessageOptions fillDefaultOptions(Message message) {
         MessageOptions options     = message.getOptions() == null ? new MessageOptions() : message.getOptions();

@@ -14,7 +14,7 @@
 | `HistoryEventListener` | `listener/HistoryEventListener.java:23` | 消费 history topic，写入 `message_block` |
 | `ConversationSeqService` | `service/ConversationSeqService.java:20` | seq 分配薄包装，委托 `ConversationSeqAllocator`（common-core） |
 | `BlockHistoryPersistenceService` | `history/BlockHistoryPersistenceService.java:25` | 历史块 + message id mapping 双 unordered bulk upsert（2026-07-08 P1-8 修复） |
-| `DefaultMessagePolicyEngine` | `policy/DefaultMessagePolicyEngine.java:11` | 输出 `MessageRouteDecision`（persistHistory/notification/sendDelivery/needOfflinePush/senderSync） |
+| `DefaultMessagePolicyEngine` | `service/DefaultMessagePolicyEngine.java` | 仅输出实际消费的 persistHistory/notification/sendDelivery |
 | `GroupFanoutPlanner` | `service/GroupFanoutPlanner.java` | 群扩散规划器：成员切片 + delivery key 生成（`g:{groupId}:{memberId}`）；2026-07-06 P0-2 修复接通 |
 | `UserMaxSeqPersistenceWriter` | `service/UserMaxSeqPersistenceWriter.java` | 用户 maxSeq 异步写 Mongo（按 userId 分桶多线程 drain + 单桶聚合最大水位，workerCount/queueCapacity 可配） |
 | `MessageMutationServiceImpl` | `mutation/MessageMutationServiceImpl.java` | 按 serverMsgId 点查原消息，校验发送者/会话/两分钟窗口，幂等 upsert `message_mutation(REVOKED)`；按 `createdAt + mutationId` 复合游标提供离线增量同步并校验会话成员权限 |
@@ -34,7 +34,7 @@
      - `NORMAL_GROUP`：ingress 只发布按 groupId 分区的 `GROUP_FANOUT` 紧凑任务；独立 worker 查询成员、
        创建首会话、切片并调用 `MessageProducer.publishForTargets`（**写扩散**）
      - `SUPER_GROUP`：不投递，仅持久化（**读扩散**），客户端按 seq 拉取
-     - `null`（群不存在/Dubbo 异常）：按 NORMAL_GROUP 兜底，避免投递丢失
+     - 群不存在、权限拒绝或 Dubbo 异常：防御性权限检查失败，不放行
    - 非群聊（单聊/通知）聚合为 `MessageProducer.publishBatch`，同 key 顺序不变
 10. HISTORY/DELIVERY 均取得 broker ACK 后标记 inbox `COMPLETED`；明确异常释放租约但保留 seq。
 
@@ -86,6 +86,11 @@ postmaster 的历史持久化与 mutation 服务只依赖 `MessageHistoryReposit
 
 ## 7. 边界
 
+- `MessageRouteDecision` 只表达 ingress 实际消费的三个决策位。`needOfflinePush` 由 postman
+  直接读取消息选项；`needConversation/needUnreadCount/senderSync/needLastMessage` 仅保留 wire
+  兼容，尚不能独立控制相应行为。保留原默认值与序列化，避免改变发送 inbox 指纹。
+- senderSync 尚未提供发送者其他设备实时投递；会话、未读和最后消息更新不能以保留字段作为能力保证。
+
 - postmaster 不接客户端，不直接做在线投递（在线投递在 postman + postoffice）
 - postmaster 通过 Dubbo 调用 `business` 的 `ConversationService`（创建会话、查询）
 - 同步链路当前对 ingress 内已经有 1 次 `createConversationIfNeeded` Dubbo，新代码**不要**在 ingress 同步链路再加 Dubbo 调用
@@ -94,7 +99,7 @@ postmaster 的历史持久化与 mutation 服务只依赖 `MessageHistoryReposit
 
 - [ ] 改 ingress inbox TTL/租约需同时评估 Kafka retention、`max.poll.interval.ms` 与最长群扩散耗时
 - [ ] inbox 必须在全部下游 broker ACK 后完成；不得在 seq 分配或 history 发布前提前完成
-- [ ] 改 `MessageRouteDecision` 字段需同步 postman `DeliveryEventListener` 分支
+- [ ] 新增策略决策必须同时具备实际消费分支与行为验证；不要仅复制协议字段
 - [ ] 改 seq 分配段大小需考虑单聊/群聊的热度差异（默认 50/100）
 - [ ] 改 history block 切分 blockSize 必须同步客户端 gap repair 与历史查询
 - [ ] 接通 `GroupFanoutPlanner` 必须同步更新 `DeliveryEventListener` 跳过群投递的 if 分支

@@ -18,7 +18,7 @@ Client ──TCP/WS──> postoffice ──> postbox ──ingress event──>
 Key pipeline (postmaster IngressEventListener):
 1. Claim ingress inbox on stable `serverMsgId`（重放安全）
 2. Group messages: defensive permission query, get groupType
-3. `DefaultMessagePolicyEngine.decide` → `MessageRouteDecision`（persistHistory/notification/sendDelivery/needOfflinePush/senderSync）
+3. `DefaultMessagePolicyEngine.decide` → `MessageRouteDecision`（persistHistory/notification/sendDelivery）；离线推送由 postman 读取选项，senderSync 等兼容字段尚无执行语义
 4. Batch seq allocation via `ConversationSeqAllocator`（Redis Lua 状态机 + Mongo `$inc` 段预分配）
 5. Publish history event（unordered bulk upsert: id mapping + message_block）
 6. Delivery: NORMAL_GROUP → GROUP_FANOUT job（写扩散）; SUPER_GROUP → persist only（读扩散）

@@ -66,9 +66,13 @@ TCP/WS frame 默认限制 64 KiB；`ChatMessageHandler` 在 Protobuf 解析前�
 单用户节点内上限 10、`SAME_TERMINAL_KICK`、空闲超时 300 秒。总上限在 pending 注册前用 CAS 抢占，
 包含未认证连接；单用户上限在认证提升的 user 分片锁内执行。当前仍是**每节点**策略，跨节点超限不会触发。
 
-TCP/WS 各自设置默认 32/64 KiB Netty write-buffer watermark。所有业务写统一经
+TCP/WS 各自设置默认 32/64 KiB Netty write-buffer watermark。在线投递经
 `ConnectionManager.writeMessageToConnection` 检查 `channel.isWritable()`；不可写视为投递失败并进入
 既有 claim abort/retry/补偿，禁止继续堆积 outbound buffer。
+
+命令 ACK、错误及建连响应仍由 TCP/WS handler 直接 writeAndFlush，未覆盖上述守卫；
+watermark 本身不会拒绝写入。channelInactive 的连接清理还会同步访问 Redis，
+因此慢读客户端和 Redis 故障下的生命周期隔离仍需修复，不能宣称所有写入均有背压。
 
 跨节点替换命令使用 `KickoffCommand.connectionId` 精确定位旧连接。消费端只在该字段缺失时才回退到
 device/session/user 范围；精确目标已消失时 NOOP，禁止迟到命令误踢同设备的新连接。路由快照同步发布

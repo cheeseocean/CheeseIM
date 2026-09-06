@@ -26,7 +26,7 @@
 | `AGENTS.md` | 权威 | **Agent 跨端开发约束**，所有 AI 代理（Claude/Codex/Cursor/Cline）入门必读 |
 | `docs/INDEX.md` | 权威 | 本文件，全仓文档地图 |
 | `server/docs/architecture/ASSESSMENT.md` | 权威 | 服务端架构评估、百万级演进路线、阻断性问题清单 |
-| `server/docs/architecture/server-design-review-2026-07-19.md` | 权威 | 服务端全量设计评审、百万 DAU 生产化基线与小任务执行账本 |
+| `server/docs/architecture/server-design-review-2026-07-19.md` | **过程** | 历史设计评审与执行账本；当前实现和未决问题以 ASSESSMENT 与模块 ARCH 为准 |
 
 ## 二、服务端文档（`server/`）
 
