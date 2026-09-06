@@ -4,12 +4,10 @@ import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.protocol.ProtoMessageMapper;
 import com.cheeseocean.im.common.core.constants.TopicNames;
 import com.cheeseocean.im.common.core.queue.QueueAdapter;
-import com.cheeseocean.im.common.core.queue.annotation.QueueProducer;
 import com.cheeseocean.im.common.core.util.ConversationIdUtil;
 import org.springframework.stereotype.Component;
 
 @Component
-@QueueProducer
 public class IngressMessagePublisher {
 
     private final QueueAdapter queueAdapter;
