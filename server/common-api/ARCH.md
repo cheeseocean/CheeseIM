@@ -13,7 +13,7 @@
 | `dto/message/` | `Message` + `MessageOptions` + `OfflinePushInfo`（1:1 映射 `ProtoMessage`）；`SendMessageResp` 含稳定错误码 | 与 proto 同步 |
 | `permission/` | 单聊与群发送权限聚合契约；群权限支持同群多 sender 批查 | 稳定 |
 | `dto/dispatch/` | `DispatchPayload`（聊天消息或 typed `ServerEnvelope` 控制通知，含统一 deliveryId） | 稳定 |
-| `event/` | `DeliveryEvent` / `OfflinePushEvent` / `HistoryEvent` / `ConversationSettingsEvent` / `UserSettingsEvent` / `FriendRelationEvent` | 稳定 |
+| `event/` | 活跃事件含 `OfflinePushEvent` / `HistoryEvent` / `GroupFanoutEvent` / `NodeDeliveryOutcome` / `FriendRelationEvent`；`DeliveryEvent` / `ConversationSettingsEvent` / `UserSettingsEvent` 为无仓库内生产引用的兼容保留模型 | 删除公共模型前评估外部消费者 |
 | `enums/` | `CommandType` `ChatType` `ContentType` `MessageStatus` `MessageSource` `PlatformType` `ConversationKind` `ConversationAction` `ConversationVersionOperation` `ReceiveOption` `DeliveryState` `SessionStatus` `ConnectionState` `DispatchResultCode` 等 | 稳定但会扩 |
 | `protocol/proto/` | `protoc` 生成的 Java 代码，**不要手改** | 不可手改 |
 | `proto/` | `message_protocol.proto` 源文件 | 改需评估 + 重生成 |

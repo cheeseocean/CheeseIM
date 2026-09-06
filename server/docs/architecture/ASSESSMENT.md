@@ -33,6 +33,11 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 读取 needOfflinePush。needConversation/needUnreadCount/senderSync/needLastMessage 保留协议字段和
 历史默认值，尚无独立执行语义。历史评审账本已降为“过程”，保留执行记录而不作为当前事实。
 
+后续清理已移除无调用且不发送事件的 `ConversationSettingsNotifier`、无运行时处理器的
+`@QueueProducer` 标记和无调用的 `MessageProducer.publishForMember`。生产者继续通过 Spring
+组件装配，群写扩散统一使用 `publishForTargets`；`QueueProducer<T>` 接口仍被生产者使用。
+公共事件模型 `DeliveryEvent/ConversationSettingsEvent/UserSettingsEvent` 暂留兼容，尚未核实仓库外消费者。
+
 ---
 
 ## 二、已实现能力（生产质量分级）

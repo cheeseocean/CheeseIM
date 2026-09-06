@@ -55,13 +55,15 @@ server/
 
 ### 1.2 依赖矩阵
 
+以下为生产 Gradle 模块依赖（省略各服务的 config 配置依赖和测试依赖），不表示 RPC 调用关系。
+
 ```
-bootstrap-all → 所有模块
+bootstrap-all → common-api, common-core, api-server, authcenter, business, postoffice, postbox, postmaster, postman（基础设施经传递依赖装配）
 ops-cli       → common-api, common-core, infra-queue, storage-business, config
-api-server    → authcenter, business, postbox, common-api, common-core, infra-state（仅显式 Redis 幂等 adapter）
-postoffice    → common-api, common-core, infra-queue, infra-state, authcenter（嵌入式）
+api-server    → common-api, common-core, infra-state（仅显式 Redis 幂等 adapter）
+postoffice    → common-api, common-core, infra-queue, infra-state
 postbox       → common-api, common-core, infra-queue, infra-state, storage-history
-postmaster    → common-api, common-core, infra-queue, infra-state, storage-history, storage-business, business（Dubbo）
+postmaster    → common-api, common-core, infra-queue, infra-state, storage-history, storage-business
 postman       → common-api, common-core, infra-queue, infra-state, storage-business
 authcenter    → common-api, common-core, infra-state, storage-business
 business      → common-api, common-core, infra-queue, infra-state, storage-business
@@ -72,6 +74,10 @@ storage-history → common-api, common-core
 storage-business → common-api, common-core
 common-api    → 无其它 Java 业务模块
 ```
+
+RPC 调用与上述依赖分开：api-server 经 common-api 契约调用 authcenter/business/postbox 等服务；
+postmaster 经契约调用 business，postoffice 经契约调用鉴权、消息和控制服务。
+all-in-one 将 provider 装配在同一 JVM，不能据此推导独立服务依赖了 provider 实现模块。
 
 禁止反向依赖（业务模块 → common-api 之外的契约循环）。Gradle 实现层校验见根 `build.gradle`。
 
@@ -211,7 +217,7 @@ api-server Controller  ──HTTP──> Facade ──Dubbo──> business / po
 - 协议源在 `server/common-api/src/main/proto/message_protocol.proto`。
 - 改完必须 `./gradlew :common-api:generateProto` 重生成；不要手改 `protocol/` 目录下生成代码。
 - 新字段用类型化 nested message，不要用 `int32` 套复杂结构。
-- `CHAT_READ/CHAT_REVOKE/FORCE_LOGOUT` 均已有 typed payload；`CHAT_READ` 与 `CHAT_REVOKE` 均已收敛到核心服务，撤回历史必须 merge mutation overlay，禁止物理删除原消息块。跨节点实时控制通知仍待经统一 postman control dispatch 接通。
+- `CHAT_READ/CHAT_REVOKE/FORCE_LOGOUT` 均已有 typed payload；`CHAT_READ` 与 `CHAT_REVOKE` 均已收敛到核心服务，撤回历史必须 merge mutation overlay，禁止物理删除原消息块。已读/撤回通知已接通 control-event outbox、postman 补偿与客户端游标补齐；强制下线使用定向节点命令，不能混同为同一 outbox 链路。
 - TCP/WS 当前均使用 typed Protobuf envelope，WS 为 Binary Frame；新代码禁止重新引入 JSON 客户端命令路径。
 
 ## 11. 测试
@@ -247,4 +253,4 @@ cd server
 
 ## 14. 勘误记录
 
-（暂无）
+- 2026-09-06：依源码区分 Gradle 依赖与 Dubbo 调用；更正跨节点控制通知仍待接通的过时描述。
