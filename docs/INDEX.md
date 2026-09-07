@@ -39,6 +39,8 @@
 | `server/postmaster/docs/SeqArch.md` | 权威 | 会话 seq 分配设计背景 |
 | `server/docs/architecture/read-revoke-design.md` | 次级 | 已读/撤回/输入中控制事件的第一阶段实现与第二阶段边界；实现事实以 `ASSESSMENT.md` 和代码为准 |
 | `server/postoffice/README.md` | 权威 | 网关模块职责 |
+| `server/postoffice/src/main/java/com/cheeseocean/im/postoffice/server/OutboundBackpressureHandler.java` | 权威 | TCP/WS 业务出站背压守卫 |
+| `server/postoffice/src/test/java/com/cheeseocean/im/postoffice/server/OutboundBackpressureHandlerTest.java` | 次级 | 可写、慢读拒绝及 WebSocket 帧释放回归用例 |
 | `server/postbox/README.md` | 权威 | 消息接入/历史查询模块职责 |
 | `server/postmaster/README.md` | 权威 | 消息编排核心模块职责 |
 | `server/postman/README.md` | 权威 | 投递与离线推送模块职责 |

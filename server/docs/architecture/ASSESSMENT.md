@@ -26,7 +26,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 | ~~会话同步版本非原子、TTL 后未检测游标过期~~ | `ConversationVersionLogRepositoryImpl`、`ConversationServiceImpl.syncConversations` | **已修复 2026-09-07**：Mongo 原子 cursor + TTL 窗口检测 |
 | ~~设备撤销只覆盖最新 session~~ | `SessionRevocationServiceImpl.revokeDeviceSession` | **已修复 2026-09-07**：撤销全部同设备 session |
 | ~~gap repair 查询 limit 未下推 Mongo~~ | `HistoryQueryService.pullMessagesBySeqRange` | **已修复 2026-09-07**：按 limit 下推 block 窗口 |
-| ~~连接关闭同步访问 Redis~~；命令响应未统一背压 | TCP/WS handler、`ConnectionManager` | **连接关闭隔离已修复 2026-09-07**：有界异步清理池；命令 ACK/错误写背压仍待统一 |
+| ~~连接关闭同步访问 Redis；命令响应未统一背压~~ | TCP/WS handler、`ConnectionManager`、`OutboundBackpressureHandler` | **仓库侧已实现**：有界异步清理池；TCP/WS 业务出站统一检查 writable，拒绝时失败 promise、释放帧并关闭连接。真实慢读长压仍待验收 |
 
 本轮清理只收缩无执行方的内部策略、删除已确认无引用代码并修正文档，未修复上表运行时问题。
 `MessageRouteDecision` 仅保留 persistHistory/sendDelivery/notification；离线推送继续由 postman

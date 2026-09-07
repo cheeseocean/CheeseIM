@@ -235,6 +235,7 @@ public class TcpServer implements CommandLineRunner, Server {
             pipeline.addLast("tcp-encoder", new TcpEnvelopeEncoder());
 
             // TCP服务器处理器
+            pipeline.addLast("outbound-backpressure", new OutboundBackpressureHandler());
             pipeline.addLast("tcp-handler", tcpServerHandler);
 
             logger.debug("TCP channel pipeline initialized for {}", ch.remoteAddress());

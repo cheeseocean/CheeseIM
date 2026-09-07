@@ -70,9 +70,12 @@ TCP/WS 各自设置默认 32/64 KiB Netty write-buffer watermark。在线投递�
 `ConnectionManager.writeMessageToConnection` 检查 `channel.isWritable()`；不可写视为投递失败并进入
 既有 claim abort/retry/补偿，禁止继续堆积 outbound buffer。
 
-命令 ACK、错误及建连响应仍由 TCP/WS handler 直接 writeAndFlush，未覆盖上述守卫；
-watermark 本身不会拒绝写入。channelInactive 已将路由和登录租约清理移入有界清理池；清理池过载时
-立即释放本地连接状态，远端状态由 TTL 收敛。命令响应写背压仍需统一。
+TCP/WS pipeline 在业务 handler 前安装 `OutboundBackpressureHandler`，在 EventLoop 中检查
+active/writable，覆盖命令 ACK、错误、建连响应及在线投递；不可写时释放消息、失败 write promise
+并关闭连接，由客户端重连补齐。它使用既有 write-buffer watermark，不新增应用层重试队列；
+不代表 EventLoop 待执行任务或单条消息大小已获得额外硬上限。
+channelInactive 已将路由和登录租约清理移入有界清理池；清理池过载时立即释放本地连接状态，
+远端状态由 TTL 收敛。
 
 跨节点替换命令使用 `KickoffCommand.connectionId` 精确定位旧连接。消费端只在该字段缺失时才回退到
 device/session/user 范围；精确目标已消失时 NOOP，禁止迟到命令误踢同设备的新连接。路由快照同步发布
