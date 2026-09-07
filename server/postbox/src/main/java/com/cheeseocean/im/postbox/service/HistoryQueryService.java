@@ -16,6 +16,7 @@ import com.cheeseocean.im.common.core.history.MessageHistoryRepository;
 import com.cheeseocean.im.common.core.history.model.MessageBlock;
 import com.cheeseocean.im.common.core.history.model.MessageSlot;
 import com.cheeseocean.im.common.core.history.model.MessageMutation;
+import com.cheeseocean.im.common.core.util.BlockIndexUtil;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.apache.dubbo.rpc.RpcException;
@@ -123,7 +124,11 @@ public class HistoryQueryService implements MessageHistoryQueryService {
             return new ArrayList<>();
         }
         int effectiveLimit = limit <= 0 ? Integer.MAX_VALUE : limit;
-        List<MessageBlock> blocks = messageHistoryRepository.findBlocksBySeqRange(conversationId, beginSeq, endSeq);
+        int maxBlocks = effectiveLimit == Integer.MAX_VALUE
+                ? Integer.MAX_VALUE
+                : Math.max(1, (int) Math.ceil((double) effectiveLimit / BlockIndexUtil.BLOCK_SIZE) + 1);
+        List<MessageBlock> blocks = messageHistoryRepository.findBlocksBySeqRange(
+                conversationId, beginSeq, endSeq, maxBlocks);
         if (blocks == null || blocks.isEmpty()) {
             return new ArrayList<>();
         }

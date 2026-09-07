@@ -23,6 +23,8 @@ class ConversationVersionLogRepositoryImplTest {
                 "append", String.class, String.class, ConversationVersionOperation.class);
         assertMethod(ConversationVersionLogRepository.class, Optional.class,
                 "findLatest", String.class);
+        assertMethod(ConversationVersionLogRepository.class, Optional.class,
+                "findEarliest", String.class, String.class);
         assertMethod(ConversationVersionLogRepository.class, List.class,
                 "findAfter", String.class, String.class, long.class, int.class);
     }

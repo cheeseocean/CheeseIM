@@ -41,6 +41,7 @@ postbox/postmaster
 
 - `message_block` 以 conversationId 为 shard key，upsert/点查必须显式携带 conversationId；
 - `message_id_mapping` 以 serverMsgId 为 shard key，upsert 查询必须携带 serverMsgId；
+- mapping `_id` 使用 `{conversationId}:{senderId}:{clientMsgId}`，与发送 inbox 的幂等身份作用域一致；
 - 历史写使用 unordered bulk，不能恢复循环逐条 save；
 - mutation 以确定性 `{serverMsgId}:REVOKED` ID 和 `$setOnInsert` 幂等写入；
 - BSON Binary 必须在 adapter 边界转为 `byte[]`，不得泄漏到 postbox；

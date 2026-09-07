@@ -65,6 +65,9 @@ public class KafkaQueueConfiguration {
 
     @Bean
     public KafkaTemplate<String, byte[]> byteKafkaTemplate() {
-        return new KafkaTemplate<>(byteProducerFactory());
+        KafkaTemplate<String, byte[]> template = new KafkaTemplate<>(byteProducerFactory());
+        // 单条消息依赖 Kafka 幂等 producer，不应被批量事务配置强制要求事务上下文。
+        template.setAllowNonTransactional(true);
+        return template;
     }
 }

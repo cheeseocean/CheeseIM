@@ -25,8 +25,11 @@ import jakarta.annotation.PreDestroy;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
@@ -123,6 +126,14 @@ public class ConnectionManager {
      * Background scheduler for cleanup and metrics updates.
      */
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
+
+    /** 连接关闭清理可能访问 Redis，必须与 Netty EventLoop 隔离。 */
+    private final ThreadPoolExecutor connectionCleanupExecutor = new ThreadPoolExecutor(
+            2, 2, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(10_000), runnable -> {
+                Thread thread = new Thread(runnable, "postoffice-connection-cleanup");
+                thread.setDaemon(true);
+                return thread;
+            }, new ThreadPoolExecutor.AbortPolicy());
 
     public ConnectionManager(ObjectProvider<OnlineRouteService> onlineRouteServiceProvider,
                              ObjectProvider<DeliveryDedupStore> deliveryDedupStoreProvider,
@@ -355,6 +366,10 @@ public class ConnectionManager {
     }
 
     private boolean removeConnectionLocked(String connectionID) {
+        return removeConnectionLocked(connectionID, true);
+    }
+
+    private boolean removeConnectionLocked(String connectionID, boolean cleanupRemoteState) {
         UserConnection connection = connectionMap.remove(connectionID);
             if (connection == null) {
                 return false;
@@ -389,10 +404,12 @@ public class ConnectionManager {
             // 更新计数器
             totalConnectionCount.decrementAndGet();
             
-            if (userID != null) {
+            if (cleanupRemoteState && userID != null) {
                 unregisterOnlineRoute(connection);
             }
-            releaseLoginLease(connection);
+            if (cleanupRemoteState) {
+                releaseLoginLease(connection);
+            }
             
             logger.info("Connection removed: userID={}, connectionID={}, platform={}, total={}", 
                        userID, connectionID, connection.getPlatformName(), totalConnectionCount.get());
@@ -409,6 +426,45 @@ public class ConnectionManager {
             return removeConnection(connectionID);
         }
         return false;
+    }
+
+    /**
+     * 从 Netty 生命周期回调异步清理连接，避免 Redis 故障阻塞 EventLoop。
+     */
+    public void removeConnectionByChannelAsync(Channel channel) {
+        String connectionID = channelConnectionMap.get(channel);
+        if (connectionID == null) {
+            return;
+        }
+        try {
+            connectionCleanupExecutor.execute(() -> removeConnection(connectionID));
+        } catch (RejectedExecutionException exception) {
+            // 清理池过载时先释放本地容量；Redis 路由和登录租约由既有 TTL 收敛。
+            removeConnectionLocalOnly(connectionID);
+            logger.warn("Connection cleanup queue full; remote state left to TTL: connectionID={}", connectionID);
+        }
+    }
+
+    private void removeConnectionLocalOnly(String connectionID) {
+        ReentrantLock connectionLock = connectionLock(connectionID);
+        connectionLock.lock();
+        try {
+            UserConnection current = connectionMap.get(connectionID);
+            ReentrantLock userLock = current == null || current.getUserID() == null
+                    ? null : userLock(current.getUserID());
+            if (userLock != null) {
+                userLock.lock();
+            }
+            try {
+                removeConnectionLocked(connectionID, false);
+            } finally {
+                if (userLock != null) {
+                    userLock.unlock();
+                }
+            }
+        } finally {
+            connectionLock.unlock();
+        }
     }
     
     /**
@@ -749,6 +805,7 @@ public class ConnectionManager {
             }
         }
         scheduler.shutdown();
+        connectionCleanupExecutor.shutdown();
         connectionMap.clear();
         userConnectionMap.clear();
         sessionConnectionMap.clear();

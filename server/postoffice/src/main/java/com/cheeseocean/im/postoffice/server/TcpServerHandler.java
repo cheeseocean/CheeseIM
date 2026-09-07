@@ -86,12 +86,7 @@ public class TcpServerHandler extends SimpleChannelInboundHandler<ClientEnvelope
 
         try {
             // 从连接管理器中移除连接
-            UserConnection connection = connectionManager.getConnectionByChannel(ctx.channel());
-            if (connection != null) {
-                connectionManager.removeConnection(connection.getConnectionID());
-                logger.info("TCP connection removed: connectionID={}, userID={}",
-                        connection.getConnectionID(), connection.getUserID());
-            }
+            connectionManager.removeConnectionByChannelAsync(ctx.channel());
 
         } catch (Exception e) {
             logger.error("Failed to handle TCP connection inactive", e);

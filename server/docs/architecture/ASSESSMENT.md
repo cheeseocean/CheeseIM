@@ -19,14 +19,14 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 
 | 当前问题 | 代码锚点 | 状态 |
 | --- | --- | --- |
-| 会话设置可创建任意会话视图，sync/pull 仅以视图存在授权 | `ConversationServiceImpl.setConversations`、`ConversationSyncServiceImpl` | 安全发布阻断，未修复 |
-| 事务 KafkaTemplate 在无事务上下文执行单条 send | `KafkaQueueConfiguration`、`KafkaQueueAdapter.send` | 已用本机依赖复现异常，未修复 |
-| 发送 inbox 含 senderId，历史 mapping ID 不含，存在碰撞 | `MessageSenderImpl`、`MongoMessageHistoryRepository.persist` | 未修复 |
-| 未读把批末 seq 差当消息条数；seq 本身允许空洞 | `IngressEventListener.updateDirectUserState`、`RedisConversationStateStore` | 未修复 |
-| 会话同步版本非原子、TTL 后未检测游标过期 | `ConversationVersionLogRepositoryImpl`、`ConversationServiceImpl.syncConversations` | 未修复 |
-| 设备撤销只覆盖最新 session | `SessionRevocationServiceImpl.revokeDeviceSession` | 未修复 |
-| gap repair 查询 limit 未下推 Mongo | `HistoryQueryService.pullMessagesBySeqRange` | 未修复 |
-| 连接关闭同步访问 Redis，命令响应未统一背压 | TCP/WS handler、`ConnectionManager` | 未修复 |
+| ~~会话设置可创建任意会话视图，sync/pull 仅以视图存在授权~~ | `ConversationServiceImpl.setConversations`、`ConversationSyncServiceImpl` | **已修复 2026-09-07**：写前校验规范 conversationId/群成员；sync/pull 对历史视图再次校验归属与当前群成员身份 |
+| ~~事务 KafkaTemplate 在无事务上下文执行单条 send~~ | `KafkaQueueConfiguration`、`KafkaQueueAdapter.send` | **已修复 2026-09-07**：单条允许幂等非事务发送，批量保持显式事务 |
+| ~~发送 inbox 含 senderId，历史 mapping ID 不含，存在碰撞~~ | `MessageSenderImpl`、`MongoMessageHistoryRepository.persist` | **已修复 2026-09-07**：mapping ID 纳入 senderId |
+| ~~未读把批末 seq 差当消息条数；seq 本身允许空洞~~ | `IngressEventListener`、`ConversationStateStore` | **已修复 2026-09-07**：原子推进本批真实未读增量 |
+| ~~会话同步版本非原子、TTL 后未检测游标过期~~ | `ConversationVersionLogRepositoryImpl`、`ConversationServiceImpl.syncConversations` | **已修复 2026-09-07**：Mongo 原子 cursor + TTL 窗口检测 |
+| ~~设备撤销只覆盖最新 session~~ | `SessionRevocationServiceImpl.revokeDeviceSession` | **已修复 2026-09-07**：撤销全部同设备 session |
+| ~~gap repair 查询 limit 未下推 Mongo~~ | `HistoryQueryService.pullMessagesBySeqRange` | **已修复 2026-09-07**：按 limit 下推 block 窗口 |
+| ~~连接关闭同步访问 Redis~~；命令响应未统一背压 | TCP/WS handler、`ConnectionManager` | **连接关闭隔离已修复 2026-09-07**：有界异步清理池；命令 ACK/错误写背压仍待统一 |
 
 本轮清理只收缩无执行方的内部策略、删除已确认无引用代码并修正文档，未修复上表运行时问题。
 `MessageRouteDecision` 仅保留 persistHistory/sendDelivery/notification；离线推送继续由 postman

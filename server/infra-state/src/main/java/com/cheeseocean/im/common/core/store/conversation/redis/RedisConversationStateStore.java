@@ -22,9 +22,9 @@ public class RedisConversationStateStore implements ConversationStateStore {
             local current = tonumber(redis.call('GET', KEYS[1])) or 0
             local requested = tonumber(ARGV[1]) or 0
             if requested <= current then return current end
-            local delta = requested - current
             redis.call('SET', KEYS[1], requested)
-            if ARGV[2] == '1' then redis.call('INCRBY', KEYS[2], delta) end
+            local unreadDelta = tonumber(ARGV[2]) or 0
+            if unreadDelta > 0 then redis.call('INCRBY', KEYS[2], unreadDelta) end
             return requested
             """, Long.class);
 
@@ -55,10 +55,10 @@ public class RedisConversationStateStore implements ConversationStateStore {
     }
 
     @Override
-    public void advanceUserMaxSeq(String userId, String conversationId, long maxSeq, boolean countUnread) {
+    public void advanceUserMaxSeq(String userId, String conversationId, long maxSeq, int unreadDelta) {
         redisTemplate.execute(ADVANCE_USER_MAX_SCRIPT, List.of(
                 RedisKeys.userMaxSeq(userId, conversationId), RedisKeys.userUnread(userId, conversationId)),
-                String.valueOf(maxSeq), countUnread ? "1" : "0");
+                String.valueOf(maxSeq), String.valueOf(Math.max(0, unreadDelta)));
     }
 
     @Override

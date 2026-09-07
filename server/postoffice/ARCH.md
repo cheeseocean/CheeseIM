@@ -71,8 +71,8 @@ TCP/WS 各自设置默认 32/64 KiB Netty write-buffer watermark。在线投递�
 既有 claim abort/retry/补偿，禁止继续堆积 outbound buffer。
 
 命令 ACK、错误及建连响应仍由 TCP/WS handler 直接 writeAndFlush，未覆盖上述守卫；
-watermark 本身不会拒绝写入。channelInactive 的连接清理还会同步访问 Redis，
-因此慢读客户端和 Redis 故障下的生命周期隔离仍需修复，不能宣称所有写入均有背压。
+watermark 本身不会拒绝写入。channelInactive 已将路由和登录租约清理移入有界清理池；清理池过载时
+立即释放本地连接状态，远端状态由 TTL 收敛。命令响应写背压仍需统一。
 
 跨节点替换命令使用 `KickoffCommand.connectionId` 精确定位旧连接。消费端只在该字段缺失时才回退到
 device/session/user 范围；精确目标已消失时 NOOP，禁止迟到命令误踢同设备的新连接。路由快照同步发布

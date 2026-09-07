@@ -23,9 +23,10 @@
 | `UserConversation` | `{ownerUserId}:{conversationId}` | 用户私有会话视图（置顶/免打扰/未读）|
 | `ConversationSequence` | `{conversationId}` | 全局会话 seq 锚点 |
 | `ConversationVersionLog` | `{owner}:{version}:{UUID}` | 用户会话列表变更日志，用于增量同步 |
+| `ConversationVersionCursor` | `{ownerUserId}` | Mongo `$inc` 原子分配会话同步版本，不随日志 TTL 清理 |
 
-`ConversationVersionLog.createdAt` 已声明 180 天 TTL。当前版本仍由读取最新值后加一产生，
-存在并发重复版本风险；同步尚未检测保留窗口过期，不能将 TTL 存在等同于增量同步完整性。
+`ConversationVersionLog.createdAt` 已声明 180 天 TTL。版本由独立 cursor 文档原子分配；同步发现客户端
+游标早于 TTL 保留窗口时回退全量，升级前已有日志会在首次分配时初始化 cursor 水位。
 
 ### 2.2 好友/黑名单
 
@@ -47,6 +48,7 @@
 
 - **会话元数据同步**：服务端维护 `ownerUserId` 维度的 `ConversationVersionLog`，客户端用 cursor 做增量同步，超过 200 条回退全量（`ConversationServiceImpl.fillFullSync` line 469）
 - **消息同步**：会话维度 seq/range/maxSeq，客户端按会话拉缺口消息
+- sync/pull 在用户会话视图之外再次校验 conversationId 归属；群会话实时校验当前成员身份，历史脏视图不能获得消息权限。
 - **readSeq / deliveredSeq**：Redis 即写 + Mongo write-behind。writer 使用有界主/回退队列，
   上报 queued/inflight depth 与动态 oldest age；停机先等待当前批次最多 30 秒，再 drain 剩余队列。
   `ReadSeqPersistenceWriter` 按 userId 分桶并聚合最大 readSeq，`DeliverySeqPersistenceWriter`
@@ -79,7 +81,7 @@
 | 缺陷 | 位置 | 修复项 |
 | --- | --- | --- |
 | ~~`acceptFriendRequest` 非事务~~ | `FriendRelationServiceImpl.java:179` | **已修复 2026-07-13**：cluster 模式使用 MongoDB 事务，提交后再通知和失效缓存 |
-| version 分配非原子、TTL 后游标未失效 | `ConversationVersionLogRepositoryImpl` / `syncConversations` | 待修复 |
+| ~~version 分配非原子、TTL 后游标未失效~~ | `ConversationVersionLogRepositoryImpl` / `syncConversations` | **已修复 2026-09-07**：独立原子 cursor + 最早保留版本检测 |
 | ~~`ReadSeqPersistenceWriter` 单线程~~ | ~~`ReadSeqPersistenceWriter.java:31`~~ | **已修复 2026-07-09**：按 userId hash 分桶多线程 drain |
 | 反向投递偏好已独立存储 | `conversation_delivery_preference` | 不再扫描 owner 会话集合；需执行迁移 |
 

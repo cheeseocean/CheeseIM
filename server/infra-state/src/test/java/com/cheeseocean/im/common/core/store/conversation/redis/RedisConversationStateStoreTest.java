@@ -23,7 +23,7 @@ class RedisConversationStateStoreTest {
         StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
         RedisConversationStateStore store = new RedisConversationStateStore(redisTemplate);
 
-        store.advanceUserMaxSeq("u1", "g:crew", 11L, true);
+        store.advanceUserMaxSeq("u1", "g:crew", 11L, 1);
 
         verify(redisTemplate).execute(any(), eq(List.of(
                 RedisKeys.userMaxSeq("u1", "g:crew"), RedisKeys.userUnread("u1", "g:crew"))),

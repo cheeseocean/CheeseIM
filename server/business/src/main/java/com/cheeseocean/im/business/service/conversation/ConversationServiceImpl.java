@@ -8,11 +8,15 @@ import com.cheeseocean.im.common.api.dto.conversation.SetConversationRequest;
 import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.api.enums.ConversationVersionOperation;
 import com.cheeseocean.im.common.api.enums.ReceiveOption;
+import com.cheeseocean.im.common.api.enums.ErrorCode;
+import com.cheeseocean.im.common.api.exception.BusinessException;
 import com.cheeseocean.im.common.core.cache.CacheRegion;
 import com.cheeseocean.im.common.core.cache.CacheStore;
 import com.cheeseocean.im.common.core.business.repository.ConversationVersionLogRepository;
 import com.cheeseocean.im.common.core.business.repository.ConversationDeliveryPreferenceRepository;
+import com.cheeseocean.im.common.core.business.repository.GroupMemberRepository;
 import com.cheeseocean.im.common.core.business.repository.UserConversationRepository;
+import com.cheeseocean.im.common.core.util.ConversationIdUtil;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,6 +52,7 @@ public class ConversationServiceImpl implements ConversationService {
     private final UserConversationRepository stateRepository;
     private final ConversationVersionLogRepository versionLogRepository;
     private final ConversationDeliveryPreferenceRepository deliveryPreferenceRepository;
+    private final GroupMemberRepository groupMemberRepository;
     /**
      * 单条会话配置缓存。
      * key: ownerUserId:conversationId
@@ -82,10 +87,12 @@ public class ConversationServiceImpl implements ConversationService {
     public ConversationServiceImpl(UserConversationRepository stateRepository,
                                    ConversationVersionLogRepository versionLogRepository,
                                    ConversationDeliveryPreferenceRepository deliveryPreferenceRepository,
+                                   GroupMemberRepository groupMemberRepository,
                                    CacheStore cacheStore) {
         this.stateRepository = stateRepository;
         this.versionLogRepository = versionLogRepository;
         this.deliveryPreferenceRepository = deliveryPreferenceRepository;
+        this.groupMemberRepository = groupMemberRepository;
         this.conversationDetailCache = cacheStore.region("im:conv:detail:", UserConversation.class, CACHE_TTL);
         this.conversationIdsCache = cacheStore.listRegion("im:conv:ids:", String.class, CACHE_TTL);
         this.conversationIdsHashCache = cacheStore.region("im:conv:ids_hash:", Long.class, CACHE_TTL);
@@ -284,6 +291,13 @@ public class ConversationServiceImpl implements ConversationService {
             return result;
         }
 
+        ConversationVersionLog earliest = versionLogRepository.findEarliest(ownerUserId, versionId).orElse(null);
+        if (earliest == null || version < earliest.getVersion() - 1L) {
+            // TTL 已删除客户端游标后的首段日志时，必须回退全量，不能返回不完整增量。
+            fillFullSync(ownerUserId, result);
+            return result;
+        }
+
         List<ConversationVersionLog> logs = versionLogRepository.findAfter(ownerUserId, versionId, version, VERSION_SYNC_LIMIT);
         if (logs.size() >= VERSION_SYNC_LIMIT) {
             fillFullSync(ownerUserId, result);
@@ -385,6 +399,8 @@ public class ConversationServiceImpl implements ConversationService {
         if (userIds == null || userIds.isEmpty() || request == null || isBlank(request.getConversationId())) {
             return;
         }
+        // 必须在投递偏好和会话视图发生任何写入前完成全部目标用户授权。
+        userIds.forEach(userId -> requireConversationAccess(userId, request));
         Map<String, Object> fields = buildUpdateFields(request);
         ConversationCacheEvictPlan plan = new ConversationCacheEvictPlan();
         if (request.getRecvMsgOpt() != null) {
@@ -526,6 +542,36 @@ public class ConversationServiceImpl implements ConversationService {
             } else {
                 result.getUpdate().add(conversation);
             }
+        }
+    }
+
+    /**
+     * 客户端只能配置自己真实参与的会话，不能借配置接口创建任意授权视图。
+     */
+    private void requireConversationAccess(String userId, SetConversationRequest request) {
+        if (isBlank(userId)) {
+            throw new BusinessException(ErrorCode.INVALID_PARAM);
+        }
+        final ChatType chatType;
+        try {
+            chatType = ChatType.fromCode(request.getConversationType());
+        } catch (IllegalArgumentException exception) {
+            throw new BusinessException(ErrorCode.INVALID_PARAM);
+        }
+        if (chatType != ChatType.NOTIFICATION && isBlank(request.getTargetId())) {
+            throw new BusinessException(ErrorCode.INVALID_PARAM);
+        }
+        String expectedConversationId = switch (chatType) {
+            case PRIVATE -> ConversationIdUtil.single(userId, request.getTargetId());
+            case GROUP -> ConversationIdUtil.group(request.getTargetId());
+            case NOTIFICATION -> ConversationIdUtil.notification(userId);
+        };
+        if (!expectedConversationId.equals(request.getConversationId())) {
+            throw new BusinessException(ErrorCode.INVALID_PARAM);
+        }
+        if (chatType == ChatType.GROUP
+                && !groupMemberRepository.existsByGroupAndUser(request.getTargetId(), userId)) {
+            throw new BusinessException(ErrorCode.GROUP_NOT_MEMBER);
         }
     }
 

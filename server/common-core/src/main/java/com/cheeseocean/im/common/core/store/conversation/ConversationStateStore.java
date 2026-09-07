@@ -18,8 +18,8 @@ public interface ConversationStateStore {
 
     void setUserMaxSeq(String userId, String conversationId, long seq);
 
-    /** 原子推进用户 maxSeq，并按实际新增 seq 差值增加未读。 */
-    void advanceUserMaxSeq(String userId, String conversationId, long maxSeq, boolean countUnread);
+    /** 原子推进用户 maxSeq，并按本批真实接收消息数增加未读。 */
+    void advanceUserMaxSeq(String userId, String conversationId, long maxSeq, int unreadDelta);
 
     Long getUserMaxSeq(String userId, String conversationId);
 

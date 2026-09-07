@@ -40,7 +40,8 @@
 
 Redis 实现按单消息单 key Lua 原子迁移，并使用 pipeline 合并批量网络往返；RocksDB 实现保持相同接口。进程在副作用完成后、inbox 完成前崩溃时仍可能重复发布相同 `serverMsgId + seq`，但不会再分配第二个 seq；history Mongo upsert 和 postoffice delivery dedup 负责承受下游重放。
 
-`UserMaxSeqPersistenceWriter` 的 drain batch 会先按用户-会话取最大值，再通过
+用户热状态推进时，maxSeq 与本批真实接收消息数在 Redis Lua/RocksDB 临界区内原子更新；未读不再按
+seq 差值推算，因为 seq 允许空洞。`UserMaxSeqPersistenceWriter` 的 drain batch 会先按用户-会话取最大值，再通过
 `UserConversationSyncPointRepository.updateMaxSeqBatch` 执行一次 Mongo unordered bulk upsert；
 Mongo 使用 `$max`，多副本与 fallback 乱序不会回退水位。writer 上报 queued/inflight depth 与
 动态 oldest age；停机先等待当前批次最多 30 秒，再 drain 剩余队列，超时/最终失败进入固定结果指标。
@@ -56,7 +57,7 @@ Mongo 使用 `$max`，多副本与 fallback 乱序不会回退水位。writer �
 - 每条消息块内字段：`messages.{seq-offset}`
 - 单独 `MessageIdMappingDoc` 保存 `serverMsgId ⇄ {convId, seq, blockNo, offset}` 映射
 
-**批量写（2026-07-08 P1-8 修复）**：一个 `HistoryEvent` 内先把全部 id mapping 合入一个 unordered `bulkOps` upsert（`_id = {convId}:{clientMsgId}` 幂等），再把按 blockNo 分桶后的块更新合入第二个 unordered `bulkOps` upsert；不再循环逐条 `save`/`upsert`。原 `MessageIdMappingRepository` 已删除（无其它使用点）。
+**批量写（2026-07-08 P1-8 修复）**：一个 `HistoryEvent` 内先把全部 id mapping 合入一个 unordered `bulkOps` upsert（`_id = {convId}:{senderId}:{clientMsgId}` 幂等，与发送 inbox 身份作用域一致），再把按 blockNo 分桶后的块更新合入第二个 unordered `bulkOps` upsert；不再循环逐条 `save`/`upsert`。原 `MessageIdMappingRepository` 已删除（无其它使用点）。
 
 **附件元数据（2026-07-08 P1-10）**：`ContentType.hasAttachment()`（IMAGE/VOICE/VIDEO/FILE）的消息，从 content JSON 提取 `attachmentId` 后批量 upsert `attachment_metadata`（`_id = attachmentId`，含 conversationId/serverMsgId/seq/senderId/contentType/sendTime）；content 非 JSON 或缺 `attachmentId` 静默跳过。postbox 附件鉴权按 `_id` 点查（见 `postbox/ARCH.md` §4）。
 
