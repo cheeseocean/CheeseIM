@@ -8,6 +8,9 @@ import com.cheeseocean.im.common.api.dto.conversation.SetConversationRequest;
 import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.api.enums.ConversationVersionOperation;
 import com.cheeseocean.im.common.api.enums.ReceiveOption;
+import com.cheeseocean.im.common.api.enums.ErrorCode;
+import com.cheeseocean.im.common.api.exception.BusinessException;
+import com.cheeseocean.im.business.service.permission.ConversationPermissionServiceImpl;
 import com.cheeseocean.im.common.core.cache.CacheRegion;
 import com.cheeseocean.im.common.core.cache.CacheStore;
 import com.cheeseocean.im.common.core.business.repository.ConversationVersionLogRepository;
@@ -48,6 +51,7 @@ public class ConversationServiceImpl implements ConversationService {
     private final UserConversationRepository stateRepository;
     private final ConversationVersionLogRepository versionLogRepository;
     private final ConversationDeliveryPreferenceRepository deliveryPreferenceRepository;
+    private final ConversationPermissionServiceImpl accessPermissionService;
     /**
      * 单条会话配置缓存。
      * key: ownerUserId:conversationId
@@ -82,10 +86,12 @@ public class ConversationServiceImpl implements ConversationService {
     public ConversationServiceImpl(UserConversationRepository stateRepository,
                                    ConversationVersionLogRepository versionLogRepository,
                                    ConversationDeliveryPreferenceRepository deliveryPreferenceRepository,
-                                   CacheStore cacheStore) {
+                                   CacheStore cacheStore,
+                                   ConversationPermissionServiceImpl accessPermissionService) {
         this.stateRepository = stateRepository;
         this.versionLogRepository = versionLogRepository;
         this.deliveryPreferenceRepository = deliveryPreferenceRepository;
+        this.accessPermissionService = accessPermissionService;
         this.conversationDetailCache = cacheStore.region("im:conv:detail:", UserConversation.class, CACHE_TTL);
         this.conversationIdsCache = cacheStore.listRegion("im:conv:ids:", String.class, CACHE_TTL);
         this.conversationIdsHashCache = cacheStore.region("im:conv:ids_hash:", Long.class, CACHE_TTL);
@@ -102,10 +108,10 @@ public class ConversationServiceImpl implements ConversationService {
      * 单条会话读取走 detail cache 读穿透，避免频繁击穿仓储层。
      */
     public UserConversation getConversation(String ownerUserId, String conversationId) {
-        if (isBlank(ownerUserId) || isBlank(conversationId)) {
+        if (!accessPermissionService.canAccess(ownerUserId, conversationId)) {
             return null;
         }
-        return copy(conversationDetailCache.getOrLoad(
+        return authorizedCopy(ownerUserId, conversationId, conversationDetailCache.getOrLoad(
                 detailKey(ownerUserId, conversationId),
                 () -> stateRepository.findOne(ownerUserId, conversationId)
         ));
@@ -119,7 +125,7 @@ public class ConversationServiceImpl implements ConversationService {
         if (isBlank(ownerUserId) || conversationIds == null || conversationIds.isEmpty()) {
             return new ArrayList<>();
         }
-        List<String> dedupedConversationIds = dedupeConversationIds(conversationIds);
+        List<String> dedupedConversationIds = visibleIds(ownerUserId, dedupeConversationIds(conversationIds));
         if (dedupedConversationIds.isEmpty()) {
             return new ArrayList<>();
         }
@@ -155,7 +161,7 @@ public class ConversationServiceImpl implements ConversationService {
         return dedupedConversationIds.stream()
                 .map(conversationId -> resolved.get(detailKey(ownerUserId, conversationId)))
                 .filter(Objects::nonNull)
-                .map(this::copy)
+                .map(conversation -> authorizedCopy(ownerUserId, conversation.getConversationId(), conversation))
                 .collect(Collectors.toCollection(ArrayList::new));
     }
 
@@ -190,14 +196,14 @@ public class ConversationServiceImpl implements ConversationService {
         }
         List<String> cached = conversationIdsCache.get(ownerUserId);
         if (cached != null) {
-            return new ArrayList<>(cached);
+            return visibleIds(ownerUserId, cached);
         }
         List<String> loaded = stateRepository.findConversationIds(ownerUserId);
         if (loaded == null) {
             loaded = new ArrayList<>();
         }
         conversationIdsCache.put(ownerUserId, loaded);
-        return new ArrayList<>(loaded);
+        return visibleIds(ownerUserId, loaded);
     }
 
     @Override
@@ -208,10 +214,7 @@ public class ConversationServiceImpl implements ConversationService {
         if (isBlank(ownerUserId)) {
             return 0L;
         }
-        Long cached = conversationIdsHashCache.get(ownerUserId);
-        if (cached != null) {
-            return cached;
-        }
+        // 成员退出不会必然更新视图缓存；hash 必须按本次授权后的列表计算，不能复用旧正授权快照。
         List<String> ids = new ArrayList<>(getConversationIds(ownerUserId));
         ids.sort(String::compareTo);
         long hash = (long) ids.hashCode() & 0xFFFFFFFFL;
@@ -229,14 +232,14 @@ public class ConversationServiceImpl implements ConversationService {
         }
         List<String> cached = notNotifyConversationIdsCache.get(ownerUserId);
         if (cached != null) {
-            return new ArrayList<>(cached);
+            return visibleIds(ownerUserId, cached);
         }
         List<String> loaded = stateRepository.findNotNotifyConversationIds(ownerUserId);
         if (loaded == null) {
             loaded = new ArrayList<>();
         }
         notNotifyConversationIdsCache.put(ownerUserId, loaded);
-        return new ArrayList<>(loaded);
+        return visibleIds(ownerUserId, loaded);
     }
 
     @Override
@@ -249,14 +252,14 @@ public class ConversationServiceImpl implements ConversationService {
         }
         List<String> cached = pinnedConversationIdsCache.get(ownerUserId);
         if (cached != null) {
-            return new ArrayList<>(cached);
+            return visibleIds(ownerUserId, cached);
         }
         List<String> loaded = stateRepository.findPinnedConversationIds(ownerUserId);
         if (loaded == null) {
             loaded = new ArrayList<>();
         }
         pinnedConversationIdsCache.put(ownerUserId, loaded);
-        return new ArrayList<>(loaded);
+        return visibleIds(ownerUserId, loaded);
     }
 
     @Override
@@ -378,44 +381,50 @@ public class ConversationServiceImpl implements ConversationService {
     @Override
     @Transactional
     /**
-     * 批量写会话配置时先确保记录存在，再按请求内容做局部字段更新。
+     * 配置写入只更新已有且当前授权的视图，创建会话由消息/群业务入口负责。
+     * 批量请求在任何副作用前整体预检，避免单机无事务模式下写入部分未授权偏好。
      * 这里只维护用户会话元数据，不负责推进 seq 同步位点。
      */
     public void setConversations(List<String> userIds, SetConversationRequest request) {
         if (userIds == null || userIds.isEmpty() || request == null || isBlank(request.getConversationId())) {
-            return;
+            throw new BusinessException(ErrorCode.INVALID_PARAM);
+        }
+        List<String> owners = new ArrayList<>(new LinkedHashSet<>(userIds));
+        for (String userId : owners) {
+            if (!accessPermissionService.canAccess(userId, request.getConversationId())) {
+                throw new BusinessException(ErrorCode.CONVERSATION_ACCESS_DENIED);
+            }
+            UserConversation existing = stateRepository.findOne(userId, request.getConversationId());
+            if (existing == null) {
+                throw new BusinessException(ErrorCode.CONVERSATION_ACCESS_DENIED);
+            }
+            existing = authorizedCopy(userId, request.getConversationId(), existing);
+            if ((request.getConversationType() != 0 && request.getConversationType() != existing.getChatType())
+                    || (!isBlank(request.getTargetId()) && !Objects.equals(request.getTargetId(), existing.getTargetId()))) {
+                throw new BusinessException(ErrorCode.INVALID_PARAM);
+            }
+        }
+        if (request.getRecvMsgOpt() != null) {
+            try {
+                ReceiveOption.fromCode(request.getRecvMsgOpt());
+            } catch (IllegalArgumentException exception) {
+                throw new BusinessException(ErrorCode.INVALID_PARAM);
+            }
         }
         Map<String, Object> fields = buildUpdateFields(request);
         ConversationCacheEvictPlan plan = new ConversationCacheEvictPlan();
         if (request.getRecvMsgOpt() != null) {
             deliveryPreferenceRepository.setReceiveOptions(
-                    userIds, request.getConversationId(), request.getRecvMsgOpt());
+                    owners, request.getConversationId(), request.getRecvMsgOpt());
         }
-        for (String userId : userIds) {
-            boolean existed = stateRepository.findOne(userId, request.getConversationId()) != null;
-            UserConversation state = buildExplicitState(
-                    userId,
-                    request.getConversationId(),
-                    request.getConversationType(),
-                    request.getTargetId()
-            );
-            if (request.getRecvMsgOpt() != null) {
-                state.setReceiveOpt(request.getRecvMsgOpt());
-            }
-            if (request.getPinned() != null) {
-                state.setPinned(request.getPinned());
-            }
-            if (request.getAttachedInfo() != null) {
-                state.setAttachedInfo(request.getAttachedInfo());
-            }
-            stateRepository.createIfAbsent(state);
+        for (String userId : owners) {
             if (!fields.isEmpty()) {
                 stateRepository.updateFields(userId, request.getConversationId(), fields);
             }
             versionLogRepository.append(
                     userId,
                     request.getConversationId(),
-                    existed ? ConversationVersionOperation.UPDATE : ConversationVersionOperation.INSERT
+                    ConversationVersionOperation.UPDATE
             );
             plan.addDetail(userId, request.getConversationId());
             plan.addConversationIdsUser(userId);
@@ -474,7 +483,11 @@ public class ConversationServiceImpl implements ConversationService {
     private void fillFullSync(String ownerUserId, ConversationIncrementalSyncResult result) {
         result.setFull(true);
         List<UserConversation> conversations = stateRepository.findAll(ownerUserId);
-        result.setInsert(conversations == null ? new ArrayList<>() : conversations);
+        result.setInsert(conversations == null ? new ArrayList<>() : conversations.stream()
+                .filter(conversation -> conversation != null
+                        && accessPermissionService.canAccess(ownerUserId, conversation.getConversationId()))
+                .map(conversation -> authorizedCopy(ownerUserId, conversation.getConversationId(), conversation))
+                .collect(Collectors.toCollection(ArrayList::new)));
         result.setUpdate(new ArrayList<>());
         result.setDelete(new ArrayList<>());
     }
@@ -497,7 +510,7 @@ public class ConversationServiceImpl implements ConversationService {
                 lastOperationByConversation.put(log.getConversationId(), log.getOperation());
             }
         }
-        result.setReadStateChangedConversationIds(new ArrayList<>(readStateChangedConversationIds));
+        result.setReadStateChangedConversationIds(visibleIds(ownerUserId, new ArrayList<>(readStateChangedConversationIds)));
         List<String> upsertIds = lastOperationByConversation.entrySet().stream()
                 .filter(entry -> entry.getValue() != ConversationVersionOperation.DELETE)
                 .map(Map.Entry::getKey)
@@ -517,10 +530,11 @@ public class ConversationServiceImpl implements ConversationService {
                 continue;
             }
             UserConversation conversation = current.get(conversationId);
-            if (conversation == null) {
+            if (conversation == null || !accessPermissionService.canAccess(ownerUserId, conversationId)) {
                 result.getDelete().add(conversationId);
                 continue;
             }
+            conversation = authorizedCopy(ownerUserId, conversationId, conversation);
             if (operation == ConversationVersionOperation.INSERT) {
                 result.getInsert().add(conversation);
             } else {
@@ -539,6 +553,34 @@ public class ConversationServiceImpl implements ConversationService {
         state.setChatType(conversationType);
         state.setTargetId(targetId);
         return state;
+    }
+
+    /** 每次读取都按当前成员事实过滤，兼容库中和缓存中残留的旧伪视图。 */
+    private List<String> visibleIds(String ownerUserId, List<String> conversationIds) {
+        return conversationIds.stream()
+                .filter(conversationId -> accessPermissionService.canAccess(ownerUserId, conversationId))
+                .distinct()
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    /** 旧设置入口可写入矛盾的 type/target；读取按已授权的 canonical ID 还原，避免回执误发第三方。 */
+    private UserConversation authorizedCopy(String ownerUserId, String conversationId, UserConversation source) {
+        UserConversation result = copy(source);
+        if (result == null) {
+            return null;
+        }
+        result.setOwnerUserId(ownerUserId);
+        result.setConversationId(conversationId);
+        if (conversationId.startsWith("s:")) {
+            result.setChatType(ChatType.PRIVATE.getCode());
+            result.setTargetId(com.cheeseocean.im.common.core.util.ConversationIdUtil.peerUser(conversationId, ownerUserId));
+        } else if (conversationId.startsWith("n:")) {
+            result.setChatType(ChatType.NOTIFICATION.getCode());
+        } else {
+            result.setChatType(ChatType.GROUP.getCode());
+            result.setTargetId(conversationId.substring(conversationId.startsWith("ng:") ? 3 : 2));
+        }
+        return result;
     }
 
     /**

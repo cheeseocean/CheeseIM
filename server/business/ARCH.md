@@ -11,7 +11,7 @@
 | `service/conversation/` | 会话 CRUD + 增量同步（version-log）+ sync point |
 | `service/group/` | 群成员查询 + 群发送权限聚合（群状态/成员/禁言/扩散类型） |
 | `service/user/` | 用户信息 + 全局 receiveOpt |
-| `service/permission/` | 发送权限聚合：黑名单 + 用户 receiveOpt + 会话 receiveOpt 一次性返回给 postbox |
+| `service/permission/` | 发送权限聚合；会话访问权限唯一provider，按canonical归属和当前群成员事实判定 |
 | `service/blacklist/` | 黑名单 |
 
 ## 2. 数据模型事实
@@ -57,6 +57,12 @@
   membershipVersion，同群 key 使用共同 hash tag。成员 mutation 精确失效群元数据，旧版本 sender key 自然隔离。
 - 会话当前态按 owner 存在 `conversation`；conversation 维度的非默认投递偏好单独写入
   `conversation_delivery_preference`。离线推送禁止回退扫描 owner 当前态集合。
+- `ConversationPermissionServiceImpl` 在business导出：s:必须是规范参与者，n:只归收件人，g:/ng:要求当前群成员；
+  不缓存正授权，群仓储失败拒绝。当前契约不定义入群前历史窗口。
+- `setConversations` 只更新已有且当前授权的视图，任何副作用前整体预检owner/type/target/receiveOpt；
+  不能创建视图。详情、列表/IDs/置顶/免打扰、hash和全量/增量sync均实时过滤，包括缓存残留的伪视图/退出群视图。
+  旧type/target矛盾字段在返回副本中按canonical ID还原，避免已读/送达通知误发第三方。
+  消息sync仍可在已授权后回退全局水位，不能在授权前以此推导可见性。
 
 ## 4. 缓存规范
 
