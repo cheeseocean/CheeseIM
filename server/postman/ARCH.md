@@ -40,19 +40,24 @@ attempt 与 64 分片 deadline ZSET 同槽，离线事件通过 30 秒发布租�
 
 ## 3. 群投递（**已闭环 2026-07-06**，P0-2 修复项）
 
-postmaster `IngressEventListener.fanoutGroupDelivery` 已按 `GroupTypeEnum` 分流：
+postmaster ingress 编排按 `GroupTypeEnum` 分流；当前普通群扩散由独立 `GroupFanoutEventListener` worker 执行：
 
-- NORMAL_GROUP → 写扩散：查询群成员 → 按 `GroupFanoutPlanner.partition` 切片 → 每成员 `MessageProducer.publishForMember("g:{groupId}:{memberId}", template, memberId)` 发一份 keyed DeliveryEvent
+- NORMAL_GROUP → 发布 `GROUP_FANOUT` 紧凑任务；worker 按 membershipVersion 从成员 epoch keyset 分页、切片并通过 `publishForTargets` 发布成员级 keyed DeliveryEvent
 - SUPER_GROUP → 读扩散：仅持久化，客户端按 seq 拉取
-- null → 按 NORMAL_GROUP 兜底，Dubbo 异常被吞 Logged，避免 ingress 批重投引发 dup seq
+
+重试的 seq 稳定性来自 ingress inbox 的 claim/bind/complete，而非吞异常；批次 sample sender 的未读处理仍有缺口，见最新审查账本。
 
 postman `DeliveryEventListener.resolveTargets` 已**移除** `ChatType.GROUP` 跳过分支：写扩散后每条 DeliveryEvent 已带 `receiverId`，直接按 `receiverId` 投递即可。详见 `postmaster/ARCH.md` §5。
 
 ## 4. 投递去重
 
-`ConnectionManager.markDeliveryIfAbsent`（postoffice 模块）已委托 `DeliveryDedupStore`；生产环境注入 `RedisDeliveryDedupStore`，用 Redis `SET NX EX` 做跨节点去重并通过 TTL 自动回收（ASSESSMENT P0-5 已修复）。
+postoffice 的 `OnlineDispatcherImpl` 经 `DeliveryDedupStore` 执行 claim/commit/abort，只有 ChannelFuture 成功才提交；
+生产 `RedisDeliveryDedupStore` 使用单 key Lua 与 TTL，失败释放、超时恢复。不能把旧 SET NX 受理直接解释为已投递。
 
 `MessagePushServiceImpl` 已通过 `PushStateStore` 使用 Redis 维护 attempt 与 delivery state（2026-07-11，ASSESSMENT P4-24）。同一 `serverMsgId` 的状态放入一个 Redis HASH，Lua claim 会先拒绝 `ONLINE_CONFIRMED` / `READ`，再原子检查并写入 `attempt:{userId}`；多 postman 副本中只有一个能调用厂商推送。状态默认保留 24 小时，可用 `CHEESEIM_PUSH_STATE_TTL_SECONDS` 调整。
+
+**当前缺口（2026-09-30）**：厂商失败 PushResult 被 listener 忽略，而既有 attempt 阻止重试；该状态还不是可恢复的 vendor 执行租约。
+event→request→Message 还丢失 canonical conversationId/seq/groupId，provider payload 仍拼旧 single_/group_ 身份。详见 `docs/code-review-2026-09-30.md`。
 
 ## 5. 离线推送 5 厂商
 

@@ -483,28 +483,6 @@ public class OfflinePushServiceImpl implements OfflinePushService {
         }
     }
 
-    private ChatType resolveSessionType(Integer sessionType) {
-        if (sessionType == null) {
-            return ChatType.PRIVATE;
-        }
-        try {
-            return ChatType.fromCode(sessionType);
-        } catch (IllegalArgumentException ex) {
-            return ChatType.PRIVATE;
-        }
-    }
-
-    private ContentType resolveContentType(Integer contentType) {
-        if (contentType == null) {
-            return null;
-        }
-        try {
-            return ContentType.fromCode(contentType);
-        } catch (IllegalArgumentException ex) {
-            return null;
-        }
-    }
-
     private void configurePlatformSpecificProperties(PushMessage pushMessage, Integer platformID) {
         switch (PlatformType.fromCode(platformID)) {
             case IOS:
