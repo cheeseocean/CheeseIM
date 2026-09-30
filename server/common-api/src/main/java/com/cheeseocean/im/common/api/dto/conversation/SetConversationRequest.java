@@ -7,8 +7,8 @@ import lombok.Data;
  * 会话配置更新请求。
  * 用于 {@link com.cheeseocean.im.common.api.conversation.ConversationService#setConversations}。
  *
- * <p>创建会话时 conversationId / conversationType / targetId 必填；
- * 更新配置时仅需填写要变更的可选字段，null 表示不修改。
+ * <p>仅更新已有且当前有权访问的会话；本请求不能创建会话。
+ * conversationType（非零）/targetId（非空）仅作身份一致性校验，可选配置为 null 表示不修改。
  */
 @Data
 public class SetConversationRequest {

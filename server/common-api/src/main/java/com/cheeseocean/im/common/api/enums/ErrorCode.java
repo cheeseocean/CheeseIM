@@ -35,7 +35,9 @@ public enum ErrorCode implements IEnum {
     /** 发送者不是群成员。 */
     GROUP_NOT_MEMBER(1103, "发送者不是群成员"),
     /** 发送者处于群禁言状态。 */
-    GROUP_MEMBER_MUTED(1104, "发送者处于禁言状态");
+    GROUP_MEMBER_MUTED(1104, "发送者处于禁言状态"),
+    /** 已认证主体不属于目标会话，或会话访问关系已失效。 */
+    CONVERSATION_ACCESS_DENIED(1201, "无权访问该会话");
 
     private final int code;
     private final String desc;

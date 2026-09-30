@@ -68,6 +68,8 @@
 - `GroupMembershipCommandService` 是成员关系唯一写契约；批变更返回单调 `membershipVersion`。
 - `GroupMemberPage` 的游标固定为 `(joinedVersion,userId,epochId)`；禁止回退 offset 或 joinTime 快照。
 - `ConversationPermissionService` 是会话访问权限的共享契约；接口名不暴露 Dubbo/RPC 基础设施，provider 和 consumer 均使用该名称。
+- 该provider唯一归business，按canonical ID归属/当前群成员授权，不能以会话视图存在或旧allow缓存作为凭证。
+  `SetConversationRequest`只更新已有授权视图；新增 `CONVERSATION_ACCESS_DENIED(1201)` 由HTTP映射403，不改proto字段。
 - `GroupMessageSendPermissionService` 是群发送权限唯一共享契约；`GroupSendPermissionCode` 使用稳定 code，禁止退化为字符串原因或 ordinal。
 - `MessageMutationService` 是撤回入口唯一共享契约；撤回不改写 `message_block`，历史读取必须 merge `message_mutation`。
 - `ConversationControlEvent` 是已读、撤回的可靠控制事件载荷；业务侧只 append，`common-core` 负责 Mongo outbox 的 cursor、claim 与交付状态，客户端可按 cursor 补齐。输入中不属于可靠事件，只使用 Redis 短 TTL 状态和在线尽力通知。
