@@ -35,7 +35,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Component
@@ -90,7 +89,7 @@ public class IngressEventListener {
         this.conversationService = conversationService;
     }
 
-    // 消费 INGRESS 队列，批量接收同一会话的消息
+    // 队列 key 只保证分区顺序，不能代表批次内每条消息的领域会话身份。
     @QueueListener(topic = TopicNames.INGRESS, group = "postmaster-ingress", concurrency = 1, batch = true, batchSize = 500)
     public void onMessage(List<Message> msgs) {
         long started = ImMetrics.startTimer();
@@ -104,9 +103,7 @@ public class IngressEventListener {
     }
 
     // 包级可见，供测试直接调用。
-    // 批次按 ConversationIdUtil.buildQueueKey 分组（single 和 notification 共享同一 key），
-    // 同一批次可同时含 regular 和 notification 消息，
-    // 二者路由到各自独立的处理方法，各自在方法内计算 conversationId。
+    // 同一个 queue key 可能包含单聊、不同接收方的通知及群通知，需逐条计算 canonical 身份。
     void handle(List<Message> msgs) {
         if (msgs == null || msgs.isEmpty()) return;
 
@@ -139,17 +136,16 @@ public class IngressEventListener {
         if (processingMessages.isEmpty()) {
             return;
         }
-        List<String> processingKeys = processingMessages.stream()
+        List<String> pendingKeys = new ArrayList<>(processingMessages.stream()
                 .map(this::inboxKey)
-                .toList();
+                .toList());
         try {
             Map<String, GroupMessageSendPermissionResult> groupPermissions =
                     validateGroupSendPermissions(processingMessages);
-            handleClaimed(processingMessages, claimByKey, groupPermissions, ownerToken);
-            ingressMessageInboxStore.completeBatch(processingKeys, ownerToken);
+            handleClaimed(processingMessages, claimByKey, groupPermissions, ownerToken, pendingKeys);
         } catch (RuntimeException exception) {
             try {
-                ingressMessageInboxStore.releaseBatch(processingKeys, ownerToken);
+                ingressMessageInboxStore.releaseBatch(pendingKeys, ownerToken);
             } catch (RuntimeException releaseFailure) {
                 exception.addSuppressed(releaseFailure);
             }
@@ -160,27 +156,43 @@ public class IngressEventListener {
     private void handleClaimed(List<Message> acceptedMessages,
                                Map<String, IngressMessageInboxStore.Claim> claimByKey,
                                Map<String, GroupMessageSendPermissionResult> groupPermissions,
-                               String ownerToken) {
-        Message sample             = acceptedMessages.get(0);
-        String  convId             = ConversationIdUtil.buildConversationId(sample);
-        String  notificationConvId = ConversationIdUtil.buildNotificationConversationId(sample);
-
-        // 二路分类
-        List<EventCtx> storageList   = new ArrayList<>();
-        List<EventCtx> transientList = new ArrayList<>();
+                               String ownerToken,
+                               List<String> pendingKeys) {
+        Map<String, List<List<EventCtx>>> groups = new LinkedHashMap<>();
         for (Message msg : acceptedMessages) {
             MessageRouteDecision d = messagePolicyEngine.decide(msg);
+            String convId = d.notification()
+                    ? ConversationIdUtil.buildNotificationConversationId(msg)
+                    : ConversationIdUtil.buildConversationId(msg);
             String key = inboxKey(msg);
             IngressMessageInboxStore.Claim claim = claimByKey.get(key);
-            (d.persistHistory() ? storageList : transientList).add(new EventCtx(
-                    msg,
-                    d.notification() ? notificationConvId : convId,
-                    d,
-                    key,
-                    claim.assignedSeq()));
+            // PRIVATE + notification flag 与纯 NOTIFICATION 即使同属 n:，也不能互相决定创建/状态语义。
+            ExecutionKey executionKey = new ExecutionKey(convId, msg.getChatType(), d.notification());
+            List<List<EventCtx>> runs = groups.computeIfAbsent(convId, ignored -> new ArrayList<>());
+            List<EventCtx> lastRun = runs.isEmpty() ? null : runs.get(runs.size() - 1);
+            // 同 canonical 下只合并连续相同语义，避免 A/B/A 语义交错被重排为 A/A/B。
+            if (lastRun == null || !executionKey.equals(executionKey(lastRun.get(0)))) {
+                lastRun = new ArrayList<>();
+                runs.add(lastRun);
+            }
+            lastRun.add(new EventCtx(msg, convId, d, key, claim.assignedSeq()));
         }
+        for (List<EventCtx> group : groups.values().stream().flatMap(List::stream).toList()) {
+            List<EventCtx> storageList = new ArrayList<>();
+            List<EventCtx> transientList = new ArrayList<>();
+            for (EventCtx ctx : group) {
+                (ctx.decision().persistHistory() ? storageList : transientList).add(ctx);
+            }
+            handleMessage(storageList, transientList, groupPermissions, ownerToken);
+            List<String> completedKeys = group.stream().map(EventCtx::inboxKey).toList();
+            // 本组全部副作用 ACK 后完成；后续组失败只释放尚未完成的消息。
+            ingressMessageInboxStore.completeBatch(completedKeys, ownerToken);
+            pendingKeys.removeAll(completedKeys);
+        }
+    }
 
-        handleMessage(storageList, transientList, groupPermissions, ownerToken);
+    private ExecutionKey executionKey(EventCtx ctx) {
+        return new ExecutionKey(ctx.convId(), ctx.msg().getChatType(), ctx.decision().notification());
     }
 
     private void handleMessage(List<EventCtx> storageList,
@@ -188,9 +200,6 @@ public class IngressEventListener {
                                Map<String, GroupMessageSendPermissionResult> groupPermissions,
                                String ownerToken) {
         if (storageList.isEmpty() && transientList.isEmpty()) return;
-
-        // 瞬时消息：输入中, 无需存储的通知等
-        pushTransient(transientList);
 
         // 持久化消息：单聊、群聊、需保存的通知消息（群公告、拍一拍、群成员加入等）
         List<EventCtx> storageMsgList          = new ArrayList<>();
@@ -225,6 +234,8 @@ public class IngressEventListener {
             notificationSeqBatch = bindStableSeqs(storageNotificationList, ownerToken);
         }
 
+        // 同组持久化消息的 seq 固定后再发布，避免瞬时投递成功而 seq 绑定失败。
+        pushTransient(transientList);
 
         // fanout: ingress -> history; ingress -> online_push
         // 持久化先入队列
@@ -257,6 +268,7 @@ public class IngressEventListener {
                     requireGroupPermission(groupPermissions, groupId);
             publishGroupFanoutJob(
                     groupId,
+                    orderedStorage.get(0).convId(),
                     messages,
                     permission.getGroupType(),
                     permission.getMembershipVersion(),
@@ -275,6 +287,7 @@ public class IngressEventListener {
      * <p>任务发布必须取得 broker ACK；成员依赖故障只重试 fanout consumer，不再占用 ingress。
      */
     private void publishGroupFanoutJob(String groupId,
+                                       String conversationId,
                                        List<Message> groupMessages,
                                        GroupTypeEnum groupType,
                                        long membershipVersion,
@@ -298,6 +311,7 @@ public class IngressEventListener {
         for (List<Message> jobMessages : groupFanoutPlanner.partitionMessages(groupMessages)) {
             publishGroupFanoutJobChunk(
                     groupId,
+                    conversationId,
                     jobMessages,
                     membershipVersion,
                     createConversation);
@@ -305,13 +319,14 @@ public class IngressEventListener {
     }
 
     private void publishGroupFanoutJobChunk(String groupId,
+                                            String conversationId,
                                             List<Message> groupMessages,
                                             long membershipVersion,
                                             boolean createConversation) {
         GroupFanoutEvent event = new GroupFanoutEvent();
         event.setJobId(groupFanoutJobId(groupId, groupMessages));
         event.setGroupId(groupId);
-        event.setConversationId("g:" + groupId);
+        event.setConversationId(conversationId);
         // newConversation 是首次分配时的瞬时结果；seq=1 是 inbox 重放后仍稳定的首会话事实。
         event.setCreateConversation(createConversation
                 || groupMessages.stream().anyMatch(message -> message != null && message.getSeq() == 1L));
@@ -446,31 +461,48 @@ public class IngressEventListener {
                         entry.getKey(),
                         IngressMessageFingerprint.payload(entry.getValue())))
                 .toList();
-        while (true) {
-            long now = System.currentTimeMillis();
-            List<IngressMessageInboxStore.Claim> claims =
-                    ingressMessageInboxStore.claimBatch(requests, ownerToken, now);
-            if (claims.size() != requests.size()) {
-                throw new IllegalStateException("Ingress inbox returned incomplete claim batch");
+        List<String> requestedKeys = new ArrayList<>(messages.keySet());
+        try {
+            while (true) {
+                long now = System.currentTimeMillis();
+                List<IngressMessageInboxStore.Claim> claims =
+                        ingressMessageInboxStore.claimBatch(requests, ownerToken, now);
+                if (claims == null || claims.size() != requests.size()) {
+                    throw new IllegalStateException("Ingress inbox returned incomplete claim batch");
+                }
+                for (int i = 0; i < claims.size(); i++) {
+                    IngressMessageInboxStore.Claim claim = claims.get(i);
+                    if (claim == null || claim.status() == null || !requestedKeys.get(i).equals(claim.key())) {
+                        throw new IllegalStateException("Ingress inbox returned mismatched claim identity");
+                    }
+                }
+                if (claims.stream().anyMatch(claim ->
+                        claim.status() == IngressMessageInboxStore.ClaimStatus.CONFLICT)) {
+                    throw new IllegalStateException("Stable serverMsgId carries conflicting ingress payload");
+                }
+                long earliestLease = claims.stream()
+                        .filter(claim -> claim.status() == IngressMessageInboxStore.ClaimStatus.IN_PROGRESS)
+                        .mapToLong(IngressMessageInboxStore.Claim::leaseUntil)
+                        .min()
+                        .orElse(0L);
+                if (earliestLease == 0L) {
+                    return claims;
+                }
+                List<String> acquiredKeys = claims.stream()
+                        .filter(claim -> claim.status() == IngressMessageInboxStore.ClaimStatus.ACQUIRED)
+                        .map(IngressMessageInboxStore.Claim::key)
+                        .toList();
+                ingressMessageInboxStore.releaseBatch(acquiredKeys, ownerToken);
+                waitForLease(earliestLease - now);
             }
-            if (claims.stream().anyMatch(claim ->
-                    claim.status() == IngressMessageInboxStore.ClaimStatus.CONFLICT)) {
-                throw new IllegalStateException("Stable serverMsgId carries conflicting ingress payload");
+        } catch (RuntimeException exception) {
+            // claimBatch 可能部分取得租约后才失败/发现冲突；release 仅作用于当前 owner。
+            try {
+                ingressMessageInboxStore.releaseBatch(requestedKeys, ownerToken);
+            } catch (RuntimeException releaseFailure) {
+                exception.addSuppressed(releaseFailure);
             }
-            long earliestLease = claims.stream()
-                    .filter(claim -> claim.status() == IngressMessageInboxStore.ClaimStatus.IN_PROGRESS)
-                    .mapToLong(IngressMessageInboxStore.Claim::leaseUntil)
-                    .min()
-                    .orElse(0L);
-            if (earliestLease == 0L) {
-                return claims;
-            }
-            List<String> acquiredKeys = claims.stream()
-                    .filter(claim -> claim.status() == IngressMessageInboxStore.ClaimStatus.ACQUIRED)
-                    .map(IngressMessageInboxStore.Claim::key)
-                    .toList();
-            ingressMessageInboxStore.releaseBatch(acquiredKeys, ownerToken);
-            waitForLease(earliestLease - now);
+            throw exception;
         }
     }
 
@@ -561,6 +593,10 @@ public class IngressEventListener {
                             MessageRouteDecision decision,
                             String inboxKey,
                             long assignedSeq) {
+    }
+
+    /** 节点内分组身份，不进入 wire；隔离不同会话和不同创建/状态更新语义。 */
+    private record ExecutionKey(String conversationId, ChatType chatType, boolean notification) {
     }
 
     private record SeqAssignmentResult(long beginSeq,

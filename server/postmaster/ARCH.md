@@ -9,7 +9,7 @@
 
 | 组件 | 文件 | 职责 |
 | --- | --- | --- |
-| `IngressEventListener` | `listener/IngressEventListener.java:51` | 消费 ingress topic，批处理 batchSize=500，按会话分桶保序 |
+| `IngressEventListener` | `listener/IngressEventListener.java` | 消费 ingress topic，批处理 batchSize=500，逐条 canonical 身份与执行语义分组；queue key 仅用于分区 |
 | `IngressMessageFingerprint` | `listener/IngressMessageFingerprint.java` | 对 ingress 载荷做确定性指纹，seq 不参与重放冲突判定 |
 | `HistoryEventListener` | `listener/HistoryEventListener.java:23` | 消费 history topic，写入 `message_block` |
 | `ConversationSeqService` | `service/ConversationSeqService.java:20` | seq 分配薄包装，委托 `ConversationSeqAllocator`（common-core） |
@@ -21,22 +21,22 @@
 
 ## 2. Ingress 处理流程（`IngressEventListener.handle`）
 
-1. 按 `ConversationIdUtil.buildQueueKey` 分桶，保证同会话进同 batch；
+1. 生产 ingress 仍按 `ConversationIdUtil.buildQueueKey` 分区，runtime 按 queue key 分桶；PRIVATE/NOTIFICATION 共用排序后的双方 key，GROUP 共用 groupId。该 key 不是领域会话身份，不能用首条 sample 决定整批会话；
 2. 以稳定 `serverMsgId` claim ingress inbox：已完成消息跳过、冲突消息拒绝、活跃租约等待恢复；
 3. 群消息按 `(groupId, unique senderIds)` 一次防御性权限查询；拒绝非成员/禁言/异常群，并复用返回的 groupType；
-4. `DefaultMessagePolicyEngine.decide` 输出每条消息的策略位；
-5. 按 `storageMsgList` / `storageNotificationList` / `transientList` 分组；
+4. `DefaultMessagePolicyEngine.decide` 输出每条消息的策略位，逐条计算 canonical conversationId：普通 PRIVATE → `s:`，纯 NOTIFICATION → 接收方 `n:`；notification flag 的 PRIVATE → 接收方 `n:`，GROUP → `ng:`，普通 GROUP → `g:`；
+5. 先按 canonical 会话分桶，再按 `(chatType, notification 决策位)` 切分连续执行语义段。同属 `n:` 的 PRIVATE + notification flag 与纯 NOTIFICATION 不混用创建/状态更新语义；同会话 A/B/A 语义交错保持原顺序，各段内部再按持久化/瞬时分类；
 6. 仅为 inbox 尚未绑定 seq 的持久化消息批量申请 seq，并在任何外部副作用前固定；重放直接复用原 seq；
 7. 普通群首会话创建交给独立 fanout worker；超级群不枚举全量成员创建用户会话；
 8. publish history event（per-batch）；
-9. delivery 发布分两路（2026-07-13 已接入 `QueueAdapter.sendBatch`）：
+9. delivery 发布分两路（2026-07-13 已接入 `QueueAdapter.sendBatch`），持久化群 fanout 任务携带本执行段 canonical conversationId（`g:` 或 `ng:`），但保留 `g:{groupId}` fanout key 和 `g:{groupId}:{memberId}` delivery key：
    - 群聊（`ChatType.GROUP`）根据权限聚合返回的 `GroupTypeEnum` 选择
      - `NORMAL_GROUP`：ingress 只发布按 groupId 分区的 `GROUP_FANOUT` 紧凑任务；独立 worker 查询成员、
        创建首会话、切片并调用 `MessageProducer.publishForTargets`（**写扩散**）
      - `SUPER_GROUP`：不投递，仅持久化（**读扩散**），客户端按 seq 拉取
      - 群不存在、权限拒绝或 Dubbo 异常：防御性权限检查失败，不放行
    - 非群聊（单聊/通知）聚合为 `MessageProducer.publishBatch`，同 key 顺序不变
-10. HISTORY/DELIVERY 均取得 broker ACK 后标记 inbox `COMPLETED`；明确异常释放租约但保留 seq。
+10. 每个执行段的 HISTORY/DELIVERY/GROUP_FANOUT 全部取得发布 ACK 后完成该段 inbox；瞬时/关闭投递的段按其实际副作用完成，遗留 READ_RECEIPT 在 claim 前过滤。后续段失败只释放尚未完成的全部 claimed inbox（包括尚未执行的段），已绑定 seq 保留；同段部分发布失败释放整段，允许下游幂等重放。claim 过程中冲突、部分返回或异常也按当前 owner 释放，不能泄漏已取得的兄弟消息租约；清理异常以 suppressed 保留，原发布失败继续上抛。
 
 Redis 实现按单消息单 key Lua 原子迁移，并使用 pipeline 合并批量网络往返；RocksDB 实现保持相同接口。进程在副作用完成后、inbox 完成前崩溃时仍可能重复发布相同 `serverMsgId + seq`，但不会再分配第二个 seq；history Mongo upsert 和 postoffice delivery dedup 负责承受下游重放。
 
@@ -69,6 +69,7 @@ postmaster 的历史持久化与 mutation 服务只依赖 `MessageHistoryReposit
 - ingress 按默认 50 条 / 512 KiB 估算拆分 job，并在发布前执行 768 KiB 实际 wire hard limit
 - `GroupFanoutPlanner.deliveryKey(groupId, memberId)` 产出 `g:{groupId}:{memberId}` 形式 partition key，保证同成员在同一群内消息落同一 Kafka 分区、按序投递
 - `IngressEventListener` 对 NORMAL_GROUP 发布 `GroupFanoutEvent`，不再查询成员或执行 O(N) 水位更新
+- 普通群/群通知分别发布同质的 `g:`/`ng:` 任务，history、seq allocator、fanout worker 会话创建和成员水位均使用对应 canonical 身份；fanout topic/key/JSON shape 与下游 Protobuf 不变
 - `GroupFanoutEventListener` 按事件携带的 `membershipVersion` 从 `group_member_epoch` 做
   `(joinedVersion,userId,epochId)` keyset 分页 → 切片 → 每成员重写 `receiverId` 后批量投递；
   不再用 joinTime/消息时间近似快照
@@ -103,3 +104,15 @@ postmaster 的历史持久化与 mutation 服务只依赖 `MessageHistoryReposit
 - [ ] 改 seq 分配段大小需考虑单聊/群聊的热度差异（默认 50/100）
 - [ ] 改 history block 切分 blockSize 必须同步客户端 gap repair 与历史查询
 - [ ] 群扩散改动必须保证成员 receiverId、稳定 delivery key 与下游 ProtoMessage 载荷一致
+
+## 9. R06 验收（2026-09-30）
+
+`listener/IngressCanonicalBatchTest.java` 使用真实 Protobuf/JSON 编码、严格 owner/终态的内存 inbox 和精确发布故障注入，覆盖：
+
+- 同生产 queue key 的 PRIVATE + NOTIFICATION、双向 NOTIFICATION、普通 GROUP + notification flag 群通知，各自交换首条顺序后 history/seq/delivery 或 fanout 归属正确；群 worker 成员投递及 `g:`/`ng:` 创建/水位归属贯通。
+- 同 `n:` 但不同 chatType/notification 执行语义的交错批次，保持会话内序列顺序与既有状态更新分流。
+- 已完成重放跳过；后续会话 history/delivery 失败，已完成段保持终态，失败/未执行段释放；重建 wire 消息重试复用 seq。
+- 同段 delivery 部分 append、群 fanout 第二 chunk 失败、seq bind/completion 已落状态但响应失败、claim 冲突的兄弟消息清理；重放 seq 和 fanout job ID 稳定。
+- READ_RECEIPT claim 前过滤、无副作用消息完成、瞬时通知不分配 seq。
+
+验证命令：`./gradlew :postmaster:test`。上述是两后端共享 listener 的代码/编码及状态机验收；真实 Kafka broker/Chronicle runtime 的消费批次联调仍需环境证据。现有未读水位算法保持原语义，精确未读属于 R08。
