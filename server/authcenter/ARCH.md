@@ -51,6 +51,7 @@
 | ~~session + refresh 写无事务~~ | ~~`SessionLifecycleService`~~ | **已修复 2026-07-19**：先创建 family，再保存 session；后续失败显式 revoke family，session 与 family 共享绝对期限 |
 | refresh 严格复用策略无宽限窗口 | `SessionLifecycleService.refresh` | 并发刷新或服务端成功但响应丢失后用旧 token 重试，会按疑似泄漏撤销整个 session；后续可引入短时、绑定请求指纹的幂等结果 |
 | `findByUserId` O(session_count) RTT | `RedisSessionStateStore.java:42-55` | kickoffAll 风暴延迟 |
+| ~~设备撤销只覆盖最新 session~~ | `SessionRevocationServiceImpl` | **已修复 2026-09-07**：枚举用户 session 并撤销全部同设备记录 |
 | assertion 当前为单 HS256 密钥 | `SignedAssertionLoginIdentityVerifier` | 多 issuer/kid 与无共享密钥部署需升级 JWKS/公钥轮换 |
 | 仓库内无 assertion 签发端 | 外部账户域 | 生产启用前必须完成账户系统签发与客户端交换流程 |
 

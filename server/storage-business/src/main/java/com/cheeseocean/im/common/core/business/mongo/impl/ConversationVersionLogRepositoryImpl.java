@@ -3,11 +3,14 @@ package com.cheeseocean.im.common.core.business.mongo.impl;
 import com.cheeseocean.im.common.api.business.domain.ConversationVersionLog;
 import com.cheeseocean.im.common.api.enums.ConversationVersionOperation;
 import com.cheeseocean.im.common.core.business.mongo.document.conversation.ConversationVersionLogDoc;
+import com.cheeseocean.im.common.core.business.mongo.document.conversation.ConversationVersionCursorDoc;
 import com.cheeseocean.im.common.core.business.repository.ConversationVersionLogRepository;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
@@ -34,11 +37,18 @@ public class ConversationVersionLogRepositoryImpl implements ConversationVersion
         if (isBlank(ownerUserId) || isBlank(conversationId) || operation == null) {
             return null;
         }
-        Optional<ConversationVersionLog> latest = findLatest(ownerUserId);
-        String versionId = latest.map(ConversationVersionLog::getVersionId)
-                .filter(value -> !value.isBlank())
-                .orElseGet(() -> UUID.randomUUID().toString());
-        long nextVersion = latest.map(ConversationVersionLog::getVersion).orElse(0L) + 1L;
+        ensureVersionCursor(ownerUserId);
+        ConversationVersionCursorDoc cursor = mongoTemplate.findAndModify(
+                Query.query(Criteria.where("_id").is(ownerUserId)),
+                new Update()
+                        .inc("version", 1L),
+                FindAndModifyOptions.options().returnNew(true),
+                ConversationVersionCursorDoc.class);
+        if (cursor == null || cursor.getVersion() == null || isBlank(cursor.getVersionId())) {
+            throw new IllegalStateException("Conversation version cursor allocation failed");
+        }
+        String versionId = cursor.getVersionId();
+        long nextVersion = cursor.getVersion();
 
         ConversationVersionLogDoc doc = new ConversationVersionLogDoc();
         doc.setId(ownerUserId + ":" + nextVersion + ":" + UUID.randomUUID());
@@ -52,6 +62,24 @@ public class ConversationVersionLogRepositoryImpl implements ConversationVersion
         return toDomain(doc);
     }
 
+    private void ensureVersionCursor(String ownerUserId) {
+        if (mongoTemplate.findById(ownerUserId, ConversationVersionCursorDoc.class) != null) {
+            return;
+        }
+        Optional<ConversationVersionLog> latest = findLatest(ownerUserId);
+        String versionId = latest.map(ConversationVersionLog::getVersionId)
+                .filter(value -> !value.isBlank())
+                .orElseGet(() -> UUID.randomUUID().toString());
+        long version = latest.map(ConversationVersionLog::getVersion).orElse(0L);
+        // setOnInsert 使并发首次初始化只保留一个游标，并兼容升级前已有版本日志。
+        mongoTemplate.upsert(
+                Query.query(Criteria.where("_id").is(ownerUserId)),
+                new Update()
+                        .setOnInsert("versionId", versionId)
+                        .setOnInsert("version", version),
+                ConversationVersionCursorDoc.class);
+    }
+
     @Override
     public Optional<ConversationVersionLog> findLatest(String ownerUserId) {
         if (isBlank(ownerUserId)) {
@@ -59,6 +87,19 @@ public class ConversationVersionLogRepositoryImpl implements ConversationVersion
         }
         Query query = Query.query(Criteria.where("ownerUserId").is(ownerUserId))
                 .with(Sort.by(Sort.Direction.DESC, "version"))
+                .limit(1);
+        return Optional.ofNullable(mongoTemplate.findOne(query, ConversationVersionLogDoc.class))
+                .map(this::toDomain);
+    }
+
+    @Override
+    public Optional<ConversationVersionLog> findEarliest(String ownerUserId, String versionId) {
+        if (isBlank(ownerUserId) || isBlank(versionId)) {
+            return Optional.empty();
+        }
+        Query query = Query.query(Criteria.where("ownerUserId").is(ownerUserId)
+                        .and("versionId").is(versionId))
+                .with(Sort.by(Sort.Direction.ASC, "version"))
                 .limit(1);
         return Optional.ofNullable(mongoTemplate.findOne(query, ConversationVersionLogDoc.class))
                 .map(this::toDomain);

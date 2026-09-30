@@ -16,6 +16,7 @@ import com.cheeseocean.im.common.core.cache.CacheStore;
 import com.cheeseocean.im.common.core.business.repository.ConversationVersionLogRepository;
 import com.cheeseocean.im.common.core.business.repository.ConversationDeliveryPreferenceRepository;
 import com.cheeseocean.im.common.core.business.repository.UserConversationRepository;
+import com.cheeseocean.im.common.core.util.ConversationIdUtil;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -284,6 +285,13 @@ public class ConversationServiceImpl implements ConversationService {
         }
         if (version == latest.getVersion()) {
             result.setFull(false);
+            return result;
+        }
+
+        ConversationVersionLog earliest = versionLogRepository.findEarliest(ownerUserId, versionId).orElse(null);
+        if (earliest == null || version < earliest.getVersion() - 1L) {
+            // TTL 已删除客户端游标后的首段日志时，必须回退全量，不能返回不完整增量。
+            fillFullSync(ownerUserId, result);
             return result;
         }
 
@@ -573,7 +581,7 @@ public class ConversationServiceImpl implements ConversationService {
         result.setConversationId(conversationId);
         if (conversationId.startsWith("s:")) {
             result.setChatType(ChatType.PRIVATE.getCode());
-            result.setTargetId(com.cheeseocean.im.common.core.util.ConversationIdUtil.peerUser(conversationId, ownerUserId));
+            result.setTargetId(ConversationIdUtil.peerUser(conversationId, ownerUserId));
         } else if (conversationId.startsWith("n:")) {
             result.setChatType(ChatType.NOTIFICATION.getCode());
         } else {

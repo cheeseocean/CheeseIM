@@ -18,7 +18,7 @@ import java.time.Instant;
 public interface MessageHistoryRepository {
     void persist(HistoryEvent event);
     List<MessageBlock> findRecentBlocks(String conversationId, int limit, int maxWindows);
-    List<MessageBlock> findBlocksBySeqRange(String conversationId, long beginSeq, long endSeq);
+    List<MessageBlock> findBlocksBySeqRange(String conversationId, long beginSeq, long endSeq, int maxBlocks);
     List<MessageIdMapping> findRecentMappings(int limit);
     MessageSlot findSlot(String conversationId, long seq);
     AttachmentMetadata findAttachmentMetadata(String attachmentId);

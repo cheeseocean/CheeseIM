@@ -45,16 +45,16 @@ public class RocksDbConversationStateStore implements ConversationStateStore {
     }
 
     @Override
-    public synchronized void advanceUserMaxSeq(String userId, String conversationId, long maxSeq, boolean countUnread) {
+    public synchronized void advanceUserMaxSeq(String userId, String conversationId, long maxSeq, int unreadDelta) {
         String maxKey = RedisKeys.userMaxSeq(userId, conversationId);
         Long stored = parseLong(support.get(maxKey, String.class));
         long current = stored == null ? 0L : stored;
         if (maxSeq <= current) return;
         support.put(maxKey, String.valueOf(maxSeq), null);
-        if (countUnread) {
+        if (unreadDelta > 0) {
             String unreadKey = RedisKeys.userUnread(userId, conversationId);
             Long unread = parseLong(support.get(unreadKey, String.class));
-            support.put(unreadKey, String.valueOf((unread == null ? 0L : unread) + maxSeq - current), null);
+            support.put(unreadKey, String.valueOf((unread == null ? 0L : unread) + unreadDelta), null);
         }
     }
 

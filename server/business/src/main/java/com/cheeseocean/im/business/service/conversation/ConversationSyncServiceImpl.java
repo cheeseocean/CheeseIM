@@ -11,8 +11,10 @@ import com.cheeseocean.im.common.api.dto.conversation.SeqRangeRequest;
 import com.cheeseocean.im.common.api.dto.message.Message;
 import com.cheeseocean.im.common.api.message.MessageHistoryQueryService;
 import com.cheeseocean.im.common.core.business.repository.ConversationSequenceRepository;
+import com.cheeseocean.im.common.core.business.repository.GroupMemberRepository;
 import com.cheeseocean.im.common.core.business.repository.UserConversationSyncPointRepository;
 import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
+import com.cheeseocean.im.common.core.util.ConversationIdUtil;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,6 +45,7 @@ public class ConversationSyncServiceImpl implements ConversationSyncService {
     private final UserConversationSyncPointRepository syncPointRepository;
     private final ConversationStateStore conversationStateStore;
     private final ReadStateService readStateService;
+    private final GroupMemberRepository groupMemberRepository;
 
     @DubboReference(check = false)
     private MessageHistoryQueryService messageHistoryQueryService;
@@ -52,12 +55,14 @@ public class ConversationSyncServiceImpl implements ConversationSyncService {
                                        ConversationSequenceRepository conversationSequenceRepository,
                                        UserConversationSyncPointRepository syncPointRepository,
                                        ConversationStateStore conversationStateStore,
-                                       ReadStateService readStateService) {
+                                       ReadStateService readStateService,
+                                       GroupMemberRepository groupMemberRepository) {
         this.conversationService = conversationService;
         this.conversationSequenceRepository = conversationSequenceRepository;
         this.syncPointRepository = syncPointRepository;
         this.conversationStateStore = conversationStateStore;
         this.readStateService = readStateService;
+        this.groupMemberRepository = groupMemberRepository;
     }
 
     ConversationSyncServiceImpl(ConversationService conversationService,
@@ -67,7 +72,19 @@ public class ConversationSyncServiceImpl implements ConversationSyncService {
                                 MessageHistoryQueryService messageHistoryQueryService,
                                 ReadStateService readStateService) {
         this(conversationService, conversationSequenceRepository, syncPointRepository, conversationStateStore,
-                readStateService);
+                readStateService, null);
+        this.messageHistoryQueryService = messageHistoryQueryService;
+    }
+
+    ConversationSyncServiceImpl(ConversationService conversationService,
+                                ConversationSequenceRepository conversationSequenceRepository,
+                                UserConversationSyncPointRepository syncPointRepository,
+                                ConversationStateStore conversationStateStore,
+                                MessageHistoryQueryService messageHistoryQueryService,
+                                ReadStateService readStateService,
+                                GroupMemberRepository groupMemberRepository) {
+        this(conversationService, conversationSequenceRepository, syncPointRepository, conversationStateStore,
+                readStateService, groupMemberRepository);
         this.messageHistoryQueryService = messageHistoryQueryService;
     }
 
@@ -165,21 +182,45 @@ public class ConversationSyncServiceImpl implements ConversationSyncService {
         if (isBlank(userId)) {
             return new ArrayList<>();
         }
-        if (requestedConversationIds == null || requestedConversationIds.isEmpty()) {
-            List<String> conversationIds = conversationService.getConversationIds(userId);
-            return conversationIds == null ? new ArrayList<>() : conversationIds;
+        List<String> candidates = requestedConversationIds;
+        if (candidates == null || candidates.isEmpty()) {
+            candidates = conversationService.getConversationIds(userId);
         }
-        List<UserConversation> conversations = conversationService.getConversations(userId, requestedConversationIds);
+        if (candidates == null || candidates.isEmpty()) {
+            return new ArrayList<>();
+        }
+        List<UserConversation> conversations = conversationService.getConversations(userId, candidates);
         if (conversations == null || conversations.isEmpty()) {
             return new ArrayList<>();
         }
         List<String> visibleConversationIds = new ArrayList<>(conversations.size());
         for (UserConversation conversation : conversations) {
-            if (conversation != null && !isBlank(conversation.getConversationId())) {
+            if (conversation != null && canAccessConversation(userId, conversation)) {
                 visibleConversationIds.add(conversation.getConversationId());
             }
         }
         return visibleConversationIds;
+    }
+
+    private boolean canAccessConversation(String userId, UserConversation conversation) {
+        String conversationId = conversation.getConversationId();
+        if (isBlank(conversationId)) {
+            return false;
+        }
+        if (conversationId.startsWith("s:")) {
+            String peer = ConversationIdUtil.peerUser(conversationId, userId);
+            return !isBlank(peer) && ConversationIdUtil.single(userId, peer).equals(conversationId);
+        }
+        if (conversationId.startsWith("n:")) {
+            return ConversationIdUtil.notification(userId).equals(conversationId);
+        }
+        if (conversationId.startsWith("g:") || conversationId.startsWith("ng:")) {
+            String groupId = conversationId.substring(conversationId.startsWith("ng:") ? 3 : 2);
+            return groupMemberRepository != null
+                    && !groupId.isBlank()
+                    && groupMemberRepository.existsByGroupAndUser(groupId, userId);
+        }
+        return false;
     }
 
     private long resolveUserMaxSeq(String userId, String conversationId) {

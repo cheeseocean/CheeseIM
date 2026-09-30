@@ -203,6 +203,7 @@ class ConversationAuthorizationTest {
     void incrementalMetadataSyncShouldDeleteInaccessibleViewsAndHideTheirReadSignals() {
         ConversationVersionLog latest = log("s:A:B", ConversationVersionOperation.UPDATE, 5);
         when(logs.findLatest("A")).thenReturn(Optional.of(latest));
+        when(logs.findEarliest("A", "epoch")).thenReturn(Optional.of(log("s:A:B", ConversationVersionOperation.UPDATE, 1)));
         when(ids.get("A")).thenReturn(List.of("s:A:B", "s:C:D"));
         when(logs.findAfter("A", "epoch", 3, 200)).thenReturn(List.of(
                 log("s:C:D", ConversationVersionOperation.UPDATE, 4),

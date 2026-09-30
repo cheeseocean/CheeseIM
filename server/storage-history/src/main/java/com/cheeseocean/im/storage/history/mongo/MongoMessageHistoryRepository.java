@@ -53,7 +53,9 @@ public class MongoMessageHistoryRepository implements MessageHistoryRepository {
         BulkOperations attachments = null;
         for (Message message : messages) {
             Instant now = Instant.now();
-            String mappingId = event.getConversationId() + ":" + message.getClientMsgId();
+            // clientMsgId 只在发送者范围内稳定，映射身份必须与发送 inbox 保持同一作用域。
+            String mappingId = event.getConversationId() + ":" + message.getSenderId()
+                    + ":" + message.getClientMsgId();
             mappings.upsert(Query.query(Criteria.where("_id").is(mappingId)
                             .and("serverMsgId").is(message.getServerMsgId())),
                     new Update()
@@ -133,10 +135,11 @@ public class MongoMessageHistoryRepository implements MessageHistoryRepository {
     }
 
     @Override
-    public List<MessageBlock> findBlocksBySeqRange(String conversationId, long beginSeq, long endSeq) {
+    public List<MessageBlock> findBlocksBySeqRange(String conversationId, long beginSeq, long endSeq, int maxBlocks) {
         return mongoTemplate.find(Query.query(Criteria.where("conversationId").is(conversationId)
                         .and("blockNo").gte(BlockIndexUtil.blockNo(beginSeq)).lte(BlockIndexUtil.blockNo(endSeq)))
-                .with(Sort.by(Sort.Direction.ASC, "blockNo")), MessageBlockDoc.class)
+                .with(Sort.by(Sort.Direction.ASC, "blockNo"))
+                .limit(Math.max(1, maxBlocks)), MessageBlockDoc.class)
                 .stream().map(this::toModel).toList();
     }
 

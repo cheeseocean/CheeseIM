@@ -40,7 +40,8 @@
 
 Redis 实现按单消息单 key Lua 原子迁移，并使用 pipeline 合并批量网络往返；RocksDB 实现保持相同接口。进程在副作用完成后、inbox 完成前崩溃时仍可能重复发布相同 `serverMsgId + seq`，但不会再分配第二个 seq；history Mongo upsert 和 postoffice delivery dedup 负责承受下游重放。
 
-`UserMaxSeqPersistenceWriter` 的 drain batch 会先按用户-会话取最大值，再通过
+用户热状态推进时，maxSeq 与本批真实接收消息数在 Redis Lua/RocksDB 临界区内原子更新；未读不再按
+seq 差值推算，因为 seq 允许空洞。`UserMaxSeqPersistenceWriter` 的 drain batch 会先按用户-会话取最大值，再通过
 `UserConversationSyncPointRepository.updateMaxSeqBatch` 执行一次 Mongo unordered bulk upsert；
 Mongo 使用 `$max`，多副本与 fallback 乱序不会回退水位。writer 上报 queued/inflight depth 与
 动态 oldest age；停机先等待当前批次最多 30 秒，再 drain 剩余队列，超时/最终失败进入固定结果指标。
@@ -56,7 +57,7 @@ Mongo 使用 `$max`，多副本与 fallback 乱序不会回退水位。writer �
 - 每条消息块内字段：`messages.{seq-offset}`
 - 单独 `MessageIdMappingDoc` 保存 `serverMsgId ⇄ {convId, seq, blockNo, offset}` 映射
 
-**批量写（2026-07-08 P1-8 修复）**：一个 `HistoryEvent` 内先把全部 id mapping 合入一个 unordered `bulkOps` upsert（`_id = {convId}:{clientMsgId}` 幂等），再把按 blockNo 分桶后的块更新合入第二个 unordered `bulkOps` upsert；不再循环逐条 `save`/`upsert`。原 `MessageIdMappingRepository` 已删除（无其它使用点）。
+**批量写（2026-07-08 P1-8 修复）**：一个 `HistoryEvent` 内先把全部 id mapping 合入一个 unordered `bulkOps` upsert（`_id = {convId}:{senderId}:{clientMsgId}` 幂等，与发送 inbox 身份作用域一致），再把按 blockNo 分桶后的块更新合入第二个 unordered `bulkOps` upsert；不再循环逐条 `save`/`upsert`。原 `MessageIdMappingRepository` 已删除（无其它使用点）。
 
 **附件元数据（2026-07-08 P1-10）**：`ContentType.hasAttachment()`（IMAGE/VOICE/VIDEO/FILE）的消息，从 content JSON 提取 `attachmentId` 后批量 upsert `attachment_metadata`（`_id = attachmentId`，含 conversationId/serverMsgId/seq/senderId/contentType/sendTime）；content 非 JSON 或缺 `attachmentId` 静默跳过。postbox 附件鉴权按 `_id` 点查（见 `postbox/ARCH.md` §4）。
 
@@ -115,4 +116,4 @@ postmaster 的历史持久化与 mutation 服务只依赖 `MessageHistoryReposit
 - 同段 delivery 部分 append、群 fanout 第二 chunk 失败、seq bind/completion 已落状态但响应失败、claim 冲突的兄弟消息清理；重放 seq 和 fanout job ID 稳定。
 - READ_RECEIPT claim 前过滤、无副作用消息完成、瞬时通知不分配 seq。
 
-验证命令：`./gradlew :postmaster:test`。上述是两后端共享 listener 的代码/编码及状态机验收；真实 Kafka broker/Chronicle runtime 的消费批次联调仍需环境证据。现有未读水位算法保持原语义，精确未读属于 R08。
+验证命令：`./gradlew :postmaster:test`。上述是两后端共享 listener 的代码/编码及状态机验收；真实 Kafka broker/Chronicle runtime 的消费批次联调仍需环境证据。合入远端后按实际收件数传入unreadDelta；已读/冷恢复的精确未读仍需R08完整验收。

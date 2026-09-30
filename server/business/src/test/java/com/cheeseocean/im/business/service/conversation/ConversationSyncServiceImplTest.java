@@ -11,9 +11,12 @@ import com.cheeseocean.im.common.api.message.MessageHistoryQueryService;
 import com.cheeseocean.im.common.api.enums.ContentType;
 import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.core.business.repository.ConversationSequenceRepository;
+import com.cheeseocean.im.common.core.business.repository.GroupMemberRepository;
 import com.cheeseocean.im.common.core.business.repository.UserConversationSyncPointRepository;
 import com.cheeseocean.im.common.core.store.conversation.ConversationStateStore;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.List;
 import java.util.Map;
@@ -35,6 +38,10 @@ class ConversationSyncServiceImplTest {
         ReadStateService readStateService = mock(ReadStateService.class);
 
         when(conversationService.getConversationIds("u100")).thenReturn(List.of("s:u100:u200"));
+        UserConversation conversation = new UserConversation();
+        conversation.setConversationId("s:u100:u200");
+        when(conversationService.getConversations("u100", List.of("s:u100:u200")))
+                .thenReturn(List.of(conversation));
         when(stateStore.getUserMaxSeq("u100", "s:u100:u200")).thenReturn(12L);
 
         ConversationSyncServiceImpl service = new ConversationSyncServiceImpl(
@@ -142,6 +149,62 @@ class ConversationSyncServiceImplTest {
         assertTrue(response.getMessagesByConversation().get("s:u100:u200").isEmpty());
         assertEquals(10L, response.getEndSeqByConversation().get("s:u100:u200"));
         assertTrue(response.getCompletedByConversation().get("s:u100:u200"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"g:group-a", "ng:group-a"})
+    void pullMessagesShouldRejectLegacyGroupViewAfterMembershipRemoval(String conversationId) {
+        ConversationService conversationService = mock(ConversationService.class);
+        GroupMemberRepository groupMemberRepository = mock(GroupMemberRepository.class);
+        MessageHistoryQueryService historyQueryService = mock(MessageHistoryQueryService.class);
+        UserConversation conversation = new UserConversation();
+        conversation.setConversationId(conversationId);
+        when(conversationService.getConversations("u100", List.of(conversationId)))
+                .thenReturn(List.of(conversation));
+        when(groupMemberRepository.existsByGroupAndUser("group-a", "u100")).thenReturn(false);
+        ConversationSyncServiceImpl service = new ConversationSyncServiceImpl(
+                conversationService,
+                mock(ConversationSequenceRepository.class),
+                mock(UserConversationSyncPointRepository.class),
+                mock(ConversationStateStore.class),
+                historyQueryService,
+                mock(ReadStateService.class),
+                groupMemberRepository);
+        SeqRangeRequest range = new SeqRangeRequest();
+        range.setConversationId(conversationId);
+        range.setBeginSeq(1L);
+        range.setEndSeq(10L);
+
+        PullMessages response = service.pullMessagesBySeqRanges("u100", List.of(range), 10);
+
+        assertTrue(response.getMessagesByConversation().get(conversationId).isEmpty());
+        org.mockito.Mockito.verifyNoInteractions(historyQueryService);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"g:group-a", "ng:group-a"})
+    void pullMessagesShouldKeepGroupAndGroupNotificationReadableForCurrentMember(String conversationId) {
+        ConversationService conversations = mock(ConversationService.class);
+        GroupMemberRepository members = mock(GroupMemberRepository.class);
+        ConversationStateStore hot = mock(ConversationStateStore.class);
+        MessageHistoryQueryService history = mock(MessageHistoryQueryService.class);
+        UserConversation view = new UserConversation();
+        view.setConversationId(conversationId);
+        when(conversations.getConversations("u100", List.of(conversationId))).thenReturn(List.of(view));
+        when(members.existsByGroupAndUser("group-a", "u100")).thenReturn(true);
+        when(hot.getUserMaxSeq("u100", conversationId)).thenReturn(10L);
+        when(history.pullMessagesBySeqRange(conversationId, 1L, 10L, 10)).thenReturn(List.of());
+        ConversationSyncServiceImpl service = new ConversationSyncServiceImpl(conversations,
+                mock(ConversationSequenceRepository.class), mock(UserConversationSyncPointRepository.class), hot,
+                history, mock(ReadStateService.class), members);
+        SeqRangeRequest range = new SeqRangeRequest();
+        range.setConversationId(conversationId);
+        range.setBeginSeq(1L);
+        range.setEndSeq(10L);
+
+        service.pullMessagesBySeqRanges("u100", List.of(range), 10);
+
+        org.mockito.Mockito.verify(history).pullMessagesBySeqRange(conversationId, 1L, 10L, 10);
     }
 
     @Test

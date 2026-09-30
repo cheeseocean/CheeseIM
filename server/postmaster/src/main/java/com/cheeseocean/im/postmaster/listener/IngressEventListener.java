@@ -337,20 +337,25 @@ public class IngressEventListener {
 
     private void updateDirectUserState(List<EventCtx> messages, long maxSeq) {
         if (conversationStateStore == null || userMaxSeqPersistenceWriter == null) return;
+        Map<String, Integer> unreadByUser = new LinkedHashMap<>();
         for (EventCtx ctx : messages) {
             Message message = ctx.msg();
             if (message.getChatType() == ChatType.GROUP) continue;
-            advanceUserState(message.getSenderId(), ctx.convId(), maxSeq, false);
+            unreadByUser.putIfAbsent(message.getSenderId(), 0);
             if (message.getReceiverId() != null && !message.getReceiverId().equals(message.getSenderId())) {
-                advanceUserState(message.getReceiverId(), ctx.convId(), maxSeq, true);
+                unreadByUser.merge(message.getReceiverId(), 1, Integer::sum);
             }
         }
+        if (messages.isEmpty()) return;
+        String conversationId = messages.get(0).convId();
+        unreadByUser.forEach((userId, unreadDelta) ->
+                advanceUserState(userId, conversationId, maxSeq, unreadDelta));
     }
 
-    private void advanceUserState(String userId, String conversationId, long maxSeq, boolean countUnread) {
+    private void advanceUserState(String userId, String conversationId, long maxSeq, int unreadDelta) {
         if (conversationStateStore == null || userMaxSeqPersistenceWriter == null
                 || userId == null || userId.isBlank()) return;
-        conversationStateStore.advanceUserMaxSeq(userId, conversationId, maxSeq, countUnread);
+        conversationStateStore.advanceUserMaxSeq(userId, conversationId, maxSeq, unreadDelta);
         userMaxSeqPersistenceWriter.enqueue(userId, conversationId, maxSeq);
     }
 

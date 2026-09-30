@@ -80,7 +80,6 @@ public class GroupFanoutEventListener {
                 || event.getGroupId() == null || event.getGroupId().isBlank() || messages.isEmpty()) {
             throw new IllegalArgumentException("Group fanout identity and messages are required");
         }
-        Message sample = messages.get(0);
         long maxSeq = messages.get(messages.size() - 1).getSeq();
         if (event.getMembershipVersion() <= 0L) {
             throw new IllegalStateException(
@@ -94,7 +93,7 @@ public class GroupFanoutEventListener {
                 "",
                 memberPageSize);
         if (firstPage == null || !firstPage.isHasMore()) {
-            processPage(event, messages, sample, maxSeq, firstPage);
+            processPage(event, messages, maxSeq, firstPage);
             return;
         }
         String ownerToken = UUID.randomUUID().toString();
@@ -141,7 +140,7 @@ public class GroupFanoutEventListener {
                     requireCompleted(event.getJobId(), ownerToken, claim.generation());
                     return;
                 }
-                processPage(event, messages, sample, maxSeq, page);
+                processPage(event, messages, maxSeq, page);
                 if (!page.isHasMore()) {
                     requireCompleted(event.getJobId(), ownerToken, claim.generation());
                     return;
@@ -179,7 +178,6 @@ public class GroupFanoutEventListener {
 
     private void processPage(GroupFanoutEvent event,
                              List<Message> messages,
-                             Message sample,
                              long maxSeq,
                              GroupMemberPage page) {
         List<String> members = page == null ? List.of() : page.getUserIds();
@@ -194,7 +192,7 @@ public class GroupFanoutEventListener {
                     event.getGroupId(), event.getConversationId(), members);
         }
         for (List<String> batch : planner.partition(members)) {
-            fanoutBatch(event, messages, sample, maxSeq, batch);
+            fanoutBatch(event, messages, maxSeq, batch);
         }
     }
 
@@ -231,7 +229,6 @@ public class GroupFanoutEventListener {
 
     private void fanoutBatch(GroupFanoutEvent event,
                              List<Message> messages,
-                             Message sample,
                              long maxSeq,
                              List<String> batch) {
             List<KeyedMessage<String>> targets = new ArrayList<>(batch.size());
@@ -240,8 +237,11 @@ public class GroupFanoutEventListener {
             }
             messageProducer.publishForTargets(messages, targets);
             for (String memberId : batch) {
+                int unreadDelta = (int) messages.stream()
+                        .filter(message -> !memberId.equals(message.getSenderId()))
+                        .count();
                 conversationStateStore.advanceUserMaxSeq(
-                        memberId, event.getConversationId(), maxSeq, !memberId.equals(sample.getSenderId()));
+                        memberId, event.getConversationId(), maxSeq, unreadDelta);
                 persistenceWriter.enqueue(memberId, event.getConversationId(), maxSeq);
             }
     }

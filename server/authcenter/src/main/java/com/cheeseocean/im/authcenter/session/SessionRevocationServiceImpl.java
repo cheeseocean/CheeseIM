@@ -13,6 +13,8 @@ import org.apache.dubbo.config.annotation.DubboReference;
 import org.apache.dubbo.config.annotation.DubboService;
 import org.springframework.stereotype.Service;
 
+import java.util.Objects;
+
 @Service
 @DubboService
 public class SessionRevocationServiceImpl implements SessionRevocationService {
@@ -66,10 +68,11 @@ public class SessionRevocationServiceImpl implements SessionRevocationService {
 
     @Override
     public void revokeDeviceSession(String userId, String deviceId, String reason) {
-        SessionPrincipal session = sessionRepository.findByDevice(userId, deviceId);
-        if (session == null) {
-            return;
+        // 设备索引只指向最新 session；撤销必须覆盖用户 session 集合中的全部同设备记录。
+        for (SessionPrincipal session : sessionRepository.findByUserId(userId)) {
+            if (session != null && Objects.equals(deviceId, session.getDeviceId())) {
+                revokeSession(session.getSessionId(), reason);
+            }
         }
-        revokeSession(session.getSessionId(), reason);
     }
 }

@@ -246,6 +246,7 @@ public class WsServer implements CommandLineRunner, Server {
                             TimeUnit.SECONDS));
 
             // 自定义WebSocket处理器
+            pipeline.addLast("outbound-backpressure", new OutboundBackpressureHandler());
             pipeline.addLast("websocket-handler", wsServerHandler);
 
             logger.debug("Channel initialized: {}", ch.remoteAddress());

@@ -29,8 +29,9 @@ ingress逐条按canonical会话及执行语义分组，每组成功完成inbox�
 新增授权/视图/HTTP回归30项、网关guard/manager交错28项、consumer-only真实context以及混批/重放回归20项通过。
 
 真实注册中心/Dubbo、中间件故障与升级前错误归属数据仍需环境验收；尤其旧postbox恒allow provider必须退出注册。
-安全状态旧回源覆盖、设备旧session撤销、历史mapping身份、未读计数、同步日志、离线推送attempt、
-SDK事件/连接代际及客户端控制状态恢复等仍待修复。完整状态以验收账本为准，不代表端到端生产验收。
+安全状态旧回源覆盖、精确未读/同步日志完整性、离线推送attempt、SDK事件/连接代际及客户端控制状态恢复仍待修复。
+提交整合时另保留远端78555eb/644549b的mapping作用域、未读增量、版本cursor/窗口、同设备session扫描、
+Mongo查询窗口与网关清理/出站背压实现；这些新增实现按验收账本重新核对，不能仅凭合入关闭完整验收。
 
 ### 2026-09-06 复核问题及最新状态
 
@@ -40,12 +41,12 @@ SDK事件/连接代际及客户端控制状态恢复等仍待修复。完整状�
 | --- | --- | --- |
 | 会话设置可创建任意会话视图，sync/pull 仅以视图存在授权 | `ConversationServiceImpl.setConversations`、`ConversationSyncServiceImpl` | 已修复2026-09-30，仅更新已有视图、读前实时授权；代码验收通过，环境待验收 |
 | 事务 KafkaTemplate 在无事务上下文执行单条 send | `KafkaQueueConfiguration`、`KafkaQueueAdapter.send` | 已修复 2026-09-30，显式事务与提交失败回归通过；真实 broker 验收待办 |
-| 发送 inbox 含 senderId，历史 mapping ID 不含，存在碰撞 | `MessageSenderImpl`、`MongoMessageHistoryRepository.persist` | 未修复 |
-| 未读把批末 seq 差当消息条数；seq 本身允许空洞 | `IngressEventListener.updateDirectUserState`、`RedisConversationStateStore` | 未修复 |
-| 会话同步版本非原子、TTL 后未检测游标过期 | `ConversationVersionLogRepositoryImpl`、`ConversationServiceImpl.syncConversations` | 未修复 |
-| 设备撤销只覆盖最新 session | `SessionRevocationServiceImpl.revokeDeviceSession` | 未修复 |
-| gap repair 查询 limit 未下推 Mongo | `HistoryQueryService.pullMessagesBySeqRange` | 未修复 |
-| 连接关闭同步访问 Redis，命令响应未统一背压 | TCP/WS handler、`ConnectionManager` | 未修复 |
+| 发送 inbox 含 senderId，历史 mapping ID 不含，存在碰撞 | `MessageSenderImpl`、`MongoMessageHistoryRepository.persist` | 远端已纳入senderId，已合入；存量迁移及R07验收待办 |
+| 未读把批末 seq 差当消息条数；seq 本身允许空洞 | `IngressEventListener`、`RedisConversationStateStore` | 已合入真实收件增量；已读/冷恢复仍按seq差重算，R08未闭环 |
+| 会话同步版本非原子、TTL 后未检测游标过期 | `ConversationVersionLogRepositoryImpl`、`syncConversations` | 已合入原子cursor及窗口检测；晚提交、idHash与R15完整验收待办 |
+| 设备撤销只覆盖最新 session | `SessionRevocationServiceImpl.revokeDeviceSession` | 已合入同设备全部活动session扫描；并发登录/撤销边界R14待验收 |
+| gap repair 查询 limit 未下推 Mongo | `HistoryQueryService.pullMessagesBySeqRange` | 已合入block窗口下推；稀疏区间的continuation/Completed仍待R12验收 |
+| 连接关闭同步访问 Redis，命令响应未统一背压 | TCP/WS handler、`ConnectionManager`、`OutboundBackpressureHandler` | 已合入有界清理池和统一出站writable守卫；过载及慢Redis/慢读环境R25待验收 |
 
 2026-09-06 清理仅收缩无执行方的内部策略、删除已确认无引用代码并修正文档；本轮增量改动见上节。
 `MessageRouteDecision` 仅保留 persistHistory/sendDelivery/notification；离线推送继续由 postman

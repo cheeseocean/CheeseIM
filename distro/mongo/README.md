@@ -23,6 +23,7 @@ mongosh "mongodb://<mongos>/admin" \
 
 - `message_block`：`{conversationId: "hashed"}`；
 - `message_id_mapping`：`{serverMsgId: "hashed"}`；
+- `conversation_version_cursor`：`{_id: "hashed"}`，为每个用户原子分配会话同步版本；
 - `group_member_epoch`：`{groupId: 1}`，保留群内分页局部性和唯一约束；
 - `group_fanout_job`：`{_id: "hashed"}`。
 - `dlt_redrive_audit`：`{_id: "hashed"}`，以 operationId 精确查询和抢占租约；

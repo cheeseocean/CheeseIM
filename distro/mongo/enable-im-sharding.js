@@ -77,6 +77,7 @@
     preflightShardKey("group_fanout_job", {_id: "hashed"});
     preflightShardKey("dlt_redrive_audit", {_id: "hashed"});
     preflightShardKey("conversation", {ownerUserId: 1, conversationId: 1});
+    preflightShardKey("conversation_version_cursor", {_id: "hashed"});
     preflightShardKey(
         "conversation_delivery_preference",
         {conversationId: 1, ownerUserId: 1}
@@ -113,6 +114,11 @@
         "message_id_mapping",
         {serverMsgId: "hashed"},
         {name: "shard_message_mapping_server"}
+    );
+    ensureIndex(
+        "conversation_version_cursor",
+        {_id: "hashed"},
+        {name: "shard_conversation_version_cursor_owner"}
     );
     ensureIndex(
         "message_id_mapping",
@@ -222,6 +228,7 @@
     ensureSharded("group_member_epoch", {groupId: 1});
     ensureSharded("group_fanout_job", {_id: "hashed"});
     ensureSharded("dlt_redrive_audit", {_id: "hashed"});
+    ensureSharded("conversation_version_cursor", {_id: "hashed"});
     ensureSharded(
         "conversation_delivery_preference",
         {conversationId: 1, ownerUserId: 1}

@@ -3,6 +3,7 @@ package com.cheeseocean.im.infra.queue.kafka;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,6 +35,12 @@ class KafkaQueueConfigurationTest {
         contextRunner.withPropertyValues("cheeseim.queue.kafka.transaction-id-prefix=node-a-queue-")
                 .run(context -> assertThat(transactionPrefix(context.getBean(ProducerFactory.class)))
                         .isEqualTo("node-a-queue-"));
+    }
+
+    @Test
+    void shouldAllowSingleIdempotentSendOutsideTransaction() {
+        contextRunner.run(context -> assertThat(context.getBean(KafkaTemplate.class).isAllowNonTransactional())
+                .isTrue());
     }
 
     private String transactionPrefix(ProducerFactory<?, ?> producerFactory) {

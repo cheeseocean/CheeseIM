@@ -21,6 +21,9 @@ public interface ConversationVersionLogRepository {
      */
     Optional<ConversationVersionLog> findLatest(String ownerUserId);
 
+    /** 查询 TTL 保留窗口内最早的一条版本日志。 */
+    Optional<ConversationVersionLog> findEarliest(String ownerUserId, String versionId);
+
     /**
      * 查询指定版本之后的会话变更日志。
      */

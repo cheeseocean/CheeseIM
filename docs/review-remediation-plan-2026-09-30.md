@@ -136,3 +136,16 @@
 - `server/business/src/test/java/com/cheeseocean/im/business/service/conversation/ConversationAuthorizationTest.java`
 - `server/postbox/src/test/java/com/cheeseocean/im/postbox/service/HistoryQueryAuthorizationTest.java`
 - `server/postmaster/src/test/java/com/cheeseocean/im/postmaster/listener/IngressCanonicalBatchTest.java`
+
+## 7. 提交前远端整合记录
+
+push前发现远端新增 `78555eb`、`644549b`，保留并合并，未覆盖远端提交。
+R07/R08/R12/R14/R15/R25已有部分实现合入；表中的待处理代表尚需按完整标准复核/迁移，而非没有实现。
+
+- 保留sender维度mapping ID、真实收件数unreadDelta、原子版本cursor/保留窗口检查、同设备全部session扫描、Mongo block窗口下推、有界连接清理池与出站writable守卫。
+- 配置写的两份授权逻辑合并为统一领域规则及写前全量预检，保留仅更新已有视图与稳定403/1201；保留sync独立读前校验，并对齐规范s:与g:/ng:。
+- R06回归适配int unreadDelta；双消息部分发布/重放仍传接收者2、发送者0。新增sync的g:/ng:当前成员与退出成员回归。
+- KafkaTemplate保留非事务兼容开关；QueueAdapter仍显式事务并强制read_committed。
+- 未读read ACK/冷恢复仍以seq差重算；mapping存量迁移、稀疏分页continuation、版本晚提交、设备并发撤销及清理池过载仍按原任务标准继续验收。
+
+整合后已通过Java全模块编译与以下模块测试：business、postbox、api-server、postoffice、postmaster、authcenter、infra-queue、infra-state、storage-business、storage-history。新增sync兼容回归另跑business测试。

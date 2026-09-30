@@ -66,8 +66,9 @@ class IngressCanonicalBatchTest {
         assertEquals(1L, notification.getSeq());
         f.inbox.assertCompleted(chat, notification);
         verify(f.conversations).createSingleChatConversation("A", "B", "s:A:B", ChatType.PRIVATE.getCode());
-        verify(f.state).advanceUserMaxSeq("B", "s:A:B", 1L, true);
-        verify(f.state, never()).advanceUserMaxSeq(anyString(), eq("n:B"), anyLong(), anyBoolean());
+        verify(f.state).advanceUserMaxSeq("A", "s:A:B", 1L, 0);
+        verify(f.state).advanceUserMaxSeq("B", "s:A:B", 1L, 1);
+        verify(f.state, never()).advanceUserMaxSeq(anyString(), eq("n:B"), anyLong(), anyInt());
         int publications = f.publications;
         f.listener.onMessage(ordered(!reverse, chat, notification));
         assertEquals(publications, f.publications);
@@ -125,7 +126,8 @@ class IngressCanonicalBatchTest {
         f.fanouts.forEach(worker::handle);
         for (String convId : List.of("g:crew", "ng:crew")) {
             verify(f.conversations).createGroupChatConversations("crew", convId, List.of("A", "B"));
-            verify(f.state).advanceUserMaxSeq("B", convId, 1L, true);
+            verify(f.state).advanceUserMaxSeq("A", convId, 1L, 0);
+            verify(f.state).advanceUserMaxSeq("B", convId, 1L, 1);
             verify(f.writer).enqueue("B", convId, 1L);
         }
         assertEquals(4, f.deliveries.size());
@@ -146,7 +148,8 @@ class IngressCanonicalBatchTest {
         assertEquals(Map.of("flagged-private", "n:B", "pure-notification", "n:B", "later-private", "n:B"), f.historyOwners());
         assertEquals(List.of(1L, 2L, 3L), f.deliveries.stream().map(delivery -> delivery.payload().getSeq()).toList());
         // 保留已有 options.notification 对状态更新的分流，不由首条 PRIVATE 决定纯 NOTIFICATION 的语义。
-        verify(f.state).advanceUserMaxSeq("B", "n:B", 2L, true);
+        verify(f.state).advanceUserMaxSeq("A", "n:B", 2L, 0);
+        verify(f.state).advanceUserMaxSeq("B", "n:B", 2L, 1);
         verify(f.state, times(1)).setConversationMaxSeq(eq("n:B"), anyLong());
         verifyNoInteractions(f.conversations);
         f.inbox.assertCompleted(flaggedPrivate, pureNotification, laterFlaggedPrivate);
@@ -174,6 +177,8 @@ class IngressCanonicalBatchTest {
         assertEquals(List.of(1L, 1L, 2L), f.deliveries.stream().map(delivery -> delivery.payload().getSeq()).toList());
         f.inbox.assertCompleted(first, second);
         verify(f.seqs).allocateBatch("s:A:B", 2);
+        verify(f.state, times(2)).advanceUserMaxSeq("A", "s:A:B", 2L, 0);
+        verify(f.state, times(2)).advanceUserMaxSeq("B", "s:A:B", 2L, 2);
     }
 
     @ParameterizedTest

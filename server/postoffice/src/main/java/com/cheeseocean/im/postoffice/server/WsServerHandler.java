@@ -110,7 +110,7 @@ public class WsServerHandler extends SimpleChannelInboundHandler<BinaryWebSocket
         logger.info("Channel inactive: {}", ctx.channel().remoteAddress());
 
         // 移除连接
-        connectionManager.removeConnectionByChannel(ctx.channel());
+        connectionManager.removeConnectionByChannelAsync(ctx.channel());
 
         super.channelInactive(ctx);
     }

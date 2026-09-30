@@ -91,8 +91,8 @@ class IngressEventListenerTest {
 
         listener.handle(List.of(singleMessage()));
 
-        verify(stateStore).advanceUserMaxSeq("userA", "s:userA:userB", 1001L, false);
-        verify(stateStore).advanceUserMaxSeq("userB", "s:userA:userB", 1001L, true);
+        verify(stateStore).advanceUserMaxSeq("userA", "s:userA:userB", 1001L, 0);
+        verify(stateStore).advanceUserMaxSeq("userB", "s:userA:userB", 1001L, 1);
         verify(writer).enqueue("userA", "s:userA:userB", 1001L);
         verify(writer).enqueue("userB", "s:userA:userB", 1001L);
         verify(stateStore).setConversationMaxSeq("s:userA:userB", 1001L);
