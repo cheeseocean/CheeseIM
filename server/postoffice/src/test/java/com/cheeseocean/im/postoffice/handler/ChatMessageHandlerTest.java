@@ -33,7 +33,7 @@ class ChatMessageHandlerTest {
     void normalChatSendShouldReturnChatSendEnvelope() {
         MessageSender sender = mock(MessageSender.class);
         ConnectionSessionGuard guard = mock(ConnectionSessionGuard.class);
-        doNothing().when(guard).ensureAuthenticated(any(UserConnection.class));
+        doNothing().when(guard).ensureSessionActive(any(UserConnection.class));
         SendMessageResp response = new SendMessageResp();
         response.setAccepted(true);
         response.setServerMsgId("server-1");
@@ -50,7 +50,7 @@ class ChatMessageHandlerTest {
     void invalidPrivateMessageShouldReturnErrorWithoutSending() {
         MessageSender sender = mock(MessageSender.class);
         ConnectionSessionGuard guard = mock(ConnectionSessionGuard.class);
-        doNothing().when(guard).ensureAuthenticated(any(UserConnection.class));
+        doNothing().when(guard).ensureSessionActive(any(UserConnection.class));
 
         MessageHandler.HandleResult result = handler(sender, guard).handle(connection(), envelope(message("")));
 

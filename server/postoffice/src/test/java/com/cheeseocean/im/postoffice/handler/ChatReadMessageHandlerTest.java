@@ -26,7 +26,7 @@ class ChatReadMessageHandlerTest {
     void shouldAcknowledgeReadSeqAndReturnTypedReadEnvelope() {
         ReadStateService service = mock(ReadStateService.class);
         ConnectionSessionGuard guard = mock(ConnectionSessionGuard.class);
-        doNothing().when(guard).ensureAuthenticated(any(UserConnection.class));
+        doNothing().when(guard).ensureSessionActive(any(UserConnection.class));
         ReadSeqUpdate update = new ReadSeqUpdate();
         update.setConversationId("s:user-1:user-2");
         update.setReaderUserId("user-1");

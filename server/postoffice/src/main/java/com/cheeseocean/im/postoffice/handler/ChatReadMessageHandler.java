@@ -35,7 +35,7 @@ public class ChatReadMessageHandler implements MessageHandler {
             if (!connection.isAuthenticated()) {
                 return HandleResult.failure("连接未认证", ServerEnvelope.error(requestId, 403, "连接未认证"));
             }
-            connectionSessionGuard.ensureAuthenticated(connection);
+            connectionSessionGuard.ensureSessionActive(connection);
             ProtoChatReadCommand command = ProtoChatReadCommand.parseFrom(envelope.getBody());
             if (command.getConversationId().isBlank() || command.getReadSeq() < 0) {
                 return HandleResult.failure("已读参数无效", ServerEnvelope.error(requestId, 400, "已读参数无效"));

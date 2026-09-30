@@ -35,7 +35,7 @@ public class ChatRevokeMessageHandler implements MessageHandler {
             if (!connection.isAuthenticated()) {
                 return HandleResult.failure("连接未认证", ServerEnvelope.error(requestId, 403, "连接未认证"));
             }
-            connectionSessionGuard.ensureAuthenticated(connection);
+            connectionSessionGuard.ensureSessionActive(connection);
             ProtoChatRevokeCommand command = ProtoChatRevokeCommand.parseFrom(envelope.getBody());
             if (command.getConversationId().isBlank() || command.getServerMsgId().isBlank()) {
                 return HandleResult.failure("撤回参数无效", ServerEnvelope.error(requestId, 400, "撤回参数无效"));

@@ -94,6 +94,28 @@ RENEW/RELEASE 必须携带 connectionId + generation。节点每 60 秒主动批
 心跳只校验本地上下文；到期后同一连接单飞调用一次 authcenter `isSessionValid`。主动撤销仍以跨节点
 kickoff 为主，周期复核只兜底丢通知，配置为 `cheeseim.postoffice.session-validation.interval-ms`。
 
+2026-09-30 review R04：`CHAT_SEND/CHAT_READ/CHAT_REVOKE/CHAT_TYPING/CHAT_DELIVERY` 与心跳统一调用
+`ConnectionSessionGuard.ensureSessionActive`。不发心跳但持续业务流量也会触发到期复核；invalid 或 RPC 异常
+不续租、不调用后续业务服务。租约内不增加逐条 RPC，心跳计数及 route/login lease buffer 行为保持。
+
+2026-09-30 review R19：`ConnectionBindService` 只转交 ticket 返回的 principal，身份字段写入、认证状态提升
+均在 `ConnectionManager` 的 connection → user 分片锁内完成。提升要求本地索引仍持有**同一实例**、channel
+活跃且状态为 pending；缺失/被替换/closing/closed/disconnected 直接拒绝，在路由注册、lease claim 和多端
+踢下线决策之前返回。移除在同一生命周期锁内标记 CLOSED 并只释放一次连接槽；移除先完成时，认证晚返回
+不能复活对象或索引。提升先获得锁时，随后移除清理 route、lease 和全部索引。
+
+重复 AUTH 仍消费 ticket；已认证且 user/session/device/tenant/tokenVersion/platform 相同的 principal 返回
+成功但不重复注册、claim、计数或自踢。跨身份/session 的原地重绑拒绝（AUTH handler 沿用失败关闭连接），
+客户端应建立新连接，避免旧 session/device 索引残留。
+
+本模块确定性验证：`ConnectionBindServiceTest` 使用真实管理器锁与 mock route/lease，覆盖 RPC 晚返回、
+同 ID 替换实例、非活跃状态、提升先于移除及重复 AUTH；`CommandSessionValidationTest` 使用真实守卫覆盖
+五类无心跳命令的租约复用、到期 invalid/RPC 失败、跨命令单飞及心跳回归，无真实 Redis/Mongo 连接。
+
+边界：生命周期锁将本地提升与移除串行化，不构成 route/全局 lease/kickoff 的分布式事务。若提升先通过
+活跃检查并取得全局 lease，之后才断线，已有全局替换决策仍沿用现有策略；中间件故障下的释放依赖既有
+fencing/TTL。租约内仍存在最长一个复核间隔的撤销窗口，主动 kickoff 为首选收敛路径。
+
 ## 6. 投递去重
 
 `OnlineDispatcherImpl` 通过 `DeliveryDedupStore` 执行 claim/commit/abort：

@@ -26,7 +26,7 @@ class ChatRevokeMessageHandlerTest {
     void shouldRevokeThroughSharedServiceAndReturnTypedEnvelope() {
         MessageMutationService service = mock(MessageMutationService.class);
         ConnectionSessionGuard guard = mock(ConnectionSessionGuard.class);
-        doNothing().when(guard).ensureAuthenticated(any(UserConnection.class));
+        doNothing().when(guard).ensureSessionActive(any(UserConnection.class));
         MessageMutationResult mutation = new MessageMutationResult();
         mutation.setSuccess(true);
         mutation.setConversationId("s:user-1:user-2");

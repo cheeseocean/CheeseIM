@@ -38,7 +38,7 @@ public class ChatTypingMessageHandler implements MessageHandler {
             if (!connection.isAuthenticated()) {
                 return HandleResult.failure("连接未认证", ServerEnvelope.error(requestId, 403, "连接未认证"));
             }
-            connectionSessionGuard.ensureAuthenticated(connection);
+            connectionSessionGuard.ensureSessionActive(connection);
             ProtoChatTypingCommand command = ProtoChatTypingCommand.parseFrom(envelope.getBody());
             TypingActionEnum action = TypingActionEnum.fromCode(command.getAction());
             if (command.getConversationId().isBlank()) {

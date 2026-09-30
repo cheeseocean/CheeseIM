@@ -1,9 +1,11 @@
 package com.cheeseocean.im.postoffice.connection;
 
 import com.cheeseocean.im.common.api.dto.route.RouteSnapshot;
+import com.cheeseocean.im.common.api.enums.ConnectionState;
 import com.cheeseocean.im.common.api.enums.PlatformType;
 import com.cheeseocean.im.common.api.protocol.ProtoEnvelopeMapper;
 import com.cheeseocean.im.common.api.protocol.ServerEnvelope;
+import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import com.cheeseocean.im.postoffice.config.NodeIdentityProvider;
 import com.cheeseocean.im.postoffice.config.ServerProperties;
 import com.cheeseocean.im.postoffice.dedup.DeliveryDedupStore;
@@ -211,11 +213,11 @@ public class ConnectionManager {
     }
 
     /**
-     * 添加新连接
+     * 将仍存活的同一 pending 连接提升为认证连接；身份写入与移除共用生命周期锁。
      */
-    public boolean addConnection(UserConnection connection) {
+    public boolean addConnection(UserConnection connection, SessionPrincipal session) {
         ReentrantLock connectionLock = connectionLock(connection == null ? null : connection.getConnectionID());
-        ReentrantLock userLock = userLock(connection == null ? null : connection.getUserID());
+        ReentrantLock userLock = userLock(session == null ? null : session.getUserId());
         List<UserConnection> connectionsToKick = List.of();
         List<LoginLease> globallyEvicted = List.of();
         boolean added = false;
@@ -223,15 +225,38 @@ public class ConnectionManager {
         connectionLock.lock();
         userLock.lock();
         try {
-            String connectionID = connection.getConnectionID();
-            String userID = connection.getUserID();
-            
-            // 检查连接是否已存在
-            UserConnection existingConnection = connectionMap.get(connectionID);
-            if (existingConnection != null && existingConnection != connection) {
-                logger.warn("Connection already exists: {}", connectionID);
+            if (connection == null || connection.getConnectionID() == null || session == null
+                    || session.getUserId() == null || session.getUserId().isBlank()
+                    || session.getSessionId() == null || session.getSessionId().isBlank()) {
                 return false;
             }
+            String connectionID = connection.getConnectionID();
+            String userID = session.getUserId();
+            
+            // RPC 返回时 pending 可能已被断线清理，缺失与不同实例都不得重新占位。
+            UserConnection existingConnection = connectionMap.get(connectionID);
+            if (existingConnection != connection || !connection.isActive()
+                    || connection.getStatus() == UserConnection.STATUS_DISCONNECTED) {
+                logger.warn("Connection no longer promotable: {}", connectionID);
+                return false;
+            }
+            ConnectionContext context = connection.getContext();
+            if (connection.isAuthenticated()) {
+                // 同一身份重复 AUTH 保持成功，禁止重复 claim/register 或将自己加入踢下线列表。
+                return context != null && context.isAuthenticated()
+                        && Objects.equals(connection.getUserID(), session.getUserId())
+                        && Objects.equals(connection.getSessionId(), session.getSessionId())
+                        && Objects.equals(connection.getDeviceId(), session.getDeviceId())
+                        && Objects.equals(connection.getTenantId(), session.getTenantId())
+                        && Objects.equals(connection.getTokenVersion(), session.getTokenVersion())
+                        && Objects.equals(connection.getPlatform(), session.getPlatform());
+            }
+            if ((connection.getStatus() != UserConnection.STATUS_CONNECTING
+                    && connection.getStatus() != UserConnection.STATUS_CONNECTED)
+                    || (context != null && context.getState() != ConnectionState.PENDING)) {
+                return false;
+            }
+            bindIdentityLocked(connection, session);
             
             // 获取用户现有连接
             List<UserConnection> existingConnections = getUserConnections(userID);
@@ -291,6 +316,7 @@ public class ConnectionManager {
             }
             
             registerOnlineRoute(connection);
+            connection.setAuthenticated("ws-ticket");
             
             logger.info("Connection added: userID={}, connectionID={}, platform={}, total={}", 
                        userID, connectionID, connection.getPlatformName(), totalConnectionCount.get());
@@ -304,14 +330,13 @@ public class ConnectionManager {
             }
             return false;
         } finally {
-            if (leaseClaimed && !added) {
+            if (leaseClaimed && !added && connectionMap.get(connection.getConnectionID()) == connection) {
                 releaseLoginLease(connection);
             }
             userLock.unlock();
             connectionLock.unlock();
         }
         if (loginLeaseEnforced && !dispatchEvictedConnections(globallyEvicted)) {
-            releaseLoginLease(connection);
             removeConnection(connection.getConnectionID());
             logger.error("Global login victim dispatch failed; rejecting new connection: userID={}, connectionID={}",
                     connection.getUserID(), connection.getConnectionID());
@@ -361,6 +386,7 @@ public class ConnectionManager {
             }
             
             String userID = connection.getUserID();
+            connection.markClosed();
             
             // 移除Channel映射
             channelConnectionMap.remove(connection.getChannel());
@@ -766,6 +792,34 @@ public class ConnectionManager {
             }
         } while (!totalConnectionCount.compareAndSet(current, current + 1));
         return true;
+    }
+
+    private void bindIdentityLocked(UserConnection connection, SessionPrincipal session) {
+        ConnectionContext context = connection.getContext();
+        if (context == null) {
+            context = new ConnectionContext();
+            connection.setContext(context);
+        }
+        PlatformType platformType = PlatformType.fromName(session.getPlatform());
+        context.setConnId(connection.getConnectionID());
+        context.setUserId(session.getUserId());
+        context.setTenantId(session.getTenantId());
+        context.setSessionId(session.getSessionId());
+        context.setDeviceId(session.getDeviceId());
+        context.setPlatformCode(platformType);
+        context.setClientVersion(session.getClientVersion());
+        context.setTokenVersion(session.getTokenVersion());
+        context.setConnectedAt(connection.getConnectTime());
+        context.setLastHeartbeatAt(connection.getLastActiveTime());
+        // ticket 刚在 authcenter 消费成功，首条命令复用默认 60 秒本地租约。
+        context.setSessionValidatedAt(System.currentTimeMillis());
+        connection.setUserID(session.getUserId());
+        connection.setTokenVersion(session.getTokenVersion());
+        connection.setDeviceId(session.getDeviceId());
+        connection.setPlatformType(platformType);
+        connection.setSessionId(session.getSessionId());
+        connection.setTenantId(session.getTenantId());
+        connection.setPlatform(session.getPlatform());
     }
 
     private MultiLoginStrategy resolveMultiLoginStrategy(String configured) {

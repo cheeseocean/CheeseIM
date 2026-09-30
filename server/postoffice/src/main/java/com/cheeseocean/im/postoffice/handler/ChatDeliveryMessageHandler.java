@@ -27,7 +27,7 @@ public class ChatDeliveryMessageHandler implements MessageHandler {
         String requestId = envelope.getRequestId();
         try {
             if (!connection.isAuthenticated()) return HandleResult.failure("连接未认证", ServerEnvelope.error(requestId, 403, "连接未认证"));
-            sessionGuard.ensureAuthenticated(connection);
+            sessionGuard.ensureSessionActive(connection);
             ProtoChatDeliveryAckCommand command = ProtoChatDeliveryAckCommand.parseFrom(envelope.getBody());
             if (command.getConversationId().isBlank() || command.getDeviceId().isBlank() || command.getOpId().isBlank()
                     || command.getMaxDeliveredSeq() <= 0 || !command.getDeviceId().equals(connection.getDeviceId())) {

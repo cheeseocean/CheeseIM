@@ -149,6 +149,15 @@ public class UserConnection implements Serializable {
         updateLastActiveTime();
     }
 
+    /** 管理器移除连接时关闭本地认证态，防止排队业务继续复用已结束的生命周期。 */
+    public void markClosed() {
+        this.authenticated = false;
+        this.status = STATUS_DISCONNECTED;
+        if (context != null) {
+            context.setState(ConnectionState.CLOSED);
+        }
+    }
+
     /**
      * 检查连接是否活跃
      */
