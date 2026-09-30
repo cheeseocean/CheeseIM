@@ -1,9 +1,14 @@
 package tcpim
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
+	"io"
+	"reflect"
+	"strconv"
 	"testing"
+	"testing/iotest"
 
 	pb "github.com/cheeseim/cheeseim-go-sdk/proto"
 	gproto "google.golang.org/protobuf/proto"
@@ -145,6 +150,132 @@ func TestDecodeFrame_RejectsInvalidMagicAndTruncatedPayload(t *testing.T) {
 			t.Fatalf("DecodeFrame() error = %v, want ErrTruncatedFrame", err)
 		}
 	})
+}
+
+func TestReadFrameRejectsInvalidHeaderBeforeReadingBody(t *testing.T) {
+	for _, tt := range invalidFrameHeaders() {
+		t.Run(tt.name, func(t *testing.T) {
+			reader := &headerOnlyReader{header: bytes.NewReader(tt.header)}
+			if _, err := readFrame(reader); !errors.Is(err, tt.wantErr) {
+				t.Fatalf("readFrame() error = %v, want %v", err, tt.wantErr)
+			}
+			if reader.bodyReads != 0 {
+				t.Fatalf("body reads = %d, want 0", reader.bodyReads)
+			}
+			if reader.header.Len() != 0 {
+				t.Fatal("readFrame() did not read the complete header")
+			}
+			if _, err := DecodeFrame(tt.header); !errors.Is(err, tt.wantErr) {
+				t.Fatalf("DecodeFrame() error = %v, want %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestReadFrameMatchesDecodeFrameAndLeavesNextFrameUnread(t *testing.T) {
+	for _, size := range []int{0, 3, MaxDataLength} {
+		t.Run(strconv.Itoa(size), func(t *testing.T) {
+			payload := bytes.Repeat([]byte{0xA5}, size)
+			raw, err := EncodeFrame(TCPRecvMsgNotify, "notify-1", 1710000000000, payload)
+			if err != nil {
+				t.Fatal(err)
+			}
+			next, err := EncodeFrame(TCPHeartbeatResp, "heartbeat", 1710000000001, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			reader := bytes.NewReader(append(raw, next...))
+			frame, err := readFrame(iotest.OneByteReader(reader))
+			if err != nil {
+				t.Fatalf("readFrame() error = %v", err)
+			}
+			decoded, err := DecodeFrame(raw)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(frame, decoded) || !bytes.Equal(frame.Payload, payload) {
+				t.Fatal("stream and memory decoding differ")
+			}
+			if reader.Len() != len(next) {
+				t.Fatalf("unread bytes = %d, want next frame length %d", reader.Len(), len(next))
+			}
+			nextFrame, err := readFrame(reader)
+			if err != nil || nextFrame.CommandType != TCPHeartbeatResp || nextFrame.RequestID != "heartbeat" {
+				t.Fatalf("next frame = %#v, error = %v", nextFrame, err)
+			}
+		})
+	}
+}
+
+func TestReadFrameRejectsTruncatedHeaderAndBody(t *testing.T) {
+	raw, err := EncodeFrame(TCPAuthSuccess, "auth", 123, []byte{1, 2, 3})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name    string
+		length  int
+		wantErr error
+	}{
+		{name: "empty stream", length: 0, wantErr: io.EOF},
+		{name: "partial header", length: HeaderLength - 1, wantErr: io.ErrUnexpectedEOF},
+		{name: "missing body", length: HeaderLength, wantErr: io.ErrUnexpectedEOF},
+		{name: "partial body", length: len(raw) - 1, wantErr: io.ErrUnexpectedEOF},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := readFrame(bytes.NewReader(raw[:tt.length])); !errors.Is(err, tt.wantErr) {
+				t.Fatalf("readFrame() error = %v, want %v", err, tt.wantErr)
+			}
+			if _, err := DecodeFrame(raw[:tt.length]); !errors.Is(err, ErrTruncatedFrame) {
+				t.Fatalf("DecodeFrame() error = %v, want ErrTruncatedFrame", err)
+			}
+		})
+	}
+}
+
+// headerOnlyReader 将任何消息体读取记录为失败，证明拒绝不依赖远端继续发送或关闭连接。
+type headerOnlyReader struct {
+	header    *bytes.Reader
+	bodyReads int
+}
+
+func (r *headerOnlyReader) Read(p []byte) (int, error) {
+	if r.header.Len() == 0 {
+		r.bodyReads++
+		return 0, errors.New("unexpected body read")
+	}
+	return r.header.Read(p)
+}
+
+func invalidFrameHeaders() []struct {
+	name    string
+	header  []byte
+	wantErr error
+} {
+	newHeader := func(length uint32) []byte {
+		header := make([]byte, HeaderLength)
+		binary.BigEndian.PutUint16(header[0:2], Magic)
+		header[2] = Version
+		header[3] = TCPAuthSuccess
+		binary.BigEndian.PutUint32(header[4:8], length)
+		return header
+	}
+	badMagic := newHeader(1)
+	binary.BigEndian.PutUint16(badMagic[0:2], 0xFFFF)
+	badVersion := newHeader(1)
+	badVersion[2] = Version + 1
+	return []struct {
+		name    string
+		header  []byte
+		wantErr error
+	}{
+		{name: "bad magic", header: badMagic, wantErr: ErrInvalidMagic},
+		{name: "bad version", header: badVersion, wantErr: ErrInvalidVersion},
+		{name: "over limit", header: newHeader(MaxDataLength + 1), wantErr: ErrFrameTooLarge},
+		{name: "high bit length", header: newHeader(1 << 31), wantErr: ErrFrameTooLarge},
+		{name: "max uint32 length", header: newHeader(^uint32(0)), wantErr: ErrFrameTooLarge},
+	}
 }
 
 func mustUnmarshal(t *testing.T, payload []byte, message gproto.Message) {

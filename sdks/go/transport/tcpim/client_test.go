@@ -337,6 +337,64 @@ func TestClientSurfacesDisconnectAndErrors(t *testing.T) {
 	})
 }
 
+func TestClientAwaitAuthRejectsHeaderWithoutWaitingForBody(t *testing.T) {
+	for _, tt := range invalidFrameHeaders() {
+		t.Run(tt.name, func(t *testing.T) {
+			clientConn, serverConn := net.Pipe()
+			defer clientConn.Close()
+			defer serverConn.Close()
+			written := make(chan error, 1)
+			go func() {
+				_, err := serverConn.Write(tt.header)
+				written <- err
+				// 保持连接开启且不发送消息体，校验失败必须直接返回，不能依赖 EOF。
+			}()
+
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+			client := NewClient(nil, time.Hour)
+			if _, err := client.awaitAuth(ctx, clientConn); !errors.Is(err, tt.wantErr) {
+				t.Fatalf("awaitAuth() error = %v, want %v", err, tt.wantErr)
+			}
+			if err := <-written; err != nil {
+				t.Fatalf("write header: %v", err)
+			}
+		})
+	}
+}
+
+func TestClientReadLoopReportsHeaderErrorAndDisconnects(t *testing.T) {
+	clientConn, serverConn := net.Pipe()
+	defer clientConn.Close()
+	defer serverConn.Close()
+	client := NewClient(nil, time.Hour)
+	finished := make(chan struct{})
+	go func() {
+		client.readLoop(clientConn)
+		close(finished)
+	}()
+	if err := serverConn.SetWriteDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	// 仅发送声明缺少消息体的非法头部；readLoop 必须报协议错误并自行关闭连接。
+	header := invalidFrameHeaders()[0].header
+	if _, err := serverConn.Write(header); err != nil {
+		t.Fatal(err)
+	}
+	event := waitEvent(t, client.Events())
+	if event.Kind != EventError || !errors.Is(event.Err, ErrInvalidMagic) {
+		t.Fatalf("event = %#v, want invalid magic error", event)
+	}
+	if event := waitEvent(t, client.Events()); event.Kind != EventDisconnect {
+		t.Fatalf("event = %#v, want disconnect", event)
+	}
+	select {
+	case <-finished:
+	case <-time.After(time.Second):
+		t.Fatal("readLoop did not exit after rejecting the header")
+	}
+}
+
 func pipeDialer(conn net.Conn) DialFunc {
 	return func(context.Context, string, string) (net.Conn, error) {
 		return conn, nil

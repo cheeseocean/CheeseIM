@@ -2,7 +2,6 @@ package tcpim
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -229,26 +228,11 @@ func (c *Client) readLoop(conn net.Conn) {
 	}()
 
 	for {
-		header := make([]byte, HeaderLength)
-		if _, err := io.ReadFull(conn, header); err != nil {
+		frame, err := readFrame(conn)
+		if err != nil {
 			if !errors.Is(err, io.EOF) {
 				c.emit(Event{Kind: EventError, Err: err})
 			}
-			return
-		}
-		payloadLength := int(binary.BigEndian.Uint32(header[4:8]))
-		raw := header
-		if payloadLength > 0 {
-			payload := make([]byte, payloadLength)
-			if _, err := io.ReadFull(conn, payload); err != nil {
-				c.emit(Event{Kind: EventError, Err: err})
-				return
-			}
-			raw = append(raw, payload...)
-		}
-		frame, err := DecodeFrame(raw)
-		if err != nil {
-			c.emit(Event{Kind: EventError, Err: err})
 			return
 		}
 		c.handleFrame(frame)
@@ -348,22 +332,9 @@ func (c *Client) awaitAuth(ctx context.Context, conn net.Conn) (*pb.ProtoAuthRes
 	}
 
 	for {
-		header := make([]byte, HeaderLength)
-		if _, err := io.ReadFull(conn, header); err != nil {
-			return nil, fmt.Errorf("read auth header: %w", err)
-		}
-		payloadLength := int(binary.BigEndian.Uint32(header[4:8]))
-		raw := header
-		if payloadLength > 0 {
-			payload := make([]byte, payloadLength)
-			if _, err := io.ReadFull(conn, payload); err != nil {
-				return nil, fmt.Errorf("read auth payload: %w", err)
-			}
-			raw = append(raw, payload...)
-		}
-		frame, err := DecodeFrame(raw)
+		frame, err := readFrame(conn)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("read auth frame: %w", err)
 		}
 		switch frame.CommandType {
 		case TCPConnectSuccess:

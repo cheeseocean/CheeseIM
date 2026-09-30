@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -92,30 +93,58 @@ func EncodeFrame(commandType byte, requestID string, timestamp int64, payload []
 }
 
 func DecodeFrame(raw []byte) (Frame, error) {
-	if len(raw) < HeaderLength {
-		return Frame{}, ErrTruncatedFrame
-	}
-	if binary.BigEndian.Uint16(raw[0:2]) != Magic {
-		return Frame{}, ErrInvalidMagic
-	}
-	if raw[2] != Version {
-		return Frame{}, fmt.Errorf("%w: %d", ErrInvalidVersion, raw[2])
-	}
-	dataLength := int(binary.BigEndian.Uint32(raw[4:8]))
-	if dataLength > MaxDataLength {
-		return Frame{}, ErrFrameTooLarge
+	frame, dataLength, err := decodeFrameHeader(raw)
+	if err != nil {
+		return Frame{}, err
 	}
 	if len(raw) < HeaderLength+dataLength {
 		return Frame{}, ErrTruncatedFrame
 	}
-	requestID := strings.TrimRight(string(raw[8:24]), "\x00 ")
-	payload := make([]byte, dataLength)
-	copy(payload, raw[32:32+dataLength])
+	frame.Payload = make([]byte, dataLength)
+	copy(frame.Payload, raw[HeaderLength:HeaderLength+dataLength])
+	return frame, nil
+}
+
+// readFrame 先校验完整头部，再分配和读取消息体，避免异常远端长度导致巨额分配或等待不存在的消息体。
+func readFrame(reader io.Reader) (Frame, error) {
+	var header [HeaderLength]byte
+	if _, err := io.ReadFull(reader, header[:]); err != nil {
+		return Frame{}, fmt.Errorf("read frame header: %w", err)
+	}
+	frame, dataLength, err := decodeFrameHeader(header[:])
+	if err != nil {
+		return Frame{}, err
+	}
+	frame.Payload = make([]byte, dataLength)
+	if _, err := io.ReadFull(reader, frame.Payload); err != nil {
+		// 已收到声明消息体的完整头部，此时 EOF 是截断帧，不能当作正常连接结束。
+		if errors.Is(err, io.EOF) {
+			err = io.ErrUnexpectedEOF
+		}
+		return Frame{}, fmt.Errorf("read frame payload: %w", err)
+	}
+	return frame, nil
+}
+
+// decodeFrameHeader 让内存解码和流式接收共用校验；长度先按 uint32 限界，再转 int，避免窄整数平台溢出。
+func decodeFrameHeader(header []byte) (Frame, int, error) {
+	if len(header) < HeaderLength {
+		return Frame{}, 0, ErrTruncatedFrame
+	}
+	if binary.BigEndian.Uint16(header[0:2]) != Magic {
+		return Frame{}, 0, ErrInvalidMagic
+	}
+	if header[2] != Version {
+		return Frame{}, 0, fmt.Errorf("%w: %d", ErrInvalidVersion, header[2])
+	}
+	dataLength := binary.BigEndian.Uint32(header[4:8])
+	if dataLength > MaxDataLength {
+		return Frame{}, 0, ErrFrameTooLarge
+	}
 	return Frame{
-		Version:     raw[2],
-		CommandType: raw[3],
-		RequestID:   requestID,
-		Timestamp:   int64(binary.BigEndian.Uint64(raw[24:32])),
-		Payload:     payload,
-	}, nil
+		Version:     header[2],
+		CommandType: header[3],
+		RequestID:   strings.TrimRight(string(header[8:24]), "\x00 "),
+		Timestamp:   int64(binary.BigEndian.Uint64(header[24:32])),
+	}, int(dataLength), nil
 }
