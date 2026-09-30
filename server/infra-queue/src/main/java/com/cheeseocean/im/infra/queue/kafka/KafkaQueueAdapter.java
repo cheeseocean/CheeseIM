@@ -59,7 +59,11 @@ public class KafkaQueueAdapter implements QueueAdapter {
     public void send(String topic, String key, byte[] message) {
         long started = ImMetrics.startTimer();
         try {
-            awaitBrokerAck(kafkaTemplate.send(topic, key, message), "message");
+            // RPC、调度任务和普通 consumer 均没有 Kafka 事务；单条发送也须自行提交后才返回受理成功。
+            kafkaTemplate.executeInTransaction(operations -> {
+                awaitBrokerAck(operations.send(topic, key, message), "message");
+                return null;
+            });
             ImMetrics.queuePublish("kafka", topic, true, started);
         } catch (RuntimeException exception) {
             ImMetrics.queuePublish("kafka", topic, false, started);
@@ -216,6 +220,8 @@ public class KafkaQueueAdapter implements QueueAdapter {
         Map<String, Object> config = new HashMap<>(kafkaProperties.buildConsumerProperties(null));
         config.put(ConsumerConfig.GROUP_ID_CONFIG, group);
         config.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        // producer 的 ACK 先于 commit；禁止读取未提交或已 abort 的事件以维持事务批次可见性。
+        config.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
         config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
                 org.apache.kafka.common.serialization.ByteArrayDeserializer.class);

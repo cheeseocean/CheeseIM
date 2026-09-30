@@ -2,9 +2,13 @@ package com.cheeseocean.im.infra.queue.kafka;
 
 import com.cheeseocean.im.common.core.queue.KeyedMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.kafka.clients.producer.MockProducer;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
 import org.springframework.kafka.listener.ContainerProperties;
@@ -24,6 +28,42 @@ import static org.mockito.Mockito.doAnswer;
 class KafkaQueueAdapterTest {
 
     @Test
+    void shouldCommitSingleSendWithRealTransactionalTemplateOutsideAnyTransaction() {
+        MockProducer<String, byte[]> producer = new MockProducer<>(true,
+                new StringSerializer(), new ByteArraySerializer());
+        producer.initTransactions();
+        ProducerFactory<String, byte[]> factory = mock(ProducerFactory.class);
+        when(factory.transactionCapable()).thenReturn(true);
+        when(factory.createProducer(null)).thenReturn(producer);
+        KafkaTemplate<String, byte[]> template = new KafkaTemplate<>(factory);
+
+        new KafkaQueueAdapter(template, new ObjectMapper(), new KafkaProperties())
+                .send("topic", "key", new byte[]{1});
+
+        org.assertj.core.api.Assertions.assertThat(producer.transactionCommitted()).isTrue();
+        org.assertj.core.api.Assertions.assertThat(producer.history()).hasSize(1);
+        org.assertj.core.api.Assertions.assertThat(producer.history().get(0).key()).isEqualTo("key");
+    }
+
+    @Test
+    void shouldRequireCommittedRecordsForSingleAndBatchConsumers() {
+        KafkaProperties properties = new KafkaProperties();
+        properties.getConsumer().getProperties().put("isolation.level", "read_uncommitted");
+        KafkaQueueAdapter adapter = new KafkaQueueAdapter(mock(KafkaTemplate.class), new ObjectMapper(), properties);
+        org.springframework.kafka.core.DefaultKafkaConsumerFactory<String, byte[]> single =
+                org.springframework.test.util.ReflectionTestUtils.invokeMethod(adapter, "consumerFactory", "group");
+        org.springframework.kafka.core.DefaultKafkaConsumerFactory<String, byte[]> batch =
+                org.springframework.test.util.ReflectionTestUtils.invokeMethod(adapter, "consumerFactory", "group", 50);
+
+        org.assertj.core.api.Assertions.assertThat(single.getConfigurationProperties())
+                .containsEntry("isolation.level", "read_committed")
+                .containsEntry("enable.auto.commit", false);
+        org.assertj.core.api.Assertions.assertThat(batch.getConfigurationProperties())
+                .containsEntry("isolation.level", "read_committed")
+                .containsEntry("max.poll.records", 50);
+    }
+
+    @Test
     void shouldWaitForBrokerAcknowledgment() {
         KafkaTemplate<String, byte[]> template = mock(KafkaTemplate.class);
         CompletableFuture<SendResult<String, byte[]>> result = new CompletableFuture<>();
@@ -36,6 +76,7 @@ class KafkaQueueAdapterTest {
 
         result.complete(mock(SendResult.class));
         sending.join();
+        verify(template).executeInTransaction(any());
     }
 
     @Test
@@ -49,6 +90,24 @@ class KafkaQueueAdapterTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("broker rejected")
                 .hasRootCauseMessage("broker unavailable");
+    }
+
+    @Test
+    void shouldExposeTransactionCommitFailureAfterBrokerAcknowledgment() {
+        KafkaTemplate<String, byte[]> template = mock(KafkaTemplate.class);
+        KafkaQueueAdapter adapter = adapter(template);
+        when(template.send("topic", "key", new byte[]{1}))
+                .thenReturn(CompletableFuture.completedFuture(mock(SendResult.class)));
+        doAnswer(invocation -> {
+            org.springframework.kafka.core.KafkaOperations.OperationsCallback<String, byte[], Object> callback =
+                    invocation.getArgument(0);
+            callback.doInOperations(template);
+            throw new IllegalStateException("commit failed");
+        }).when(template).executeInTransaction(any());
+
+        assertThatThrownBy(() -> adapter.send("topic", "key", new byte[]{1}))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("commit failed");
     }
 
     @Test

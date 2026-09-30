@@ -24,6 +24,9 @@
 - 同会话消息 key 必须稳定映射到同一 Kafka partition；
 - 消费确认必须发生在 handler 成功之后，失败按统一 consumer policy 重试并进入 DLT；
 - Kafka 与 Chronicle 使用相同 payload 语义：protobuf/byte[] 不经过对象 JSON 二次编码；
+- Kafka 单条和批量发布均建立本地 producer 事务，等待 broker ACK 与事务提交后才返回；
+  不依赖调用方的 RPC/consumer/调度线程持有 Kafka 事务，也不因此声明消费 offset 与下游写入原子提交；
+- 业务消费与 DLT 运维查询强制 `read_committed`，不可将未提交/已 abort 的事件当作有效输入；
 - batch listener 必须保留按 key 顺序，不能为了并行吞吐打乱单会话消息；
 - cluster 环境的 topic 分区、副本、minISR、retention 必须通过启动校验；业务 Pod 是否拥有 DDL 权限由配置独立控制；
 - Chronicle 仅用于 all-in-one/本地单机，不是多副本生产后端。

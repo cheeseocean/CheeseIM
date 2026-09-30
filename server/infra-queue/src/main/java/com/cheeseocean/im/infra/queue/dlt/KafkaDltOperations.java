@@ -234,6 +234,8 @@ public class KafkaDltOperations implements DltOperations {
         Map<String, Object> properties =
                 new java.util.HashMap<>(kafkaProperties.buildConsumerProperties(null));
         properties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        // DLT 同样由事务 producer 发布，运维查询及 redrive 不能看到已 abort 的记录。
+        properties.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
         properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class);
         properties.put(ConsumerConfig.CLIENT_ID_CONFIG, "cheeseim-dlt-ops-" + UUID.randomUUID());
