@@ -1,6 +1,6 @@
 # CheeseIM 服务端架构评估与演进路线
 
-> 初评时间：2026-07-05；当前事实复核：2026-09-06
+> 初评时间：2026-07-05；当前事实复核：2026-09-30
 > 评估对象：`server/` 全模块（Java 17 + Spring Boot 3 + Dubbo 3 + Gradle + MongoDB + Redis）
 > 评估方法：按模块与跨模块调用链审查源码，结合离线编译、测试和针对性依赖复现；不等同于真实集群验收
 > 维护原则：本文档为权威评估，与代码事实冲突时以代码为准；下次评估需更新本文。
@@ -13,14 +13,33 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 - P0 主链路（节点身份、群扩散、路由原子化、投递去重、Kafka 端到端）已修复；P1 中的 ConnectionManager 分片锁、跨节点踢下线、HistoryQuery fail-closed/分页、MessageIdMapping 批量写已完成，authcenter `tokenVersion`/ban 持久化与 WS ticket 原子 consume 已完成，当前瓶颈转为 **存储分片、多副本推送状态与长压验证**。
 - 模块主干可保留，但需要先修复下述安全与正确性缺口，再进行容量压测；不能宣称百万级能力已经通过验收。
 
-### 2026-09-06 当前复核（优先于下文历史完成记录）
+### 2026-09-30 增量复核（优先于下文历史完成记录）
+
+全栈源码证据、旧代码清单、模块收敛建议和首批重构账本见 `docs/code-review-2026-09-30.md`。
+本轮修复 Kafka 单条发布缺失事务：与 batch 一样显式建立 producer 事务，等待 broker ACK 与 commit 后才返回；
+业务消费与 DLT 查询强制 read_committed；真实 KafkaTemplate + MockProducer 回归和提交失败用例通过。
+这不提供消费 offset、Mongo 与下游事件的跨资源原子提交。
+同时移除 GroupController 的成功空/部分列表降级、SDK 在校验前按远端帧长度分配的路径，以及已确认无调用的内部占位代码。
+
+后续修复已将review转成逐项验收账本：`docs/review-remediation-plan-2026-09-30.md`（R01–R25与V/M任务）。
+本批R01/R02/R03/R04/R06/R19通过代码验收：真实会话权限provider归business、设置仅更新已有授权视图、
+所有视图读取实时授权且旧矛盾type/target归一化；历史查询不再复用旧allow；独立API装配13个唯一consumer引用，含写契约禁重试；
+所有认证后命令共用session复核租约；身份绑定/提升与断线清理同锁，缺失pending不得复活；
+ingress逐条按canonical会话及执行语义分组，每组成功完成inbox，部分失败保留绑定seq并释放未完成租约。
+新增授权/视图/HTTP回归30项、网关guard/manager交错28项、consumer-only真实context以及混批/重放回归20项通过。
+
+真实注册中心/Dubbo、中间件故障与升级前错误归属数据仍需环境验收；尤其旧postbox恒allow provider必须退出注册。
+安全状态旧回源覆盖、设备旧session撤销、历史mapping身份、未读计数、同步日志、离线推送attempt、
+SDK事件/连接代际及客户端控制状态恢复等仍待修复。完整状态以验收账本为准，不代表端到端生产验收。
+
+### 2026-09-06 复核问题及最新状态
 
 下文“已修复”说明历史任务的局部完成，不代表当前端到端生产验收通过。
 
 | 当前问题 | 代码锚点 | 状态 |
 | --- | --- | --- |
-| 会话设置可创建任意会话视图，sync/pull 仅以视图存在授权 | `ConversationServiceImpl.setConversations`、`ConversationSyncServiceImpl` | 安全发布阻断，未修复 |
-| 事务 KafkaTemplate 在无事务上下文执行单条 send | `KafkaQueueConfiguration`、`KafkaQueueAdapter.send` | 已用本机依赖复现异常，未修复 |
+| 会话设置可创建任意会话视图，sync/pull 仅以视图存在授权 | `ConversationServiceImpl.setConversations`、`ConversationSyncServiceImpl` | 已修复2026-09-30，仅更新已有视图、读前实时授权；代码验收通过，环境待验收 |
+| 事务 KafkaTemplate 在无事务上下文执行单条 send | `KafkaQueueConfiguration`、`KafkaQueueAdapter.send` | 已修复 2026-09-30，显式事务与提交失败回归通过；真实 broker 验收待办 |
 | 发送 inbox 含 senderId，历史 mapping ID 不含，存在碰撞 | `MessageSenderImpl`、`MongoMessageHistoryRepository.persist` | 未修复 |
 | 未读把批末 seq 差当消息条数；seq 本身允许空洞 | `IngressEventListener.updateDirectUserState`、`RedisConversationStateStore` | 未修复 |
 | 会话同步版本非原子、TTL 后未检测游标过期 | `ConversationVersionLogRepositoryImpl`、`ConversationServiceImpl.syncConversations` | 未修复 |
@@ -28,7 +47,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 | gap repair 查询 limit 未下推 Mongo | `HistoryQueryService.pullMessagesBySeqRange` | 未修复 |
 | 连接关闭同步访问 Redis，命令响应未统一背压 | TCP/WS handler、`ConnectionManager` | 未修复 |
 
-本轮清理只收缩无执行方的内部策略、删除已确认无引用代码并修正文档，未修复上表运行时问题。
+2026-09-06 清理仅收缩无执行方的内部策略、删除已确认无引用代码并修正文档；本轮增量改动见上节。
 `MessageRouteDecision` 仅保留 persistHistory/sendDelivery/notification；离线推送继续由 postman
 读取 needOfflinePush。needConversation/needUnreadCount/senderSync/needLastMessage 保留协议字段和
 历史默认值，尚无独立执行语义。历史评审账本已降为“过程”，保留执行记录而不作为当前事实。
@@ -73,7 +92,7 @@ CheeseIM 是一个**架构骨架已经为集群设计、在线投递主链路已
 | 用户封禁标志 | **已修复 2026-07-08**：封禁标志落 Mongo `user_security_state`，Redis 仅作缓存 |
 | ~~好友 accept 非事务~~ | **已修复 2026-07-13**：cluster 模式下申请状态与双向好友关系通过 MongoDB 事务原子提交，通知及缓存失效延后至提交完成；all-in-one 单机 Mongo 默认关闭事务 |
 | ~~History 查询全扫~~ | **已修复 2026-07-07**：`getConversationMessages` 按 latest blockNo + range 窗口读取，不再拉全量 block |
-| ~~权限校验失败放行~~ | **已修复 2026-07-07**：`HistoryQueryService.allow` 改为 fail-closed，RPC 异常仅使用短 TTL 本地缓存兜底 |
+| ~~权限校验失败放行~~ | **已修复并于2026-09-30收紧**：真实provider归business，`HistoryQueryService.allow`不再以本地正授权缓存兜底；缺失/异常/null/deny均拒绝 |
 | MessageIdMappingDoc 批量写 | 已使用 unordered bulk；当前剩余问题是 mapping 身份与发送 inbox 不一致 |
 | ~~UserMaxSeq / ReadSeq 写 behind~~ | **已修复 2026-07-09**：按 userId 分桶多线程 drain，同桶内聚合最大水位，跨用户并行写 Mongo |
 | ~~ConversationVersionLog 无 TTL~~ | **已修复 2026-07-08**：`ConversationVersionLogDoc.createdAt` 增 180 天 TTL 索引 |

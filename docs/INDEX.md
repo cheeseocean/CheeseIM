@@ -25,6 +25,8 @@
 | `docs/assets/cheeseim-architecture.html` | 权威 | README 架构图的 Diagram Design 源文件；SVG 从该文件导出 |
 | `AGENTS.md` | 权威 | **Agent 跨端开发约束**，所有 AI 代理（Claude/Codex/Cursor/Cline）入门必读 |
 | `docs/INDEX.md` | 权威 | 本文件，全仓文档地图 |
+| `docs/code-review-2026-09-30.md` | 次级 | 全栈源码审查快照、虚实现/遗留代码清单、模块收敛建议及首批重构验证账本；当前架构事实以 ASSESSMENT 与模块 ARCH 为准 |
+| `docs/review-remediation-plan-2026-09-30.md` | 权威 | Review修复任务的验收标准、依赖顺序、执行状态、证据和新增源码文件登记；按代码/真实环境分层验收 |
 | `server/docs/architecture/ASSESSMENT.md` | 权威 | 服务端架构评估、百万级演进路线、阻断性问题清单 |
 | `server/docs/architecture/server-design-review-2026-07-19.md` | **过程** | 历史设计评审与执行账本；当前实现和未决问题以 ASSESSMENT 与模块 ARCH 为准 |
 
