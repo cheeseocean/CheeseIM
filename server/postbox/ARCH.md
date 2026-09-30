@@ -38,13 +38,16 @@
 
 - `getConversationMessages`：已改为先查 latest `blockNo`，再按 `conversationId + blockNo range` 窗口读取并按 seq 倒序裁剪 limit；`limit` 最大 200，最近页最多扫描 16 个窗口，避免长会话全扫和恶意大分页。
 - `pullMessagesBySeqRange`：用于 gap repair；当前先读取整个 seq 区间的块，再在 Java 截断 limit，
-  数据库读取量尚无窗口上限。此方法不校验用户权限，调用方必须独立授权；当前 sync/pull 路径存在授权缺口。
+  数据库读取量尚无窗口上限。此方法是内部无主体查询port，调用方必须独立授权；business sync/pull现通过实时授权后的视图限定会话集合。
 - `BlockMessageQueryService.findAttachmentCandidate`：按 `attachment_metadata._id = attachmentId` 点查后 `findSlot` 还原内容（2026-07-08 P1-10 修复，替代原 `message_id_mapping` 上的 `content.regex` 全扫——该 regex 查的 `content` 字段在 mapping 文档上并不存在，属死查询）。元数据由 postmaster `BlockHistoryPersistenceService` 对 `ContentType.hasAttachment()` 消息随历史持久化批量写入。
 - `BlockMessageQueryService.findSlot`：按 `BlockIndexUtil.docId` 点查 `_id`（修复原 `((seq-1)/100)+1` 与 `BlockIndexUtil.blockNo` 差一导致永远查错块的 bug）。
 - 历史页与 seq-range gap repair 会按本批 serverMsgId 一次查询 `message_mutation`，将 `REVOKED` overlay 合并为 tombstone；原 `message_block` 不物理改写。
 - postbox 只依赖 `MessageHistoryRepository` 与 `history.model`；Mongo `*Doc` 和 BSON Binary 在 adapter
   边界完成转换，不进入查询服务。Mongo 实现已物理归属 `storage-history`，由自动配置装配。
-- 权限校验 `allow`：provider 缺失、RPC 异常、非预期返回时默认拒绝；仅在 30s 本地权限缓存未过期时兜底放行。
+- 权限校验 `allow`：provider缺失、RPC异常、null/deny均拒绝；已删除30s本地正授权兜底，不能在退出群后故障时复用旧allow。
+- **授权修复（2026-09-30）**：移除本模块的 `DefaultConversationPermissionService`，真实provider归business，
+  按canonical归属和当前群成员事实判定。配合business仅更新已有设置/实时过滤旧视图，关闭设置→sync旁路。
+  发布时必须确认旧默认provider已退出注册；远程联调验收见 `docs/review-remediation-plan-2026-09-30.md`。
 
 ## 5. 边界
 

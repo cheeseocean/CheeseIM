@@ -18,7 +18,6 @@ import com.cheeseocean.im.common.core.history.model.MessageSlot;
 import com.cheeseocean.im.common.core.history.model.MessageMutation;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.apache.dubbo.config.annotation.DubboService;
-import org.apache.dubbo.rpc.RpcException;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -30,8 +29,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 /**
  * CheeseBox 历史消息查询服务。
@@ -45,11 +42,9 @@ public class HistoryQueryService implements MessageHistoryQueryService {
     private static final int DEFAULT_HISTORY_LIMIT = 50;
     private static final int MAX_HISTORY_LIMIT = 200;
     private static final int MAX_RECENT_BLOCK_WINDOWS = 16;
-    private static final int PERMISSION_CACHE_TTL_MILLIS = 30_000;
 
     private final MessageHistoryRepository messageHistoryRepository;
     private final MessagePreviewResolver messagePreviewResolver;
-    private final ConcurrentMap<PermissionCacheKey, PermissionCacheValue> permissionCache = new ConcurrentHashMap<>();
 
     @DubboReference(check = false)
     private ConversationPermissionService conversationPermissionService;
@@ -274,62 +269,23 @@ public class HistoryQueryService implements MessageHistoryQueryService {
     }
 
     private boolean allow(SessionPrincipal session, String conversationId) {
-        PermissionCacheKey cacheKey = PermissionCacheKey.from(session, conversationId);
-        if (cacheKey == null) {
+        if (session == null || session.getUserId() == null || session.getUserId().isBlank()
+                || conversationId == null || conversationId.isBlank()) {
             return false;
         }
         if (conversationPermissionService == null) {
-            return cachedDecision(cacheKey);
+            return false;
         }
         ConversationPermissionRequest request = new ConversationPermissionRequest();
         request.setTenantId(session.getTenantId());
         request.setUserId(session.getUserId());
         request.setConversationId(conversationId);
         try {
-            Object raw = conversationPermissionService.check(request);
-            PermissionCheckResult result = raw instanceof PermissionCheckResult permissionCheckResult
-                    ? permissionCheckResult
-                    : null;
-            if (result == null) {
-                return cachedDecision(cacheKey);
-            }
-            cacheDecision(cacheKey, result.isAllowed());
-            return result.isAllowed();
-        } catch (RpcException ignored) {
-            return cachedDecision(cacheKey);
+            PermissionCheckResult result = conversationPermissionService.check(request);
+            return result != null && result.isAllowed();
         } catch (RuntimeException ignored) {
-            return cachedDecision(cacheKey);
-        }
-    }
-
-    private void cacheDecision(PermissionCacheKey cacheKey, boolean allowed) {
-        permissionCache.put(cacheKey, new PermissionCacheValue(allowed, System.currentTimeMillis() + PERMISSION_CACHE_TTL_MILLIS));
-    }
-
-    private boolean cachedDecision(PermissionCacheKey cacheKey) {
-        PermissionCacheValue value = permissionCache.get(cacheKey);
-        long now = System.currentTimeMillis();
-        if (value == null || value.expireAtMillis() <= now) {
-            permissionCache.remove(cacheKey);
+            // 退出群后 provider 故障不能复用过去的 allow；授权不可用即拒绝读取。
             return false;
         }
-        return value.allowed();
-    }
-
-    private record PermissionCacheKey(String tenantId, String userId, String conversationId) {
-
-        private static PermissionCacheKey from(SessionPrincipal session, String conversationId) {
-            if (session == null || session.getUserId() == null || session.getUserId().isBlank()
-                    || conversationId == null || conversationId.isBlank()) {
-                return null;
-            }
-            return new PermissionCacheKey(
-                    Objects.toString(session.getTenantId(), ""),
-                    session.getUserId(),
-                    conversationId);
-        }
-    }
-
-    private record PermissionCacheValue(boolean allowed, long expireAtMillis) {
     }
 }
