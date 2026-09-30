@@ -3,6 +3,7 @@ package com.cheeseocean.im.apiserver.controller;
 import com.cheeseocean.im.apiserver.auth.AccessTokenSessionResolver;
 import com.cheeseocean.im.apiserver.auth.CurrentPrincipalArgumentResolver;
 import com.cheeseocean.im.apiserver.facade.ConversationFacade;
+import com.cheeseocean.im.apiserver.exception.ApiExceptionHandler;
 import com.cheeseocean.im.apiserver.model.request.GetConversationRequest;
 import com.cheeseocean.im.apiserver.model.request.ListConversationMessagesRequest;
 import com.cheeseocean.im.apiserver.model.request.ListConversationsRequest;
@@ -14,6 +15,8 @@ import com.cheeseocean.im.apiserver.model.response.ConversationResponse;
 import com.cheeseocean.im.apiserver.model.response.HistoryMessageResponse;
 import com.cheeseocean.im.common.api.dto.conversation.SetConversationRequest;
 import com.cheeseocean.im.common.api.enums.ConversationKind;
+import com.cheeseocean.im.common.api.enums.ErrorCode;
+import com.cheeseocean.im.common.api.exception.BusinessException;
 import com.cheeseocean.im.common.api.enums.MessagePreviewType;
 import com.cheeseocean.im.common.api.enums.SessionStatus;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
@@ -26,6 +29,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -189,6 +193,23 @@ class ConversationControllerTest {
     }
 
     @Test
+    void deniedSettingsShouldReturnForbiddenWithStableCodeInsteadOfSuccess() throws Exception {
+        ConversationFacade facade = mock(ConversationFacade.class);
+        doThrow(new BusinessException(ErrorCode.CONVERSATION_ACCESS_DENIED)).when(facade)
+                .setConversations(any(SessionPrincipal.class), any(SetConversationsRequest.class));
+        SetConversationRequest request = new SetConversationRequest();
+        request.setConversationId("s:victim1:victim2");
+        request.setPinned(true);
+
+        mockMvc(facade).perform(put("/api/im/conversations")
+                        .contentType("application/json")
+                        .content(new ObjectMapper().writeValueAsBytes(request))
+                        .header("Authorization", "Bearer token"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(ErrorCode.CONVERSATION_ACCESS_DENIED.getCode()));
+    }
+
+    @Test
     void deleteConversationShouldDelegateToFacade() throws Exception {
         ConversationFacade conversationFacade = mock(ConversationFacade.class);
         MockMvc mockMvc = mockMvc(conversationFacade);
@@ -233,6 +254,7 @@ class ConversationControllerTest {
         AccessTokenSessionResolver resolver = mock(AccessTokenSessionResolver.class);
         when(resolver.resolve("Bearer token")).thenReturn(session("u100"));
         return MockMvcBuilders.standaloneSetup(new ConversationController(conversationFacade))
+                .setControllerAdvice(new ApiExceptionHandler())
                 .setCustomArgumentResolvers(new CurrentPrincipalArgumentResolver(resolver))
                 .build();
     }

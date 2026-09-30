@@ -7,6 +7,13 @@
 和最小 Redis adapter，并设置 `cheeseim.state.auto-config-enabled=false`；禁止改回扫描
 `com.cheeseocean.im.common` 或启用完整 state runtime，否则会把 session/conversation/seq/RocksDB 装入无状态 API。
 
+`ApiServerConsumerConfiguration` 集中提供 13 种 common-api 契约的唯一 `ReferenceBean`，
+Controller、Facade 和鉴权 resolver 全部构造器注入；引用显式 `check=false`，
+含写操作的契约整体设置 `retries=0`，纯查询沿用全局 consumer timeout/retries。
+引用标记 Primary，使 all-in-one 中 HTTP 入口也消费同一配置代理；injvm/远程选择由部署配置决定。
+`ApiServerConsumerContextTest` 启动真实 consumer-only Spring/Dubbo MVC context，
+检查依赖代理、引用唯一性、无 provider 和写重试配置；注册中心/预连接关闭，Redis IO 使用 mock。
+
 ## 1. Controller 总览
 
 | Controller | 基路径 | 端点 |
@@ -17,7 +24,7 @@
 | `FriendController` | `/api/im/friends` | list / requests(in/out) / send / accept / reject / cancel |
 | `BlacklistController` | `/api/im/blacklist` | list / POST / DELETE |
 | `ConversationController` | `/api/im/conversations` | list / all / batch / ids / ids/hash / sync/incremental / max-seqs / read-snapshots / not-notify / pinned / PUT / DELETE / sync/pull / read-seq / messages |
-| `GroupController` | `/api/im/groups` | list（**当前吞异常返回空**，line 49，掩盖失败） |
+| `GroupController` | `/api/im/groups` | list（下游异常交由 `ApiExceptionHandler` 返回非 2xx 错误，不返回成功空/部分列表） |
 
 ## 2. Facade 编排
 
@@ -54,8 +61,7 @@
 
 | 缺陷 | 位置 | 说明 |
 | --- | --- | --- |
-| `GroupController.list` 吞异常返回空 | `GroupController.java:49` | 掩盖 Dubbo/Mongo 失败，应区分降级与失败 |
-| `GroupController.list` N 次 Dubbo + N 次 Mongo | | 无批量，O(n) 调用 |
+| `GroupController.list` 串行点查 | `GroupController.java:33–42` | 一次全量会话查询后，对每个候选群查询成员资格，再对当前用户所属群查询详情；无批量，O(n) 调用 |
 | 幂等不缓存首次响应 | 全模块 | 当前重复 `Idempotency-Key` 返回 409；如客户端需要断线重试时重放原响应，需扩展为状态/响应缓存协议 |
 | 账户签发端待接入 | `AuthController.login` | 服务端已强制可信 identity assertion；生产账户域仍需实现签发/交换流程 |
 

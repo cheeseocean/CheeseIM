@@ -2,6 +2,7 @@ package com.cheeseocean.im.apiserver.controller;
 
 import com.cheeseocean.im.apiserver.auth.AccessTokenSessionResolver;
 import com.cheeseocean.im.apiserver.auth.CurrentPrincipalArgumentResolver;
+import com.cheeseocean.im.apiserver.exception.ApiExceptionHandler;
 import com.cheeseocean.im.common.api.business.domain.Group;
 import com.cheeseocean.im.common.api.business.domain.UserConversation;
 import com.cheeseocean.im.common.api.conversation.ConversationService;
@@ -12,8 +13,9 @@ import com.cheeseocean.im.common.api.enums.NeedVerificationEnum;
 import com.cheeseocean.im.common.api.enums.SessionStatus;
 import com.cheeseocean.im.common.api.group.GroupMembershipQueryService;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
+import org.apache.dubbo.rpc.RpcException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -22,6 +24,7 @@ import java.util.Optional;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -29,23 +32,30 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class GroupControllerTest {
 
+    private ConversationService conversationService;
+    private GroupMembershipQueryService groupMembershipQueryService;
+    private MockMvc mockMvc;
+
+    @BeforeEach
+    void setUp() {
+        conversationService = mock(ConversationService.class);
+        groupMembershipQueryService = mock(GroupMembershipQueryService.class);
+        GroupController controller = new GroupController(groupMembershipQueryService, conversationService);
+        AccessTokenSessionResolver resolver = mock(AccessTokenSessionResolver.class);
+        when(resolver.resolve("Bearer token")).thenReturn(session("userB"));
+        mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new ApiExceptionHandler())
+                .setCustomArgumentResolvers(new CurrentPrincipalArgumentResolver(resolver))
+                .build();
+    }
+
     @Test
     void listShouldReturnCurrentUsersGroups() throws Exception {
-        ConversationService conversationService = mock(ConversationService.class);
-        GroupMembershipQueryService groupMembershipQueryService = mock(GroupMembershipQueryService.class);
         when(conversationService.getAllConversations("userB"))
                 .thenReturn(List.of(groupConversation("crew"), groupConversation("design")));
         when(groupMembershipQueryService.isGroupMember("crew", "userB")).thenReturn(true);
         when(groupMembershipQueryService.isGroupMember("design", "userB")).thenReturn(false);
         when(groupMembershipQueryService.queryGroup("crew")).thenReturn(Optional.of(group("crew", "Crew")));
-
-        GroupController controller = new GroupController(groupMembershipQueryService);
-        ReflectionTestUtils.setField(controller, "conversationService", conversationService);
-        AccessTokenSessionResolver resolver = mock(AccessTokenSessionResolver.class);
-        when(resolver.resolve("Bearer token")).thenReturn(session("userB"));
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller)
-                .setCustomArgumentResolvers(new CurrentPrincipalArgumentResolver(resolver))
-                .build();
 
         mockMvc.perform(get("/api/im/groups")
                         .header("Authorization", "Bearer token"))
@@ -56,6 +66,45 @@ class GroupControllerTest {
         verify(conversationService).getAllConversations("userB");
         verify(groupMembershipQueryService).isGroupMember("crew", "userB");
         verify(groupMembershipQueryService).isGroupMember("design", "userB");
+    }
+
+    @Test
+    void listShouldReturnErrorWhenConversationQueryFails() throws Exception {
+        when(conversationService.getAllConversations("userB"))
+                .thenThrow(new RpcException("conversation query unavailable"));
+
+        mockMvc.perform(get("/api/im/groups")
+                        .header("Authorization", "Bearer token"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$").isMap())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("RUNTIME_ERROR"))
+                .andExpect(jsonPath("$.path").value("/api/im/groups"));
+
+        verify(conversationService).getAllConversations("userB");
+        verifyNoInteractions(groupMembershipQueryService);
+    }
+
+    @Test
+    void listShouldReturnErrorWhenLaterGroupQueryFails() throws Exception {
+        when(conversationService.getAllConversations("userB"))
+                .thenReturn(List.of(groupConversation("crew"), groupConversation("design")));
+        when(groupMembershipQueryService.isGroupMember("crew", "userB")).thenReturn(true);
+        when(groupMembershipQueryService.queryGroup("crew")).thenReturn(Optional.of(group("crew", "Crew")));
+        when(groupMembershipQueryService.isGroupMember("design", "userB")).thenReturn(true);
+        when(groupMembershipQueryService.queryGroup("design"))
+                .thenThrow(new RpcException("group query unavailable"));
+
+        mockMvc.perform(get("/api/im/groups")
+                        .header("Authorization", "Bearer token"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$").isMap())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("RUNTIME_ERROR"))
+                .andExpect(jsonPath("$.path").value("/api/im/groups"));
+
+        verify(groupMembershipQueryService).queryGroup("crew");
+        verify(groupMembershipQueryService).queryGroup("design");
     }
 
     private static SessionPrincipal session(String userId) {

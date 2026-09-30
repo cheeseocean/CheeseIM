@@ -6,7 +6,6 @@ import com.cheeseocean.im.common.api.conversation.ConversationService;
 import com.cheeseocean.im.common.api.enums.ChatType;
 import com.cheeseocean.im.common.api.group.GroupMembershipQueryService;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
-import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,30 +19,28 @@ import java.util.Optional;
 public class GroupController {
 
     private final GroupMembershipQueryService groupMembershipQueryService;
-    @DubboReference(check = false)
-    private ConversationService conversationService;
+    private final ConversationService conversationService;
 
-    public GroupController(GroupMembershipQueryService groupMembershipQueryService) {
+    /** 群查询与会话查询均由 consumer 装配，避免依赖同 JVM 的业务实现。 */
+    public GroupController(GroupMembershipQueryService groupMembershipQueryService,
+                           ConversationService conversationService) {
         this.groupMembershipQueryService = groupMembershipQueryService;
+        this.conversationService = conversationService;
     }
 
     @GetMapping
     public List<GroupSummaryResponse> list(SessionPrincipal session) {
         List<GroupSummaryResponse> responses = new ArrayList<>();
-        try {
-            for (UserConversation conversation : conversationService.getAllConversations(session.getUserId())) {
-                String groupId = resolveGroupId(conversation);
-                if (groupId == null || !groupMembershipQueryService.isGroupMember(groupId, session.getUserId())) {
-                    continue;
-                }
-                Optional<Group> group = groupMembershipQueryService.queryGroup(groupId);
-                if (group.isEmpty()) {
-                    continue;
-                }
-                responses.add(new GroupSummaryResponse(groupId, group.get().getGroupName(), group.get().getAvatarUrl()));
+        for (UserConversation conversation : conversationService.getAllConversations(session.getUserId())) {
+            String groupId = resolveGroupId(conversation);
+            if (groupId == null || !groupMembershipQueryService.isGroupMember(groupId, session.getUserId())) {
+                continue;
             }
-        } catch (Exception ignored) {
-            // 下游查询链暂未就绪时降级为空列表。
+            Optional<Group> group = groupMembershipQueryService.queryGroup(groupId);
+            if (group.isEmpty()) {
+                continue;
+            }
+            responses.add(new GroupSummaryResponse(groupId, group.get().getGroupName(), group.get().getAvatarUrl()));
         }
         return responses;
     }

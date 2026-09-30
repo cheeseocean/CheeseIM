@@ -4,7 +4,6 @@ import com.cheeseocean.im.apiserver.exception.ApiAuthenticationException;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
 import com.cheeseocean.im.common.api.session.SessionQueryService;
-import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -16,8 +15,12 @@ public class AccessTokenSessionResolver {
 
     public static final String REQUEST_PRINCIPAL_ATTRIBUTE = AccessTokenSessionResolver.class.getName() + ".principal";
 
-    @DubboReference(check = false)
-    private SessionQueryService sessionQueryService;
+    private final SessionQueryService sessionQueryService;
+
+    /** 会话查询代理由 API consumer 配置统一提供。 */
+    public AccessTokenSessionResolver(SessionQueryService sessionQueryService) {
+        this.sessionQueryService = sessionQueryService;
+    }
 
     public SessionPrincipal resolve(String authorization) {
         if (!StringUtils.hasText(authorization) || !authorization.startsWith("Bearer ")) {

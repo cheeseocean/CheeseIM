@@ -182,7 +182,7 @@ public class ApiExceptionHandler {
         ErrorCode errorCode = exception.getErrorCode();
         HttpStatus status = errorCode == ErrorCode.AUTHENTICATION_FAILED
                 ? HttpStatus.UNAUTHORIZED
-                : HttpStatus.BAD_REQUEST;
+                : errorCode == ErrorCode.CONVERSATION_ACCESS_DENIED ? HttpStatus.FORBIDDEN : HttpStatus.BAD_REQUEST;
         return ResponseEntity.status(status)
                 .body(Map.of("code", errorCode.getCode(), "message", errorCode.getDesc()));
     }

@@ -6,7 +6,6 @@ import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import com.cheeseocean.im.common.api.session.SessionQueryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -22,8 +21,7 @@ class AccessTokenSessionResolverTest {
     @BeforeEach
     void setUp() {
         sessionQueryService = mock(SessionQueryService.class);
-        resolver = new AccessTokenSessionResolver();
-        ReflectionTestUtils.setField(resolver, "sessionQueryService", sessionQueryService);
+        resolver = new AccessTokenSessionResolver(sessionQueryService);
     }
 
     @Test

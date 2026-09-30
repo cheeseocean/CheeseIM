@@ -45,8 +45,6 @@ import com.cheeseocean.im.common.api.message.MessageMutationService;
 import com.cheeseocean.im.common.api.message.MessageHistoryQueryService;
 import com.cheeseocean.im.common.api.session.SessionPrincipal;
 import com.cheeseocean.im.common.api.user.UserInfoService;
-import org.apache.dubbo.config.annotation.DubboReference;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
@@ -64,38 +62,29 @@ public class ConversationFacade {
     private final ConversationService conversationService;
     private final ConversationSyncService conversationSyncService;
     private final ReadStateService readStateService;
-    @DubboReference(check = false)
-    private ConversationPermissionService permissionService;
-    @DubboReference(check = false)
-    private ConversationControlEventQueryService controlEventQueryService;
+    private final ConversationPermissionService permissionService;
+    private final ConversationControlEventQueryService controlEventQueryService;
+    private final MessageHistoryQueryService messageHistoryQueryService;
+    private final UserInfoService userInfoService;
+    private final MessageMutationService messageMutationService;
 
-    @DubboReference(check = false)
-    private MessageHistoryQueryService messageHistoryQueryService;
-
-    @DubboReference(check = false)
-    private UserInfoService userInfoService;
-
-    @DubboReference(check = false)
-    private MessageMutationService messageMutationService;
-
-    @Autowired
+    /** 所有远程依赖由 consumer 配置提供，纯构造器也可直接注入测试替身。 */
     public ConversationFacade(ConversationService conversationService,
                               ConversationSyncService conversationSyncService,
                               ReadStateService readStateService,
                               ConversationPermissionService permissionService,
-                              MessageHistoryQueryService messageHistoryQueryService) {
-        this(conversationService, conversationSyncService, readStateService, permissionService);
-        this.messageHistoryQueryService = messageHistoryQueryService;
-    }
-
-    public ConversationFacade(ConversationService conversationService,
-                              ConversationSyncService conversationSyncService,
-                              ReadStateService readStateService,
-                              ConversationPermissionService permissionService) {
+                              MessageHistoryQueryService messageHistoryQueryService,
+                              ConversationControlEventQueryService controlEventQueryService,
+                              UserInfoService userInfoService,
+                              MessageMutationService messageMutationService) {
         this.conversationService = conversationService;
         this.conversationSyncService = conversationSyncService;
         this.readStateService = readStateService;
         this.permissionService = permissionService;
+        this.messageHistoryQueryService = messageHistoryQueryService;
+        this.controlEventQueryService = controlEventQueryService;
+        this.userInfoService = userInfoService;
+        this.messageMutationService = messageMutationService;
     }
 
     public List<ConversationResponse> listConversations(SessionPrincipal session, ListConversationsRequest request) {
