@@ -22,7 +22,8 @@
 | --- | --- | --- |
 | `README.md` | 权威 | 项目入口、架构、模块边界、启动与测试 |
 | `README.en.md` | 次级 | 英文版，与 `README.md` 同步维护 |
-| `docs/assets/cheeseim-architecture.html` | 权威 | README 架构图的 Diagram Design 源文件；SVG 从该文件导出 |
+| `docs/assets/cheeseim-architecture.svg` | 权威 | README 服务总览的唯一、自包含图源；区分控制面、消息队列、在线返回、历史/推送和共享基础设施 |
+| `docs/assets/cheeseim-architecture.html` | 次级 | 直接引用 SVG 的离线响应式预览页，不再维护第二份内嵌图源 |
 | `AGENTS.md` | 权威 | **Agent 跨端开发约束**，所有 AI 代理（Claude/Codex/Cursor/Cline）入门必读 |
 | `docs/INDEX.md` | 权威 | 本文件，全仓文档地图 |
 | `docs/code-review-2026-09-30.md` | 次级 | 全栈源码审查快照、虚实现/遗留代码清单、模块收敛建议及首批重构验证账本；当前架构事实以 ASSESSMENT 与模块 ARCH 为准 |
@@ -110,4 +111,4 @@
 
 ## 八、勘误记录
 
-（暂无）
+- 2026-10-01：架构图改为自包含SVG唯一图源，HTML仅作离线预览；中英文README同步按当前assertion登录与异步HISTORY/DELIVERY语义重整，移除过时的无assertion登录及同步落库时序示例。

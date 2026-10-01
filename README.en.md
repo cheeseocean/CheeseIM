@@ -1,186 +1,238 @@
 # CheeseIM
 
-CheeseIM is a self-hosted open-source IM system. The repository contains the Java server, a reusable Go client SDK, the CheeseBox TUI client, and design documents. Server-side responsibilities are split into HTTP API, auth/session, business domain services, long-connection gateway, message ingress, message orchestration, and delivery/push modules. For local development, `bootstrap-all` is the recommended entry point because it runs the full server stack in one JVM.
+**A modular instant messaging system for self-hosted deployments.**
 
-[中文](README.md)
+The Java server separates the HTTP control plane, TCP/WS realtime transport, and asynchronous message pipeline. A reusable Go client SDK and the CheeseBox TUI support dual-client integration from login and sending to history recovery.
+
+[中文](README.md) · [Architecture](#architecture) · [Quick start](#quick-start) · [Capabilities](#capabilities-and-acceptance) · [Modules](#modules-and-repository) · [Documentation](#development-and-documentation)
+
+- **Clear message responsibilities**: `postoffice` owns connections, `postbox` accepts messages, `postmaster` orchestrates and sequences them, and `postman` delivers them.
+- **Recoverable state**: stable message identity, conversation seq, history blocks, device receipts, and control-event cursors have distinct roles.
+- **One codebase, two deployment shapes**: use `bootstrap-all` in one JVM locally, or independent services with Kafka and shared state in a cluster.
+
+The project is under active integration and acceptance testing. Core paths are implemented; cluster capacity, failure recovery, and parts of the client remain work in progress. See the [remediation acceptance ledger](docs/review-remediation-plan-2026-09-30.md) for current status.
 
 ## Architecture
 
-The diagram follows the real data flow from clients and access services through the asynchronous message backbone, then into online delivery, offline push, and reliable control-event recovery. Solid arrows represent realtime message flow; dashed arrows represent fallback and recovery paths.
+### Service overview
 
-![CheeseIM product architecture](docs/assets/cheeseim-architecture.svg)
+![CheeseIM service overview: HTTP control plane, asynchronous message pipeline, node-directed online delivery, and shared infrastructure](docs/assets/cheeseim-architecture.svg)
 
-## Modules
+**Solid arrows are transport/RPC; dashed arrows are asynchronous queues. Gray nodes are stores or external providers.** This is a logical service view, not a Gradle dependency graph or a requirement to deploy every node separately.
 
-| Module | Responsibility |
-| --- | --- |
-| `server/api-server` | Unified HTTP entry. Controllers handle REST requests, principal resolution, facade orchestration, and response mapping only. |
-| `server/authcenter` | Access/refresh tokens, WS/TCP tickets, session lifecycle, device kickoff, and connection auth. |
-| `server/business` | User, friend, blacklist, group membership, conversation, and sync-point domain services. |
-| `server/postoffice` | TCP/WebSocket gateway, Protobuf codecs, connection management, online routes, heartbeats, kickoff, and online delivery. |
-| `server/postbox` | Message sending entry and history query entry. Implements `MessageSender` and publishes ingress events. |
-| `server/postmaster` | Message orchestration. Consumes ingress events, allocates conversation/user seq, writes history blocks, and emits delivery events. |
-| `server/postman` | Delivery and offline push. Consumes delivery/offline events and dispatches online messages or vendor push requests. |
-| `server/common-api` | Cross-module APIs, domain models, enums, events, and Protobuf definitions. |
-| `server/common-core` | Shared ports/models and state infrastructure: repository and queue contracts, typed CacheStore, notifications, and seq state. |
-| `server/infra-queue` | Queue runtime infrastructure: Kafka/Chronicle adapters, listener wiring, topic contract validation, and Kafka DLT operations. |
-| `server/infra-state` | State runtime infrastructure: Redis/RocksDB adapters, typed cache, idempotency inboxes, and seq-cache wiring. |
-| `server/storage-business` | Mongo adapters for users, relationships, groups, conversations, control events, fanout jobs, and DLT audit. |
-| `server/config` | Spring/YAML configuration for all-in-one and module deployments. |
-| `server/bootstrap-all` | Recommended local development entry. Runs all modules in one JVM with Dubbo injvm. |
-| `sdks/go` | Reusable Go IM client SDK. |
-| `apps/CheeseBox` | TUI chat application built on top of the Go SDK. |
+1. **Control plane**: clients use `api-server` for login, tickets, social APIs, and sync. `authcenter` owns authentication; `business` owns domain operations and access checks. History and mutation queries also call `postbox` and `postmaster` respectively.
+2. **Message pipeline**: `postoffice → postbox → INGRESS → postmaster → DELIVERY → postman`. Conversation seq uses a single allocator; user-scoped watermarks are advanced afterwards.
+3. **Delivery and recovery**: Redis node queues direct online messages to the `postoffice` identified by `gatewayNode`; offline events use vendor push. A `HISTORY` consumer persists history to MongoDB asynchronously. Clients recover messages and control events through HTTP seq ranges and cursors.
 
-## Current Status
+Normal groups use a fanout worker inside `postmaster`; super groups use history storage and client pulls. Auxiliary auth RPCs, delivery outcomes, and control-event compensation edges are omitted from the overview. See the [architecture assessment](server/docs/architecture/ASSESSMENT.md) and [protocol boundary](docs/PROTOCOL.md) for details.
 
-| Area | Status | Notes |
+### What does success mean?
+
+| State | Confirms | Does not yet confirm |
 | --- | --- | --- |
-| Java server | Core pipeline implemented | all-in-one local integration is the main path; split-module deployment still needs environment-specific config and verification. |
-| Go SDK | Usable for real integration | Wraps HTTP auth, ticket issuing, TCP long connection, message sending, conversation sync, reliable control-event cursor recovery, and social queries. |
-| CheeseBox TUI | Usable integration client | Supports login, conversation/friend/group navigation, friend request handling, conversation deletion, text messages, realtime events, force logout, history sync, and gap repair. Rich media remains future work. |
-| Documentation | Being consolidated | Root READMEs, module READMEs, protocol docs, and the client runbook are the maintained entry points. Historical plans/specs are process references only. |
+| `CHAT_SEND_ACK / BROKER_ACCEPTED` | The ingress operation confirmed publication and returned a stable message identity | History persistence or recipient receipt |
+| Device receipt `CHAT_DELIVERY` | The client explicitly acknowledged its device delivery watermark; CheeseBox sends it after local persistence | User reading |
+| Read receipt `CHAT_READ` | The user's read watermark advanced | Every device has displayed the receipt |
 
-## Implemented Features
+<details>
+<summary><strong>Expand: ordinary persistent message sequence</strong></summary>
 
-- HTTP auth: login, refresh, logout, device kickoff, and WS/TCP ticket issuing.
-- TCP/WS long connection protocol based on Protobuf envelopes.
-- Message pipeline: ingress, option policy, seq allocation, history persistence, online delivery, and offline push events.
-- Conversation sync: visible conversations, conversation ID hash, max seq, read snapshots, pull by seq ranges, and read seq ACK.
-- Reliable control events: offline read, delivery, and revoke recovery through a user-scoped cursor.
-- Social APIs: user settings, friend requests, friendships, blacklist, and group member query.
-- Notification sending through `NotificationSender` and `MessageSender`.
-- Go SDK and CheeseBox TUI client for real end-to-end testing.
+```mermaid
+sequenceDiagram
+    participant S as Sender
+    participant G as postoffice nodes
+    participant B as postbox
+    participant Q as QueueAdapter backend
+    participant M as postmaster
+    participant P as postman
+    participant DB as MongoDB
+    participant R as Recipient
 
-## Key Constraints
+    Note over S,G: Ticket authentication completed
+    S->>G: CHAT_SEND
+    G->>B: MessageSender.sendMessage
+    B->>Q: Publish INGRESS
+    par Sender acceptance
+        Q-->>B: Publish confirmed
+        B-->>G: Stable message identity
+        G-->>S: CHAT_SEND_ACK / BROKER_ACCEPTED
+    and Asynchronous processing
+        Q-->>M: Consume INGRESS
+        M->>M: Claim inbox and bind conversation seq
+        M->>Q: Publish HISTORY
+        M->>Q: Publish DELIVERY
+        par Online delivery
+            Q-->>P: Consume DELIVERY
+            P-->>G: Redis node queue / gatewayNode
+            G-->>R: CHAT_RECV
+        and History persistence
+            Q-->>M: Consume HISTORY
+            M->>DB: Bulk-write blocks and mappings
+        end
+    end
+```
 
-- `api-server` owns HTTP Request/Response models. Lower-level services should return domain models or primitive results.
-- `authcenter` owns token, ticket, session, and connection-auth logic. `postoffice` owns connection state and online routes.
-- TCP/WS protocol is defined by `common-api/src/main/proto/message_protocol.proto`; JSON command payloads are no longer the source of truth.
-- Conversation lists do not store latest-message snapshots. Clients should cache the latest message or pull messages on demand.
-- Message seq allocation must use `ConversationSeqAllocator`; Redis and MongoDB jointly maintain its state. RocksDB is only a development fallback for limited local state, not a replacement for Redis in all-in-one mode.
-- `bootstrap-all` is the recommended development mode. See [deployment modes](docs/DEPLOYMENT.md) for split-module and cluster contracts.
+The `HISTORY` consumer belongs to `postmaster`. The sender ACK can interleave with background consumption, and history persistence progresses independently of online delivery. The sequence does not promise persistence before receipt. Kafka and Chronicle share a queue port, but their reliability semantics differ. See the [queue contract](server/infra-queue/ARCH.md).
 
-## Development
+</details>
 
-Recommended prerequisites:
+## Quick start
 
-- JDK 17
-- Repository Gradle Wrapper
-- MongoDB 6.x+
-- Redis 6.x+
-- Optional Kafka/Nacos for split-module or queue experiments
-- Go 1.24.2 for `sdks/go` and `apps/CheeseBox`
+### Verify the dual-client path first
 
-Start the full server locally:
+Install **JDK 17, Go 1.24.2, Docker, and Docker Compose**, then run from the repository root:
 
 ```bash
+./distro/docker/run-cheesebox-e2e.sh
+```
+
+The script starts a single-node MongoDB replica set and Redis, configures local JWT / identity assertion credentials, launches all-in-one, and runs real dual-user tests:
+
+**Login → ticket → TCP auth → sending and broker ACK → recipient receipt → delivery/read receipts → revoke → eventual history visibility.**
+
+By default it stops the server and middleware on exit. `CHEESEIM_E2E_KEEP_MIDDLEWARE=1` keeps only the middleware for subsequent manual debugging. See the [client runbook](docs/client-runbook.md) for the script and manual workflow.
+
+### Chat interactively with CheeseBox
+
+Provide a MongoDB **replica set** and Redis first. Conversation creation uses a Mongo transaction path, so a non-replica-set Mongo instance does not satisfy this prerequisite.
+
+**Terminal 1: start the server.** Run from the repository root and set credentials before startup:
+
+```bash
+export CHEESEIM_AUTH_JWT_SECRET='local-jwt-secret-at-least-32-bytes'
+export CHEESEIM_LOGIN_ASSERTION_ENABLED=true
+export CHEESEIM_LOGIN_ASSERTION_SECRET='local-integration-secret-at-least-32-bytes'
+export MONGODB_URI='mongodb://127.0.0.1:27017/cheese_im?replicaSet=rs0'
+
 cd server
 ./gradlew :bootstrap-all:bootRun
 ```
 
-Default ports:
+**Terminal 2: generate a local assertion and launch the TUI.** Use the same development signing secret as the server:
 
-| Service | Port |
+```bash
+export CHEESEIM_LOGIN_ASSERTION_SECRET='local-integration-secret-at-least-32-bytes'
+cd apps/CheeseBox
+go run ./cmd/dev-assertion -user user-1
+go run ./cmd/cheesebox
+```
+
+Enter `user-1` and the generated assertion in the login form. Assertions are single-use and expire after 60 seconds; generate another if needed. Log in as `user-2` in another terminal and enter `/chat user-1` to start a direct conversation.
+
+These credentials and the signing tool are for local integration only. Production assertions come from the account domain; clients do not hold its signing secret. Addresses, Mongo replica initialization, and troubleshooting are documented in the [client runbook](docs/client-runbook.md).
+
+| Local entry | Default address |
 | --- | --- |
-| HTTP API | `18079` |
-| WebSocket | `5147`, default path `/ws` |
-| TCP | `5148` |
-| Dubbo | injvm in all-in-one mode |
+| HTTP | `http://127.0.0.1:18079` |
+| TCP | `127.0.0.1:5148` |
+| WebSocket | `ws://127.0.0.1:5147/ws`, Binary Protobuf |
 
-Example login:
+<details>
+<summary>HTTP login and ticket example</summary>
+
+Login requires an `identityAssertion`; `userId` alone is not authentication. Set a newly generated assertion as `IDENTITY_ASSERTION`:
 
 ```bash
 curl -sS -X POST http://127.0.0.1:18079/api/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"userId":"u100","platformId":1,"deviceId":"dev-u100","clientVersion":"dev"}'
-```
+  -d "{\"userId\":\"user-1\",\"identityAssertion\":\"${IDENTITY_ASSERTION}\",\"platformId\":1,\"deviceId\":\"dev-user-1\",\"clientVersion\":\"dev\"}"
 
-Example ticket request:
-
-```bash
+# Set ACCESS_TOKEN to the accessToken in the login result, then request a ticket
 curl -sS -X POST http://127.0.0.1:18079/api/im/ws-ticket \
   -H "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
-Set `CHEESEIM_AUTH_JWT_SECRET` to a value of at least 32 characters before starting all-in-one or any split module. See [deployment modes](docs/DEPLOYMENT.md) for the environment variables, profiles, ports, and middleware matrix.
+</details>
 
-Run CheeseBox:
+## Capabilities and acceptance
 
-```bash
-cd sdks/go
-go generate ./proto
-go test ./...
-```
+| Area | Current capability | Acceptance boundary / remaining work |
+| --- | --- | --- |
+| Auth and connections | Assertion login, refresh, tickets, TCP/WS auth, heartbeat, targeted kickoff | Security cache, concurrent device revocation, and cluster failures remain under validation |
+| Messages and groups | Direct/group messaging, stable identity, conversation seq, history blocks, node-directed delivery, group fanout | Exact unread counts, stored identity migrations, and cross-resource recovery remain in progress |
+| Sync and controls | Conversation lists/settings, seq ranges, read snapshots, delivery/read/revoke, and cursor recovery | SDK event overflow, connection generations, covered sync ranges, and control snapshot recovery need work |
+| Social | Friend applications/processing, friendships, blacklist, group membership queries | Global receive-setting writes are not connected yet |
+| Offline push | APNs, FCM, Huawei, Xiaomi, JPush adapters | Disabled by default; credentials, payloads, and failure-retry behavior require dedicated integration |
+| Clients | Go SDK, CheeseBox text chat, dual-client E2E scenarios | TUI rich media and upload support are incomplete |
+| Operations | OCI / Helm, metrics, DLT tooling, capacity and chaos scripts | Deployment baselines do not establish production capacity or disaster-recovery acceptance |
 
-```bash
-cd apps/CheeseBox
-go test ./...
-go run ./cmd/cheesebox
-```
+The [remediation ledger](docs/review-remediation-plan-2026-09-30.md) tracks issues, implementation status, and test evidence. See the [full review](docs/code-review-2026-09-30.md) for the original source findings.
 
-## Testing
-
-Compile the server:
-
-```bash
-cd server
-./gradlew compileJava
-```
-
-Run module tests:
-
-```bash
-./gradlew :api-server:test
-./gradlew :business:test
-./gradlew :postoffice:test
-./gradlew :postmaster:test
-./gradlew :postbox:test
-./gradlew :postman:test
-```
-
-For end-to-end testing, start MongoDB and Redis, run `:bootstrap-all:bootRun`, then launch two CheeseBox clients with different users and verify online delivery plus history sync after restart.
-
-## Documentation
-
-Maintained entry points:
-
-- `README.md` / `README.en.md`: project entry, architecture, module boundaries, startup, and testing.
-- `docs/CheeseIM-数据同步设计文档.md`: current conversation/message sync design.
-- `docs/client-runbook.md`: Go SDK and CheeseBox integration runbook.
-- `server/postoffice/docs/TCP_PROTOCOL.md`: TCP/WS Protobuf protocol.
-- `server/postoffice/README.md`, `server/postbox/README.md`, `server/postmaster/README.md`, `server/postman/README.md`: server module responsibilities.
-- `apps/CheeseBox/README.md`, `apps/CheeseBox/arch.md`: TUI client documentation.
-
-Reference-only documents:
-
-- `server/postmaster/docs/ConversationArch.md` and `server/postmaster/docs/SeqArch.md`: conversation and seq design background.
-- `server/docs/architecture/**`: earlier server architecture drafts.
-
-## Repository Layout
+## Modules and repository
 
 ```text
-.
-├── apps
-│   ├── CheeseBox          # TUI client, current primary integration client
-├── distro                 # Local middleware and helper scripts
-├── docs                   # Design documents and historical plans
-├── sdks
-│   └── go                 # Go IM client SDK
-└── server                 # Java server
-    ├── api-server
-    ├── authcenter
-    ├── business
-    ├── bootstrap-all
-    ├── common-api
-    ├── common-core
-    ├── infra-queue
-    ├── infra-state
-    ├── storage-history
-    ├── storage-business
-    ├── config
-    ├── ops-cli
-    ├── postbox
-    ├── postman
-    ├── postmaster
-    └── postoffice
+server/          Java 17 · Spring Boot 3 · Dubbo 3 · Gradle
+sdks/go/         Reusable Go client SDK
+apps/CheeseBox/  SDK-based TUI and local assertion tool
+distro/          Docker / Helm / migrations / integration scripts
+docs/            Protocol, deployment, integration, and acceptance docs
 ```
+
+The Java build has **16 Gradle submodules**, including seven independently runnable business services.
+
+| Service | Responsibility |
+| --- | --- |
+| [`api-server`](server/api-server/ARCH.md) | HTTP Controllers / Facades / Principal, explicit remote consumer wiring |
+| [`authcenter`](server/authcenter/ARCH.md) | Identity verification, tokens / refresh families, sessions, and tickets |
+| [`business`](server/business/ARCH.md) | Users, relationships, groups, conversations, access checks, sync points, and control events |
+| [`postoffice`](server/postoffice/ARCH.md) | TCP/WS, connection lifecycle, online routes, and local node delivery |
+| [`postbox`](server/postbox/ARCH.md) | Sending ingress, send inbox, INGRESS publication, and history queries |
+| [`postmaster`](server/postmaster/ARCH.md) | Seq / ingress orchestration, HISTORY consumption, group fanout, and user watermarks |
+| [`postman`](server/postman/ARCH.md) | Online outcome aggregation, offline/control compensation, and vendor push |
+
+<details>
+<summary>Shared libraries, adapters, and runtime entry points</summary>
+
+| Module | Role |
+| --- | --- |
+| `common-api` | RPC / domain / event / enum contracts and the single Protobuf source |
+| `common-core` | Repository / Queue / Cache / State ports, models, and shared state machines |
+| `infra-queue` / `infra-state` | Kafka/Chronicle and Redis/RocksDB runtime adapters and wiring |
+| `storage-history` / `storage-business` | History and business Mongo adapters, Documents, and indexes |
+| `config` | Spring/YAML configuration for each entry point |
+| `bootstrap-all` | Single-JVM development entry, Chronicle + injvm; still uses Mongo / Redis |
+| `ops-cli` | Standalone DLT inspection and controlled redrive commands, not a business service |
+
+Shared libraries are not separately deployed and do not add RPC hops. The Go SDK and CheeseBox build independently of the Java runtime.
+
+</details>
+
+### Runtime modes
+
+| Mode | Queue / service calls | Purpose |
+| --- | --- | --- |
+| all-in-one | Chronicle / Dubbo injvm | Local integration; Redis is required, Mongo serves complete history and auth paths |
+| standalone | Configured queue / Nacos + Dubbo | Split-module local integration |
+| cluster | Kafka / Nacos + Dubbo, shared Mongo / Redis | Independent replicas and capacity/failure acceptance |
+
+See [deployment modes](docs/DEPLOYMENT.md) for ports and environment variables. `docker-compose.middleware.yml` contains Nacos / Kafka and related split-mode tooling; Mongo / Redis integration uses `docker-compose.e2e.yml`.
+
+## Development and documentation
+
+**Java compilation and module tests** (in `server/`):
+
+```bash
+./gradlew compileJava
+./gradlew :authcenter:test :business:test :api-server:test :postoffice:test :postbox:test :postmaster:test :postman:test
+```
+
+**Go tests** (in `sdks/go/` and `apps/CheeseBox/` separately):
+
+```bash
+go test ./...
+```
+
+Java compilation runs architecture-boundary checks. [`message_protocol.proto`](server/common-api/src/main/proto/message_protocol.proto) is the sole client protocol source; regenerate only when the protocol changes. See the [protocol guide](docs/PROTOCOL.md).
+
+| Topic | Entry point |
+| --- | --- |
+| Document map and status | [docs/INDEX.md](docs/INDEX.md) |
+| Client integration, assertions, E2E | [Client runbook](docs/client-runbook.md) |
+| TCP/WS and HTTP boundary | [Protocol guide](docs/PROTOCOL.md) · [TCP/WS protocol](server/postoffice/docs/TCP_PROTOCOL.md) |
+| Deployment, ports, middleware | [Deployment modes](docs/DEPLOYMENT.md) · [Helm](distro/helm/cheeseim/README.md) |
+| Design facts and remediation | [Assessment](server/docs/architecture/ASSESSMENT.md) · [Acceptance ledger](docs/review-remediation-plan-2026-09-30.md) |
+| Metrics, DLT, recovery | [Observability](docs/observability.md) · [DLT](docs/dlt-runbook.md) · [Disaster recovery](docs/disaster-recovery.md) |
+| Capacity validation | [Perf runbook](server/perf/README.md) |
+| Contribution and Agent constraints | [AGENTS.md](AGENTS.md) |
+
+The diagram is a self-contained [SVG source](docs/assets/cheeseim-architecture.svg), with an [offline preview page](docs/assets/cheeseim-architecture.html). Use the document map to distinguish historical drafts from current references.

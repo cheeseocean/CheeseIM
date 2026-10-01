@@ -1,57 +1,175 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="cheeseim-architecture-title cheeseim-architecture-desc">
-      <title id="cheeseim-architecture-title">CheeseIM 系统架构</title>
-      <desc id="cheeseim-architecture-desc">展示客户端经 HTTP 与 Protobuf 长连接进入 CheeseIM，消息通过 postbox、异步队列、postmaster 和 postman 完成排序、持久化、在线投递、离线推送与控制事件恢复。</desc>
-      <defs>
-        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#475569"/></marker>
-        <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#2563eb"/></marker>
-        <marker id="arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#0f766e"/></marker>
-        <style>
-          .zone{fill:rgba(15,23,42,.02);stroke:rgba(15,23,42,.12);stroke-width:.8}.zoneMask,.labelMask{fill:#f4f7fb}.zoneText{font:500 8px 'Geist Mono','Noto Sans Mono CJK SC',monospace;letter-spacing:.14em;fill:#64748b}.nodeMask{fill:#f4f7fb}.node{fill:#fff;stroke:#0f172a;stroke-width:1}.nodeInput{fill:rgba(71,85,105,.1);stroke:#64748b}.nodeStore{fill:rgba(15,23,42,.05);stroke:#475569}.nodeFocal{fill:rgba(37,99,235,.08);stroke:#2563eb;stroke-width:1.2}.tag{fill:none;stroke:rgba(15,23,42,.35);stroke-width:.8}.tagAccent{fill:none;stroke:rgba(37,99,235,.55);stroke-width:.8}.tagText{font:500 8px 'Geist Mono','Noto Sans Mono CJK SC',monospace;letter-spacing:.08em;fill:#64748b}.tagTextAccent{font:500 8px 'Geist Mono','Noto Sans Mono CJK SC',monospace;letter-spacing:.08em;fill:#2563eb}.name{font:600 12px 'Geist','Noto Sans SC','Microsoft YaHei',sans-serif;fill:#0f172a}.sub{font:400 8px 'Geist Mono','Noto Sans Mono CJK SC',monospace;fill:#64748b}.edge{fill:none;stroke:#475569;stroke-width:1.2;marker-end:url(#arrow)}.edgeAccent{fill:none;stroke:#2563eb;stroke-width:1.2;marker-end:url(#arrow-accent)}.edgeLink{fill:none;stroke:#0f766e;stroke-width:1.2;marker-end:url(#arrow-link)}.edgeAsync{fill:none;stroke:#475569;stroke-width:1;stroke-dasharray:5 4;marker-end:url(#arrow)}.edgeLabel{font:400 8px 'Geist Mono','Noto Sans Mono CJK SC',monospace;letter-spacing:.06em;fill:#64748b}.aside{font:italic 14px 'Instrument Serif','Noto Serif SC',serif;fill:#475569}.legend{font:500 8px 'Geist Mono','Noto Sans Mono CJK SC',monospace;letter-spacing:.08em;fill:#64748b}
-        </style>
-      </defs>
-      <rect width="1280" height="720" fill="#f4f7fb"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 888" role="img" aria-labelledby="architecture-title architecture-desc">
+  <title id="architecture-title">CheeseIM service overview</title>
+  <desc id="architecture-desc">Seven logical services. Clients use api-server for HTTP control, authcenter for identity and business for domain operations. Realtime messages flow through postoffice, postbox, INGRESS, postmaster, DELIVERY and postman. HISTORY is an asynchronous Mongo history branch. Online delivery returns to the gatewayNode via a Redis node queue; offline push uses external providers. Shared infrastructure is shown separately. Solid arrows are transport or RPC; dashed arrows are queues.</desc>
+  <defs>
+    <marker id="rpc-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker>
+    <marker id="message-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#2563eb"/></marker>
+    <marker id="queue-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#7c3aed"/></marker>
+    <marker id="online-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#0f766e"/></marker>
+    <style>
+      text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; fill: #0f172a; }
+      .title { font-size: 26px; font-weight: 700; }
+      .subtitle { font-size: 15px; fill: #475569; }
+      .section { font-size: 13px; font-weight: 700; letter-spacing: 1px; }
+      .name { font-size: 18px; font-weight: 650; }
+      .role { font-size: 13px; fill: #334155; }
+      .detail { font-size: 12px; fill: #475569; }
+      .label { font-size: 12px; font-weight: 600; fill: #475569; text-anchor: middle; }
+      .event-label { fill: #6d28d9; }
+      .online-label { font-size: 14px; fill: #0f766e; font-weight: 600; }
+      .panel { fill: #f8fafc; stroke: #e2e8f0; stroke-width: 1; }
+      .control-panel { fill: #f0fdfa; stroke: #ccfbf1; stroke-width: 1; }
+      .service { fill: #ffffff; stroke: #94a3b8; stroke-width: 1.5; }
+      .control-service { fill: #ffffff; stroke: #0f766e; stroke-width: 1.5; }
+      .core { fill: #eff6ff; stroke: #2563eb; stroke-width: 2; }
+      .resource { fill: #f1f5f9; stroke: #cbd5e1; stroke-width: 1.5; }
+      .rpc { fill: none; stroke: #475569; stroke-width: 2; marker-end: url(#rpc-arrow); }
+      .transport { fill: none; stroke: #2563eb; stroke-width: 2; marker-start: url(#message-arrow); marker-end: url(#message-arrow); }
+      .send { fill: none; stroke: #2563eb; stroke-width: 2; marker-end: url(#message-arrow); }
+      .queue { fill: none; stroke: #7c3aed; stroke-width: 2; stroke-dasharray: 6 4; marker-end: url(#queue-arrow); }
+      .online { fill: none; stroke: #0f766e; stroke-width: 2; stroke-dasharray: 6 4; marker-end: url(#online-arrow); }
+      .guide { stroke: #c4b5fd; stroke-width: 1; }
+      .number { font-size: 12px; font-weight: 700; fill: #ffffff; text-anchor: middle; }
+    </style>
+  </defs>
 
-      <!-- Zones -->
-      <rect class="zone" x="40" y="40" width="360" height="520" rx="8"/><rect class="zoneMask" x="56" y="44" width="112" height="12" rx="2"/><text class="zoneText" x="112" y="53" text-anchor="middle">CLIENT / ACCESS</text>
-      <rect class="zone" x="424" y="232" width="560" height="200" rx="8"/><rect class="zoneMask" x="440" y="236" width="112" height="12" rx="2"/><text class="zoneText" x="496" y="245" text-anchor="middle">MESSAGE CORE</text>
-      <rect class="zone" x="424" y="456" width="816" height="128" rx="8"/><rect class="zoneMask" x="440" y="460" width="120" height="12" rx="2"/><text class="zoneText" x="500" y="469" text-anchor="middle">DURABLE STATE</text>
+  <rect width="1040" height="888" rx="16" fill="#ffffff"/>
+  <text class="title" x="32" y="42">CheeseIM</text>
+  <text class="subtitle" x="32" y="68">Control plane · message pipeline · delivery &amp; recovery</text>
+  <line x1="655" y1="41" x2="689" y2="41" stroke="#475569" stroke-width="2"/>
+  <text class="detail" x="699" y="45">Transport / RPC</text>
+  <line x1="835" y1="41" x2="869" y2="41" stroke="#7c3aed" stroke-width="2" stroke-dasharray="6 4"/>
+  <text class="detail" x="879" y="45">Async queue</text>
 
-      <!-- Connectors: drawn before nodes -->
-      <line class="edgeLink" x1="216" y1="152" x2="256" y2="152"/>
-      <line class="edgeLink" x1="144" y1="188" x2="144" y2="300"/>
-      <line class="edge" x1="232" y1="336" x2="256" y2="336"/>
-      <line class="edgeAccent" x1="388" y1="336" x2="452" y2="336"/>
-      <line class="edgeAccent" x1="596" y1="336" x2="648" y2="336"/>
-      <line class="edgeAccent" x1="808" y1="336" x2="860" y2="336"/>
-      <line class="edge" x1="964" y1="336" x2="1040" y2="336"/>
-      <line class="edge" x1="728" y1="372" x2="728" y2="496"/>
-      <path class="edgeLink" d="M388 152H408Q416 152 416 160V512Q416 520 424 520H552"/>
-      <path class="edgeAsync" d="M1120 300V224Q1120 216 1112 216H152Q144 216 144 224V300"/>
+  <!-- 控制面和消息主干分区；共享库不画作可部署服务。 -->
+  <rect class="control-panel" x="236" y="106" width="776" height="172" rx="14"/>
+  <text class="section" x="260" y="134" fill="#0f766e">HTTP CONTROL PLANE</text>
+  <rect class="panel" x="236" y="302" width="776" height="382" rx="14"/>
+  <text class="section" x="260" y="330">REALTIME MESSAGE PIPELINE</text>
+  <rect class="panel" x="236" y="704" width="776" height="136" rx="14"/>
+  <text class="section" x="260" y="731">SHARED RUNTIME · ADAPTERS / LIBRARIES</text>
 
-      <!-- Label masks stay 8px clear of strokes -->
-      <rect class="labelMask" x="220" y="132" width="32" height="12" rx="2"/><text class="edgeLabel" x="236" y="141" text-anchor="middle">HTTP</text>
-      <rect class="labelMask" x="152" y="232" width="56" height="12" rx="2"/><text class="edgeLabel" x="180" y="241" text-anchor="middle">PROTOBUF</text>
-      <rect class="labelMask" x="396" y="316" width="48" height="12" rx="2"/><text class="edgeLabel" x="420" y="325" text-anchor="middle">SEND</text>
-      <rect class="labelMask" x="600" y="316" width="44" height="12" rx="2"/><text class="edgeLabel" x="622" y="325" text-anchor="middle">CONSUME</text>
-      <rect class="labelMask" x="812" y="316" width="44" height="12" rx="2"/><text class="edgeLabel" x="834" y="325" text-anchor="middle">PUBLISH</text>
-      <rect class="labelMask" x="972" y="316" width="60" height="12" rx="2"/><text class="edgeLabel" x="1002" y="325" text-anchor="middle">DELIVER</text>
-      <rect class="labelMask" x="736" y="428" width="44" height="12" rx="2"/><text class="edgeLabel" x="758" y="437" text-anchor="middle">WRITE</text>
-      <rect class="labelMask" x="448" y="500" width="92" height="12" rx="2"/><text class="edgeLabel" x="494" y="509" text-anchor="middle">CURSOR SYNC</text>
-      <rect class="labelMask" x="568" y="196" width="104" height="12" rx="2"/><text class="edgeLabel" x="620" y="205" text-anchor="middle">ONLINE RETURN</text>
+  <!-- 主要同步调用：HTTP/RPC 与双向长连接。 -->
+  <path class="rpc" d="M204 220H220V207H260"/>
+  <text class="label" x="231" y="194">HTTP</text>
+  <path class="rpc" d="M450 207H500"/>
+  <text class="label" x="475" y="193">RPC</text>
+  <path class="rpc" d="M355 250V266H871V250"/>
+  <rect x="467" y="256" width="290" height="19" rx="4" fill="#f0fdfa"/>
+  <text class="label" x="612" y="270">RPC · social / access / sync</text>
+  <path class="transport" d="M204 414H260"/>
+  <text class="label" x="231" y="396">TCP / WS</text>
+  <path class="send" d="M420 414H450"/>
+  <text class="label" x="435" y="398">RPC</text>
 
-      <!-- Nodes -->
-      <g><rect class="nodeMask" x="72" y="116" width="144" height="72" rx="6"/><rect class="nodeInput" x="72" y="116" width="144" height="72" rx="6"/><rect class="tag" x="80" y="124" width="44" height="12" rx="2"/><text class="tagText" x="102" y="133" text-anchor="middle">CLIENT</text><text class="name" x="144" y="153" text-anchor="middle">CheeseBox + SDK</text><text class="sub" x="144" y="172" text-anchor="middle">Go · user cursor</text></g>
-      <g><rect class="nodeMask" x="256" y="116" width="132" height="72" rx="6"/><rect class="node" x="256" y="116" width="132" height="72" rx="6"/><rect class="tag" x="264" y="124" width="28" height="12" rx="2"/><text class="tagText" x="278" y="133" text-anchor="middle">API</text><text class="name" x="322" y="153" text-anchor="middle">API Plane</text><text class="sub" x="322" y="172" text-anchor="middle">auth · social · sync</text></g>
-      <g><rect class="nodeMask" x="72" y="300" width="160" height="72" rx="6"/><rect class="node" x="72" y="300" width="160" height="72" rx="6"/><rect class="tag" x="80" y="308" width="52" height="12" rx="2"/><text class="tagText" x="106" y="317" text-anchor="middle">GATEWAY</text><text class="name" x="152" y="337" text-anchor="middle">postoffice</text><text class="sub" x="152" y="356" text-anchor="middle">TCP/WS · route</text></g>
-      <g><rect class="nodeMask" x="256" y="300" width="132" height="72" rx="6"/><rect class="node" x="256" y="300" width="132" height="72" rx="6"/><rect class="tag" x="264" y="308" width="48" height="12" rx="2"/><text class="tagText" x="288" y="317" text-anchor="middle">INGRESS</text><text class="name" x="322" y="337" text-anchor="middle">postbox</text><text class="sub" x="322" y="356" text-anchor="middle">permission · idem</text></g>
-      <g><rect class="nodeMask" x="452" y="300" width="144" height="72" rx="6"/><rect class="nodeStore" x="452" y="300" width="144" height="72" rx="6"/><rect class="tag" x="460" y="308" width="44" height="12" rx="2"/><text class="tagText" x="482" y="317" text-anchor="middle">QUEUE</text><text class="name" x="524" y="337" text-anchor="middle">Ingress Bus</text><text class="sub" x="524" y="356" text-anchor="middle">keyed protobuf</text></g>
-      <g><rect class="nodeMask" x="648" y="284" width="160" height="88" rx="6"/><rect class="nodeFocal" x="648" y="284" width="160" height="88" rx="6"/><rect class="tagAccent" x="656" y="292" width="44" height="12" rx="2"/><text class="tagTextAccent" x="678" y="301" text-anchor="middle">CORE</text><text class="name" x="728" y="329" text-anchor="middle">postmaster</text><text class="sub" x="728" y="348" text-anchor="middle">seq · history · fanout</text></g>
-      <g><rect class="nodeMask" x="860" y="300" width="104" height="72" rx="6"/><rect class="nodeStore" x="860" y="300" width="104" height="72" rx="6"/><rect class="tag" x="868" y="308" width="44" height="12" rx="2"/><text class="tagText" x="890" y="317" text-anchor="middle">QUEUE</text><text class="name" x="912" y="337" text-anchor="middle">Delivery Bus</text><text class="sub" x="912" y="356" text-anchor="middle">keyed batch</text></g>
-      <g><rect class="nodeMask" x="1040" y="284" width="160" height="88" rx="6"/><rect class="node" x="1040" y="284" width="160" height="88" rx="6"/><rect class="tag" x="1048" y="292" width="56" height="12" rx="2"/><text class="tagText" x="1076" y="301" text-anchor="middle">DELIVERY</text><text class="name" x="1120" y="329" text-anchor="middle">postman</text><text class="sub" x="1120" y="348" text-anchor="middle">online route · vendor push</text></g>
-      <g><rect class="nodeMask" x="552" y="496" width="560" height="48" rx="6"/><rect class="nodeStore" x="552" y="496" width="560" height="48" rx="6"/><rect class="tag" x="560" y="504" width="40" height="12" rx="2"/><text class="tagText" x="580" y="513" text-anchor="middle">STATE</text><text class="name" x="832" y="517" text-anchor="middle">MongoDB · Redis · Kafka / Chronicle</text><text class="sub" x="832" y="536" text-anchor="middle">history · route · seq · idempotency · control-event outbox</text></g>
+  <!-- 事件是队列边，不用实线冒充直接服务调用。 -->
+  <path class="queue" d="M610 414H640"/>
+  <line class="guide" x1="625" y1="353" x2="625" y2="405"/>
+  <text class="label event-label" x="625" y="346">INGRESS</text>
+  <path class="queue" d="M800 414H830"/>
+  <line class="guide" x1="815" y1="353" x2="815" y2="405"/>
+  <text class="label event-label" x="815" y="346">DELIVERY</text>
+  <path class="online" d="M886 468V510H340V468"/>
+  <text class="online-label" x="408" y="498">ONLINE · Redis node queue → gatewayNode</text>
+  <!-- 白色衬线表示交叉但不连接，历史与投递是独立分支。 -->
+  <path d="M720 493V527" stroke="#f8fafc" stroke-width="9"/>
+  <path class="queue" d="M720 468V578"/>
+  <rect x="678" y="536" width="84" height="23" rx="5" fill="#f8fafc"/>
+  <text class="label event-label" x="720" y="552">HISTORY</text>
+  <path class="queue" d="M948 468V578"/>
+  <rect x="848" y="536" width="138" height="23" rx="5" fill="#f8fafc"/>
+  <text class="label event-label" x="917" y="552">OFFLINE_PUSH</text>
 
-      <text class="aside" x="48" y="620">One ordered core, two delivery outcomes, one recoverable truth.</text>
-      <line x1="40" y1="652" x2="1240" y2="652" stroke="rgba(15,23,42,.12)" stroke-width=".8"/>
-      <text class="legend" x="40" y="676">LEGEND</text><line x1="120" y1="672" x2="156" y2="672" stroke="#2563eb" stroke-width="1.2"/><text class="legend" x="168" y="676">PRIMARY MESSAGE FLOW</text><line x1="344" y1="672" x2="380" y2="672" stroke="#0f766e" stroke-width="1.2"/><text class="legend" x="392" y="676">HTTP / SYNC</text><line x1="520" y1="672" x2="556" y2="672" stroke="#475569" stroke-width="1" stroke-dasharray="5 4"/><text class="legend" x="568" y="676">ASYNC RETURN</text><rect x="736" y="664" width="20" height="12" rx="2" fill="rgba(37,99,235,.08)" stroke="#2563eb"/><text class="legend" x="768" y="676">FOCAL CORE</text><text class="legend" x="1240" y="676" text-anchor="end">message_protocol.proto · SINGLE WIRE CONTRACT</text>
-    </svg>
+  <!-- 客户端是同一个入口角色，可连接不同的网关实例。 -->
+  <rect x="32" y="176" width="172" height="284" rx="14" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5"/>
+  <text class="section" x="52" y="205">CLIENTS</text>
+  <text class="name" x="52" y="238">CheeseBox</text>
+  <text class="role" x="52" y="262">+ Go SDK</text>
+  <text class="role" x="52" y="302">HTTP control</text>
+  <text class="role" x="52" y="326">Binary Protobuf</text>
+  <text class="detail" x="52" y="432">Local state + cursors</text>
+
+  <!-- 七个实际业务服务。 -->
+  <g>
+    <rect class="control-service" x="260" y="164" width="190" height="86" rx="10"/>
+    <text class="name" x="276" y="194">api-server</text>
+    <text class="role" x="276" y="219">HTTP · auth / social / sync</text>
+    <text class="detail" x="276" y="240">Controller + Facade</text>
+  </g>
+  <g>
+    <rect class="control-service" x="500" y="164" width="210" height="86" rx="10"/>
+    <text class="name" x="516" y="194">authcenter</text>
+    <text class="role" x="516" y="219">tokens · sessions · tickets</text>
+    <text class="detail" x="516" y="240">Identity verification</text>
+  </g>
+  <g>
+    <rect class="control-service" x="756" y="164" width="230" height="86" rx="10"/>
+    <text class="name" x="772" y="194">business</text>
+    <text class="role" x="772" y="219">users · groups · conversations</text>
+    <text class="detail" x="772" y="240">Access + sync + control events</text>
+  </g>
+  <g>
+    <rect class="service" x="260" y="360" width="160" height="108" rx="10"/>
+    <circle cx="278" cy="382" r="11" fill="#2563eb"/><text class="number" x="278" y="386">1</text>
+    <text class="name" x="296" y="388">postoffice</text>
+    <text class="role" x="276" y="416">TCP / WS gateway</text>
+    <text class="detail" x="276" y="442">connections · routes</text>
+  </g>
+  <g>
+    <rect class="service" x="450" y="360" width="160" height="108" rx="10"/>
+    <circle cx="468" cy="382" r="11" fill="#2563eb"/><text class="number" x="468" y="386">2</text>
+    <text class="name" x="486" y="388">postbox</text>
+    <text class="role" x="466" y="416">send + history queries</text>
+    <text class="detail" x="466" y="442">permission · inbox</text>
+  </g>
+  <g>
+    <rect class="core" x="640" y="360" width="160" height="108" rx="10"/>
+    <circle cx="658" cy="382" r="11" fill="#2563eb"/><text class="number" x="658" y="386">3</text>
+    <text class="name" x="676" y="388">postmaster</text>
+    <text class="role" x="656" y="416">seq + orchestration</text>
+    <text class="detail" x="656" y="442">history · group fanout</text>
+  </g>
+  <g>
+    <rect class="service" x="830" y="360" width="160" height="108" rx="10"/>
+    <circle cx="848" cy="382" r="11" fill="#2563eb"/><text class="number" x="848" y="386">4</text>
+    <text class="name" x="866" y="388">postman</text>
+    <text class="role" x="846" y="416">delivery + vendor push</text>
+    <text class="detail" x="846" y="442">route · push policy</text>
+  </g>
+
+  <text class="role" x="260" y="554">Group fanout is inside postmaster.</text>
+  <text class="detail" x="260" y="580">Normal group: write fanout</text>
+  <text class="detail" x="260" y="604">Super group: history + client pull</text>
+  <text class="detail" x="260" y="650">Clients recover via HTTP seq / cursor sync.</text>
+  <g>
+    <rect class="resource" x="640" y="578" width="160" height="88" rx="10"/>
+    <text class="name" x="656" y="606">History blocks</text>
+    <text class="role" x="656" y="631">MongoDB</text>
+    <text class="detail" x="656" y="653">HISTORY consumer</text>
+  </g>
+  <g>
+    <rect class="resource" x="830" y="578" width="160" height="88" rx="10"/>
+    <text class="name" x="846" y="606">Push providers</text>
+    <text class="role" x="846" y="631">APNs · FCM</text>
+    <text class="detail" x="846" y="653">Huawei · Xiaomi · JPush</text>
+  </g>
+
+  <!-- 基础设施按用途分开，Kafka/Chronicle不是持久化数据库。 -->
+  <g>
+    <rect class="resource" x="260" y="748" width="220" height="72" rx="10"/>
+    <text class="name" x="276" y="775">Redis</text>
+    <text class="detail" x="276" y="800">routes · inbox · seq cache · leases</text>
+  </g>
+  <g>
+    <rect class="resource" x="504" y="748" width="220" height="72" rx="10"/>
+    <text class="name" x="520" y="775">Kafka / Chronicle</text>
+    <text class="detail" x="520" y="800">QueueAdapter · event topics</text>
+  </g>
+  <g>
+    <rect class="resource" x="748" y="748" width="240" height="72" rx="10"/>
+    <text class="name" x="764" y="775">MongoDB</text>
+    <text class="detail" x="764" y="800">business · history · control outbox</text>
+  </g>
+  <text class="detail" x="32" y="868">Logical view · all-in-one: one JVM / Chronicle / injvm · cluster: seven service roles / Kafka / remote Dubbo</text>
+</svg>
